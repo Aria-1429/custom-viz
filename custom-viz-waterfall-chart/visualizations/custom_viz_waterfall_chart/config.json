@@ -1,0 +1,99 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz Waterfall Chart",
+    "description": "A waterfall (bridge) chart showing how sequential increases and decreases build up to a total",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 560,
+      "initialHeight": 340
+    },
+    "optionsSchema": {
+      "labelField": { "type": "string", "default": "" },
+      "valueField": { "type": "string", "default": "" },
+      "typeField": { "type": "string", "default": "" },
+
+      "cumulativeInput": { "type": "boolean", "default": false },
+      "showTotal": { "type": "boolean", "default": true },
+      "totalLabel": { "type": "string", "default": "合計" },
+
+      "increaseColor": { "type": "string", "default": "#3fb950" },
+      "decreaseColor": { "type": "string", "default": "#f85149" },
+      "totalColor": { "type": "string", "default": "#4f8ff7" },
+      "invertColors": { "type": "boolean", "default": false },
+      "showGlow": { "type": "boolean", "default": false },
+
+      "showValues": { "type": "boolean", "default": true },
+      "showConnectors": { "type": "boolean", "default": true },
+      "showAxis": { "type": "boolean", "default": true },
+      "showXLabels": { "type": "boolean", "default": true },
+      "animate": { "type": "boolean", "default": true },
+
+      "valueDecimals": { "type": "number", "default": 0 },
+      "abbreviateValue": { "type": "boolean", "default": false },
+
+      "debug": { "type": "boolean", "default": false }
+    },
+    "editorConfig": [
+      {
+        "label": "データフィールド",
+        "layout": [
+          [{ "label": "ラベル（項目）フィールド", "editor": "editor.columnSelector", "option": "labelField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "値（増減）フィールド", "editor": "editor.columnSelector", "option": "valueField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "種別フィールド（total / start 指定・任意）", "editor": "editor.columnSelector", "option": "typeField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }]
+        ]
+      },
+      {
+        "label": "データ解釈",
+        "layout": [
+          [{ "label": "値を累計値として解釈（増減を自動計算）", "editor": "editor.checkbox", "option": "cumulativeInput" }],
+          [{ "label": "末尾に合計バーを自動追加", "editor": "editor.checkbox", "option": "showTotal" }]
+        ]
+      },
+      {
+        "label": "色",
+        "layout": [
+          [{ "label": "増加の色", "editor": "editor.color", "option": "increaseColor" }],
+          [{ "label": "減少の色", "editor": "editor.color", "option": "decreaseColor" }],
+          [{ "label": "合計・開始の色", "editor": "editor.color", "option": "totalColor" }],
+          [{ "label": "増減の色を入れ替え（増＝赤／減＝緑）", "editor": "editor.checkbox", "option": "invertColors" }],
+          [{ "label": "発光（グロー）を表示", "editor": "editor.checkbox", "option": "showGlow" }]
+        ]
+      },
+      {
+        "label": "表示",
+        "layout": [
+          [{ "label": "値ラベルを表示", "editor": "editor.checkbox", "option": "showValues" }],
+          [{ "label": "コネクタ（点線）を表示", "editor": "editor.checkbox", "option": "showConnectors" }],
+          [{ "label": "Y軸目盛を表示", "editor": "editor.checkbox", "option": "showAxis" }],
+          [{ "label": "項目名（X軸ラベル）を表示", "editor": "editor.checkbox", "option": "showXLabels" }],
+          [{ "label": "バーの伸長アニメーション", "editor": "editor.checkbox", "option": "animate" }]
+        ]
+      },
+      {
+        "label": "数値",
+        "layout": [
+          [{ "label": "小数点以下の桁数", "editor": "editor.number", "option": "valueDecimals" }],
+          [{ "label": "数値を省略表記（1.5M など）", "editor": "editor.checkbox", "option": "abbreviateValue" }]
+        ]
+      },
+      {
+        "label": "デバッグ",
+        "layout": [
+          [{ "label": "オプションのデバッグ表示", "editor": "editor.checkbox", "option": "debug" }]
+        ]
+      }
+    ],
+    "defaultContext": {}
+  }
+}
