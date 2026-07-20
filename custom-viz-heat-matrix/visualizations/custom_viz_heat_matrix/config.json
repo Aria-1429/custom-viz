@@ -1,0 +1,116 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz Heat Matrix",
+    "description": "A universal cross-tab heatmap matrix with continuous color scale",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 560,
+      "initialHeight": 360
+    },
+    "optionsSchema": {
+      "rowField": { "type": "string", "default": "" },
+      "colField": { "type": "string", "default": "" },
+      "valueField": { "type": "string", "default": "" },
+
+      "lowColor": { "type": "string", "default": "#4575b4" },
+      "midColor": { "type": "string", "default": "#fee08b" },
+      "highColor": { "type": "string", "default": "#d73027" },
+      "useMidColor": { "type": "boolean", "default": true },
+      "reverseScale": { "type": "boolean", "default": false },
+      "scaleMin": { "type": "number" },
+      "scaleMax": { "type": "number" },
+      "normalizeByRow": { "type": "boolean", "default": false },
+      "normalizeByColumn": { "type": "boolean", "default": false },
+
+      "showValues": { "type": "boolean", "default": true },
+      "showXLabels": { "type": "boolean", "default": true },
+      "showYLabels": { "type": "boolean", "default": true },
+      "showRowTotals": { "type": "boolean", "default": false },
+      "showColTotals": { "type": "boolean", "default": false },
+      "showLegend": { "type": "boolean", "default": true },
+      "sortRowsByTotal": { "type": "boolean", "default": false },
+      "sortColsByTotal": { "type": "boolean", "default": false },
+      "animate": { "type": "boolean", "default": true },
+
+      "cellGap": { "type": "number", "default": 2 },
+      "cellRadius": { "type": "number", "default": 2 },
+      "maxCellSize": { "type": "number", "default": 0 },
+
+      "valueDecimals": { "type": "number", "default": 0 },
+      "abbreviateValue": { "type": "boolean", "default": false },
+
+      "debug": { "type": "boolean", "default": false }
+    },
+    "editorConfig": [
+      {
+        "label": "データフィールド",
+        "layout": [
+          [{ "label": "行（縦軸）フィールド", "editor": "editor.columnSelector", "option": "rowField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "列（横軸）フィールド（縦持ちデータ時）", "editor": "editor.columnSelector", "option": "colField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "値フィールド", "editor": "editor.columnSelector", "option": "valueField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }]
+        ]
+      },
+      {
+        "label": "色スケール",
+        "layout": [
+          [{ "label": "低値の色", "editor": "editor.color", "option": "lowColor" }],
+          [{ "label": "中間色を使う", "editor": "editor.checkbox", "option": "useMidColor" }],
+          [{ "label": "中間の色", "editor": "editor.color", "option": "midColor" }],
+          [{ "label": "高値の色", "editor": "editor.color", "option": "highColor" }],
+          [{ "label": "低⇔高を反転", "editor": "editor.checkbox", "option": "reverseScale" }],
+          [{ "label": "スケール下限（空欄=データ最小）", "editor": "editor.number", "option": "scaleMin" }],
+          [{ "label": "スケール上限（空欄=データ最大）", "editor": "editor.number", "option": "scaleMax" }],
+          [{ "label": "行ごとに色を正規化", "editor": "editor.checkbox", "option": "normalizeByRow" }],
+          [{ "label": "列ごとに色を正規化", "editor": "editor.checkbox", "option": "normalizeByColumn" }]
+        ]
+      },
+      {
+        "label": "表示",
+        "layout": [
+          [{ "label": "セルに値を表示", "editor": "editor.checkbox", "option": "showValues" }],
+          [{ "label": "列（横軸）ラベルを表示", "editor": "editor.checkbox", "option": "showXLabels" }],
+          [{ "label": "行（縦軸）ラベルを表示", "editor": "editor.checkbox", "option": "showYLabels" }],
+          [{ "label": "行の合計を表示", "editor": "editor.checkbox", "option": "showRowTotals" }],
+          [{ "label": "列の合計を表示", "editor": "editor.checkbox", "option": "showColTotals" }],
+          [{ "label": "カラー凡例を表示", "editor": "editor.checkbox", "option": "showLegend" }],
+          [{ "label": "行を合計の大きい順に並べ替え", "editor": "editor.checkbox", "option": "sortRowsByTotal" }],
+          [{ "label": "列を合計の大きい順に並べ替え", "editor": "editor.checkbox", "option": "sortColsByTotal" }],
+          [{ "label": "フェードインアニメーション", "editor": "editor.checkbox", "option": "animate" }]
+        ]
+      },
+      {
+        "label": "セル",
+        "layout": [
+          [{ "label": "セルの間隔（px）", "editor": "editor.number", "option": "cellGap" }],
+          [{ "label": "セルの角丸（px）", "editor": "editor.number", "option": "cellRadius" }],
+          [{ "label": "セルの最大サイズ（px、0=無制限）", "editor": "editor.number", "option": "maxCellSize" }]
+        ]
+      },
+      {
+        "label": "数値",
+        "layout": [
+          [{ "label": "小数点以下の桁数", "editor": "editor.number", "option": "valueDecimals" }],
+          [{ "label": "数値を省略表記（1.5M など）", "editor": "editor.checkbox", "option": "abbreviateValue" }]
+        ]
+      },
+      {
+        "label": "デバッグ",
+        "layout": [
+          [{ "label": "オプションのデバッグ表示", "editor": "editor.checkbox", "option": "debug" }]
+        ]
+      }
+    ],
+    "defaultContext": {}
+  }
+}
