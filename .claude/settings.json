@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ' *)",
+      "Bash(xargs ls -la)",
+      "Bash(node -e \"console.log\\(process.version\\)\")",
+      "Bash(yarn package *)",
+      "WebSearch",
+      "Bash(python3 -c ' *)",
+      "WebFetch(domain:help.splunk.com)",
+      "WebFetch(domain:splunkui.splunk.com)",
+      "Bash(grep -v '.map$')",
+      "WebFetch(domain:raw.githubusercontent.com)"
+    ]
+  }
+}
