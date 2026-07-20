@@ -1,0 +1,106 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz Bullet Graph",
+    "description": "A bullet graph list comparing measures against targets and qualitative ranges",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 520,
+      "initialHeight": 320
+    },
+    "optionsSchema": {
+      "labelField": { "type": "string", "default": "" },
+      "valueField": { "type": "string", "default": "" },
+      "targetField": { "type": "string", "default": "" },
+      "compareField": { "type": "string", "default": "" },
+
+      "showBands": { "type": "boolean", "default": true },
+      "band1Pct": { "type": "number", "default": 60 },
+      "band2Pct": { "type": "number", "default": 85 },
+
+      "showTarget": { "type": "boolean", "default": true },
+      "showCompare": { "type": "boolean", "default": true },
+      "showValues": { "type": "boolean", "default": true },
+      "showPercent": { "type": "boolean", "default": true },
+      "sharedScale": { "type": "boolean", "default": false },
+      "sortByAchievement": { "type": "boolean", "default": false },
+      "animate": { "type": "boolean", "default": true },
+
+      "useValueColors": { "type": "boolean", "default": true },
+      "goodColor": { "type": "string", "default": "#3fb950" },
+      "warnColor": { "type": "string", "default": "#d29922" },
+      "badColor": { "type": "string", "default": "#f85149" },
+      "barColor": { "type": "string", "default": "#4f8ff7" },
+
+      "valueDecimals": { "type": "number", "default": 0 },
+      "abbreviateValue": { "type": "boolean", "default": false },
+
+      "debug": { "type": "boolean", "default": false }
+    },
+    "editorConfig": [
+      {
+        "label": "データフィールド",
+        "layout": [
+          [{ "label": "ラベル（指標名）フィールド", "editor": "editor.columnSelector", "option": "labelField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "実績フィールド", "editor": "editor.columnSelector", "option": "valueField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "目標フィールド", "editor": "editor.columnSelector", "option": "targetField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "比較（前回値）フィールド（任意）", "editor": "editor.columnSelector", "option": "compareField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }]
+        ]
+      },
+      {
+        "label": "バンド（質的レンジ）",
+        "layout": [
+          [{ "label": "バンドを表示", "editor": "editor.checkbox", "option": "showBands" }],
+          [{ "label": "バンド境界1（目標比%・ここ未満は不可）", "editor": "editor.number", "option": "band1Pct" }],
+          [{ "label": "バンド境界2（目標比%・ここ未満は可）", "editor": "editor.number", "option": "band2Pct" }]
+        ]
+      },
+      {
+        "label": "表示",
+        "layout": [
+          [{ "label": "目標ティックを表示", "editor": "editor.checkbox", "option": "showTarget" }],
+          [{ "label": "比較マーカーを表示", "editor": "editor.checkbox", "option": "showCompare" }],
+          [{ "label": "実績値を表示", "editor": "editor.checkbox", "option": "showValues" }],
+          [{ "label": "達成率（%）を表示", "editor": "editor.checkbox", "option": "showPercent" }],
+          [{ "label": "全行で同一スケール", "editor": "editor.checkbox", "option": "sharedScale" }],
+          [{ "label": "達成率が低い順に並べ替え", "editor": "editor.checkbox", "option": "sortByAchievement" }],
+          [{ "label": "バーの伸長アニメーション", "editor": "editor.checkbox", "option": "animate" }]
+        ]
+      },
+      {
+        "label": "色",
+        "layout": [
+          [{ "label": "達成度で実績バーを色分け", "editor": "editor.checkbox", "option": "useValueColors" }],
+          [{ "label": "良（目標圏内）の色", "editor": "editor.color", "option": "goodColor" }],
+          [{ "label": "可の色", "editor": "editor.color", "option": "warnColor" }],
+          [{ "label": "不可の色", "editor": "editor.color", "option": "badColor" }],
+          [{ "label": "実績バーの色（色分けOFF時）", "editor": "editor.color", "option": "barColor" }]
+        ]
+      },
+      {
+        "label": "数値",
+        "layout": [
+          [{ "label": "小数点以下の桁数", "editor": "editor.number", "option": "valueDecimals" }],
+          [{ "label": "数値を省略表記（1.5M など）", "editor": "editor.checkbox", "option": "abbreviateValue" }]
+        ]
+      },
+      {
+        "label": "デバッグ",
+        "layout": [
+          [{ "label": "オプションのデバッグ表示", "editor": "editor.checkbox", "option": "debug" }]
+        ]
+      }
+    ],
+    "defaultContext": {}
+  }
+}
