@@ -1,0 +1,103 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz Radial Bar",
+    "description": "A radial bar chart where each category is a wedge growing outward from the center, with a total in the middle",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 560,
+      "initialHeight": 520
+    },
+    "optionsSchema": {
+      "categoryField": { "type": "string", "default": "" },
+      "valueField": { "type": "string", "default": "" },
+      "centerTitle": { "type": "string", "default": "" },
+      "useValueColors": { "type": "boolean", "default": true },
+      "lowColor": { "type": "string", "default": "#7c3aed" },
+      "midColor": { "type": "string", "default": "#4f7bf0" },
+      "highColor": { "type": "string", "default": "#38bdf8" },
+      "useMidColor": { "type": "boolean", "default": true },
+      "reverse": { "type": "boolean", "default": false },
+      "color1": { "type": "string", "default": "#38bdf8" },
+      "color2": { "type": "string", "default": "#4f7bf0" },
+      "color3": { "type": "string", "default": "#6366f1" },
+      "color4": { "type": "string", "default": "#7c3aed" },
+      "color5": { "type": "string", "default": "#a855f7" },
+      "color6": { "type": "string", "default": "#ec4899" },
+      "maxBars": { "type": "number", "default": 12 },
+      "gapDeg": { "type": "number", "default": 4 },
+      "innerRadiusPct": { "type": "number", "default": 34 },
+      "cornerRadius": { "type": "number", "default": 4 },
+      "showTrack": { "type": "boolean", "default": true },
+      "showLabels": { "type": "boolean", "default": true },
+      "showValueOnBar": { "type": "boolean", "default": false },
+      "showTotal": { "type": "boolean", "default": true },
+      "usdCenter": { "type": "boolean", "default": false },
+      "glow": { "type": "boolean", "default": true },
+      "glowStrength": { "type": "number", "default": 5 },
+      "valueFormat": { "type": "string", "default": "comma" }
+    },
+    "editorConfig": [
+      {
+        "label": "データ設定",
+        "layout": [
+          [{ "label": "カテゴリのフィールド", "editor": "editor.columnSelector", "option": "categoryField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "値のフィールド", "editor": "editor.columnSelector", "option": "valueField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }]
+        ]
+      },
+      {
+        "label": "リング",
+        "layout": [
+          [{ "label": "最大バー数（残りは切り捨て）", "editor": "editor.number", "option": "maxBars" }],
+          [{ "label": "バー間の隙間（度）", "editor": "editor.number", "option": "gapDeg" }],
+          [{ "label": "内側の半径（％）", "editor": "editor.number", "option": "innerRadiusPct" }],
+          [{ "label": "バー端の丸み（px）", "editor": "editor.number", "option": "cornerRadius" }],
+          [{ "label": "背景トラックを表示", "editor": "editor.checkbox", "option": "showTrack" }],
+          [{ "label": "発光エフェクト", "editor": "editor.checkbox", "option": "glow" }],
+          [{ "label": "発光の強さ（px）", "editor": "editor.number", "option": "glowStrength" }]
+        ]
+      },
+      {
+        "label": "ラベルと中央",
+        "layout": [
+          [{ "label": "外周にラベルを表示", "editor": "editor.checkbox", "option": "showLabels" }],
+          [{ "label": "バー上に値を表示", "editor": "editor.checkbox", "option": "showValueOnBar" }],
+          [{ "label": "中央に合計を表示", "editor": "editor.checkbox", "option": "showTotal" }],
+          [{ "label": "中央の値に $ を付ける", "editor": "editor.checkbox", "option": "usdCenter" }]
+        ]
+      },
+      {
+        "label": "色（値ベース）",
+        "layout": [
+          [{ "label": "値に応じて色を変える", "editor": "editor.checkbox", "option": "useValueColors" }],
+          [{ "label": "中間色を使う", "editor": "editor.checkbox", "option": "useMidColor" }],
+          [{ "label": "高↔低を反転", "editor": "editor.checkbox", "option": "reverse" }],
+          [{ "label": "低い値の色", "editor": "editor.color", "option": "lowColor" }],
+          [{ "label": "中間値の色", "editor": "editor.color", "option": "midColor" }],
+          [{ "label": "高い値の色", "editor": "editor.color", "option": "highColor" }]
+        ]
+      },
+      {
+        "label": "色（カテゴリ別・値ベースがOFFのとき）",
+        "layout": [
+          [{ "label": "バー 1", "editor": "editor.color", "option": "color1" }],
+          [{ "label": "バー 2", "editor": "editor.color", "option": "color2" }],
+          [{ "label": "バー 3", "editor": "editor.color", "option": "color3" }],
+          [{ "label": "バー 4", "editor": "editor.color", "option": "color4" }],
+          [{ "label": "バー 5", "editor": "editor.color", "option": "color5" }],
+          [{ "label": "バー 6", "editor": "editor.color", "option": "color6" }]
+        ]
+      }
+    ]
+  }
+}
