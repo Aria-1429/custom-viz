@@ -1,0 +1,1000 @@
+country_code,country_code3,country,city,city_ascii,admin_name,lat,lon,population,city_rank_in_country,is_capital,capital_type,location,source_dataset,source_url
+AF,AFG,Afghanistan,Kabul,Kabul,Kabul,34.52813,69.17233,3678034,1,1,country,"34.52813,69.17233",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AF,AFG,Afghanistan,Kandahar,Kandahar,Kandahar,31.61332,65.71013,491500,2,0,,"31.61332,65.71013",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AF,AFG,Afghanistan,Herat,Herat,Herat,34.34817,62.19967,436300,3,0,,"34.34817,62.19967",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AF,AFG,Afghanistan,Mazar-e Sharif,Mazar-e Sharif,Balkh,36.70904,67.11087,427600,4,0,,"36.70904,67.11087",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AF,AFG,Afghanistan,Kunduz,Kunduz,Kunduz,36.72895,68.857,259809,5,0,,"36.72895,68.857",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AX,ALA,Aland Islands,Mariehamn,Mariehamn,211,60.09726,19.93481,10682,1,1,country,"60.09726,19.93481",GeoNames cities15000,https://www.geonames.org/
+AL,ALB,Albania,Tirana,Tirana,Tirane,41.32744,19.81866,418495,1,1,country,"41.32744,19.81866",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AL,ALB,Albania,Durres,Durres,Durres,41.32355,19.45469,142432,2,0,,"41.32355,19.45469",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AL,ALB,Albania,Vlore,Vlore,Vlore,40.4696,19.48379,130827,3,0,,"40.4696,19.48379",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AL,ALB,Albania,Kamez,Kamez,Tirane,41.3833,19.7667,126777,4,0,,"41.3833,19.7667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AL,ALB,Albania,Fier,Fier,Fier,40.7251,19.55823,120655,5,0,,"40.7251,19.55823",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DZ,DZA,Algeria,Algiers,Algiers,Alger,36.73225,3.08746,3415811,1,1,country,"36.73225,3.08746",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DZ,DZA,Algeria,Oran,Oran,Oran,35.69906,-0.63588,852000,2,0,,"35.69906,-0.63588",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DZ,DZA,Algeria,Constantine,Constantine,Constantine,36.365,6.61472,448374,3,0,,"36.365,6.61472",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DZ,DZA,Algeria,Blida,Blida,Blida,36.47004,2.8277,331779,4,0,,"36.47004,2.8277",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DZ,DZA,Algeria,Batna,Batna,Batna,35.55597,6.17414,290645,5,0,,"35.55597,6.17414",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AS,ASM,American Samoa,Pago Pago,Pago Pago,,-14.27806,-170.7025,12576,1,1,country,"-14.27806,-170.7025",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AD,AND,Andorra,Andorra la Vella,Andorra la Vella,Andorra la Vella,42.50779,1.52109,22151,1,1,country,"42.50779,1.52109",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AD,AND,Andorra,Canillo,Canillo,Canillo,42.567,1.5981,0,2,0,,"42.5670,1.5981",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AD,AND,Andorra,Encamp,Encamp,Encamp,42.5167,1.5667,0,3,0,,"42.5167,1.5667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AD,AND,Andorra,Escaldes-Engordany,Escaldes-Engordany,Escaldes-Engordany,42.5085,1.5385,0,4,0,,"42.5085,1.5385",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AD,AND,Andorra,La Massana,La Massana,La Massana,42.5434,1.5148,0,5,0,,"42.5434,1.5148",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AO,AGO,Angola,Luanda,Luanda,Luanda,-8.83682,13.23432,8417000,1,1,country,"-8.83682,13.23432",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AO,AGO,Angola,Huambo,Huambo,Huambo,-12.77611,15.73917,665564,2,0,,"-12.77611,15.73917",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AO,AGO,Angola,Cabinda,Cabinda,Cabinda,-5.56198,12.19476,550000,3,0,,"-5.56198,12.19476",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AO,AGO,Angola,Benguela,Benguela,Benguela,-12.57674,13.40268,513000,4,0,,"-12.57674,13.40268",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AO,AGO,Angola,Lobito,Lobito,Benguela,-12.3644,13.53601,207932,5,0,,"-12.3644,13.53601",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AI,AIA,Anguilla,The Valley,The Valley,11205396,18.21704,-63.05783,2035,1,1,country,"18.21704,-63.05783",GeoNames cities15000,https://www.geonames.org/
+AG,ATG,Antigua And Barbuda,Saint John's,Saint John's,Saint John,17.12096,-61.84329,21926,1,1,country,"17.12096,-61.84329",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AR,ARG,Argentina,Buenos Aires,Buenos Aires,"Buenos Aires, Ciudad Autonoma de",-34.61315,-58.37723,16157000,1,1,country,"-34.61315,-58.37723",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AR,ARG,Argentina,Cordoba,Cordoba,Cordoba,-31.40648,-64.18853,1329604,2,0,,"-31.40648,-64.18853",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AR,ARG,Argentina,Rosario,Rosario,Santa Fe,-32.94682,-60.63932,1193605,3,0,,"-32.94682,-60.63932",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AR,ARG,Argentina,San Miguel de Tucuman,San Miguel de Tucuman,Tucuman,-26.81601,-65.21051,605767,4,0,,"-26.81601,-65.21051",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AR,ARG,Argentina,Mar del Plata,Mar del Plata,Buenos Aires,-38.00042,-57.5562,593337,5,0,,"-38.00042,-57.5562",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AM,ARM,Armenia,Yerevan,Yerevan,Yerevan,40.17765,44.5126,1075800,1,1,country,"40.17765,44.5126",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AM,ARM,Armenia,Gyumri,Gyumri,Shirak,40.79305,43.84635,121976,2,0,,"40.79305,43.84635",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AM,ARM,Armenia,Vanadzor,Vanadzor,Lorri,40.8074,44.49704,90525,3,0,,"40.8074,44.49704",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AM,ARM,Armenia,Ejmiatsin,Ejmiatsin,Armavir,40.1728,44.2925,57500,4,0,,"40.1728,44.2925",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AM,ARM,Armenia,Abovyan,Abovyan,Kotayk',40.2717,44.63342,44400,5,0,,"40.2717,44.63342",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AW,ABW,Aruba,Oranjestad,Oranjestad,,12.52398,-70.02703,34980,1,1,country,"12.52398,-70.02703",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AU,AUS,Australia,Sydney,Sydney,New South Wales,-33.86785,151.20732,5312163,1,0,,"-33.86785,151.20732",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AU,AUS,Australia,Melbourne,Melbourne,Victoria,-37.814,144.96332,5078193,2,0,,"-37.814,144.96332",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AU,AUS,Australia,Brisbane,Brisbane,Queensland,-27.46794,153.02809,2514184,3,0,,"-27.46794,153.02809",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AU,AUS,Australia,Perth,Perth,Western Australia,-31.95224,115.8614,2059484,4,0,,"-31.95224,115.8614",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AU,AUS,Australia,Adelaide,Adelaide,South Australia,-34.92866,138.59863,1345777,5,0,,"-34.92866,138.59863",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AU,AUS,Australia,Canberra,Canberra,Australian Capital Territory,-35.28346,149.12807,426704,7,1,country,"-35.28346,149.12807",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AT,AUT,Austria,Vienna,Vienna,Wien,48.20849,16.37208,1840573,1,1,country,"48.20849,16.37208",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AT,AUT,Austria,Graz,Graz,Steiermark,47.06733,15.44197,289440,2,0,,"47.06733,15.44197",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AT,AUT,Austria,Linz,Linz,Oberosterreich,48.30639,14.28611,204846,3,0,,"48.30639,14.28611",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AT,AUT,Austria,Salzburg,Salzburg,Salzburg,47.79941,13.04399,154076,4,0,,"47.79941,13.04399",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AT,AUT,Austria,Innsbruck,Innsbruck,Tirol,47.26266,11.39454,132493,5,0,,"47.26266,11.39454",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AZ,AZE,Azerbaijan,Baku,Baku,Baki,40.37767,49.89201,2181800,1,1,country,"40.37767,49.89201",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AZ,AZE,Azerbaijan,Sumqayit,Sumqayit,Sumqayit,40.58972,49.66861,341200,2,0,,"40.58972,49.66861",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AZ,AZE,Azerbaijan,Ganca,Ganca,G@nc@,40.6828,46.3606,331400,3,0,,"40.6828,46.3606",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AZ,AZE,Azerbaijan,Mingacevir,Mingacevir,Ming@cevir,40.77,47.0489,98800,4,0,,"40.7700,47.0489",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AZ,AZE,Azerbaijan,Xirdalan,Xirdalan,Abseron,40.4486,49.7564,95200,5,0,,"40.4486,49.7564",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BS,BHS,"Bahamas, The",Nassau,Nassau,,25.05823,-77.34306,274400,1,1,country,"25.05823,-77.34306",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BS,BHS,"Bahamas, The",Freeport City,Freeport City,City of Freeport,26.5333,-78.7,25383,2,0,,"26.5333,-78.7000",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BS,BHS,"Bahamas, The",Marsh Harbour,Marsh Harbour,Central Abaco,26.4,-77.17,6283,3,0,,"26.4000,-77.1700",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BH,BHR,Bahrain,Manama,Manama,Al 'Asimah,26.22787,50.58565,157474,1,1,country,"26.22787,50.58565",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BH,BHR,Bahrain,Al Muharraq,Al Muharraq,Al Muharraq,26.25,50.6167,75000,2,0,,"26.2500,50.6167",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BH,BHR,Bahrain,Madinat Hamad,Madinat Hamad,Ash Shamaliyah,26.11528,50.50694,52700,3,0,,"26.11528,50.50694",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BH,BHR,Bahrain,Madinat `Isa,Madinat `Isa,Al Janubiyah,26.17361,50.54778,40000,4,0,,"26.17361,50.54778",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BD,BGD,Bangladesh,Dhaka,Dhaka,Dhaka,23.7104,90.40744,15443000,1,1,country,"23.7104,90.40744",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BD,BGD,Bangladesh,Chattogram,Chattogram,Chittagong,22.3384,91.83168,2581643,2,0,,"22.3384,91.83168",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BD,BGD,Bangladesh,Khulna,Khulna,Khulna,22.80979,89.56439,1311100,3,0,,"22.80979,89.56439",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BD,BGD,Bangladesh,Sylhet,Sylhet,Sylhet,24.89904,91.87198,479837,4,0,,"24.89904,91.87198",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BD,BGD,Bangladesh,Rajshahi,Rajshahi,Rajshahi,24.3667,88.6,448087,5,0,,"24.3667,88.6000",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BB,BRB,Barbados,Bridgetown,Bridgetown,Saint Michael,13.10732,-59.62021,110000,1,1,country,"13.10732,-59.62021",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BY,BLR,Belarus,Minsk,Minsk,Minsk,53.90019,27.56653,2020600,1,1,country,"53.90019,27.56653",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BY,BLR,Belarus,Homyel',Homyel',Homyel'skaya Voblasts',52.4417,30.9833,510300,2,0,,"52.4417,30.9833",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BY,BLR,Belarus,Vitsyebsk,Vitsyebsk,Vitsyebskaya Voblasts',55.1833,30.1667,364800,3,0,,"55.1833,30.1667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BY,BLR,Belarus,Mahilyow,Mahilyow,Mahilyowskaya Voblasts',53.90876,30.34044,357100,4,0,,"53.90876,30.34044",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BY,BLR,Belarus,Hrodna,Hrodna,Hrodzyenskaya Voblasts',53.6758,23.82887,356900,5,0,,"53.6758,23.82887",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BE,BEL,Belgium,Antwerp,Antwerp,Flanders,51.2211,4.3997,529247,1,0,,"51.2211,4.3997",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BE,BEL,Belgium,Gent,Gent,Flanders,51.05,3.71667,262219,2,0,,"51.05,3.71667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BE,BEL,Belgium,Charleroi,Charleroi,Wallonia,50.41136,4.44448,201816,3,0,,"50.41136,4.44448",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BE,BEL,Belgium,Liege,Liege,Wallonia,50.63373,5.56749,197885,4,0,,"50.63373,5.56749",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BE,BEL,Belgium,Brussels,Brussels,Brussels-Capital Region,50.85045,4.34878,185103,5,1,country,"50.85045,4.34878",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BZ,BLZ,Belize,Belize City,Belize City,Belize,17.49952,-88.19756,57169,1,0,,"17.49952,-88.19756",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BZ,BLZ,Belize,Orange Walk,Orange Walk,Orange Walk,18.08124,-88.56328,18000,2,0,,"18.08124,-88.56328",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BZ,BLZ,Belize,Belmopan,Belmopan,Cayo,17.25376,-88.76401,17222,3,1,country,"17.25376,-88.76401",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BZ,BLZ,Belize,San Ignacio,San Ignacio,Cayo,17.1588,-89.0696,16977,4,0,,"17.1588,-89.0696",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BZ,BLZ,Belize,San Pedro,San Pedro,Belize,17.91598,-87.9659,11767,5,0,,"17.91598,-87.9659",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BJ,BEN,Benin,Cotonou,Cotonou,Littoral,6.36536,2.41833,762000,1,1,country,"6.36536,2.41833",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BJ,BEN,Benin,Porto-Novo,Porto-Novo,Oueme,6.49646,2.60359,300000,2,1,country,"6.49646,2.60359",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BJ,BEN,Benin,Djougou,Djougou,Donga,9.70853,1.66598,202810,3,0,,"9.70853,1.66598",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BJ,BEN,Benin,Parakou,Parakou,Borgou,9.33716,2.63031,188853,4,0,,"9.33716,2.63031",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BJ,BEN,Benin,Kandi,Kandi,Alibori,11.13417,2.93861,109701,5,0,,"11.13417,2.93861",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BM,BMU,Bermuda,Hamilton,Hamilton,Hamilton,32.2949,-64.78303,52320,1,1,country,"32.2949,-64.78303",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BT,BTN,Bhutan,Thimphu,Thimphu,Thimphu,27.46609,89.64191,104000,1,1,country,"27.46609,89.64191",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BT,BTN,Bhutan,Paro,Paro,Paro,27.4333,89.4167,15000,2,0,,"27.4333,89.4167",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BT,BTN,Bhutan,Punakha,Punakha,Punakha,27.6167,89.8667,5000,3,0,,"27.6167,89.8667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BT,BTN,Bhutan,Wangdue Phodrang,Wangdue Phodrang,Wangdue Phodrang,27.4333,89.9167,5000,4,0,,"27.4333,89.9167",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BT,BTN,Bhutan,Daga,Daga,Dagana,27.0753,89.8769,0,5,0,,"27.0753,89.8769",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BO,BOL,Bolivia,Santa Cruz,Santa Cruz,Santa Cruz,-17.7892,-63.1975,3151676,1,0,,"-17.7892,-63.1975",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BO,BOL,Bolivia,La Paz,La Paz,La Paz,-16.5,-68.15,2867504,2,1,country,"-16.5,-68.15",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BO,BOL,Bolivia,Cochabamba,Cochabamba,Cochabamba,-17.38195,-66.15995,632013,3,0,,"-17.38195,-66.15995",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BO,BOL,Bolivia,Sucre,Sucre,Chuquisaca,-19.03332,-65.26274,300000,4,1,country,"-19.03332,-65.26274",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BO,BOL,Bolivia,Oruro,Oruro,Oruro,-17.97153,-67.0932,264683,5,0,,"-17.97153,-67.0932",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BQ,BES,"Bonaire, Saint Eustatius and Saba",Kralendijk,Kralendijk,BO,12.15,-68.26667,3081,1,1,country,"12.15,-68.26667",GeoNames cities15000,https://www.geonames.org/
+BA,BIH,Bosnia And Herzegovina,Sarajevo,Sarajevo,"Bosnia and Herzegovina, Federation of",43.84864,18.35644,275524,1,1,country,"43.84864,18.35644",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BA,BIH,Bosnia And Herzegovina,Banja Luka,Banja Luka,"Srpska, Republika",44.77879,17.20629,199191,2,0,,"44.77879,17.20629",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BA,BIH,Bosnia And Herzegovina,Mostar,Mostar,"Bosnia and Herzegovina, Federation of",43.34333,17.80806,163067,3,0,,"43.34333,17.80806",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BA,BIH,Bosnia And Herzegovina,Bijeljina,Bijeljina,"Srpska, Republika",44.75874,19.21437,114663,4,0,,"44.75874,19.21437",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BA,BIH,Bosnia And Herzegovina,Tuzla,Tuzla,"Bosnia and Herzegovina, Federation of",44.53842,18.66709,110979,5,0,,"44.53842,18.66709",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BW,BWA,Botswana,Gaborone,Gaborone,Gaborone,-24.65451,25.90859,231626,1,1,country,"-24.65451,25.90859",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BW,BWA,Botswana,Francistown,Francistown,Francistown,-21.17,27.50778,89979,2,0,,"-21.17,27.50778",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BW,BWA,Botswana,Molepolole,Molepolole,Kweneng,-24.40659,25.49508,67598,3,0,,"-24.40659,25.49508",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BW,BWA,Botswana,Mahalapye,Mahalapye,Central,-23.10407,26.81421,50744,4,0,,"-23.10407,26.81421",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BW,BWA,Botswana,Maun,Maun,North West,-19.98333,23.41667,49945,5,0,,"-19.98333,23.41667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BR,BRA,Brazil,Sao Paulo,Sao Paulo,Sao Paulo,-23.5475,-46.63611,22046000,1,0,,"-23.5475,-46.63611",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BR,BRA,Brazil,Rio de Janeiro,Rio de Janeiro,Rio de Janeiro,-22.90642,-43.18223,12272000,2,0,,"-22.90642,-43.18223",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BR,BRA,Brazil,Belo Horizonte,Belo Horizonte,Minas Gerais,-19.92083,-43.93778,5159000,3,0,,"-19.92083,-43.93778",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BR,BRA,Brazil,Brasilia,Brasilia,Distrito Federal,-15.77972,-47.92972,3015268,4,1,country,"-15.77972,-47.92972",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BR,BRA,Brazil,Salvador,Salvador,Bahia,-12.97563,-38.49096,2921087,5,0,,"-12.97563,-38.49096",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BR,BRA,Brazil,Brasileia,Brasileia,Acre,-11.01611,-68.74806,24765,506,1,country,"-11.01611,-68.74806",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+VG,VGB,British Virgin Islands,Road Town,Road Town,00,18.42693,-64.62079,8449,1,1,country,"18.42693,-64.62079",GeoNames cities15000,https://www.geonames.org/
+BN,BRN,Brunei,Bandar Seri Begawan,Bandar Seri Begawan,Brunei and Muara,4.89035,114.94006,50000,1,1,country,"4.89035,114.94006",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BN,BRN,Brunei,Kuala Belait,Kuala Belait,Belait,4.58361,114.2312,30267,2,0,,"4.58361,114.2312",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BN,BRN,Brunei,Seria,Seria,Belait,4.60637,114.32476,21082,3,0,,"4.60637,114.32476",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BN,BRN,Brunei,Bangar,Bangar,Temburong,4.7083,115.0736,0,4,0,,"4.7083,115.0736",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BN,BRN,Brunei,Tutong,Tutong,Tutong,4.80278,114.64917,0,5,0,,"4.80278,114.64917",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BG,BGR,Bulgaria,Sofia,Sofia,Sofia-Grad,42.69751,23.32415,1355142,1,1,country,"42.69751,23.32415",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BG,BGR,Bulgaria,Plovdiv,Plovdiv,Plovdiv,42.15387,24.75001,384088,2,0,,"42.15387,24.75001",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BG,BGR,Bulgaria,Varna,Varna,Varna,43.21912,27.91024,369162,3,0,,"43.21912,27.91024",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BG,BGR,Bulgaria,Burgas,Burgas,Burgas,42.50651,27.46886,226868,4,0,,"42.50651,27.46886",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BG,BGR,Bulgaria,Ruse,Ruse,Ruse,43.84872,25.9534,163712,5,0,,"43.84872,25.9534",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BF,BFA,Burkina Faso,Ouagadougou,Ouagadougou,Centre,12.36566,-1.53388,1626950,1,1,country,"12.36566,-1.53388",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BF,BFA,Burkina Faso,Bobo-Dioulasso,Bobo-Dioulasso,Hauts-Bassins,11.18064,-4.29489,360106,2,0,,"11.18064,-4.29489",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BF,BFA,Burkina Faso,Koudougou,Koudougou,Centre-Ouest,12.25188,-2.36694,87347,3,0,,"12.25188,-2.36694",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BF,BFA,Burkina Faso,Ouahigouya,Ouahigouya,Nord,13.5769,-2.41786,79504,4,0,,"13.5769,-2.41786",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BF,BFA,Burkina Faso,Banfora,Banfora,Cascades,10.64064,-4.75285,60288,5,0,,"10.64064,-4.75285",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MM,MMR,Burma,Rangoon,Rangoon,Yangon,16.8,96.15,5430000,1,1,country,"16.8000,96.1500",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MM,MMR,Burma,Mandalay,Mandalay,Mandalay,21.97473,96.08359,1225546,2,0,,"21.97473,96.08359",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MM,MMR,Burma,Nay Pyi Taw,Nay Pyi Taw,Nay Pyi Taw,19.745,96.12972,1160242,3,1,country,"19.745,96.12972",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MM,MMR,Burma,Hpa-An,Hpa-An,Kayin State,16.88953,97.63482,421525,4,0,,"16.88953,97.63482",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MM,MMR,Burma,Bago,Bago,Bago,17.33521,96.48135,284179,5,0,,"17.33521,96.48135",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BI,BDI,Burundi,Bujumbura,Bujumbura,Bujumbura Mairie,-3.38193,29.36142,658859,1,1,country,"-3.38193,29.36142",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BI,BDI,Burundi,Gitega,Gitega,Gitega,-3.42708,29.92463,41944,2,1,country,"-3.42708,29.92463",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BI,BDI,Burundi,Ngozi,Ngozi,Ngozi,-2.9075,29.8306,39884,3,0,,"-2.9075,29.8306",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BI,BDI,Burundi,Kayanza,Kayanza,Kayanza,-2.9221,29.6293,21767,5,0,,"-2.9221,29.6293",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CV,CPV,Cabo Verde,Praia,Praia,Praia,14.93152,-23.51254,127832,1,1,country,"14.93152,-23.51254",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CV,CPV,Cabo Verde,Mindelo,Mindelo,Sao Vicente,16.89014,-24.98042,70468,2,0,,"16.89014,-24.98042",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CV,CPV,Cabo Verde,Assomada,Assomada,Santa Catarina,15.1,-23.68333,12026,3,0,,"15.1,-23.68333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CV,CPV,Cabo Verde,Pedra Badejo,Pedra Badejo,Santa Cruz,15.1375,-23.5333,9530,4,0,,"15.1375,-23.5333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CV,CPV,Cabo Verde,Sao Filipe,Sao Filipe,Sao Filipe,14.8966,-24.4955,8122,5,0,,"14.8966,-24.4955",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KH,KHM,Cambodia,Phnom Penh,Phnom Penh,Phnom Penh,11.56245,104.91601,2129371,1,1,country,"11.56245,104.91601",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KH,KHM,Cambodia,Siem Reap,Siem Reap,Siem Reap,13.36179,103.86056,147866,2,0,,"13.36179,103.86056",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KH,KHM,Cambodia,Battambang,Battambang,Battambang,13.10271,103.19822,130000,3,0,,"13.10271,103.19822",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KH,KHM,Cambodia,Kampong Cham,Kampong Cham,Kampong Cham,11.99339,105.4635,118242,4,0,,"11.99339,105.4635",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KH,KHM,Cambodia,Prey Veng,Prey Veng,Prey Veng,11.48682,105.32533,74000,5,0,,"11.48682,105.32533",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CM,CMR,Cameroon,Douala,Douala,Littoral,4.04827,9.70428,2446945,1,0,,"4.04827,9.70428",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CM,CMR,Cameroon,Yaounde,Yaounde,Centre,3.86667,11.51667,2440462,2,1,country,"3.86667,11.51667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CM,CMR,Cameroon,Maroua,Maroua,Extreme-Nord,10.59095,14.31593,319941,3,0,,"10.59095,14.31593",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CM,CMR,Cameroon,Bafoussam,Bafoussam,Ouest,5.47775,10.41759,290768,4,0,,"5.47775,10.41759",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CM,CMR,Cameroon,Bamenda,Bamenda,North-West,5.9597,10.14597,269530,5,0,,"5.9597,10.14597",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CA,CAN,Canada,Toronto,Toronto,Ontario,43.70643,-79.39864,5429524,1,0,,"43.70643,-79.39864",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CA,CAN,Canada,Montreal,Montreal,Quebec,45.50884,-73.58781,3519595,2,0,,"45.50884,-73.58781",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CA,CAN,Canada,Vancouver,Vancouver,British Columbia,49.24966,-123.11934,2264823,3,0,,"49.24966,-123.11934",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CA,CAN,Canada,Calgary,Calgary,Alberta,51.05011,-114.08529,1239220,4,0,,"51.05011,-114.08529",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CA,CAN,Canada,Edmonton,Edmonton,Alberta,53.55014,-113.46871,1062643,5,0,,"53.55014,-113.46871",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CA,CAN,Canada,Ottawa,Ottawa,Ontario,45.41117,-75.69812,989567,6,1,country,"45.41117,-75.69812",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KY,CYM,Cayman Islands,George Town,George Town,,19.2866,-81.37436,27704,1,1,country,"19.2866,-81.37436",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CF,CAF,Central African Republic,Bangui,Bangui,Bangui,4.36122,18.55496,734350,1,1,country,"4.36122,18.55496",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CF,CAF,Central African Republic,Bimbo,Bimbo,Ombella-Mpoko,4.25671,18.41583,124176,2,0,,"4.25671,18.41583",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CF,CAF,Central African Republic,Berberati,Berberati,Mambere-Kadei,4.26116,15.79216,76918,3,0,,"4.26116,15.79216",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CF,CAF,Central African Republic,Carnot,Carnot,Mambere-Kadei,4.94273,15.87735,45421,4,0,,"4.94273,15.87735",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CF,CAF,Central African Republic,Bambari,Bambari,Ouaka,5.76795,20.67565,41356,5,0,,"5.76795,20.67565",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TD,TCD,Chad,N'Djamena,N'Djamena,Ville de N'Djamena,12.11,15.05,1092066,1,1,country,"12.1100,15.0500",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TD,TCD,Chad,Sarh,Sarh,Moyen-Chari,9.14555,18.38331,169196,2,0,,"9.14555,18.38331",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TD,TCD,Chad,Moundou,Moundou,Logone Occidental,8.57437,16.07722,142462,3,0,,"8.57437,16.07722",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TD,TCD,Chad,Kelo,Kelo,Tandjile,9.30859,15.80658,96224,4,0,,"9.30859,15.80658",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TD,TCD,Chad,Yao,Yao,Batha,12.8508,17.5608,91507,5,0,,"12.8508,17.5608",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CL,CHL,Chile,Santiago,Santiago,Region Metropolitana,-33.45694,-70.64827,7007000,1,1,country,"-33.45694,-70.64827",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CL,CHL,Chile,Antofagasta,Antofagasta,Antofagasta,-23.65094,-70.39752,380695,2,0,,"-23.65094,-70.39752",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CL,CHL,Chile,Vina del Mar,Vina del Mar,Valparaiso,-33.02457,-71.55183,332875,3,0,,"-33.02457,-71.55183",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CL,CHL,Chile,Valparaiso,Valparaiso,Valparaiso,-33.036,-71.62963,296655,4,0,,"-33.036,-71.62963",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CL,CHL,Chile,Temuco,Temuco,Araucania,-38.73628,-72.59738,282415,5,0,,"-38.73628,-72.59738",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CN,CHN,China,Shanghai,Shanghai,Shanghai,31.22222,121.45806,22120000,1,0,,"31.22222,121.45806",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CN,CHN,China,Guangzhou,Guangzhou,Guangdong,23.11667,113.25,20902000,2,0,,"23.11667,113.25",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CN,CHN,China,Beijing,Beijing,Beijing,39.9075,116.39723,19433000,3,1,country,"39.9075,116.39723",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CN,CHN,China,Shenzhen,Shenzhen,Guangdong,22.54554,114.0683,15929000,4,0,,"22.54554,114.0683",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CN,CHN,China,Nanyang,Nanyang,Henan,33.00524,112.54659,12010000,5,0,,"33.00524,112.54659",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CX,CXR,Christmas Island,Flying Fish Cove,Flying Fish Cove,00,-10.42172,105.67912,500,1,1,country,"-10.42172,105.67912",GeoNames cities15000,https://www.geonames.org/
+CC,CCK,Cocos Islands,West Island,West Island,,-12.15681,96.82251,120,1,1,country,"-12.15681,96.82251",GeoNames cities15000,https://www.geonames.org/
+CO,COL,Colombia,Bogota,Bogota,Bogota,4.60971,-74.08175,9464000,1,1,country,"4.60971,-74.08175",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CO,COL,Colombia,Medellin,Medellin,Antioquia,6.245,-75.57151,2529403,2,0,,"6.245,-75.57151",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CO,COL,Colombia,Cali,Cali,Valle del Cauca,3.43054,-76.5199,2471474,3,0,,"3.43054,-76.5199",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CO,COL,Colombia,Barranquilla,Barranquilla,Atlantico,10.96854,-74.78132,1798000,4,0,,"10.96854,-74.78132",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CO,COL,Colombia,Cartagena,Cartagena,Bolivar,10.39817,-75.49328,1036412,5,0,,"10.39817,-75.49328",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KM,COM,Comoros,Moroni,Moroni,Grande Comore,-11.70216,43.25506,111329,1,1,country,"-11.70216,43.25506",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KM,COM,Comoros,Mutsamudu,Mutsamudu,Anjouan,-12.1667,44.4,30000,2,0,,"-12.1667,44.4000",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KM,COM,Comoros,Mkazi,Mkazi,Grande Comore,-11.7323,43.2671,8438,3,0,,"-11.7323,43.2671",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KM,COM,Comoros,Mitsamiouli,Mitsamiouli,Grande Comore,-11.3819,43.3,7235,4,0,,"-11.3819,43.3000",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KM,COM,Comoros,Fomboni,Fomboni,Moheli,-12.28759,43.74344,0,5,0,,"-12.28759,43.74344",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CG,COG,Congo (Brazzaville),Brazzaville,Brazzaville,Brazzaville,-4.26613,15.28318,1827000,1,1,country,"-4.26613,15.28318",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CG,COG,Congo (Brazzaville),Pointe-Noire,Pointe-Noire,Pointe-Noire,-4.77609,11.86352,829134,2,0,,"-4.77609,11.86352",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CG,COG,Congo (Brazzaville),Dolisie,Dolisie,Niari,-4.19834,12.66664,103894,3,0,,"-4.19834,12.66664",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CG,COG,Congo (Brazzaville),Kayes,Kayes,Bouenza,-4.20493,13.28608,62521,4,0,,"-4.20493,13.28608",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CG,COG,Congo (Brazzaville),Owando,Owando,Cuvette,-0.48193,15.89988,34070,5,0,,"-0.48193,15.89988",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CD,COD,Congo (Kinshasa),Kinshasa,Kinshasa,Kinshasa,-4.32758,15.31357,13528000,1,1,country,"-4.32758,15.31357",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CD,COD,Congo (Kinshasa),Kananga,Kananga,Kasai Central,-5.89624,22.41659,1971704,2,0,,"-5.89624,22.41659",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CD,COD,Congo (Kinshasa),Lubumbashi,Lubumbashi,Haut-Katanga,-11.66089,27.47938,1786397,3,0,,"-11.66089,27.47938",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CD,COD,Congo (Kinshasa),Mbuji-Mayi,Mbuji-Mayi,Kasai Oriental,-6.13603,23.58979,1295000,4,0,,"-6.13603,23.58979",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CD,COD,Congo (Kinshasa),Kisangani,Kisangani,Tshopo,0.51528,25.19099,935977,5,0,,"0.51528,25.19099",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CK,COK,Cook Islands,Avarua,Avarua,,-21.2075,-159.77546,5445,1,1,country,"-21.2075,-159.77546",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CR,CRI,Costa Rica,San Jose,San Jose,San Jose,10.95192,-85.13572,288054,1,1,country,"10.95192,-85.13572",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CR,CRI,Costa Rica,Cartago,Cartago,Cartago,9.86371,-83.9195,221733,2,0,,"9.86371,-83.9195",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CR,CRI,Costa Rica,Puerto Limon,Puerto Limon,Limon,10.0022,-83.084,61072,3,0,,"10.0022,-83.0840",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CR,CRI,Costa Rica,Liberia,Liberia,Guanacaste,10.63517,-85.43779,45380,4,0,,"10.63517,-85.43779",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CR,CRI,Costa Rica,Buenos Aires,Buenos Aires,Puntarenas,9.1497,-83.3334,45000,5,0,,"9.1497,-83.3334",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+HR,HRV,Croatia,Zagreb,Zagreb,"Zagreb, Grad",45.81444,15.97798,790017,1,1,country,"45.81444,15.97798",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+HR,HRV,Croatia,Split,Split,Splitsko-Dalmatinska Zupanija,43.50891,16.43915,178102,2,0,,"43.50891,16.43915",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+HR,HRV,Croatia,Rijeka,Rijeka,Primorsko-Goranska Zupanija,45.32673,14.44241,128624,3,0,,"45.32673,14.44241",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+HR,HRV,Croatia,Osijek,Osijek,Osjecko-Baranjska Zupanija,45.55066,18.6942,103162,4,0,,"45.55066,18.6942",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+HR,HRV,Croatia,Zadar,Zadar,Zadarska Zupanija,44.11578,15.22514,75082,5,0,,"44.11578,15.22514",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CU,CUB,Cuba,Havana,Havana,La Habana,23.13302,-82.38304,2141652,1,1,country,"23.13302,-82.38304",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CU,CUB,Cuba,Santiago de Cuba,Santiago de Cuba,Santiago de Cuba,20.02287,-75.82171,444851,2,0,,"20.02287,-75.82171",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CU,CUB,Cuba,Holguin,Holguin,Holguin,20.88722,-76.26306,350191,3,0,,"20.88722,-76.26306",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CU,CUB,Cuba,Camaguey,Camaguey,Camaguey,21.38083,-77.91694,321992,4,0,,"21.38083,-77.91694",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CU,CUB,Cuba,Bayamo,Bayamo,Granma,20.37368,-76.64272,235107,5,0,,"20.37368,-76.64272",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CW,CUW,Curacao,Willemstad,Willemstad,,12.12246,-68.88641,150000,1,1,country,"12.12246,-68.88641",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CY,CYP,Cyprus,Nicosia,Nicosia,Lefkosia,35.17284,33.35397,330000,1,1,country,"35.17284,33.35397",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CY,CYP,Cyprus,Limassol,Limassol,Lemesos,34.68406,33.03794,235056,2,0,,"34.68406,33.03794",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CY,CYP,Cyprus,Larnaca,Larnaca,Larnaka,34.9221,33.62794,48947,3,0,,"34.9221,33.62794",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CY,CYP,Cyprus,Famagusta,Famagusta,Ammochostos,35.12489,33.94135,40920,4,0,,"35.12489,33.94135",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CY,CYP,Cyprus,Paphos,Paphos,Pafos,34.77679,32.42451,35961,5,0,,"34.77679,32.42451",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CZ,CZE,Czechia,Prague,Prague,"Praha, Hlavni Mesto",50.08804,14.42076,1324277,1,1,country,"50.08804,14.42076",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CZ,CZE,Czechia,Brno,Brno,Jihomoravsky Kraj,49.19522,16.60796,381346,2,0,,"49.19522,16.60796",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CZ,CZE,Czechia,Ostrava,Ostrava,Moravskoslezsky Kraj,49.83465,18.28204,287968,3,0,,"49.83465,18.28204",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CZ,CZE,Czechia,Plzen,Plzen,Plzensky Kraj,49.7414,13.3825,174842,4,0,,"49.7414,13.3825",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CZ,CZE,Czechia,Liberec,Liberec,Liberecky Kraj,50.76711,15.05619,104802,5,0,,"50.76711,15.05619",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CI,CIV,Cote D'Ivoire,Abidjan,Abidjan,Abidjan,5.35444,-4.00167,4980000,1,1,country,"5.35444,-4.00167",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CI,CIV,Cote D'Ivoire,Bouake,Bouake,Vallee du Bandama,7.69385,-5.03031,659233,2,0,,"7.69385,-5.03031",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CI,CIV,Cote D'Ivoire,Yamoussoukro,Yamoussoukro,Yamoussoukro,6.82055,-5.27674,355573,3,1,country,"6.82055,-5.27674",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CI,CIV,Cote D'Ivoire,Korhogo,Korhogo,Savanes,9.45803,-5.62961,286071,4,0,,"9.45803,-5.62961",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CI,CIV,Cote D'Ivoire,Daloa,Daloa,Sassandra-Marahoue,6.87735,-6.45022,255168,5,0,,"6.87735,-6.45022",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DK,DNK,Denmark,Copenhagen,Copenhagen,Hovedstaden,55.67594,12.56553,1085000,1,1,country,"55.67594,12.56553",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DK,DNK,Denmark,Aarhus,Aarhus,Midtjylland,56.1572,10.2107,237551,2,0,,"56.1572,10.2107",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DK,DNK,Denmark,Odense,Odense,Syddanmark,55.39594,10.38831,158222,3,0,,"55.39594,10.38831",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DK,DNK,Denmark,Aalborg,Aalborg,Nordjylland,57.048,9.9187,122219,4,0,,"57.048,9.9187",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DK,DNK,Denmark,Esbjerg,Esbjerg,Syddanmark,55.47028,8.45187,72205,5,0,,"55.47028,8.45187",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DJ,DJI,Djibouti,Djibouti,Djibouti,Djibouti,11.58901,43.14503,562000,1,1,country,"11.58901,43.14503",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DJ,DJI,Djibouti,Ali Sabieh,Ali Sabieh,Ali Sabieh,11.1558,42.7125,37939,2,0,,"11.1558,42.7125",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DJ,DJI,Djibouti,Dikhil,Dikhil,Dikhil,11.10454,42.36971,35000,3,0,,"11.10454,42.36971",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DJ,DJI,Djibouti,Obock,Obock,Obock,11.96693,43.28835,21200,4,0,,"11.96693,43.28835",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DJ,DJI,Djibouti,Tadjourah,Tadjourah,Tadjourah,11.7833,42.8833,14820,5,0,,"11.7833,42.8833",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DM,DMA,Dominica,Roseau,Roseau,Saint George,15.30174,-61.38808,16582,1,1,country,"15.30174,-61.38808",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DO,DOM,Dominican Republic,Santo Domingo,Santo Domingo,Ozama,18.47186,-69.89232,2581827,1,1,country,"18.47186,-69.89232",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DO,DOM,Dominican Republic,Santiago,Santiago,Cibao Norte,19.5,-70.67,1550753,2,0,,"19.5000,-70.6700",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DO,DOM,Dominican Republic,La Vega,La Vega,Cibao Sur,19.22031,-70.53101,220279,3,0,,"19.22031,-70.53101",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DO,DOM,Dominican Republic,San Pedro de Macoris,San Pedro de Macoris,Higuamo,18.4539,-69.30864,217899,4,0,,"18.4539,-69.30864",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DO,DOM,Dominican Republic,La Romana,La Romana,Yuma,18.42332,-68.96635,208437,5,0,,"18.42332,-68.96635",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+EC,ECU,Ecuador,Guayaquil,Guayaquil,Guayas,-2.19616,-79.88621,2723665,1,0,,"-2.19616,-79.88621",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+EC,ECU,Ecuador,Quito,Quito,Pichincha,-0.22985,-78.52495,2011388,2,1,country,"-0.22985,-78.52495",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+EC,ECU,Ecuador,Cuenca,Cuenca,Azuay,-2.8953,-78.9963,329928,3,0,,"-2.8953,-78.9963",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+EC,ECU,Ecuador,Santo Domingo de los Colorados,Santo Domingo de los Colorados,Santo Domingo de los Tsachilas,-0.25368,-79.17628,270875,4,0,,"-0.25368,-79.17628",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+EC,ECU,Ecuador,Machala,Machala,El Oro,-3.25886,-79.95876,231260,5,0,,"-3.25886,-79.95876",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+EG,EGY,Egypt,Cairo,Cairo,Al Qahirah,30.06263,31.24967,19372000,1,1,country,"30.06263,31.24967",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+EG,EGY,Egypt,Alexandria,Alexandria,Al Iskandariyah,31.20176,29.91582,4870000,2,0,,"31.20176,29.91582",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+EG,EGY,Egypt,Giza,Giza,Al Jizah,30.00944,31.20861,3021542,3,0,,"30.00944,31.20861",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+EG,EGY,Egypt,Shubra al Khaymah,Shubra al Khaymah,Al Qalyubiyah,30.12511,31.25053,1025569,4,0,,"30.12511,31.25053",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+EG,EGY,Egypt,Halwan,Halwan,Al Qahirah,29.84144,31.30084,619293,5,0,,"29.84144,31.30084",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SV,SLV,El Salvador,San Salvador,San Salvador,San Salvador,13.68935,-89.18718,567698,1,1,country,"13.68935,-89.18718",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SV,SLV,El Salvador,Usulutan,Usulutan,Usulutan,13.34467,-88.43994,378606,2,0,,"13.34467,-88.43994",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SV,SLV,El Salvador,Santa Ana,Santa Ana,Santa Ana,13.98827,-89.55685,270413,3,0,,"13.98827,-89.55685",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SV,SLV,El Salvador,San Miguel,San Miguel,San Miguel,13.48261,-88.18211,218410,4,0,,"13.48261,-88.18211",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SV,SLV,El Salvador,Sonsonate,Sonsonate,Sonsonate,13.71726,-89.72304,168947,5,0,,"13.71726,-89.72304",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GQ,GNQ,Equatorial Guinea,Bata,Bata,Litoral,1.86391,9.76582,250770,1,0,,"1.86391,9.76582",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GQ,GNQ,Equatorial Guinea,Malabo,Malabo,Bioko Norte,3.75578,8.78166,187302,2,1,country,"3.75578,8.78166",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GQ,GNQ,Equatorial Guinea,Ebebiyin,Ebebiyin,Kie-Ntem,2.15,11.3167,36565,3,0,,"2.1500,11.3167",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GQ,GNQ,Equatorial Guinea,Anisoc,Anisoc,Wele-Nzas,1.8656,10.7689,16626,4,0,,"1.8656,10.7689",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GQ,GNQ,Equatorial Guinea,Bengonbeyene,Bengonbeyene,Wele-Nzas,1.6931,11.0342,15644,5,0,,"1.6931,11.0342",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ER,ERI,Eritrea,Asmara,Asmara,Ma'akel,15.33805,38.93184,963000,1,1,country,"15.33805,38.93184",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ER,ERI,Eritrea,Keren,Keren,Anseba,15.77792,38.45107,150000,2,0,,"15.77792,38.45107",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ER,ERI,Eritrea,Assab,Assab,Debubawi K'eyih Bahri,13.00917,42.73944,74405,3,0,,"13.00917,42.73944",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ER,ERI,Eritrea,Massawa,Massawa,Semenawi K'eyih Bahri,15.60811,39.47455,39758,4,0,,"15.60811,39.47455",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ER,ERI,Eritrea,Mendefera,Mendefera,Debub,14.88722,38.81528,28492,5,0,,"14.88722,38.81528",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+EE,EST,Estonia,Tallinn,Tallinn,Harjumaa,59.43696,24.75353,434562,1,1,country,"59.43696,24.75353",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+EE,EST,Estonia,Tartu,Tartu,Tartumaa,58.38062,26.72509,93865,2,0,,"58.38062,26.72509",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+EE,EST,Estonia,Narva,Narva,Ida-Virumaa,59.37722,28.19028,57130,3,0,,"59.37722,28.19028",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+EE,EST,Estonia,Parnu,Parnu,Parnumaa,58.38588,24.49711,39438,4,0,,"58.38588,24.49711",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+EE,EST,Estonia,Kohtla-Jarve,Kohtla-Jarve,Ida-Virumaa,59.39861,27.27306,35928,5,0,,"59.39861,27.27306",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ET,ETH,Ethiopia,Addis Ababa,Addis Ababa,Adis Abeba,9.02497,38.74689,3041002,1,1,country,"9.02497,38.74689",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ET,ETH,Ethiopia,Nazret,Nazret,Oromiya,8.55,39.26667,476892,2,0,,"8.55,39.26667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ET,ETH,Ethiopia,Gonder,Gonder,Amara,12.6,37.46667,323900,3,0,,"12.6,37.46667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ET,ETH,Ethiopia,Mekele,Mekele,Tigray,13.4833,39.4667,323700,4,0,,"13.4833,39.4667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ET,ETH,Ethiopia,Awasa,Awasa,YeDebub Biheroch Bihereseboch na Hizboch,7.05,38.4667,300100,5,0,,"7.0500,38.4667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FK,FLK,Falkland Islands (Islas Malvinas),Stanley,Stanley,,-51.69382,-57.85701,2213,1,1,country,"-51.69382,-57.85701",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FO,FRO,Faroe Islands,Torshavn,Torshavn,,62.00973,-6.77164,13326,1,1,country,"62.00973,-6.77164",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FO,FRO,Faroe Islands,Klaksvik,Klaksvik,,62.2375,-6.539,4664,2,0,,"62.2375,-6.5390",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FO,FRO,Faroe Islands,Eidhi,Eidhi,,62.2995,-7.0924,0,3,0,,"62.2995,-7.0924",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FO,FRO,Faroe Islands,Famjin,Famjin,,61.5248,-6.8794,0,4,0,,"61.5248,-6.8794",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FO,FRO,Faroe Islands,Fuglafjordhur,Fuglafjordhur,,62.2448,-6.815,0,5,0,,"62.2448,-6.8150",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FJ,FJI,Fiji,Suva,Suva,Rewa,-18.13683,178.42531,88271,1,1,country,"-18.13683,178.42531",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FJ,FJI,Fiji,Lautoka,Lautoka,Ba,-17.61686,177.45049,52220,2,0,,"-17.61686,177.45049",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FJ,FJI,Fiji,Nausori,Nausori,Tailevu,-18.0244,178.5454,47604,3,0,,"-18.0244,178.5454",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FJ,FJI,Fiji,Nadi,Nadi,Ba,-17.80309,177.41617,42284,4,0,,"-17.80309,177.41617",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FJ,FJI,Fiji,Labasa,Labasa,Macuata,-16.4332,179.36451,27949,5,0,,"-16.4332,179.36451",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FI,FIN,Finland,Helsinki,Helsinki,Uusimaa,60.16952,24.93545,642045,1,1,country,"60.16952,24.93545",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FI,FIN,Finland,Espoo,Espoo,Uusimaa,60.2052,24.6522,269802,2,0,,"60.2052,24.6522",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FI,FIN,Finland,Tampere,Tampere,Pirkanmaa,61.49911,23.78712,225118,3,0,,"61.49911,23.78712",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FI,FIN,Finland,Vantaa,Vantaa,Uusimaa,60.29414,25.04099,214605,4,0,,"60.29414,25.04099",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FI,FIN,Finland,Oulu,Oulu,Pohjois-Pohjanmaa,65.01236,25.46816,200526,5,0,,"65.01236,25.46816",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FR,FRA,France,Paris,Paris,Ile-de-France,48.85341,2.3488,11020000,1,1,country,"48.85341,2.3488",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FR,FRA,France,Nice,Nice,Provence-Alpes-Cote d'Azur,43.70313,7.26608,1006402,2,0,,"43.70313,7.26608",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FR,FRA,France,Toulouse,Toulouse,Occitanie,43.60426,1.44367,968638,3,0,,"43.60426,1.44367",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FR,FRA,France,Marseille,Marseille,Provence-Alpes-Cote d'Azur,43.29695,5.38107,870018,4,0,,"43.29695,5.38107",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FR,FRA,France,Rennes,Rennes,Bretagne,48.11109,-1.67431,727357,5,0,,"48.11109,-1.67431",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GF,GUF,French Guiana,Cayenne,Cayenne,,4.9381,-52.33455,61550,1,1,country,"4.9381,-52.33455",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GF,GUF,French Guiana,Saint-Laurent-du-Maroni,Saint-Laurent-du-Maroni,,5.50153,-54.02916,24287,2,0,,"5.50153,-54.02916",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GF,GUF,French Guiana,Kourou,Kourou,,5.16281,-52.64265,24029,3,0,,"5.16281,-52.64265",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GF,GUF,French Guiana,Sinnamary,Sinnamary,,5.38,-52.96,3180,4,0,,"5.3800,-52.9600",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GF,GUF,French Guiana,Saint-Georges,Saint-Georges,,3.9105,-51.81,2742,5,0,,"3.9105,-51.8100",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PF,PYF,French Polynesia,Papeete,Papeete,Iles du Vent,-17.5347,-149.56843,131695,1,1,country,"-17.5347,-149.56843",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TF,ATF,French Southern Territories,Port-aux-Francais,Port-aux-Francais,03,-49.34916,70.21937,45,1,1,country,"-49.34916,70.21937",GeoNames cities15000,https://www.geonames.org/
+GA,GAB,Gabon,Libreville,Libreville,Estuaire,0.39241,9.45356,797003,1,1,country,"0.39241,9.45356",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GA,GAB,Gabon,Port-Gentil,Port-Gentil,Ogooue-Maritime,-0.71933,8.78151,116836,2,0,,"-0.71933,8.78151",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GA,GAB,Gabon,Oyem,Oyem,Woleu-Ntem,1.5995,11.57933,60685,3,0,,"1.5995,11.57933",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GA,GAB,Gabon,Franceville,Franceville,Haut-Ogooue,-1.63333,13.58357,42967,4,0,,"-1.63333,13.58357",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GA,GAB,Gabon,Moanda,Moanda,Haut-Ogooue,-1.56652,13.1987,30151,5,0,,"-1.56652,13.1987",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GM,GMB,"Gambia, The",Brikama,Brikama,Western,13.27136,-16.64944,195136,1,0,,"13.27136,-16.64944",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GM,GMB,"Gambia, The",Farafenni,Farafenni,North Bank,13.56667,-15.6,36000,2,0,,"13.56667,-15.6",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GM,GMB,"Gambia, The",Banjul,Banjul,Banjul,13.45274,-16.57803,31356,3,1,country,"13.45274,-16.57803",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GM,GMB,"Gambia, The",Mansa Konko,Mansa Konko,Lower River,13.3773,-15.6786,18672,4,0,,"13.3773,-15.6786",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GM,GMB,"Gambia, The",Basse Santa Su,Basse Santa Su,Upper River,13.31,-14.223,14380,5,0,,"13.3100,-14.2230",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GE,GEO,Georgia,Tbilisi,Tbilisi,Tbilisi,41.69143,44.83412,1118035,1,1,country,"41.69143,44.83412",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GE,GEO,Georgia,Batumi,Batumi,Ajaria,41.64077,41.6306,154600,2,0,,"41.64077,41.6306",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GE,GEO,Georgia,Kutaisi,Kutaisi,Imereti,42.26791,42.69459,147900,3,0,,"42.26791,42.69459",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GE,GEO,Georgia,Rustavi,Rustavi,Kvemo Kartli,41.56271,44.9787,125103,4,0,,"41.56271,44.9787",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GE,GEO,Georgia,Sokhumi,Sokhumi,Abkhazia,43.00697,40.9893,64441,5,0,,"43.00697,40.9893",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DE,DEU,Germany,Berlin,Berlin,Berlin,52.52437,13.41053,3644826,1,1,country,"52.52437,13.41053",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DE,DEU,Germany,Hamburg,Hamburg,Hamburg,53.55073,9.99302,1841179,2,0,,"53.55073,9.99302",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DE,DEU,Germany,Munich,Munich,Bavaria,48.13743,11.57549,1471508,3,0,,"48.13743,11.57549",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DE,DEU,Germany,Cologne,Cologne,North Rhine-Westphalia,50.9422,6.9578,1085664,4,0,,"50.9422,6.9578",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+DE,DEU,Germany,Frankfurt,Frankfurt,Hesse,50.1136,8.6797,753056,5,0,,"50.1136,8.6797",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GH,GHA,Ghana,Accra,Accra,Greater Accra,5.55602,-0.1969,2291352,1,1,country,"5.55602,-0.1969",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GH,GHA,Ghana,Kumasi,Kumasi,Ashanti,6.68848,-1.62443,2069350,2,0,,"6.68848,-1.62443",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GH,GHA,Ghana,Tamale,Tamale,Northern,9.40079,-0.8393,466723,3,0,,"9.40079,-0.8393",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GH,GHA,Ghana,Sekondi,Sekondi,Western,4.93422,-1.71454,286248,4,0,,"4.93422,-1.71454",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GH,GHA,Ghana,Obuase,Obuase,Ashanti,6.20228,-1.66796,180460,5,0,,"6.20228,-1.66796",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GI,GIB,Gibraltar,Gibraltar,Gibraltar,,36.14474,-5.35257,187083,1,1,country,"36.14474,-5.35257",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GR,GRC,Greece,Athens,Athens,Attiki,37.98376,23.72784,664046,1,1,country,"37.98376,23.72784",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GR,GRC,Greece,Piraeus,Piraeus,Attiki,37.94203,23.64619,466065,2,0,,"37.94203,23.64619",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GR,GRC,Greece,Thessaloniki,Thessaloniki,Kentriki Makedonia,40.64072,22.93493,315196,3,0,,"40.64072,22.93493",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GR,GRC,Greece,Patra,Patra,Dytiki Ellada,38.2462,21.73508,167446,4,0,,"38.2462,21.73508",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GR,GRC,Greece,Larisa,Larisa,Thessalia,39.62847,22.42112,144651,5,0,,"39.62847,22.42112",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GL,GRL,Greenland,Nuuk,Nuuk,Sermersooq,64.18347,-51.72157,18326,1,1,country,"64.18347,-51.72157",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GL,GRL,Greenland,Sisimiut,Sisimiut,Qeqqata,66.9389,-53.6722,5539,2,0,,"66.9389,-53.6722",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GL,GRL,Greenland,Ilulissat,Ilulissat,Qaasuitsup,69.2167,-51.1,4670,3,0,,"69.2167,-51.1000",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GL,GRL,Greenland,Aasiaat,Aasiaat,Qaasuitsup,68.7097,-52.8694,3134,4,0,,"68.7097,-52.8694",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GL,GRL,Greenland,Qaqortoq,Qaqortoq,Kujalleq,60.7167,-46.0333,3093,5,0,,"60.7167,-46.0333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GD,GRD,Grenada,Saint George's,Saint George's,Saint George,12.0444,-61.7417,4315,1,1,country,"12.0444,-61.7417",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GP,GLP,Guadeloupe,Pointe-a-Pitre,Pointe-a-Pitre,,16.23638,-61.53459,145511,1,0,,"16.23638,-61.53459",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GP,GLP,Guadeloupe,Lasserre,Lasserre,,16.2304,-61.44,307,2,0,,"16.2304,-61.4400",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GP,GLP,Guadeloupe,Basse-Terre,Basse-Terre,,15.99714,-61.73214,0,3,1,country,"15.99714,-61.73214",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GU,GUM,Guam,Maina,Maina,,13.4692,144.7332,122411,1,0,,"13.4692,144.7332",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GU,GUM,Guam,Hagta,Hagta,,13.47567,144.74886,1051,2,1,country,"13.47567,144.74886",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GT,GTM,Guatemala,Guatemala City,Guatemala City,Guatemala,14.64072,-90.51327,2450212,1,1,country,"14.64072,-90.51327",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GT,GTM,Guatemala,Quetzaltenango,Quetzaltenango,Quetzaltenango,14.84462,-91.52316,225000,2,0,,"14.84462,-91.52316",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GT,GTM,Guatemala,Escuintla,Escuintla,Escuintla,14.30097,-90.78816,172708,3,0,,"14.30097,-90.78816",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GT,GTM,Guatemala,San Luis,San Luis,Peten,16.2,-89.44,132470,4,0,,"16.2000,-89.4400",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GT,GTM,Guatemala,Jalapa,Jalapa,Jalapa,14.63542,-89.99112,122483,5,0,,"14.63542,-89.99112",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GG,GGY,Guernsey,Saint Peter Port,Saint Peter Port,6417228,49.45981,-2.53527,16488,1,1,country,"49.45981,-2.53527",GeoNames cities15000,https://www.geonames.org/
+GN,GIN,Guinea,Conakry,Conakry,Conakry,9.53795,-13.67729,1667864,1,1,country,"9.53795,-13.67729",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GN,GIN,Guinea,Gueckedou,Gueckedou,N'Zerekore,8.5667,-10.1333,221715,2,0,,"8.5667,-10.1333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GN,GIN,Guinea,N'Zerekore,N'Zerekore,N'Zerekore,7.76,-8.83,168121,3,0,,"7.7600,-8.8300",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GN,GIN,Guinea,Kindia,Kindia,Kindia,10.05692,-12.86576,117062,4,0,,"10.05692,-12.86576",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GN,GIN,Guinea,Boke,Boke,Boke,10.93217,-14.29055,116270,5,0,,"10.93217,-14.29055",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GW,GNB,Guinea-Bissau,Bissau,Bissau,Bissau,11.86357,-15.59767,395954,1,1,country,"11.86357,-15.59767",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GW,GNB,Guinea-Bissau,Quinhamel,Quinhamel,Biombo,11.8869,-15.8556,42659,2,0,,"11.8869,-15.8556",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GW,GNB,Guinea-Bissau,Catio,Catio,Tombali,11.2833,-15.25,26999,3,0,,"11.2833,-15.2500",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GW,GNB,Guinea-Bissau,Bafata,Bafata,Bafata,12.16583,-14.66167,22501,4,0,,"12.16583,-14.66167",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GW,GNB,Guinea-Bissau,Gabu,Gabu,Gabu,12.28,-14.22222,14430,5,0,,"12.28,-14.22222",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GY,GUY,Guyana,Georgetown,Georgetown,Demerara-Mahaica,6.80448,-58.15527,200500,1,1,country,"6.80448,-58.15527",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GY,GUY,Guyana,New Amsterdam,New Amsterdam,East Berbice-Corentyne,6.24924,-57.51578,46874,2,0,,"6.24924,-57.51578",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GY,GUY,Guyana,Linden,Linden,Upper Demerara-Berbice,6.00815,-58.30724,29298,3,0,,"6.00815,-58.30724",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GY,GUY,Guyana,Anna Regina,Anna Regina,Pomeroon-Supenaam,7.25,-58.5167,12448,4,0,,"7.2500,-58.5167",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GY,GUY,Guyana,Princetown,Princetown,East Berbice-Corentyne,5.9,-57.17,12000,5,0,,"5.9000,-57.1700",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+HT,HTI,Haiti,Port-au-Prince,Port-au-Prince,Ouest,18.54349,-72.33881,987310,1,1,country,"18.54349,-72.33881",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+HT,HTI,Haiti,Carrefour,Carrefour,Ouest,18.54114,-72.39922,511345,2,0,,"18.54114,-72.39922",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+HT,HTI,Haiti,Petion-Ville,Petion-Ville,Ouest,18.5098,-72.2856,359615,3,0,,"18.5098,-72.2856",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+HT,HTI,Haiti,Gonaives,Gonaives,Artibonite,19.44755,-72.68928,324043,4,0,,"19.44755,-72.68928",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+HT,HTI,Haiti,Delmas,Delmas,Ouest,18.54478,-72.30036,284079,5,0,,"18.54478,-72.30036",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+HN,HND,Honduras,Comayaguela,Comayaguela,Francisco Morazan,14.0833,-87.2167,1250000,1,0,,"14.0833,-87.2167",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+HN,HND,Honduras,Tegucigalpa,Tegucigalpa,Francisco Morazan,14.0818,-87.20681,1126534,2,1,country,"14.0818,-87.20681",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+HN,HND,Honduras,San Pedro Sula,San Pedro Sula,Cortes,15.50585,-88.02588,1073824,3,0,,"15.50585,-88.02588",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+HN,HND,Honduras,Puerto Cortes,Puerto Cortes,Cortes,15.8833,-87.95,200000,4,0,,"15.8833,-87.9500",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+HN,HND,Honduras,Tegucigalpita,Tegucigalpita,Atlantida,15.78,-86.7878,196856,5,0,,"15.7800,-86.7878",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+HK,HKG,Hong Kong,Hong Kong,Hong Kong,,22.27832,114.17469,7347000,1,1,country,"22.27832,114.17469",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+HU,HUN,Hungary,Budapest,Budapest,Budapest,47.49835,19.04045,1752286,1,1,country,"47.49835,19.04045",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+HU,HUN,Hungary,Debrecen,Debrecen,Hajdu-Bihar,47.53167,21.62444,201432,2,0,,"47.53167,21.62444",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+HU,HUN,Hungary,Szeged,Szeged,Csongrad,46.253,20.14824,160766,3,0,,"46.253,20.14824",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+HU,HUN,Hungary,Miskolc,Miskolc,Borsod-Abauj-Zemplen,48.10327,20.77806,154521,4,0,,"48.10327,20.77806",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+HU,HUN,Hungary,Pecs,Pecs,Baranya,46.07617,18.22814,142873,5,0,,"46.07617,18.22814",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IS,ISL,Iceland,Reykjavik,Reykjavik,,64.13548,-21.89541,128793,1,1,country,"64.13548,-21.89541",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IS,ISL,Iceland,Kopavogur,Kopavogur,,64.11234,-21.91298,34140,2,0,,"64.11234,-21.91298",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IS,ISL,Iceland,Hafnarfjordhur,Hafnarfjordhur,,64.0671,-21.93774,28703,3,0,,"64.0671,-21.93774",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IS,ISL,Iceland,Akureyri,Akureyri,Nordurland Eystra,65.68353,-18.0878,18925,4,0,,"65.68353,-18.0878",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IS,ISL,Iceland,Keflavik,Keflavik,Sudurnes,64.00492,-22.56242,16463,5,0,,"64.00492,-22.56242",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IN,IND,India,Delhi,Delhi,Delhi,28.65195,77.23149,29617000,1,0,,"28.65195,77.23149",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IN,IND,India,Mumbai,Mumbai,Maharashtra,19.07283,72.88261,23355000,2,0,,"19.07283,72.88261",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IN,IND,India,Kolkata,Kolkata,West Bengal,22.5411,88.3378,17560000,3,0,,"22.5411,88.3378",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IN,IND,India,Bangalore,Bangalore,Karnataka,12.9699,77.598,13707000,4,0,,"12.9699,77.5980",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IN,IND,India,Chennai,Chennai,Tamil Nadu,13.08784,80.27847,11324000,5,0,,"13.08784,80.27847",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IN,IND,India,New Delhi,New Delhi,Delhi,28.62137,77.2148,142004,245,1,country,"28.62137,77.2148",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ID,IDN,Indonesia,Jakarta,Jakarta,Jakarta,-6.21462,106.84513,34540000,1,1,country,"-6.21462,106.84513",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ID,IDN,Indonesia,Surabaya,Surabaya,Jawa Timur,-7.24917,112.75083,4975000,2,0,,"-7.24917,112.75083",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ID,IDN,Indonesia,Bandung,Bandung,Jawa Barat,-6.92222,107.60694,2394873,3,0,,"-6.92222,107.60694",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ID,IDN,Indonesia,Bekasi,Bekasi,Jawa Barat,-6.2349,106.9896,2381053,4,0,,"-6.2349,106.9896",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ID,IDN,Indonesia,Tangerang,Tangerang,Jawa Barat,-6.17806,106.63,2237006,5,0,,"-6.17806,106.63",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IR,IRN,Iran,Tehran,Tehran,Tehran,35.69439,51.42151,13633000,1,1,country,"35.69439,51.42151",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IR,IRN,Iran,Mashhad,Mashhad,Khorasan-e Razavi,36.29807,59.60567,3001184,2,0,,"36.29807,59.60567",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IR,IRN,Iran,Esfahan,Esfahan,Esfahan,32.6447,51.6675,1756126,3,0,,"32.6447,51.6675",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IR,IRN,Iran,Karaj,Karaj,Alborz,35.83266,50.99155,1592492,4,0,,"35.83266,50.99155",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IR,IRN,Iran,Tabriz,Tabriz,Azarbayjan-e Sharqi,38.0833,46.2833,1558693,5,0,,"38.0833,46.2833",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IQ,IRQ,Iraq,Baghdad,Baghdad,Baghdad,33.34058,44.40088,5796000,1,1,country,"33.34058,44.40088",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IQ,IRQ,Iraq,Mosul,Mosul,Ninawa,36.335,43.11889,1694000,2,0,,"36.335,43.11889",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IQ,IRQ,Iraq,Al Basrah,Al Basrah,Al Basrah,30.4889,47.81,1225793,3,0,,"30.4889,47.8100",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IQ,IRQ,Iraq,Kirkuk,Kirkuk,Kirkuk,35.46806,44.39222,975000,4,0,,"35.46806,44.39222",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IQ,IRQ,Iraq,Erbil,Erbil,Arbil,36.19117,44.00943,852500,5,0,,"36.19117,44.00943",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IE,IRL,Ireland,Dublin,Dublin,Dublin,53.33306,-6.24889,1173179,1,1,country,"53.33306,-6.24889",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IE,IRL,Ireland,Cork,Cork,Cork,51.89797,-8.47061,208669,2,0,,"51.89797,-8.47061",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IE,IRL,Ireland,Galway,Galway,Galway,53.27245,-9.05095,79504,3,0,,"53.27245,-9.05095",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IE,IRL,Ireland,Limerick,Limerick,Limerick,52.66472,-8.62306,58319,4,0,,"52.66472,-8.62306",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IE,IRL,Ireland,Waterford,Waterford,Waterford,52.25833,-7.11194,48369,5,0,,"52.25833,-7.11194",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IM,IMN,Isle Of Man,Douglas,Douglas,,54.15,-4.48333,25000,1,1,country,"54.15,-4.48333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IL,ISR,Israel,Jerusalem,Jerusalem,Southern,31.76904,35.21633,919438,1,1,country,"31.76904,35.21633",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IL,ISR,Israel,Tel Aviv-Yafo,Tel Aviv-Yafo,Tel Aviv,32.0833,34.8,451523,2,0,,"32.0833,34.8000",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IL,ISR,Israel,Haifa,Haifa,Haifa,32.81303,34.99928,281087,3,0,,"32.81303,34.99928",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IL,ISR,Israel,Rishon LeZiyyon,Rishon LeZiyyon,Central,31.95,34.8,249860,4,0,,"31.9500,34.8000",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IL,ISR,Israel,Petah Tiqwa,Petah Tiqwa,Central,32.0833,34.8833,236169,5,0,,"32.0833,34.8833",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IT,ITA,Italy,Rome,Rome,Lazio,41.89193,12.51133,2872800,1,1,country,"41.89193,12.51133",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IT,ITA,Italy,Milan,Milan,Lombardy,45.46427,9.18951,1351562,2,0,,"45.46427,9.18951",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IT,ITA,Italy,Naples,Naples,Campania,40.85216,14.26811,972212,3,0,,"40.85216,14.26811",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IT,ITA,Italy,Turin,Turin,Piedmont,45.07049,7.68682,870952,4,0,,"45.07049,7.68682",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+IT,ITA,Italy,Palermo,Palermo,Sicilia,38.1166,13.3636,674435,5,0,,"38.1166,13.3636",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+JM,JAM,Jamaica,Kingston,Kingston,Kingston,17.99702,-76.79358,580000,1,1,country,"17.99702,-76.79358",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+JM,JAM,Jamaica,Portmore,Portmore,Saint Catherine,17.97102,-76.88691,170000,2,0,,"17.97102,-76.88691",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+JM,JAM,Jamaica,May Pen,May Pen,Clarendon,17.96454,-77.24515,135142,3,0,,"17.96454,-77.24515",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+JM,JAM,Jamaica,Spanish Town,Spanish Town,Saint Catherine,17.99107,-76.95742,131056,4,0,,"17.99107,-76.95742",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+JM,JAM,Jamaica,Montego Bay,Montego Bay,Saint James,18.47116,-77.91883,110115,5,0,,"18.47116,-77.91883",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+JP,JPN,Japan,Tokyo,Tokyo,Tokyo,35.6895,139.69171,37977000,1,1,country,"35.6895,139.69171",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+JP,JPN,Japan,Osaka,Osaka,Osaka,34.6936,135.5019,14977000,2,0,,"34.6936,135.5019",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+JP,JPN,Japan,Nagoya,Nagoya,Aichi,35.18147,136.90641,9113000,3,0,,"35.18147,136.90641",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+JP,JPN,Japan,Yokohama,Yokohama,Kanagawa,35.43333,139.65,3748781,4,0,,"35.43333,139.65",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+JP,JPN,Japan,Fukuoka,Fukuoka,Fukuoka,33.6,130.41667,2128000,5,0,,"33.6,130.41667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+JE,JEY,Jersey,Saint Helier,Saint Helier,,49.18804,-2.10491,33522,1,1,country,"49.18804,-2.10491",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+JO,JOR,Jordan,Amman,Amman,Al 'Asimah,31.95522,35.94503,4007526,1,1,country,"31.95522,35.94503",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+JO,JOR,Jordan,Irbid,Irbid,Irbid,32.55556,35.85,1088100,2,0,,"32.55556,35.85",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+JO,JOR,Jordan,Az Zarqa',Az Zarqa',Az Zarqa',32.0833,36.1,481300,3,0,,"32.0833,36.1000",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+JO,JOR,Jordan,Al `Aqabah,Al `Aqabah,Al 'Aqabah,29.5167,35.0,140000,4,0,,"29.5167,35.0000",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+JO,JOR,Jordan,As Salt,As Salt,Al Balqa',32.03917,35.72722,88900,5,0,,"32.03917,35.72722",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KZ,KAZ,Kazakhstan,Almaty,Almaty,Almaty,43.25249,76.9115,1806833,1,0,,"43.25249,76.9115",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KZ,KAZ,Kazakhstan,Nur-Sultan,Nur-Sultan,Astana,51.1333,71.4333,1078362,2,1,country,"51.1333,71.4333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KZ,KAZ,Kazakhstan,Shymkent,Shymkent,Ongtustik Qazaqstan,42.30988,69.60042,1018974,3,0,,"42.30988,69.60042",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KZ,KAZ,Kazakhstan,Qaraghandy,Qaraghandy,Qaraghandy,49.8,73.1167,501129,4,0,,"49.8000,73.1167",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KZ,KAZ,Kazakhstan,Taraz,Taraz,Zhambyl,42.89799,71.37334,406262,5,0,,"42.89799,71.37334",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KE,KEN,Kenya,Nairobi,Nairobi,Nairobi City,-1.28333,36.81667,5545000,1,1,country,"-1.28333,36.81667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KE,KEN,Kenya,Meru,Meru,Meru,0.04626,37.65587,1833000,2,0,,"0.04626,37.65587",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KE,KEN,Kenya,Mombasa,Mombasa,Mombasa,-4.05466,39.66359,1200000,3,0,,"-4.05466,39.66359",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KE,KEN,Kenya,Kisumu,Kisumu,Kisumu,-0.10221,34.76171,409928,4,0,,"-0.10221,34.76171",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KE,KEN,Kenya,Nakuru,Nakuru,Nakuru,-0.30719,36.07225,307990,5,0,,"-0.30719,36.07225",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KI,KIR,Kiribati,Tarawa,Tarawa,,1.3278,172.97696,28802,1,1,country,"1.3278,172.97696",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KI,KIR,Kiribati,Teaoraereke,Teaoraereke,,1.3333,173.0,5105,2,0,,"1.3333,173.0000",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KP,PRK,"Korea, North",Pyongyang,Pyongyang,P'yongyang,39.03385,125.75432,2863000,1,1,country,"39.03385,125.75432",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KP,PRK,"Korea, North",Hungnam,Hungnam,Hamnam,39.84198,127.63206,751322,2,0,,"39.84198,127.63206",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KP,PRK,"Korea, North",Ch'ongjin,Ch'ongjin,Hambuk,41.8,129.7831,667929,3,0,,"41.8000,129.7831",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KP,PRK,"Korea, North",Hamhung,Hamhung,Hamnam,39.91833,127.53639,614198,4,0,,"39.91833,127.53639",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KP,PRK,"Korea, North",Sunch'on,Sunch'on,P'yongnam,39.43167,125.93278,437000,5,0,,"39.43167,125.93278",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KR,KOR,"Korea, South",Seoul,Seoul,Seoul,37.566,126.9784,21794000,1,1,country,"37.566,126.9784",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KR,KOR,"Korea, South",Busan,Busan,Busan,35.10168,129.03004,3440484,2,0,,"35.10168,129.03004",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KR,KOR,"Korea, South",Incheon,Incheon,Incheon,37.45646,126.70515,2913024,3,0,,"37.45646,126.70515",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KR,KOR,"Korea, South",Daegu,Daegu,Daegu,35.87028,128.59111,2461002,4,0,,"35.87028,128.59111",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KR,KOR,"Korea, South",Gwangju,Gwangju,Gwangju,37.41,127.25722,1501557,5,0,,"37.41,127.25722",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+XK,XKS,Kosovo,Pristina,Pristina,Prishtine,42.67272,21.16688,204725,1,1,country,"42.67272,21.16688",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+XK,XKS,Kosovo,Prizren,Prizren,Prizren,42.21389,20.73972,186986,2,0,,"42.21389,20.73972",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+XK,XKS,Kosovo,Ferizaj,Ferizaj,Ferizaj,42.37056,21.15528,108610,3,0,,"42.37056,21.15528",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+XK,XKS,Kosovo,Peje,Peje,Peje,42.65913,20.28828,96450,4,0,,"42.65913,20.28828",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+XK,XKS,Kosovo,Gjakove,Gjakove,Gjakove,42.38028,20.43083,94556,5,0,,"42.38028,20.43083",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KW,KWT,Kuwait,Kuwait City,Kuwait City,Al 'Asimah,29.367,47.97429,637411,1,1,country,"29.367,47.97429",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KW,KWT,Kuwait,Al Jahra',Al Jahra',Al Jahra',29.3375,47.65806,194193,2,0,,"29.3375,47.65806",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KW,KWT,Kuwait,Al Ahmadi,Al Ahmadi,Al Ahmadi,29.07694,48.08389,68763,3,0,,"29.07694,48.08389",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KG,KGZ,Kyrgyzstan,Bishkek,Bishkek,Bishkek,42.87,74.59,1027200,1,1,country,"42.87,74.59",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KG,KGZ,Kyrgyzstan,Osh,Osh,Osh,40.52828,72.7985,251000,2,0,,"40.52828,72.7985",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KG,KGZ,Kyrgyzstan,Jalal-Abad,Jalal-Abad,Jalal-Abad,40.9375,72.9861,89004,3,0,,"40.9375,72.9861",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KG,KGZ,Kyrgyzstan,Kara-Balta,Kara-Balta,Chuy,42.81423,73.84813,74133,4,0,,"42.81423,73.84813",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KG,KGZ,Kyrgyzstan,Karakol,Karakol,Ysyk-Kol,42.49047,78.39197,63377,5,0,,"42.49047,78.39197",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LA,LAO,Laos,Vientiane,Vientiane,Viangchan,17.96667,102.6,760000,1,1,country,"17.96667,102.6",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LA,LAO,Laos,Savannakhet,Savannakhet,Savannakhet,16.5703,104.7622,124000,2,0,,"16.5703,104.7622",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LA,LAO,Laos,Pakxe,Pakxe,Champasak,15.1167,105.7833,119848,3,0,,"15.1167,105.7833",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LA,LAO,Laos,Thakhek,Thakhek,Khammouan,17.41027,104.83068,70000,4,0,,"17.41027,104.83068",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LA,LAO,Laos,Louangphabang,Louangphabang,Louangphabang,19.8931,102.1381,53792,5,0,,"19.8931,102.1381",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LV,LVA,Latvia,Riga,Riga,Riga,56.946,24.10589,698529,1,1,country,"56.946,24.10589",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LV,LVA,Latvia,Daugavpils,Daugavpils,Daugavpils Novads,55.88333,26.53333,84592,2,0,,"55.88333,26.53333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LV,LVA,Latvia,Liepaja,Liepaja,Liepaja,56.50474,21.01085,69443,3,0,,"56.50474,21.01085",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LV,LVA,Latvia,Jelgava,Jelgava,Jelgavas Novads,56.65,23.71278,55972,4,0,,"56.65,23.71278",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LV,LVA,Latvia,Jurmala,Jurmala,Jurmala,56.968,23.77038,48606,5,0,,"56.968,23.77038",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LB,LBN,Lebanon,Tripoli,Tripoli,Liban-Nord,34.43352,35.84415,530000,1,0,,"34.43352,35.84415",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LB,LBN,Lebanon,Beirut,Beirut,Beyrouth,33.89332,35.50157,361366,2,1,country,"33.89332,35.50157",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LB,LBN,Lebanon,Sidon,Sidon,Liban-Sud,33.55751,35.37148,200000,3,0,,"33.55751,35.37148",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LB,LBN,Lebanon,Tyre,Tyre,Liban-Sud,33.27333,35.19389,160000,4,0,,"33.27333,35.19389",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LB,LBN,Lebanon,Jounie,Jounie,Mont-Liban,33.9697,35.6156,102221,5,0,,"33.9697,35.6156",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LS,LSO,Lesotho,Maseru,Maseru,Maseru,-29.31667,27.48333,330790,1,1,country,"-29.31667,27.48333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LS,LSO,Lesotho,Teyateyaneng,Teyateyaneng,Berea,-29.14719,27.74895,75115,2,0,,"-29.14719,27.74895",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LS,LSO,Lesotho,Mafeteng,Mafeteng,Mafeteng,-29.82299,27.23744,57059,3,0,,"-29.82299,27.23744",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LS,LSO,Lesotho,Leribe,Leribe,Leribe,-28.8734,28.0416,47675,4,0,,"-28.8734,28.0416",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LS,LSO,Lesotho,Maputsoe,Maputsoe,Leribe,-28.8866,27.89915,32117,5,0,,"-28.8866,27.89915",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LR,LBR,Liberia,Monrovia,Monrovia,Montserrado,6.30054,-10.7969,1021762,1,1,country,"6.30054,-10.7969",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LR,LBR,Liberia,Upper Buchanan,Upper Buchanan,Grand Bassa,5.9161,-10.0525,48315,2,0,,"5.9161,-10.0525",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LR,LBR,Liberia,Gbarnga,Gbarnga,Bong,6.99543,-9.47122,45835,3,0,,"6.99543,-9.47122",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LR,LBR,Liberia,Kakata,Kakata,Margibi,6.53104,-10.35368,33945,4,0,,"6.53104,-10.35368",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LR,LBR,Liberia,Harper,Harper,Maryland,4.3782,-7.71081,32661,5,0,,"4.3782,-7.71081",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LY,LBY,Libya,Tripoli,Tripoli,Tarabulus,32.88743,13.18733,1126000,1,1,country,"32.88743,13.18733",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LY,LBY,Libya,Benghazi,Benghazi,Banghazi,32.11486,20.06859,631555,2,0,,"32.11486,20.06859",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LY,LBY,Libya,Misratah,Misratah,Misratah,32.3778,15.0901,259056,3,0,,"32.3778,15.0901",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LY,LBY,Libya,Al Bayda',Al Bayda',Al Jabal al Akhdar,32.76272,21.75506,250000,4,0,,"32.76272,21.75506",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LY,LBY,Libya,Az Zawiyah,Az Zawiyah,Az Zawiyah,32.7571,12.72764,200000,5,0,,"32.7571,12.72764",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LI,LIE,Liechtenstein,Vaduz,Vaduz,Vaduz,47.14151,9.52154,36281,1,1,country,"47.14151,9.52154",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LI,LIE,Liechtenstein,Schaan,Schaan,Schaan,47.1667,9.5167,5959,2,0,,"47.1667,9.5167",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LI,LIE,Liechtenstein,Mauren,Mauren,Mauren,47.2197,9.5428,4268,3,0,,"47.2197,9.5428",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LI,LIE,Liechtenstein,Balzers,Balzers,Balzers,47.0667,9.5025,0,4,0,,"47.0667,9.5025",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LI,LIE,Liechtenstein,Eschen,Eschen,Eschen,47.2109,9.5216,0,5,0,,"47.2109,9.5216",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LT,LTU,Lithuania,Vilnius,Vilnius,Vilniaus Miestas,54.68916,25.2798,574147,1,1,country,"54.68916,25.2798",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LT,LTU,Lithuania,Kaunas,Kaunas,Kauno Miestas,54.90156,23.90909,288466,2,0,,"54.90156,23.90909",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LT,LTU,Lithuania,Klaipeda,Klaipeda,Klaipedos Miestas,55.7068,21.13912,164310,3,0,,"55.7068,21.13912",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LT,LTU,Lithuania,Siauliai,Siauliai,Siauliu Miestas,55.93333,23.31667,107086,4,0,,"55.93333,23.31667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LT,LTU,Lithuania,Panevezys,Panevezys,Panevezio Miestas,55.73186,24.35983,91054,5,0,,"55.73186,24.35983",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LU,LUX,Luxembourg,Luxembourg,Luxembourg,Luxembourg,49.60982,6.13268,122273,1,1,country,"49.60982,6.13268",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LU,LUX,Luxembourg,Esch-sur-Alzette,Esch-sur-Alzette,Esch-sur-Alzette,49.49583,5.98056,36218,2,0,,"49.49583,5.98056",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LU,LUX,Luxembourg,Diekirch,Diekirch,Diekirch,49.8678,6.1558,6242,3,0,,"49.8678,6.1558",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LU,LUX,Luxembourg,Echternach,Echternach,Echternach,49.8117,6.4217,5617,4,0,,"49.8117,6.4217",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LU,LUX,Luxembourg,Rumelange,Rumelange,Esch-sur-Alzette,49.4597,6.0306,5604,5,0,,"49.4597,6.0306",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MO,MAC,Macau,Macau,Macau,,22.20056,113.54611,568700,1,0,,"22.20056,113.54611",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MK,MKD,Macedonia,Skopje,Skopje,Skopje,41.99646,21.43141,640000,1,1,country,"41.99646,21.43141",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MK,MKD,Macedonia,Tetovo,Tetovo,Tetovo,42.00989,20.97138,142030,2,0,,"42.00989,20.97138",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MK,MKD,Macedonia,Bitola,Bitola,Bitola,41.03226,21.33553,84002,3,0,,"41.03226,21.33553",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MK,MKD,Macedonia,Kumanovo,Kumanovo,Kumanovo,42.13279,21.71585,70842,4,0,,"42.13279,21.71585",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MK,MKD,Macedonia,Prilep,Prilep,Prilep,41.34558,21.5537,66817,5,0,,"41.34558,21.5537",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MG,MDG,Madagascar,Antananarivo,Antananarivo,Antananarivo,-18.91368,47.53613,2610000,1,1,country,"-18.91368,47.53613",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MG,MDG,Madagascar,Antsirabe,Antsirabe,Antananarivo,-19.86586,47.03333,257163,2,0,,"-19.86586,47.03333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MG,MDG,Madagascar,Toamasina,Toamasina,Toamasina,-18.1492,49.40234,225116,3,0,,"-18.1492,49.40234",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MG,MDG,Madagascar,Fianarantsoa,Fianarantsoa,Fianarantsoa,-21.45267,47.08569,184184,4,0,,"-21.45267,47.08569",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MG,MDG,Madagascar,Mahajanga,Mahajanga,Mahajanga,-15.71667,46.31667,154657,5,0,,"-15.71667,46.31667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MW,MWI,Malawi,Blantyre,Blantyre,Blantyre,-15.78499,35.00854,1895973,1,0,,"-15.78499,35.00854",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MW,MWI,Malawi,Lilongwe,Lilongwe,Lilongwe,-13.96692,33.78725,781538,2,1,country,"-13.96692,33.78725",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MW,MWI,Malawi,Mzuzu,Mzuzu,Mzimba,-11.46556,34.02071,150100,3,0,,"-11.46556,34.02071",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MW,MWI,Malawi,Zomba,Zomba,Zomba,-15.38596,35.3188,101140,4,0,,"-15.38596,35.3188",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MW,MWI,Malawi,Salima,Salima,Salima,-13.7804,34.4587,71181,5,0,,"-13.7804,34.4587",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MY,MYS,Malaysia,Kuala Lumpur,Kuala Lumpur,Kuala Lumpur,3.1412,101.68653,8285000,1,1,country,"3.1412,101.68653",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MY,MYS,Malaysia,Klang,Klang,Selangor,3.03667,101.44333,878000,2,0,,"3.03667,101.44333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MY,MYS,Malaysia,Ipoh,Ipoh,Perak,4.5841,101.0829,866772,3,0,,"4.5841,101.0829",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MY,MYS,Malaysia,Butterworth,Butterworth,Pulau Pinang,5.3991,100.36382,821652,4,0,,"5.3991,100.36382",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MY,MYS,Malaysia,George Town,George Town,Pulau Pinang,5.41123,100.33543,708127,5,0,,"5.41123,100.33543",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MV,MDV,Maldives,Male,Male,Maale,4.17521,73.50916,133019,1,1,country,"4.17521,73.50916",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MV,MDV,Maldives,Dhihdhoo,Dhihdhoo,Thiladhunmathee Uthuruburi,6.8874,73.114,0,2,0,,"6.8874,73.1140",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MV,MDV,Maldives,Eydhafushi,Eydhafushi,Maalhosmadulu Dhekunuburi,5.1038,73.0699,0,3,0,,"5.1038,73.0699",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MV,MDV,Maldives,Felidhoo,Felidhoo,Felidhu Atholhu,3.4718,73.547,0,4,0,,"3.4718,73.5470",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MV,MDV,Maldives,Foammulah,Foammulah,Fuvammulah,-0.3,73.4256,0,5,0,,"-0.3000,73.4256",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ML,MLI,Mali,Bamako,Bamako,Bamako,12.60915,-7.97522,2009109,1,1,country,"12.60915,-7.97522",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ML,MLI,Mali,Sikasso,Sikasso,Sikasso,11.31755,-5.66654,213977,2,0,,"11.31755,-5.66654",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ML,MLI,Mali,Segou,Segou,Segou,13.44032,-6.25947,133501,3,0,,"13.44032,-6.25947",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ML,MLI,Mali,Gao,Gao,Gao,16.27167,-0.04472,116967,4,0,,"16.27167,-0.04472",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ML,MLI,Mali,Mopti,Mopti,Mopti,14.4843,-4.18296,108456,5,0,,"14.4843,-4.18296",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MT,MLT,Malta,Birkirkara,Birkirkara,Birkirkara,35.89706,14.46115,24356,1,0,,"35.89706,14.46115",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MT,MLT,Malta,Qormi,Qormi,Qormi,35.87601,14.472,16779,2,0,,"35.87601,14.472",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MT,MLT,Malta,Valletta,Valletta,Valletta,35.89968,14.5148,6444,3,1,country,"35.89968,14.5148",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MT,MLT,Malta,Attard,Attard,Attard,35.8897,14.4425,0,4,0,,"35.8897,14.4425",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MT,MLT,Malta,Balzan,Balzan,Balzan,35.9003,14.455,0,5,0,,"35.9003,14.4550",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MH,MHL,Marshall Islands,Majuro,Majuro,Majuro,7.08971,171.38027,25400,1,1,country,"7.08971,171.38027",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MQ,MTQ,Martinique,Fort-de-France,Fort-de-France,,14.60365,-61.07418,253995,1,1,country,"14.60365,-61.07418",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MR,MRT,Mauritania,Nouakchott,Nouakchott,,18.08581,-15.9785,1077169,1,1,country,"18.08581,-15.9785",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MR,MRT,Mauritania,Nema,Nema,Hodh ech Chargui,16.61702,-7.25649,200000,2,0,,"16.61702,-7.25649",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MR,MRT,Mauritania,Nouadhibou,Nouadhibou,Dakhlet Nouadhibou,20.94188,-17.03842,118000,3,0,,"20.94188,-17.03842",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MR,MRT,Mauritania,Kiffa,Kiffa,Assaba,16.62073,-11.40208,110714,4,0,,"16.62073,-11.40208",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MR,MRT,Mauritania,Zouerate,Zouerate,Tiris Zemmour,22.7344,-12.4725,56345,5,0,,"22.7344,-12.4725",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MU,MUS,Mauritius,Curepipe,Curepipe,Plaines Wilhems,-20.31628,57.52594,299975,1,0,,"-20.31628,57.52594",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MU,MUS,Mauritius,Port Louis,Port Louis,Port Louis,-20.16194,57.49889,149194,2,1,country,"-20.16194,57.49889",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MU,MUS,Mauritius,Quartier Militaire,Quartier Militaire,Moka,-20.25,57.55,22745,3,0,,"-20.2500,57.5500",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MU,MUS,Mauritius,Centre de Flacq,Centre de Flacq,Flacq,-20.18972,57.71444,15791,4,0,,"-20.18972,57.71444",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MU,MUS,Mauritius,Port Mathurin,Port Mathurin,Rodrigues,-19.6833,63.4211,5929,5,0,,"-19.6833,63.4211",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+YT,MYT,Mayotte,Mamoudzou,Mamoudzou,,-12.78234,45.22878,32057,1,1,country,"-12.78234,45.22878",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MX,MEX,Mexico,Mexico City,Mexico City,Ciudad de Mexico,19.42847,-99.12766,20996000,1,1,country,"19.42847,-99.12766",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MX,MEX,Mexico,Guadalajara,Guadalajara,Jalisco,20.67738,-103.34749,5253000,2,0,,"20.67738,-103.34749",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MX,MEX,Mexico,Monterrey,Monterrey,Nuevo Leon,25.68435,-100.31721,4295000,3,0,,"25.68435,-100.31721",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MX,MEX,Mexico,Tijuana,Tijuana,Baja California,32.5027,-117.00371,2384609,4,0,,"32.5027,-117.00371",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MX,MEX,Mexico,Ecatepec,Ecatepec,Mexico,19.6097,-99.06,1656107,5,0,,"19.6097,-99.0600",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FM,FSM,"Micronesia, Federated States Of",Palikir,Palikir,Pohnpei,6.92477,158.16109,6227,1,1,country,"6.92477,158.16109",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FM,FSM,"Micronesia, Federated States Of",Colonia,Colonia,Yap,9.5144,138.1292,0,2,0,,"9.5144,138.1292",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FM,FSM,"Micronesia, Federated States Of",Kolonia,Kolonia,Pohnpei,6.9639,158.2083,0,3,0,,"6.9639,158.2083",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FM,FSM,"Micronesia, Federated States Of",Tofol,Tofol,Kosrae,5.3261,163.0083,0,4,0,,"5.3261,163.0083",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+FM,FSM,"Micronesia, Federated States Of",Weno,Weno,Chuuk,7.4458,151.85,0,5,0,,"7.4458,151.8500",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MD,MDA,Moldova,Chisinau,Chisinau,Chisinau,47.00902,28.85938,685900,1,1,country,"47.00902,28.85938",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MD,MDA,Moldova,Tiraspol,Tiraspol,Stinga Nistrului,46.84275,29.6284,157000,2,0,,"46.84275,29.6284",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MD,MDA,Moldova,Balti,Balti,Balti,47.76291,27.92854,144800,3,0,,"47.76291,27.92854",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MD,MDA,Moldova,Bender,Bender,Bender,46.83158,29.47671,91882,4,0,,"46.83158,29.47671",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MD,MDA,Moldova,Ribnita,Ribnita,Stinga Nistrului,47.76817,29.01,56988,5,0,,"47.76817,29.01",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MC,MCO,Monaco,Monaco,Monaco,,43.73718,7.42145,36371,1,1,country,"43.73718,7.42145",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MN,MNG,Mongolia,Ulaanbaatar,Ulaanbaatar,Ulaanbaatar,47.9203,106.9172,1396288,1,1,country,"47.9203,106.9172",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MN,MNG,Mongolia,Erdenet,Erdenet,Orhon,49.03333,104.08333,79647,2,0,,"49.03333,104.08333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MN,MNG,Mongolia,Darhan,Darhan,Darhan-Uul,49.48667,105.92278,74738,3,0,,"49.48667,105.92278",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MN,MNG,Mongolia,Choybalsan,Choybalsan,Dornod,48.0706,114.5228,38150,5,0,,"48.0706,114.5228",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ME,MNE,Montenegro,Podgorica,Podgorica,Podgorica,42.44124,19.26309,174515,1,1,country,"42.44124,19.26309",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ME,MNE,Montenegro,Pljevlja,Pljevlja,Pljevlja,43.3567,19.35843,30786,2,0,,"43.3567,19.35843",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ME,MNE,Montenegro,Ulcinj,Ulcinj,Ulcinj,41.9236,19.2056,19921,3,0,,"41.9236,19.2056",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ME,MNE,Montenegro,Budva,Budva,Budva,42.28721,18.83922,19218,4,0,,"42.28721,18.83922",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ME,MNE,Montenegro,Herceg Novi,Herceg Novi,Herceg Novi,42.45306,18.5375,16493,5,0,,"42.45306,18.5375",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MS,MSR,Montserrat,Brades,Brades,03,16.79183,-62.21058,1000,1,0,,"16.79183,-62.21058",GeoNames cities15000,https://www.geonames.org/
+MS,MSR,Montserrat,Plymouth,Plymouth,01,16.70555,-62.21292,0,2,1,country,"16.70555,-62.21292",GeoNames cities15000,https://www.geonames.org/
+MA,MAR,Morocco,Casablanca,Casablanca,Casablanca-Settat,33.58831,-7.61138,4370000,1,0,,"33.58831,-7.61138",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MA,MAR,Morocco,Rabat,Rabat,Rabat-Sale-Kenitra,34.01325,-6.83255,1628000,2,1,country,"34.01325,-6.83255",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MA,MAR,Morocco,Fes,Fes,Fes-Meknes,34.0433,-5.0033,1112072,3,0,,"34.0433,-5.0033",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MA,MAR,Morocco,Tangier,Tangier,Tanger-Tetouan-Al Hoceima,35.76727,-5.79975,947952,4,0,,"35.76727,-5.79975",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MA,MAR,Morocco,Marrakech,Marrakech,Marrakech-Safi,31.6295,-7.9811,928850,5,0,,"31.6295,-7.9811",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MZ,MOZ,Mozambique,Maputo,Maputo,Maputo,-25.96553,32.58322,1191613,1,1,country,"-25.96553,32.58322",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MZ,MOZ,Mozambique,Matola,Matola,Maputo,-25.96222,32.45889,1032197,2,0,,"-25.96222,32.45889",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MZ,MOZ,Mozambique,Nampula,Nampula,Nampula,-15.11646,39.2666,477900,3,0,,"-15.11646,39.2666",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MZ,MOZ,Mozambique,Beira,Beira,Sofala,-19.84361,34.83889,439264,4,0,,"-19.84361,34.83889",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MZ,MOZ,Mozambique,Chimoio,Chimoio,Manica,-19.11639,33.48333,238976,5,0,,"-19.11639,33.48333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NA,NAM,Namibia,Windhoek,Windhoek,Khomas,-22.55941,17.08323,322500,1,1,country,"-22.55941,17.08323",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NA,NAM,Namibia,Walvisbaai,Walvisbaai,Erongo,-22.9494,14.5069,85000,2,0,,"-22.9494,14.5069",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NA,NAM,Namibia,Rundu,Rundu,Kavango East,-17.91796,19.77314,63431,3,0,,"-17.91796,19.77314",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NA,NAM,Namibia,Swakopmund,Swakopmund,Erongo,-22.67842,14.52663,34300,4,0,,"-22.67842,14.52663",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NA,NAM,Namibia,Katima Mulilo,Katima Mulilo,Zambezi,-17.50467,24.27574,28699,5,0,,"-17.50467,24.27574",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NR,NRU,Nauru,Yaren,Yaren,14,-0.55085,166.9252,1100,1,1,country,"-0.55085,166.9252",GeoNames cities15000,https://www.geonames.org/
+NP,NPL,Nepal,Kathmandu,Kathmandu,Bagmati,27.70169,85.3206,975453,1,1,country,"27.70169,85.3206",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NP,NPL,Nepal,Pokhara,Pokhara,Gandaki,28.26689,83.96851,353841,2,0,,"28.26689,83.96851",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NP,NPL,Nepal,Jitpur,Jitpur,Bagmati,27.6666,85.3333,337785,3,0,,"27.6666,85.3333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NP,NPL,Nepal,Biratnagar,Biratnagar,Kosi,26.4833,87.2833,242548,4,0,,"26.4833,87.2833",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NP,NPL,Nepal,Bharatpur,Bharatpur,Narayani,27.68027,84.43647,143836,5,0,,"27.68027,84.43647",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NL,NLD,Netherlands,The Hague,The Hague,Zuid-Holland,52.07667,4.29861,1406000,1,1,country,"52.07667,4.29861",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NL,NLD,Netherlands,Amsterdam,Amsterdam,Noord-Holland,52.37403,4.88969,1031000,2,1,country,"52.37403,4.88969",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NL,NLD,Netherlands,Rotterdam,Rotterdam,Zuid-Holland,51.9225,4.47917,1005000,3,0,,"51.9225,4.47917",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NL,NLD,Netherlands,Utrecht,Utrecht,Utrecht,52.09083,5.12222,640000,4,0,,"52.09083,5.12222",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NL,NLD,Netherlands,Eindhoven,Eindhoven,Noord-Brabant,51.44083,5.47778,398053,5,0,,"51.44083,5.47778",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NC,NCL,New Caledonia,Noumea,Noumea,Province Sud,-22.27407,166.44884,93060,1,1,country,"-22.27407,166.44884",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NC,NCL,New Caledonia,Kone,Kone,Province Nord,-21.0667,164.8667,0,2,0,,"-21.0667,164.8667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NC,NCL,New Caledonia,We,We,Province Iles,-20.9,167.2667,0,3,0,,"-20.9000,167.2667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NZ,NZL,New Zealand,Auckland,Auckland,Auckland,-36.84853,174.76349,1467800,1,0,,"-36.84853,174.76349",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NZ,NZL,New Zealand,Wellington,Wellington,Wellington,-41.28664,174.77557,418500,2,1,country,"-41.28664,174.77557",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NZ,NZL,New Zealand,Christchurch,Christchurch,Canterbury,-43.53333,172.63333,377200,3,0,,"-43.53333,172.63333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NZ,NZL,New Zealand,Manukau City,Manukau City,Auckland,-36.99282,174.87986,375600,4,0,,"-36.99282,174.87986",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NZ,NZL,New Zealand,Waitakere,Waitakere,Auckland,-36.849,174.543,208100,5,0,,"-36.8490,174.5430",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NI,NIC,Nicaragua,Managua,Managua,Managua,12.13282,-86.2504,1028808,1,1,country,"12.13282,-86.2504",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NI,NIC,Nicaragua,Boaco,Boaco,Boaco,12.47255,-85.65956,317000,2,0,,"12.47255,-85.65956",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NI,NIC,Nicaragua,Leon,Leon,Leon,12.43527,-86.87862,174051,3,0,,"12.43527,-86.87862",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NI,NIC,Nicaragua,Matagalpa,Matagalpa,Matagalpa,12.92795,-85.91906,156218,4,0,,"12.92795,-85.91906",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NI,NIC,Nicaragua,Chinandega,Chinandega,Chinandega,12.62951,-87.13133,151707,5,0,,"12.62951,-87.13133",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NE,NER,Niger,Niamey,Niamey,Niamey,13.51366,2.1098,1026848,1,1,country,"13.51366,2.1098",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NE,NER,Niger,Zinder,Zinder,Zinder,13.80716,8.9881,322935,2,0,,"13.80716,8.9881",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NE,NER,Niger,Maradi,Maradi,Maradi,13.5,7.10174,267249,3,0,,"13.5,7.10174",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NE,NER,Niger,Agadez,Agadez,Agadez,16.97333,7.99111,117770,4,0,,"16.97333,7.99111",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NE,NER,Niger,Tahoua,Tahoua,Tahoua,14.8888,5.2692,115956,5,0,,"14.8888,5.2692",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NG,NGA,Nigeria,Lagos,Lagos,Lagos,6.45407,3.39467,15279000,1,0,,"6.45407,3.39467",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NG,NGA,Nigeria,Onitsha,Onitsha,Anambra,6.14978,6.78569,7635000,2,0,,"6.14978,6.78569",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NG,NGA,Nigeria,Kano,Kano,Kano,12.00012,8.51672,2828861,3,0,,"12.00012,8.51672",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NG,NGA,Nigeria,Ibadan,Ibadan,Oyo,7.37756,3.90591,2628000,4,0,,"7.37756,3.90591",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NG,NGA,Nigeria,Owerri,Owerri,Imo,5.48363,7.03325,1401873,5,0,,"5.48363,7.03325",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NG,NGA,Nigeria,Abuja,Abuja,Federal Capital Territory,9.05785,7.49508,1235880,6,1,country,"9.05785,7.49508",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NU,NIU,Niue,Alofi,Alofi,00,-19.05294,-169.91957,624,1,1,country,"-19.05294,-169.91957",GeoNames cities15000,https://www.geonames.org/
+NF,NFK,Norfolk Island,Kingston,Kingston,00,-29.05459,167.96628,880,1,1,country,"-29.05459,167.96628",GeoNames cities15000,https://www.geonames.org/
+MP,MNP,Northern Mariana Islands,Capitol Hill,Capitol Hill,,15.2137,145.7546,2500,1,1,country,"15.2137,145.7546",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NO,NOR,Norway,Oslo,Oslo,Oslo,59.91273,10.74609,693494,1,1,country,"59.91273,10.74609",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NO,NOR,Norway,Bergen,Bergen,Hordaland,60.39299,5.32415,257087,2,0,,"60.39299,5.32415",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NO,NOR,Norway,Trondheim,Trondheim,Sor-Trondelag,63.43049,10.39506,183378,3,0,,"63.43049,10.39506",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NO,NOR,Norway,Stavanger,Stavanger,Rogaland,58.97005,5.73332,129300,4,0,,"58.97005,5.73332",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+NO,NOR,Norway,Sorum,Sorum,Akershus,59.9135,11.3472,113659,5,0,,"59.9135,11.3472",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+OM,OMN,Oman,Muscat,Muscat,Masqat,23.58413,58.40778,1421409,1,1,country,"23.58413,58.40778",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+OM,OMN,Oman,As Sib,As Sib,Masqat,23.6802,58.1825,237816,2,0,,"23.6802,58.1825",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+OM,OMN,Oman,Salalah,Salalah,Zufar,17.01505,54.09237,178469,3,0,,"17.01505,54.09237",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+OM,OMN,Oman,As Suwayhirah as Sahil,As Suwayhirah as Sahil,Shamal al Batinah,24.362,56.7344,151349,4,0,,"24.3620,56.7344",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+OM,OMN,Oman,`Ibri,`Ibri,Ad Dakhiliyah,23.22573,56.51572,101640,5,0,,"23.22573,56.51572",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PK,PAK,Pakistan,Karachi,Karachi,Sindh,24.8608,67.0104,14835000,1,0,,"24.8608,67.0104",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PK,PAK,Pakistan,Lahore,Lahore,Punjab,31.558,74.35071,11021000,2,0,,"31.558,74.35071",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PK,PAK,Pakistan,Sialkot City,Sialkot City,Punjab,32.5,74.5333,3893672,3,0,,"32.5000,74.5333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PK,PAK,Pakistan,Faisalabad,Faisalabad,Punjab,31.41554,73.08969,3203846,4,0,,"31.41554,73.08969",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PK,PAK,Pakistan,Rawalpindi,Rawalpindi,Punjab,33.59733,73.0479,2098231,5,0,,"33.59733,73.0479",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PK,PAK,Pakistan,Islamabad,Islamabad,Islamabad,33.72148,73.04329,1365000,10,1,country,"33.72148,73.04329",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PW,PLW,Palau,Koror,Koror,,7.3433,134.4804,8744,1,0,,"7.3433,134.4804",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PW,PLW,Palau,Melekeok,Melekeok,Melekeok,7.4874,134.6265,7026,2,1,country,"7.4874,134.6265",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PW,PLW,Palau,Ngerulmud,Ngerulmud,Melekeok,7.50077,134.6238,0,3,1,country,"7.50077,134.6238",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PS,PSE,Palestinian Territory,East Jerusalem,East Jerusalem,WE,31.78336,35.23388,428304,1,1,country,"31.78336,35.23388",GeoNames cities15000,https://www.geonames.org/
+PS,PSE,Palestinian Territory,Gaza,Gaza,GZ,31.50161,34.46672,410000,2,0,,"31.50161,34.46672",GeoNames cities15000,https://www.geonames.org/
+PS,PSE,Palestinian Territory,Khan Yunis,Khan Yunis,GZ,31.34018,34.30627,173183,3,0,,"31.34018,34.30627",GeoNames cities15000,https://www.geonames.org/
+PS,PSE,Palestinian Territory,Jabalya,Jabalya,GZ,31.5272,34.48347,168568,4,0,,"31.5272,34.48347",GeoNames cities15000,https://www.geonames.org/
+PS,PSE,Palestinian Territory,Hebron,Hebron,WE,31.52935,35.0938,160470,5,0,,"31.52935,35.0938",GeoNames cities15000,https://www.geonames.org/
+PA,PAN,Panama,Panama City,Panama City,Panama,8.9936,-79.51973,880691,1,1,country,"8.9936,-79.51973",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PA,PAN,Panama,Colon,Colon,Colon,9.36025,-79.90019,241817,2,0,,"9.36025,-79.90019",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PA,PAN,Panama,David,David,Chiriqui,8.42729,-82.43085,144858,3,0,,"8.42729,-82.43085",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PA,PAN,Panama,La Chorrera,La Chorrera,Panama Oeste,8.87763,-79.78007,68896,4,0,,"8.87763,-79.78007",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PA,PAN,Panama,Balboa,Balboa,Panama,8.9571,-79.5593,62882,5,0,,"8.9571,-79.5593",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PG,PNG,Papua New Guinea,Port Moresby,Port Moresby,National Capital,-9.47723,147.15089,364125,1,1,country,"-9.47723,147.15089",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PG,PNG,Papua New Guinea,Lae,Lae,Morobe,-6.72333,146.99611,131052,2,0,,"-6.72333,146.99611",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PG,PNG,Papua New Guinea,Madang,Madang,Madang,-5.22152,145.78695,62023,3,0,,"-5.22152,145.78695",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PG,PNG,Papua New Guinea,Arawa,Arawa,Bougainville,-6.22977,155.56598,40266,4,0,,"-6.22977,155.56598",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PG,PNG,Papua New Guinea,Mount Hagen,Mount Hagen,Western Highlands,-5.85746,144.23058,29765,5,0,,"-5.85746,144.23058",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PY,PRY,Paraguay,Asuncion,Asuncion,Asuncion,-25.28646,-57.647,1870000,1,1,country,"-25.28646,-57.647",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PY,PRY,Paraguay,San Lorenzo,San Lorenzo,Central,-25.33968,-57.50879,387977,2,0,,"-25.33968,-57.50879",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PY,PRY,Paraguay,Ciudad del Este,Ciudad del Este,Alto Parana,-25.5036,-54.65067,304282,3,0,,"-25.5036,-54.65067",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PY,PRY,Paraguay,Encarnacion,Encarnacion,Itapua,-27.33176,-55.86662,136308,4,0,,"-27.33176,-55.86662",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PY,PRY,Paraguay,Pedro Juan Caballero,Pedro Juan Caballero,Amambay,-22.54925,-55.7387,122190,5,0,,"-22.54925,-55.7387",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PE,PER,Peru,Lima,Lima,Lima,-12.04318,-77.02824,9848000,1,1,country,"-12.04318,-77.02824",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PE,PER,Peru,Callao,Callao,Callao,-12.05162,-77.13452,1129854,2,0,,"-12.05162,-77.13452",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PE,PER,Peru,Arequipa,Arequipa,Arequipa,-16.39899,-71.53747,1008290,3,0,,"-16.39899,-71.53747",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PE,PER,Peru,Trujillo,Trujillo,La Libertad,-8.11599,-79.02998,919899,4,0,,"-8.11599,-79.02998",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PE,PER,Peru,Chiclayo,Chiclayo,Lambayeque,-6.77008,-79.85495,552508,5,0,,"-6.77008,-79.85495",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PH,PHL,Philippines,Manila,Manila,Manila,14.6042,120.9822,23088000,1,1,country,"14.6042,120.9822",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PH,PHL,Philippines,Quezon City,Quezon City,Quezon,14.6488,121.0509,2936116,2,0,,"14.6488,121.0509",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PH,PHL,Philippines,Davao,Davao,Davao,7.07306,125.61278,1632991,3,0,,"7.07306,125.61278",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PH,PHL,Philippines,Caloocan City,Caloocan City,Caloocan,14.65,120.9667,1583978,4,0,,"14.6500,120.9667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PH,PHL,Philippines,Cebu City,Cebu City,Cebu,10.31672,123.89071,922611,5,0,,"10.31672,123.89071",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PN,PCN,Pitcairn,Adamstown,Adamstown,,-25.06597,-130.10147,46,1,1,country,"-25.06597,-130.10147",GeoNames cities15000,https://www.geonames.org/
+PL,POL,Poland,Warsaw,Warsaw,Mazowieckie,52.22977,21.01178,1790658,1,1,country,"52.22977,21.01178",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PL,POL,Poland,Krakow,Krakow,Malopolskie,50.06143,19.93658,766739,2,0,,"50.06143,19.93658",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PL,POL,Poland,Lodz,Lodz,Lodzkie,51.77058,19.47395,690422,3,0,,"51.77058,19.47395",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PL,POL,Poland,Wroclaw,Wroclaw,Dolnoslaskie,51.10286,17.03006,638586,4,0,,"51.10286,17.03006",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PL,POL,Poland,Poznan,Poznan,Wielkopolskie,52.40692,16.92993,538633,5,0,,"52.40692,16.92993",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PT,PRT,Portugal,Lisbon,Lisbon,Lisboa,38.72509,-9.1498,506654,1,1,country,"38.72509,-9.1498",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PT,PRT,Portugal,Vila Nova de Gaia,Vila Nova de Gaia,Porto,41.12401,-8.61241,302295,2,0,,"41.12401,-8.61241",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PT,PRT,Portugal,Porto,Porto,Porto,41.1485,-8.61097,237591,3,0,,"41.1485,-8.61097",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PT,PRT,Portugal,Braga,Braga,Braga,41.5514,-8.42311,181494,4,0,,"41.5514,-8.42311",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PT,PRT,Portugal,Matosinhos,Matosinhos,Porto,41.18207,-8.68908,175478,5,0,,"41.18207,-8.68908",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PR,PRI,Puerto Rico,San Juan,San Juan,Puerto Rico,18.46633,-66.10572,331165,1,1,country,"18.46633,-66.10572",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PR,PRI,Puerto Rico,Bayamon,Bayamon,Puerto Rico,18.39856,-66.15572,165383,2,0,,"18.39856,-66.15572",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PR,PRI,Puerto Rico,Carolina,Carolina,Puerto Rico,18.38078,-65.95739,140072,3,0,,"18.38078,-65.95739",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PR,PRI,Puerto Rico,Ponce,Ponce,Puerto Rico,18.01031,-66.62398,116796,4,0,,"18.01031,-66.62398",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+PR,PRI,Puerto Rico,Caguas,Caguas,Puerto Rico,18.23412,-66.0485,74980,5,0,,"18.23412,-66.0485",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+QA,QAT,Qatar,Doha,Doha,Ad Dawhah,25.28545,51.53096,1312947,1,1,country,"25.28545,51.53096",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+QA,QAT,Qatar,Al Khawr,Al Khawr,Al Khawr wa adh Dhakhirah,25.68389,51.50583,0,2,0,,"25.68389,51.50583",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+QA,QAT,Qatar,Al Wakrah,Al Wakrah,Al Wakrah,25.17151,51.60337,0,3,0,,"25.17151,51.60337",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+QA,QAT,Qatar,Ar Rayyan,Ar Rayyan,Ar Rayyan,25.29194,51.42444,0,4,0,,"25.29194,51.42444",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+QA,QAT,Qatar,Ash Shihaniyah,Ash Shihaniyah,Ar Rayyan,25.3709,51.2226,0,5,0,,"25.3709,51.2226",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+RE,REU,Reunion,Saint-Denis,Saint-Denis,,-20.88231,55.4504,190047,1,1,country,"-20.88231,55.4504",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+RE,REU,Reunion,Saint-Benoit,Saint-Benoit,,-21.03795,55.71546,35310,2,0,,"-21.03795,55.71546",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+RO,ROU,Romania,Bucharest,Bucharest,Bucuresti,44.43225,26.10626,1883425,1,1,country,"44.43225,26.10626",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+RO,ROU,Romania,Cluj-Napoca,Cluj-Napoca,Cluj,46.76667,23.6,324576,2,0,,"46.76667,23.6",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+RO,ROU,Romania,Timisoara,Timisoara,Timis,45.75372,21.22571,319279,3,0,,"45.75372,21.22571",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+RO,ROU,Romania,Brasov,Brasov,Brasov,45.64861,25.60613,290743,4,0,,"45.64861,25.60613",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+RO,ROU,Romania,Iasi,Iasi,Iasi,47.16667,27.6,290422,5,0,,"47.16667,27.6",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+RU,RUS,Russia,Moscow,Moscow,Moskva,55.75204,37.61781,17125000,1,1,country,"55.75204,37.61781",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+RU,RUS,Russia,Saint Petersburg,Saint Petersburg,Sankt-Peterburg,59.93863,30.31413,5351935,2,0,,"59.93863,30.31413",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+RU,RUS,Russia,Novosibirsk,Novosibirsk,Novosibirskaya Oblast',55.02259,82.93175,1602915,3,0,,"55.02259,82.93175",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+RU,RUS,Russia,Yekaterinburg,Yekaterinburg,Sverdlovskaya Oblast',56.85733,60.61529,1468833,4,0,,"56.85733,60.61529",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+RU,RUS,Russia,Nizhniy Novgorod,Nizhniy Novgorod,Nizhegorodskaya Oblast',56.32867,44.00205,1264075,5,0,,"56.32867,44.00205",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+RW,RWA,Rwanda,Kigali,Kigali,Kigali,-1.94995,30.05885,745261,1,1,country,"-1.94995,30.05885",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+RW,RWA,Rwanda,Nyanza,Nyanza,Southern Province,-2.35187,29.75089,225209,2,0,,"-2.35187,29.75089",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+RW,RWA,Rwanda,Gisenyi,Gisenyi,Western Province,-1.70278,29.25639,136830,3,0,,"-1.70278,29.25639",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+RW,RWA,Rwanda,Gitarama,Gitarama,Southern Province,-2.07444,29.75667,87613,4,0,,"-2.07444,29.75667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+RW,RWA,Rwanda,Ruhengeri,Ruhengeri,Northern Province,-1.4944,29.6417,59333,5,0,,"-1.4944,29.6417",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+BL,BLM,Saint Barthelemy,Gustavia,Gustavia,00,17.89618,-62.84978,5988,1,1,country,"17.89618,-62.84978",GeoNames cities15000,https://www.geonames.org/
+SH,SHN,"Saint Helena, Ascension, And Tristan Da Cunha",Edinburgh of the Seven Seas,Edinburgh of the Seven Seas,Tristan da Cunha,-37.0675,-12.3105,0,1,0,,"-37.0675,-12.3105",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SH,SHN,"Saint Helena, Ascension, And Tristan Da Cunha",Georgetown,Georgetown,Ascension,-7.9286,-14.4119,0,2,0,,"-7.9286,-14.4119",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+KN,KNA,Saint Kitts And Nevis,Basseterre,Basseterre,Saint George Basseterre,17.2955,-62.72499,13220,1,1,country,"17.2955,-62.72499",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LC,LCA,Saint Lucia,Castries,Castries,Castries,13.9957,-61.00614,70000,1,1,country,"13.9957,-61.00614",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LC,LCA,Saint Lucia,Gros Islet,Gros Islet,Gros-Islet,14.06667,-60.95,21660,2,0,,"14.06667,-60.95",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+MF,MAF,Saint Martin,Marigot,Marigot,00,18.06819,-63.08302,5700,1,1,country,"18.06819,-63.08302",GeoNames cities15000,https://www.geonames.org/
+PM,SPM,Saint Pierre and Miquelon,Saint-Pierre,Saint-Pierre,97502,46.77914,-56.1773,6200,1,1,country,"46.77914,-56.1773",GeoNames cities15000,https://www.geonames.org/
+VC,VCT,Saint Vincent And The Grenadines,Kingstown,Kingstown,Saint George,13.15527,-61.22742,25418,1,1,country,"13.15527,-61.22742",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+WS,WSM,Samoa,Apia,Apia,Tuamasaga,-13.83333,-171.76666,37708,1,1,country,"-13.83333,-171.76666",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+WS,WSM,Samoa,Afega,Afega,Tuamasaga,-13.7973,-171.8531,0,2,0,,"-13.7973,-171.8531",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+WS,WSM,Samoa,Asau,Asau,Vaisigano,-13.5196,-172.6378,0,3,0,,"-13.5196,-172.6378",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+WS,WSM,Samoa,Leulumoega,Leulumoega,A'ana,-13.823,-171.9613,0,4,0,,"-13.8230,-171.9613",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+WS,WSM,Samoa,Lufilufi,Lufilufi,Atua,-13.8745,-171.5986,0,5,0,,"-13.8745,-171.5986",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SM,SMR,San Marino,San Marino,San Marino,San Marino Citta,43.93667,12.44639,4040,1,1,country,"43.93667,12.44639",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SM,SMR,San Marino,Acquaviva,Acquaviva,Acquaviva,43.9453,12.4183,0,2,0,,"43.9453,12.4183",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SM,SMR,San Marino,Borgo Maggiore,Borgo Maggiore,Borgo Maggiore,43.9408,12.4475,0,3,0,,"43.9408,12.4475",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SM,SMR,San Marino,Chiesanuova,Chiesanuova,Chiesanuova,43.9061,12.4214,0,4,0,,"43.9061,12.4214",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SM,SMR,San Marino,Domagnano,Domagnano,Domagnano,43.9492,12.4686,0,5,0,,"43.9492,12.4686",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ST,STP,Sao Tome And Principe,Sao Tome,Sao Tome,Sao Tome,0.33756,6.7299,56166,1,1,country,"0.33756,6.7299",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ST,STP,Sao Tome And Principe,Trindade,Trindade,Sao Tome,0.3,6.6667,6636,2,0,,"0.3000,6.6667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ST,STP,Sao Tome And Principe,Guadalupe,Guadalupe,Sao Tome,0.3792,6.6375,0,3,0,,"0.3792,6.6375",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ST,STP,Sao Tome And Principe,Neves,Neves,Sao Tome,0.3586,6.5525,0,4,0,,"0.3586,6.5525",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ST,STP,Sao Tome And Principe,Santana,Santana,Sao Tome,0.26,6.7414,0,5,0,,"0.2600,6.7414",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SA,SAU,Saudi Arabia,Riyadh,Riyadh,Ar Riyad,24.68773,46.72185,6881000,1,1,country,"24.68773,46.72185",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SA,SAU,Saudi Arabia,Jeddah,Jeddah,Makkah al Mukarramah,21.49012,39.18624,3976000,2,0,,"21.49012,39.18624",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SA,SAU,Saudi Arabia,Mecca,Mecca,Makkah al Mukarramah,21.4225,39.8261,1700000,3,0,,"21.4225,39.8261",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SA,SAU,Saudi Arabia,Medina,Medina,Al Madinah al Munawwarah,24.4667,39.6,1180770,4,0,,"24.4667,39.6000",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SA,SAU,Saudi Arabia,Ad Dammam,Ad Dammam,Ash Sharqiyah,26.4333,50.1,903312,5,0,,"26.4333,50.1000",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SN,SEN,Senegal,Dakar,Dakar,Dakar,14.6937,-17.44406,1146053,1,1,country,"14.6937,-17.44406",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SN,SEN,Senegal,Thies,Thies,Thies,14.78944,-16.92602,293001,2,0,,"14.78944,-16.92602",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SN,SEN,Senegal,Rufisque,Rufisque,Dakar,14.71542,-17.27334,221066,3,0,,"14.71542,-17.27334",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SN,SEN,Senegal,Ziguinchor,Ziguinchor,Ziguinchor,12.56801,-16.27326,205294,4,0,,"12.56801,-16.27326",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SN,SEN,Senegal,Saint-Louis,Saint-Louis,Saint-Louis,16.01793,-16.48962,176000,5,0,,"16.01793,-16.48962",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+RS,SRB,Serbia,Belgrade,Belgrade,Beograd,44.80401,20.46513,1378682,1,1,country,"44.80401,20.46513",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+RS,SRB,Serbia,Novi Sad,Novi Sad,Novi Sad,45.25167,19.83694,380000,2,0,,"45.25167,19.83694",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+RS,SRB,Serbia,Nis,Nis,Nis,43.32472,21.90333,183164,3,0,,"43.32472,21.90333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+RS,SRB,Serbia,Zemun,Zemun,Beograd,44.8458,20.40116,161596,4,0,,"44.8458,20.40116",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+RS,SRB,Serbia,Kragujevac,Kragujevac,Kragujevac,44.01667,20.91667,150623,5,0,,"44.01667,20.91667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SC,SYC,Seychelles,Victoria,Victoria,English River,-4.62001,55.45501,26450,1,1,country,"-4.62001,55.45501",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SL,SLE,Sierra Leone,Freetown,Freetown,Western Area,8.48714,-13.2356,951000,1,1,country,"8.48714,-13.2356",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SL,SLE,Sierra Leone,Kenema,Kenema,Eastern,7.87687,-11.19025,188463,2,0,,"7.87687,-11.19025",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SL,SLE,Sierra Leone,Bo,Bo,Southern,7.96472,-11.73833,174354,3,0,,"7.96472,-11.73833",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SL,SLE,Sierra Leone,Makeni,Makeni,Northern,8.88605,-12.04417,87679,4,0,,"8.88605,-12.04417",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SL,SLE,Sierra Leone,Koidu-Bulma,Koidu-Bulma,Eastern,8.4405,-10.85,87539,5,0,,"8.4405,-10.8500",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SG,SGP,Singapore,Singapore,Singapore,Central Singapore,1.28967,103.85007,5745000,1,1,country,"1.28967,103.85007",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SX,SXM,Sint Maarten,Philipsburg,Philipsburg,,18.026,-63.04582,1400,1,1,country,"18.026,-63.04582",GeoNames cities15000,https://www.geonames.org/
+SK,SVK,Slovakia,Bratislava,Bratislava,Bratislavsky,48.14816,17.10674,429564,1,1,country,"48.14816,17.10674",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SK,SVK,Slovakia,Kosice,Kosice,Kosicky,48.71441,21.25802,238593,2,0,,"48.71441,21.25802",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SK,SVK,Slovakia,Petrzalka,Petrzalka,Bratislavsky,48.12331,17.12866,103190,3,0,,"48.12331,17.12866",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SK,SVK,Slovakia,Presov,Presov,Presovsky,48.99923,21.2355,88680,4,0,,"48.99923,21.2355",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SK,SVK,Slovakia,Zilina,Zilina,Zilinsky,49.22315,18.73941,82704,5,0,,"49.22315,18.73941",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SI,SVN,Slovenia,Ljubljana,Ljubljana,Ljubljana,46.05108,14.50513,284355,1,1,country,"46.05108,14.50513",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SI,SVN,Slovenia,Maribor,Maribor,Maribor,46.55583,15.64593,112325,2,0,,"46.55583,15.64593",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SI,SVN,Slovenia,Kranj,Kranj,Kranj,46.23887,14.35561,56081,3,0,,"46.23887,14.35561",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SI,SVN,Slovenia,Celje,Celje,Celje,46.23092,15.26044,37875,4,0,,"46.23092,15.26044",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SI,SVN,Slovenia,Koper,Koper,Koper,45.5482,13.72963,25611,5,0,,"45.5482,13.72963",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SB,SLB,Solomon Islands,Honiara,Honiara,Honiara,-9.43333,159.95,84520,1,1,country,"-9.43333,159.95",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SB,SLB,Solomon Islands,Gizo,Gizo,Western,-8.1,156.85,6154,2,0,,"-8.1000,156.8500",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SB,SLB,Solomon Islands,Lata,Lata,Temotu,-10.738,165.8567,553,3,0,,"-10.7380,165.8567",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SB,SLB,Solomon Islands,Auki,Auki,Malaita,-8.7678,160.6978,0,4,0,,"-8.7678,160.6978",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SB,SLB,Solomon Islands,Buala,Buala,Isabel,-8.1448,159.5905,0,5,0,,"-8.1448,159.5905",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SO,SOM,Somalia,Mogadishu,Mogadishu,Banaadir,2.03711,45.34375,2120000,1,1,country,"2.03711,45.34375",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SO,SOM,Somalia,Jamaame,Jamaame,Jubbada Hoose,0.06968,42.74497,185270,2,0,,"0.06968,42.74497",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SO,SOM,Somalia,Baidoa,Baidoa,Bay,3.11383,43.6498,129839,3,0,,"3.11383,43.6498",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SO,SOM,Somalia,Jawhar,Jawhar,Shabeellaha Dhexe,2.78087,45.50048,111308,4,0,,"2.78087,45.50048",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SO,SOM,Somalia,Kismaayo,Kismaayo,Jubbada Hoose,-0.3603,42.5489,73300,5,0,,"-0.3603,42.5489",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ZA,ZAF,South Africa,Johannesburg,Johannesburg,Gauteng,-26.20227,28.04363,4434827,1,0,,"-26.20227,28.04363",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ZA,ZAF,South Africa,Vereeniging,Vereeniging,Gauteng,-26.67313,27.92615,1074000,2,0,,"-26.67313,27.92615",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ZA,ZAF,South Africa,Pietermaritzburg,Pietermaritzburg,KwaZulu-Natal,-29.61679,30.39278,750845,3,0,,"-29.61679,30.39278",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ZA,ZAF,South Africa,Pretoria,Pretoria,Gauteng,-25.74486,28.18783,741651,4,1,country,"-25.74486,28.18783",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ZA,ZAF,South Africa,Durban,Durban,KwaZulu-Natal,-29.8579,31.0292,595061,5,0,,"-29.8579,31.0292",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ZA,ZAF,South Africa,Cape Town,Cape Town,Western Cape,-33.92584,18.42322,433688,6,1,country,"-33.92584,18.42322",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ZA,ZAF,South Africa,Bloemfontein,Bloemfontein,Free State,-29.12107,26.214,256185,12,1,country,"-29.12107,26.214",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GS,SGS,South Georgia And South Sandwich Islands,Grytviken,Grytviken,,-54.28111,-36.5092,99,1,1,country,"-54.28111,-36.5092",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SS,SSD,South Sudan,Juba,Juba,Central Equatoria,4.85165,31.58247,372410,1,1,country,"4.85165,31.58247",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SS,SSD,South Sudan,Bor,Bor,Jonglei,6.20889,31.55861,315351,2,0,,"6.20889,31.55861",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SS,SSD,South Sudan,Yei,Yei,Central Equatoria,4.09444,30.67639,185000,3,0,,"4.09444,30.67639",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SS,SSD,South Sudan,Wau,Wau,Western Bahr el Ghazal,7.70111,27.98972,163442,4,0,,"7.70111,27.98972",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SS,SSD,South Sudan,Malakal,Malakal,Upper Nile,9.53342,31.66049,147450,5,0,,"9.53342,31.66049",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ES,ESP,Spain,Barcelona,Barcelona,Catalonia,41.38879,2.15899,4588000,1,0,,"41.38879,2.15899",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ES,ESP,Spain,Madrid,Madrid,Madrid,40.4165,-3.70256,3266126,2,1,country,"40.4165,-3.70256",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ES,ESP,Spain,Sevilla,Sevilla,Andalusia,37.38283,-5.97317,1212045,3,0,,"37.38283,-5.97317",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ES,ESP,Spain,Valencia,Valencia,Valencia,39.47391,-0.37966,794288,4,0,,"39.47391,-0.37966",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ES,ESP,Spain,Zaragoza,Zaragoza,Aragon,41.65606,-0.87734,649404,5,0,,"41.65606,-0.87734",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LK,LKA,Sri Lanka,Colombo,Colombo,Western,6.93548,79.84868,752993,1,1,country,"6.93548,79.84868",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LK,LKA,Sri Lanka,Moratuwa,Moratuwa,Western,6.773,79.8816,200000,2,0,,"6.773,79.8816",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LK,LKA,Sri Lanka,Negombo,Negombo,Western,7.2083,79.8358,142136,3,0,,"7.2083,79.8358",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LK,LKA,Sri Lanka,Batticaloa,Batticaloa,Eastern,7.7102,81.6924,129222,4,0,,"7.7102,81.6924",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LK,LKA,Sri Lanka,Anuradhapura,Anuradhapura,North Central,8.31223,80.41306,118302,5,0,,"8.31223,80.41306",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+LK,LKA,Sri Lanka,Sri Jayewardenepura Kotte,Sri Jayewardenepura Kotte,Western,6.88297,79.90708,115826,6,1,country,"6.88297,79.90708",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SD,SDN,Sudan,Khartoum,Khartoum,Khartoum,15.55177,32.53241,7282000,1,1,country,"15.55177,32.53241",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SD,SDN,Sudan,Omdurman,Omdurman,Khartoum,15.64453,32.47773,2805396,2,0,,"15.64453,32.47773",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SD,SDN,Sudan,Khartoum North,Khartoum North,Khartoum,15.64925,32.53458,936349,3,0,,"15.64925,32.53458",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SD,SDN,Sudan,Kassala,Kassala,Kassala,15.45099,36.39998,536009,4,0,,"15.45099,36.39998",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SD,SDN,Sudan,Port Sudan,Port Sudan,Red Sea,19.61745,37.21644,489275,5,0,,"19.61745,37.21644",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SR,SUR,Suriname,Paramaribo,Paramaribo,Paramaribo,5.86638,-55.16682,223757,1,1,country,"5.86638,-55.16682",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SR,SUR,Suriname,Cottica,Cottica,Sipaliwini,3.8547,-54.2289,29210,2,0,,"3.8547,-54.2289",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SR,SUR,Suriname,Nieuw Nickerie,Nieuw Nickerie,Nickerie,5.9261,-56.9731,12818,3,0,,"5.9261,-56.9731",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SR,SUR,Suriname,Brokopondo,Brokopondo,Brokopondo,5.0404,-55.02,8340,4,0,,"5.0404,-55.0200",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SR,SUR,Suriname,Moengo,Moengo,Marowijne,5.6167,-54.4,8252,5,0,,"5.6167,-54.4000",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SJ,SJM,Svalbard and Jan Mayen,Longyearbyen,Longyearbyen,21,78.22334,15.64689,2060,1,1,country,"78.22334,15.64689",GeoNames cities15000,https://www.geonames.org/
+SZ,SWZ,Swaziland,Manzini,Manzini,Manzini,-26.49884,31.38004,110508,1,0,,"-26.49884,31.38004",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SZ,SWZ,Swaziland,Mbabane,Mbabane,Hhohho,-26.31667,31.13333,90138,2,1,country,"-26.31667,31.13333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SZ,SWZ,Swaziland,Mhlume,Mhlume,Lubombo,-26.0333,31.85,7761,3,0,,"-26.0333,31.8500",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SZ,SWZ,Swaziland,Siteki,Siteki,Lubombo,-26.45,31.95,6152,4,0,,"-26.4500,31.9500",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SZ,SWZ,Swaziland,Lobamba,Lobamba,Hhohho,-26.46667,31.2,5800,5,1,country,"-26.46667,31.2",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SE,SWE,Sweden,Stockholm,Stockholm,Stockholm,59.32938,18.06871,972647,1,1,country,"59.32938,18.06871",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SE,SWE,Sweden,Gothenburg,Gothenburg,Vastra Gotaland,57.70716,11.96679,600473,2,0,,"57.70716,11.96679",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SE,SWE,Sweden,Malmo,Malmo,Skane,55.60587,13.00073,321845,3,0,,"55.60587,13.00073",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SE,SWE,Sweden,Uppsala,Uppsala,Uppsala,59.85882,17.63889,164535,4,0,,"59.85882,17.63889",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CH,CHE,Switzerland,Zurich,Zurich,Zurich,47.36667,8.55,434008,1,0,,"47.36667,8.55",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CH,CHE,Switzerland,Geneva,Geneva,Geneve,46.2,6.15,201818,2,0,,"46.2000,6.1500",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CH,CHE,Switzerland,Basel,Basel,Basel-Stadt,47.55839,7.57327,177595,3,0,,"47.55839,7.57327",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CH,CHE,Switzerland,Lausanne,Lausanne,Vaud,46.516,6.63282,138905,4,0,,"46.516,6.63282",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+CH,CHE,Switzerland,Bern,Bern,Bern,46.94809,7.44744,133798,5,1,country,"46.94809,7.44744",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SY,SYR,Syria,Aleppo,Aleppo,Halab,36.20124,37.16117,1834093,1,0,,"36.20124,37.16117",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SY,SYR,Syria,Damascus,Damascus,Dimashq,33.5102,36.29128,1754000,2,1,country,"33.5102,36.29128",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SY,SYR,Syria,Homs,Homs,Hims,34.72405,36.72559,900492,3,0,,"34.72405,36.72559",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SY,SYR,Syria,Latakia,Latakia,Al Ladhiqiyah,35.53125,35.79088,700000,4,0,,"35.53125,35.79088",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+SY,SYR,Syria,Hamah,Hamah,Hamah,35.13179,36.75783,312994,5,0,,"35.13179,36.75783",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TW,TWN,Taiwan,Taichung,Taichung,Taichung,24.1469,120.6839,2803894,1,0,,"24.1469,120.6839",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TW,TWN,Taiwan,Kaohsiung,Kaohsiung,Kaohsiung,22.61626,120.31333,2773533,2,0,,"22.61626,120.31333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TW,TWN,Taiwan,Taipei,Taipei,Taipei,25.05306,121.52639,2684567,3,1,country,"25.05306,121.52639",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TW,TWN,Taiwan,Tainan,Tainan,Tainan,22.99083,120.21333,1883831,4,0,,"22.99083,120.21333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TW,TWN,Taiwan,Zhongli,Zhongli,Taoyuan,24.965,121.2168,1632616,5,0,,"24.9650,121.2168",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TJ,TJK,Tajikistan,Dushanbe,Dushanbe,Dushanbe,38.53575,68.77905,780000,1,1,country,"38.53575,68.77905",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TJ,TJK,Tajikistan,Khujand,Khujand,Sughd,40.2833,69.6167,181600,2,0,,"40.2833,69.6167",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TJ,TJK,Tajikistan,Kulob,Kulob,Khatlon,37.91459,69.78454,95000,3,0,,"37.91459,69.78454",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TJ,TJK,Tajikistan,Bokhtar,Bokhtar,Khatlon,37.83654,68.77762,75450,4,0,,"37.83654,68.77762",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TJ,TJK,Tajikistan,Istaravshan,Istaravshan,Sughd,39.9142,69.00328,57400,5,0,,"39.9142,69.00328",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TZ,TZA,Tanzania,Dar es Salaam,Dar es Salaam,Dar es Salaam,-6.82349,39.26951,6698000,1,1,country,"-6.82349,39.26951",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TZ,TZA,Tanzania,Arusha,Arusha,Arusha,-3.36667,36.68333,416442,2,0,,"-3.36667,36.68333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TZ,TZA,Tanzania,Dodoma,Dodoma,Dodoma,-6.17221,35.73947,410956,3,1,country,"-6.17221,35.73947",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TZ,TZA,Tanzania,Mwanza,Mwanza,Mwanza,-2.51667,32.9,385810,4,0,,"-2.51667,32.9",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TZ,TZA,Tanzania,Mbeya,Mbeya,Mbeya,-8.9,33.45,291649,5,0,,"-8.9,33.45",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TH,THA,Thailand,Bangkok,Bangkok,Krung Thep Maha Nakhon,13.75398,100.50144,17066000,1,1,country,"13.75398,100.50144",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TH,THA,Thailand,Nonthaburi,Nonthaburi,Nonthaburi,13.8667,100.5167,255671,2,0,,"13.8667,100.5167",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TH,THA,Thailand,Pak Kret,Pak Kret,Nonthaburi,13.91179,100.49774,184501,3,0,,"13.91179,100.49774",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TH,THA,Thailand,Hat Yai,Hat Yai,Songkhla,7.00836,100.47668,159130,4,0,,"7.00836,100.47668",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TH,THA,Thailand,Nakhon Ratchasima,Nakhon Ratchasima,Nakhon Ratchasima,14.97066,102.10196,134440,5,0,,"14.97066,102.10196",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TL,TLS,Timor-Leste,Dili,Dili,Dili,-8.55861,125.57361,222323,1,1,country,"-8.55861,125.57361",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TL,TLS,Timor-Leste,Maliana,Maliana,Bobonaro,-8.99167,125.21972,15800,2,0,,"-8.99167,125.21972",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TL,TLS,Timor-Leste,Ainaro,Ainaro,Ainaro,-8.9833,125.5,15558,3,0,,"-8.9833,125.5000",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TL,TLS,Timor-Leste,Baucau,Baucau,Baucau,-8.4667,126.45,14961,4,0,,"-8.4667,126.4500",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TL,TLS,Timor-Leste,Manatuto,Manatuto,Manatuto,-8.5167,126.0167,9022,5,0,,"-8.5167,126.0167",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TG,TGO,Togo,Lome,Lome,Maritime,6.12874,1.22154,837437,1,1,country,"6.12874,1.22154",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TG,TGO,Togo,Sokode,Sokode,Centrale,8.98333,1.13333,113000,2,0,,"8.98333,1.13333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TG,TGO,Togo,Kpalime,Kpalime,Plateaux,6.9,0.63333,100479,3,0,,"6.9,0.63333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TG,TGO,Togo,Atakpame,Atakpame,Plateaux,7.53333,1.13333,80683,4,0,,"7.53333,1.13333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TG,TGO,Togo,Sansanne-Mango,Sansanne-Mango,Savanes,10.3556,0.4756,42626,5,0,,"10.3556,0.4756",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TO,TON,Tonga,Nuku`alofa,Nuku`alofa,Tongatapu,-21.13683,-175.20114,24571,1,1,country,"-21.13683,-175.20114",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TO,TON,Tonga,Neiafu,Neiafu,Vava'u,-18.6496,-173.9833,7391,2,0,,"-18.6496,-173.9833",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TT,TTO,Trinidad And Tobago,Chaguanas,Chaguanas,Chaguanas,10.51667,-61.41667,83489,1,0,,"10.51667,-61.41667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TT,TTO,Trinidad And Tobago,San Fernando,San Fernando,San Fernando,10.27969,-61.46835,55419,2,0,,"10.27969,-61.46835",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TT,TTO,Trinidad And Tobago,Couva,Couva,Couva/Tabaquite/Talparo,10.4167,-61.45,48858,3,0,,"10.4167,-61.4500",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TT,TTO,Trinidad And Tobago,Port of Spain,Port of Spain,Port of Spain,10.66668,-61.51889,37074,4,1,country,"10.66668,-61.51889",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TT,TTO,Trinidad And Tobago,Laventille,Laventille,San Juan/Laventille,10.64917,-61.49889,21454,5,0,,"10.64917,-61.49889",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TN,TUN,Tunisia,Tunis,Tunis,Tunis,36.81897,10.16579,1200000,1,1,country,"36.81897,10.16579",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TN,TUN,Tunisia,Sfax,Sfax,Sfax,34.74056,10.76028,453050,2,0,,"34.74056,10.76028",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TN,TUN,Tunisia,Sousse,Sousse,Sousse,35.82539,10.63699,327004,3,0,,"35.82539,10.63699",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TN,TUN,Tunisia,Gabes,Gabes,Gabes,33.88146,10.0982,219517,4,0,,"33.88146,10.0982",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TN,TUN,Tunisia,Zarzis,Zarzis,Medenine,33.50398,11.11215,159161,5,0,,"33.50398,11.11215",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TR,TUR,Turkey,Istanbul,Istanbul,Istanbul,41.01384,28.94966,15154000,1,0,,"41.01384,28.94966",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TR,TUR,Turkey,Ankara,Ankara,Ankara,39.91987,32.85427,5503985,2,1,country,"39.91987,32.85427",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TR,TUR,Turkey,Izmir,Izmir,Izmir,38.41273,27.13838,4320519,3,0,,"38.41273,27.13838",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TR,TUR,Turkey,Bursa,Bursa,Bursa,40.19559,29.06013,2901396,4,0,,"40.19559,29.06013",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TR,TUR,Turkey,Antalya,Antalya,Antalya,36.90812,30.69556,2426356,5,0,,"36.90812,30.69556",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TM,TKM,Turkmenistan,Ashgabat,Ashgabat,Ahal,37.95,58.38333,1031992,1,1,country,"37.95,58.38333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TM,TKM,Turkmenistan,Turkmenabat,Turkmenabat,Lebap,39.07328,63.57861,408906,2,0,,"39.07328,63.57861",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TM,TKM,Turkmenistan,Dasoguz,Dasoguz,Dasoguz,41.83625,59.96661,227184,3,0,,"41.83625,59.96661",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TM,TKM,Turkmenistan,Mary,Mary,Mary,37.59378,61.83031,208682,4,0,,"37.59378,61.83031",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TM,TKM,Turkmenistan,Balkanabat,Balkanabat,Balkan,39.51075,54.36713,89785,5,0,,"39.51075,54.36713",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TC,TCA,Turks And Caicos Islands,Grand Turk,Grand Turk,,21.4664,-71.136,5801,1,0,,"21.4664,-71.1360",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+TV,TUV,Tuvalu,Funafuti,Funafuti,Funafuti,-8.52425,179.19417,6025,1,1,country,"-8.52425,179.19417",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+VI,VIR,U.S. Virgin Islands,Saint Croix,Saint Croix,010,17.72751,-64.74698,50601,1,0,,"17.72751,-64.74698",GeoNames cities15000,https://www.geonames.org/
+VI,VIR,U.S. Virgin Islands,Charlotte Amalie,Charlotte Amalie,030,18.3419,-64.9307,20000,2,1,country,"18.3419,-64.9307",GeoNames cities15000,https://www.geonames.org/
+UG,UGA,Uganda,Kampala,Kampala,Kampala,0.31628,32.58219,1659600,1,1,country,"0.31628,32.58219",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+UG,UGA,Uganda,Mbale,Mbale,Mbale,1.08209,34.17503,402368,2,0,,"1.08209,34.17503",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+UG,UGA,Uganda,Arua,Arua,Arua,3.02013,30.91105,250000,3,0,,"3.02013,30.91105",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+UG,UGA,Uganda,Tororo,Tororo,Tororo,0.69299,34.18085,150000,4,0,,"0.69299,34.18085",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+UG,UGA,Uganda,Gulu,Gulu,Gulu,2.77457,32.29899,146858,5,0,,"2.77457,32.29899",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+UA,UKR,Ukraine,Kyiv,Kyiv,"Kyyiv, Misto",50.45466,30.5238,2967000,1,1,country,"50.45466,30.5238",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+UA,UKR,Ukraine,Kharkiv,Kharkiv,Kharkivs'ka Oblast',49.98177,36.25475,1446107,2,0,,"49.98177,36.25475",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+UA,UKR,Ukraine,Odesa,Odesa,Odes'ka Oblast',46.48572,30.74383,1010783,3,0,,"46.48572,30.74383",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+UA,UKR,Ukraine,Dnipro,Dnipro,Dnipropetrovs'ka Oblast',48.46664,35.04066,983836,4,0,,"48.46664,35.04066",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+UA,UKR,Ukraine,Donetsk,Donetsk,Donets'ka Oblast',48.023,37.80224,929063,5,0,,"48.023,37.80224",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AE,ARE,United Arab Emirates,Dubai,Dubai,Dubayy,25.07725,55.30927,2502715,1,0,,"25.07725,55.30927",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AE,ARE,United Arab Emirates,Sharjah,Sharjah,Ash Shariqah,25.3342,55.41221,1400000,2,0,,"25.3342,55.41221",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AE,ARE,United Arab Emirates,Abu Dhabi,Abu Dhabi,Abu Zaby,24.45118,54.39696,1000000,3,1,country,"24.45118,54.39696",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AE,ARE,United Arab Emirates,Al `Ayn,Al `Ayn,Abu Zaby,24.2075,55.7447,766936,4,0,,"24.2075,55.7447",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+AE,ARE,United Arab Emirates,`Ajman,`Ajman,'Ajman,25.3994,55.4797,238119,5,0,,"25.3994,55.4797",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GB,GBR,United Kingdom,London,London,"London, City of",51.50853,-0.12574,10979000,1,1,country,"51.50853,-0.12574",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GB,GBR,United Kingdom,Birmingham,Birmingham,Birmingham,52.48142,-1.89983,2897303,2,0,,"52.48142,-1.89983",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GB,GBR,United Kingdom,Manchester,Manchester,Manchester,53.48095,-2.23743,2705000,3,0,,"53.48095,-2.23743",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GB,GBR,United Kingdom,Leeds,Leeds,Leeds,53.79648,-1.54785,1901934,4,0,,"53.79648,-1.54785",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+GB,GBR,United Kingdom,Newcastle,Newcastle,Newcastle upon Tyne,55.0077,-1.6578,1650000,5,0,,"55.0077,-1.6578",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+US,USA,United States,New York,New York,New York,40.6943,-73.9249,18713220,1,0,,"40.6943,-73.9249",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+US,USA,United States,Los Angeles,Los Angeles,California,34.05223,-118.24368,12750807,2,0,,"34.05223,-118.24368",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+US,USA,United States,Chicago,Chicago,Illinois,41.85003,-87.65005,8604203,3,0,,"41.85003,-87.65005",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+US,USA,United States,Miami,Miami,Florida,25.77427,-80.19366,6445545,4,0,,"25.77427,-80.19366",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+US,USA,United States,Dallas,Dallas,Texas,32.78306,-96.80667,5743938,5,0,,"32.78306,-96.80667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+US,USA,United States,Washington,Washington,District of Columbia,38.89511,-77.03637,5379184,9,1,country,"38.89511,-77.03637",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+UY,URY,Uruguay,Montevideo,Montevideo,Montevideo,-34.90328,-56.18816,1319108,1,1,country,"-34.90328,-56.18816",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+UY,URY,Uruguay,Punta del Este,Punta del Este,Maldonado,-34.97,-54.95,159000,2,0,,"-34.9700,-54.9500",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+UY,URY,Uruguay,Salto,Salto,Salto,-31.38811,-57.95983,124878,3,0,,"-31.38811,-57.95983",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+UY,URY,Uruguay,Ciudad de la Costa,Ciudad de la Costa,Canelones,-34.8167,-55.95,112449,4,0,,"-34.8167,-55.9500",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+UY,URY,Uruguay,Rivera,Rivera,Rivera,-30.90534,-55.55076,78900,5,0,,"-30.90534,-55.55076",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+UZ,UZB,Uzbekistan,Tashkent,Tashkent,Toshkent,41.26465,69.21627,2424100,1,1,country,"41.26465,69.21627",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+UZ,UZB,Uzbekistan,Samarkand,Samarkand,Samarqand,39.65456,66.96445,504423,2,0,,"39.65456,66.96445",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+UZ,UZB,Uzbekistan,Andijon,Andijon,Andijon,40.78338,72.35067,441700,3,0,,"40.78338,72.35067",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+UZ,UZB,Uzbekistan,Namangan,Namangan,Namangan,40.9983,71.67257,408500,4,0,,"40.9983,71.67257",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+UZ,UZB,Uzbekistan,Qo`qon,Qo`qon,Farg'ona,40.52861,70.9425,350000,5,0,,"40.52861,70.9425",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+VU,VUT,Vanuatu,Port-Vila,Port-Vila,Shefa,-17.73648,168.31366,51437,1,1,country,"-17.73648,168.31366",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+VU,VUT,Vanuatu,Luganville,Luganville,Sanma,-15.5126,167.1766,13397,2,0,,"-15.5126,167.1766",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+VU,VUT,Vanuatu,Lakatoro,Lakatoro,Malampa,-16.1069,167.4208,705,3,0,,"-16.1069,167.4208",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+VU,VUT,Vanuatu,Isangel,Isangel,Tafea,-19.5417,169.2817,0,4,0,,"-19.5417,169.2817",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+VU,VUT,Vanuatu,Saratamata,Saratamata,Penama,-15.2869,167.9906,0,5,0,,"-15.2869,167.9906",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+VA,VAT,Vatican City,Vatican City,Vatican City,,41.90268,12.45414,825,1,1,country,"41.90268,12.45414",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+VE,VEN,Venezuela,Caracas,Caracas,Distrito Capital,10.48801,-66.87919,1943901,1,1,country,"10.48801,-66.87919",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+VE,VEN,Venezuela,Maracaibo,Maracaibo,Zulia,10.64232,-71.61089,1551539,2,0,,"10.64232,-71.61089",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+VE,VEN,Venezuela,Valencia,Valencia,Carabobo,10.16153,-68.00044,1484430,3,0,,"10.16153,-68.00044",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+VE,VEN,Venezuela,Barquisimeto,Barquisimeto,Lara,10.0647,-69.35703,1059092,4,0,,"10.0647,-69.35703",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+VE,VEN,Venezuela,Barinas,Barinas,Barinas,8.62064,-70.23105,873962,5,0,,"8.62064,-70.23105",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+VN,VNM,Vietnam,Ho Chi Minh City,Ho Chi Minh City,Ho Chi Minh,10.82302,106.62965,13312000,1,0,,"10.82302,106.62965",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+VN,VNM,Vietnam,Hanoi,Hanoi,Ha Noi,21.0245,105.84117,7785000,2,1,country,"21.0245,105.84117",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+VN,VNM,Vietnam,Haiphong,Haiphong,Hai Phong,20.86481,106.68345,2103500,3,0,,"20.86481,106.68345",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+VN,VNM,Vietnam,Can Tho,Can Tho,Can Tho,10.03711,105.78825,1237300,4,0,,"10.03711,105.78825",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+VN,VNM,Vietnam,Bien Hoa,Bien Hoa,Dong Nai,10.94469,106.82432,1104000,5,0,,"10.94469,106.82432",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+WF,WLF,Wallis And Futuna,Leava,Leava,Sigave,-14.2933,-178.1583,0,1,0,,"-14.2933,-178.1583",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+XW,XWB,West Bank,Al Quds,Al Quds,,31.7764,35.2269,0,1,1,country,"31.7764,35.2269",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+EH,ESH,Western Sahara,Laayoune,Laayoune,,27.1418,-13.18797,196331,1,0,,"27.1418,-13.18797",GeoNames cities15000,https://www.geonames.org/
+EH,ESH,Western Sahara,Dakhla,Dakhla,CE,23.68477,-15.95798,75000,2,0,,"23.68477,-15.95798",GeoNames cities15000,https://www.geonames.org/
+EH,ESH,Western Sahara,Smara,Smara,CE,26.73841,-11.67194,42056,3,0,,"26.73841,-11.67194",GeoNames cities15000,https://www.geonames.org/
+YE,YEM,Yemen,Sanaa,Sanaa,Amanat al 'Asimah,15.35452,44.20646,2957000,1,1,country,"15.35452,44.20646",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+YE,YEM,Yemen,Ta`izz,Ta`izz,Ta'izz,13.5789,44.0219,596672,2,0,,"13.5789,44.0219",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+YE,YEM,Yemen,Al Hudaydah,Al Hudaydah,Al Hudaydah,14.79781,42.95452,548433,3,0,,"14.79781,42.95452",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+YE,YEM,Yemen,Aden,Aden,'Adan,12.77957,45.03852,507355,4,0,,"12.77957,45.03852",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+YE,YEM,Yemen,Ibb,Ibb,Ibb,13.96667,44.18333,234837,5,0,,"13.96667,44.18333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ZM,ZMB,Zambia,Lusaka,Lusaka,Lusaka,-15.40669,28.28713,1742979,1,1,country,"-15.40669,28.28713",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ZM,ZMB,Zambia,Ndola,Ndola,Copperbelt,-12.95867,28.63659,528330,2,0,,"-12.95867,28.63659",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ZM,ZMB,Zambia,Kitwe,Kitwe,Copperbelt,-12.80243,28.21323,504194,3,0,,"-12.80243,28.21323",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ZM,ZMB,Zambia,Kasama,Kasama,Northern,-10.21289,31.18084,200000,4,0,,"-10.21289,31.18084",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ZM,ZMB,Zambia,Kashikishi,Kashikishi,Luapula,-9.3172,28.7331,150000,5,0,,"-9.3172,28.7331",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ZW,ZWE,Zimbabwe,Harare,Harare,Harare,-17.82772,31.05337,1606000,1,1,country,"-17.82772,31.05337",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ZW,ZWE,Zimbabwe,Bulawayo,Bulawayo,Bulawayo,-20.15,28.58333,653337,2,0,,"-20.15,28.58333",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ZW,ZWE,Zimbabwe,Chitungwiza,Chitungwiza,Harare,-18.01274,31.07555,340360,3,0,,"-18.01274,31.07555",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ZW,ZWE,Zimbabwe,Mutare,Mutare,Manicaland,-18.9707,32.67086,188243,4,0,,"-18.9707,32.67086",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities
+ZW,ZWE,Zimbabwe,Gweru,Gweru,Midlands,-19.45,29.81667,141260,5,0,,"-19.45,29.81667",SimpleMaps worldcities snapshot,https://simplemaps.com/data/world-cities

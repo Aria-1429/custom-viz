@@ -1,0 +1,109 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz Gradient Bar",
+    "description": "A custom visualization for Splunk Dashboard Studio",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 400,
+      "initialHeight": 300
+    },
+    "optionsSchema": {
+      "labelField": { "type": "string", "default": "" },
+      "valueField": { "type": "string", "default": "" },
+      "useValueColors": { "type": "boolean", "default": false },
+      "lowColor": { "type": "string", "default": "#3fb950" },
+      "midColor": { "type": "string", "default": "#f5c518" },
+      "highColor": { "type": "string", "default": "#ef4d4d" },
+      "useMidColor": { "type": "boolean", "default": true },
+      "reverse": { "type": "boolean", "default": false },
+      "scaleMin": { "type": "string", "default": "" },
+      "scaleMax": { "type": "string", "default": "" },
+      "barColor": { "type": "string", "default": "#9333ea" },
+      "sortByValue": { "type": "boolean", "default": true },
+      "sortAscending": { "type": "boolean", "default": false },
+      "topN": { "type": "number", "default": 0 },
+      "showTitle": { "type": "boolean", "default": true },
+      "showAxis": { "type": "boolean", "default": true },
+      "showValue": { "type": "boolean", "default": true },
+      "showPercent": { "type": "boolean", "default": true },
+      "showTrack": { "type": "boolean", "default": true },
+      "glow": { "type": "boolean", "default": true },
+      "animate": { "type": "boolean", "default": true },
+      "fillHeight": { "type": "boolean", "default": true },
+      "barThickness": { "type": "number", "default": 0 },
+      "debug": { "type": "boolean", "default": false }
+    },
+    "editorConfig": [
+      {
+        "label": "データ",
+        "layout": [
+          [{ "label": "ラベルのフィールド", "editor": "editor.columnSelector", "option": "labelField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "値のフィールド", "editor": "editor.columnSelector", "option": "valueField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }]
+        ]
+      },
+      {
+        "label": "バーの色",
+        "layout": [
+          [{ "label": "値で色分けする（低→高）", "editor": "editor.checkbox", "option": "useValueColors" }],
+          [{ "label": "単色グラデーションの基準色", "editor": "editor.color", "option": "barColor" }]
+        ]
+      },
+      {
+        "label": "値ベースのカラースケール（色分けON時）",
+        "layout": [
+          [{ "label": "低値の色（例：安全＝緑）", "editor": "editor.color", "option": "lowColor" }],
+          [{ "label": "高値の色（例：危険＝赤）", "editor": "editor.color", "option": "highColor" }],
+          [{ "label": "中間色を使う（3色スケール）", "editor": "editor.checkbox", "option": "useMidColor" }],
+          [{ "label": "中間色", "editor": "editor.color", "option": "midColor" }],
+          [{ "label": "高い値を低値側の色にする（反転）", "editor": "editor.checkbox", "option": "reverse" }],
+          [{ "label": "スケール下限（空欄＝データ最小）", "editor": "editor.number", "option": "scaleMin" }],
+          [{ "label": "スケール上限（空欄＝データ最大）", "editor": "editor.number", "option": "scaleMax" }]
+        ]
+      },
+      {
+        "label": "並べ替え・件数",
+        "layout": [
+          [{ "label": "値で並べ替える（OFF＝検索結果順）", "editor": "editor.checkbox", "option": "sortByValue" }],
+          [{ "label": "昇順にする（OFF＝降順）", "editor": "editor.checkbox", "option": "sortAscending" }],
+          [{ "label": "上位N件のみ表示（0＝全件）", "editor": "editor.number", "option": "topN" }]
+        ]
+      },
+      {
+        "label": "表示",
+        "layout": [
+          [{ "label": "タイトルを表示", "editor": "editor.checkbox", "option": "showTitle" }],
+          [{ "label": "目盛り軸を表示", "editor": "editor.checkbox", "option": "showAxis" }],
+          [{ "label": "数値を表示", "editor": "editor.checkbox", "option": "showValue" }],
+          [{ "label": "割合（％）を表示", "editor": "editor.checkbox", "option": "showPercent" }],
+          [{ "label": "下地トラックを表示", "editor": "editor.checkbox", "option": "showTrack" }],
+          [{ "label": "発光エフェクト", "editor": "editor.checkbox", "option": "glow" }],
+          [{ "label": "アニメーションで伸ばす", "editor": "editor.checkbox", "option": "animate" }]
+        ]
+      },
+      {
+        "label": "レイアウト",
+        "layout": [
+          [{ "label": "高さいっぱいに広げる", "editor": "editor.checkbox", "option": "fillHeight" }],
+          [{ "label": "バーの太さ（px、0＝自動）", "editor": "editor.number", "option": "barThickness" }]
+        ]
+      },
+      {
+        "label": "診断",
+        "layout": [
+          [{ "label": "オプションのデバッグ表示", "editor": "editor.checkbox", "option": "debug" }]
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz Severity Table",
+    "description": "重要度を色分けするテーブル。深刻度でのソート・件数サマリ・表示スタイル・色をカスタマイズできる",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 640,
+      "initialHeight": 360
+    },
+    "optionsSchema": {
+      "severityField": { "type": "string", "default": "" },
+      "sortBySeverity": { "type": "boolean", "default": true },
+      "maxRows": { "type": "number", "default": 200 },
+      "criticalColor": { "type": "string", "default": "#ff5c3d" },
+      "highColor": { "type": "string", "default": "#ffab2e" },
+      "mediumColor": { "type": "string", "default": "#f2c14b" },
+      "lowColor": { "type": "string", "default": "#4dcf6e" },
+      "infoColor": { "type": "string", "default": "#4fa8f0" },
+      "numericSeverity": { "type": "boolean", "default": false },
+      "criticalThreshold": { "type": "number", "default": 4 },
+      "highThreshold": { "type": "number", "default": 3 },
+      "mediumThreshold": { "type": "number", "default": 2 },
+      "lowThreshold": { "type": "number", "default": 1 },
+      "cellStyle": { "type": "string", "default": "pill" },
+      "rowBar": { "type": "boolean", "default": true },
+      "zebra": { "type": "boolean", "default": true },
+      "compact": { "type": "boolean", "default": false },
+      "showSummary": { "type": "boolean", "default": true },
+      "showTitle": { "type": "boolean", "default": true },
+      "title": { "type": "string", "default": "" },
+      "debug": { "type": "boolean", "default": false }
+    },
+    "editorConfig": [
+      {
+        "label": "データ",
+        "layout": [
+          [{ "label": "深刻度フィールド（未指定なら自動判定）", "editor": "editor.columnSelector", "option": "severityField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "深刻度でソート（重大→情報）", "editor": "editor.checkbox", "option": "sortBySeverity" }],
+          [{ "label": "最大表示行数（0で無制限）", "editor": "editor.number", "option": "maxRows" }]
+        ]
+      },
+      {
+        "label": "深刻度の色",
+        "layout": [
+          [{ "label": "重大（critical）", "editor": "editor.color", "option": "criticalColor" }],
+          [{ "label": "高（high）", "editor": "editor.color", "option": "highColor" }],
+          [{ "label": "中（medium）", "editor": "editor.color", "option": "mediumColor" }],
+          [{ "label": "低（low）", "editor": "editor.color", "option": "lowColor" }],
+          [{ "label": "情報（info）", "editor": "editor.color", "option": "infoColor" }]
+        ]
+      },
+      {
+        "label": "数値の深刻度",
+        "layout": [
+          [{ "label": "数値を深刻度として扱う（閾値で判定）", "editor": "editor.checkbox", "option": "numericSeverity" }],
+          [{ "label": "重大の閾値（値 ≧ この値）", "editor": "editor.number", "option": "criticalThreshold" }],
+          [{ "label": "高の閾値", "editor": "editor.number", "option": "highThreshold" }],
+          [{ "label": "中の閾値", "editor": "editor.number", "option": "mediumThreshold" }],
+          [{ "label": "低の閾値", "editor": "editor.number", "option": "lowThreshold" }]
+        ]
+      },
+      {
+        "label": "表示",
+        "layout": [
+          [{ "label": "行頭に深刻度カラーバー", "editor": "editor.checkbox", "option": "rowBar" }],
+          [{ "label": "縞模様（ゼブラ）", "editor": "editor.checkbox", "option": "zebra" }],
+          [{ "label": "コンパクト表示（行を詰める）", "editor": "editor.checkbox", "option": "compact" }],
+          [{ "label": "件数サマリを表示", "editor": "editor.checkbox", "option": "showSummary" }],
+          [{ "label": "タイトルを表示", "editor": "editor.checkbox", "option": "showTitle" }]
+        ]
+      },
+      {
+        "label": "デバッグ",
+        "layout": [
+          [{ "label": "オプションのデバッグ表示", "editor": "editor.checkbox", "option": "debug" }]
+        ]
+      }
+    ]
+  }
+}

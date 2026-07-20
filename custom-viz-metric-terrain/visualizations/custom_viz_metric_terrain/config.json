@@ -1,0 +1,118 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz Metric Terrain",
+    "description": "An isometric pseudo-3D terrain surface that rises from your metrics, with real-time lighting, shadows and rotation",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 720,
+      "initialHeight": 520
+    },
+    "optionsSchema": {
+      "xField": { "type": "string", "default": "" },
+      "yField": { "type": "string", "default": "" },
+      "valueField": { "type": "string", "default": "" },
+
+      "height": { "type": "number", "default": 100 },
+      "yaw": { "type": "number", "default": 35 },
+      "pitch": { "type": "number", "default": 55 },
+      "autoRotate": { "type": "boolean", "default": true },
+      "rotateSpeed": { "type": "number", "default": 100 },
+
+      "lowColor": { "type": "string", "default": "#1b3a6b" },
+      "midColor": { "type": "string", "default": "#00cdaf" },
+      "highColor": { "type": "string", "default": "#ffd166" },
+      "useMidColor": { "type": "boolean", "default": true },
+      "peakColor": { "type": "string", "default": "#ff5470" },
+      "usePeakColor": { "type": "boolean", "default": true },
+      "reverse": { "type": "boolean", "default": false },
+      "scaleMin": { "type": "number" },
+      "scaleMax": { "type": "number" },
+
+      "shading": { "type": "number", "default": 70 },
+      "lightAngle": { "type": "number", "default": 135 },
+      "wireframe": { "type": "boolean", "default": true },
+      "wireOpacity": { "type": "number", "default": 22 },
+      "showShadow": { "type": "boolean", "default": true },
+      "showBase": { "type": "boolean", "default": true },
+      "glow": { "type": "boolean", "default": true },
+
+      "showHeader": { "type": "boolean", "default": true },
+      "showAxes": { "type": "boolean", "default": true },
+      "showLegend": { "type": "boolean", "default": true },
+      "showPeakMarker": { "type": "boolean", "default": true },
+      "debug": { "type": "boolean", "default": false }
+    },
+    "editorConfig": [
+      {
+        "label": "データ",
+        "layout": [
+          [{ "label": "X軸フィールド（空欄=第1列）", "editor": "editor.columnSelector", "option": "xField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "Y軸フィールド（空欄=第2列。行列形式なら不要）", "editor": "editor.columnSelector", "option": "yField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "値フィールド（空欄=最終列）", "editor": "editor.columnSelector", "option": "valueField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }]
+        ]
+      },
+      {
+        "label": "地形と視点",
+        "layout": [
+          [{ "label": "起伏の高さ（%）", "editor": "editor.number", "option": "height" }],
+          [{ "label": "水平回転 yaw（度）", "editor": "editor.number", "option": "yaw" }],
+          [{ "label": "俯角 pitch（度、大きいほど真上から）", "editor": "editor.number", "option": "pitch" }],
+          [{ "label": "自動回転する", "editor": "editor.checkbox", "option": "autoRotate" }],
+          [{ "label": "回転速度（%、0で停止）", "editor": "editor.number", "option": "rotateSpeed" }]
+        ]
+      },
+      {
+        "label": "標高カラースケール",
+        "layout": [
+          [{ "label": "低標高の色", "editor": "editor.color", "option": "lowColor" }],
+          [{ "label": "中間色を使う", "editor": "editor.checkbox", "option": "useMidColor" }],
+          [{ "label": "中標高の色", "editor": "editor.color", "option": "midColor" }],
+          [{ "label": "高標高の色", "editor": "editor.color", "option": "highColor" }],
+          [{ "label": "頂点色を使う（最上位を強調）", "editor": "editor.checkbox", "option": "usePeakColor" }],
+          [{ "label": "頂点の色", "editor": "editor.color", "option": "peakColor" }],
+          [{ "label": "反転（高い値＝低標高側の色）", "editor": "editor.checkbox", "option": "reverse" }],
+          [{ "label": "スケール下限（空欄=データ最小）", "editor": "editor.number", "option": "scaleMin" }],
+          [{ "label": "スケール上限（空欄=データ最大）", "editor": "editor.number", "option": "scaleMax" }]
+        ]
+      },
+      {
+        "label": "陰影とスタイル",
+        "layout": [
+          [{ "label": "陰影の強さ（%）", "editor": "editor.number", "option": "shading" }],
+          [{ "label": "光源の方位（度）", "editor": "editor.number", "option": "lightAngle" }],
+          [{ "label": "ワイヤーフレームを表示", "editor": "editor.checkbox", "option": "wireframe" }],
+          [{ "label": "ワイヤー不透明度（%）", "editor": "editor.number", "option": "wireOpacity" }],
+          [{ "label": "地面の影を落とす", "editor": "editor.checkbox", "option": "showShadow" }],
+          [{ "label": "土台（側面）を表示", "editor": "editor.checkbox", "option": "showBase" }],
+          [{ "label": "高標高部を発光させる", "editor": "editor.checkbox", "option": "glow" }]
+        ]
+      },
+      {
+        "label": "表示",
+        "layout": [
+          [{ "label": "サマリーヘッダーを表示", "editor": "editor.checkbox", "option": "showHeader" }],
+          [{ "label": "軸ラベルを表示", "editor": "editor.checkbox", "option": "showAxes" }],
+          [{ "label": "凡例を表示", "editor": "editor.checkbox", "option": "showLegend" }],
+          [{ "label": "最高地点にマーカーを表示", "editor": "editor.checkbox", "option": "showPeakMarker" }]
+        ]
+      },
+      {
+        "label": "デバッグ",
+        "layout": [
+          [{ "label": "options 診断オーバーレイを表示", "editor": "editor.checkbox", "option": "debug" }]
+        ]
+      }
+    ]
+  }
+}

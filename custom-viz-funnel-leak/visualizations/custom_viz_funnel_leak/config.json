@@ -1,0 +1,108 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz Funnel Leak",
+    "description": "An animated funnel that flows pass-through volume down each step and spills the drop-off sideways as leak streams",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 760,
+      "initialHeight": 520
+    },
+    "optionsSchema": {
+      "stepField": { "type": "string", "default": "" },
+      "valueField": { "type": "string", "default": "" },
+
+      "flowColor": { "type": "string", "default": "#3b82f6" },
+      "leakColor": { "type": "string", "default": "#ef4d4d" },
+      "useRateColors": { "type": "boolean", "default": false },
+      "lowColor": { "type": "string", "default": "#ef4d4d" },
+      "highColor": { "type": "string", "default": "#3fb950" },
+
+      "animationPeriod": { "type": "number", "default": 6 },
+      "particleDensity": { "type": "number", "default": 50 },
+
+      "barThickness": { "type": "number", "default": 46 },
+      "stepGap": { "type": "number", "default": 54 },
+      "cornerRadius": { "type": "number", "default": 8 },
+      "leakWidth": { "type": "number", "default": 34 },
+
+      "showFlowBands": { "type": "boolean", "default": false },
+      "showStepLabels": { "type": "boolean", "default": true },
+      "showCounts": { "type": "boolean", "default": true },
+      "showRate": { "type": "boolean", "default": true },
+      "showLeak": { "type": "boolean", "default": true },
+      "showOverallRate": { "type": "boolean", "default": true },
+      "labelSize": { "type": "number", "default": 0 },
+
+      "highlightOnHover": { "type": "boolean", "default": true },
+      "showHeader": { "type": "boolean", "default": true },
+      "debug": { "type": "boolean", "default": false }
+    },
+    "editorConfig": [
+      {
+        "label": "データフィールド",
+        "layout": [
+          [{ "label": "ステップ（段階名）フィールド", "editor": "editor.columnSelector", "option": "stepField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "件数（通過数）フィールド", "editor": "editor.columnSelector", "option": "valueField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }]
+        ]
+      },
+      {
+        "label": "色",
+        "layout": [
+          [{ "label": "通過フローの色", "editor": "editor.color", "option": "flowColor" }],
+          [{ "label": "離脱（リーク）の色", "editor": "editor.color", "option": "leakColor" }],
+          [{ "label": "通過率で段の色を変える（低→高）", "editor": "editor.checkbox", "option": "useRateColors" }],
+          [{ "label": "低い通過率の色", "editor": "editor.color", "option": "lowColor" }],
+          [{ "label": "高い通過率の色", "editor": "editor.color", "option": "highColor" }]
+        ]
+      },
+      {
+        "label": "アニメーション",
+        "layout": [
+          [{ "label": "アニメーション周期（秒、0で停止）", "editor": "editor.number", "option": "animationPeriod" }],
+          [{ "label": "粒子の密度（1〜100）", "editor": "editor.number", "option": "particleDensity" }],
+          [{ "label": "フローの帯を表示（粒子の下地。既定OFF）", "editor": "editor.checkbox", "option": "showFlowBands" }]
+        ]
+      },
+      {
+        "label": "レイアウト",
+        "layout": [
+          [{ "label": "バーの太さ（px、0で自動）", "editor": "editor.number", "option": "barThickness" }],
+          [{ "label": "段の間隔（px、0で自動）", "editor": "editor.number", "option": "stepGap" }],
+          [{ "label": "角の丸み（px）", "editor": "editor.number", "option": "cornerRadius" }],
+          [{ "label": "リークの帯幅（px）", "editor": "editor.number", "option": "leakWidth" }]
+        ]
+      },
+      {
+        "label": "表示",
+        "layout": [
+          [{ "label": "段階名を表示", "editor": "editor.checkbox", "option": "showStepLabels" }],
+          [{ "label": "件数を表示", "editor": "editor.checkbox", "option": "showCounts" }],
+          [{ "label": "通過率を表示", "editor": "editor.checkbox", "option": "showRate" }],
+          [{ "label": "離脱数を表示", "editor": "editor.checkbox", "option": "showLeak" }],
+          [{ "label": "総合通過率のヘッダーを表示", "editor": "editor.checkbox", "option": "showOverallRate" }],
+          [{ "label": "ラベルサイズ（px、0で自動）", "editor": "editor.number", "option": "labelSize" }],
+          [{ "label": "ホバーで段をハイライト", "editor": "editor.checkbox", "option": "highlightOnHover" }],
+          [{ "label": "サマリーヘッダーを表示", "editor": "editor.checkbox", "option": "showHeader" }]
+        ]
+      },
+      {
+        "label": "デバッグ",
+        "layout": [
+          [{ "label": "オプションのデバッグ表示", "editor": "editor.checkbox", "option": "debug" }]
+        ]
+      }
+    ],
+    "defaultContext": {}
+  }
+}

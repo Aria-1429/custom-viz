@@ -1,0 +1,100 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz Country Graph",
+    "description": "A country ranking bar chart with flags, top-N limiting, sorting, and an editable low/high value color scale",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 480,
+      "initialHeight": 340
+    },
+    "optionsSchema": {
+      "colorByValue": { "type": "boolean", "default": false },
+      "paletteStartColor": { "type": "string", "default": "#39d7ff" },
+      "paletteEndColor": { "type": "string", "default": "#9b6bff" },
+      "lowColor": { "type": "string", "default": "#3fb950" },
+      "highColor": { "type": "string", "default": "#ef4d4d" },
+      "useMidColor": { "type": "boolean", "default": true },
+      "midColor": { "type": "string", "default": "#f5c518" },
+      "reverseScale": { "type": "boolean", "default": false },
+      "scaleMin": { "type": "number" },
+      "scaleMax": { "type": "number" },
+      "sortDescending": { "type": "boolean", "default": true },
+      "topN": { "type": "number", "default": 0 },
+      "showRank": { "type": "boolean", "default": true },
+      "showFlag": { "type": "boolean", "default": true },
+      "showBar": { "type": "boolean", "default": true },
+      "showValue": { "type": "boolean", "default": true },
+      "showShare": { "type": "boolean", "default": true },
+      "showHeader": { "type": "boolean", "default": true },
+      "compact": { "type": "boolean", "default": false },
+      "glow": { "type": "boolean", "default": true },
+      "animate": { "type": "boolean", "default": true },
+      "debug": { "type": "boolean", "default": false }
+    },
+    "editorConfig": [
+      {
+        "label": "配色（オフ＝順位グラデーション / オン＝値ベース）",
+        "layout": [
+          [{ "label": "値ベース配色にする", "editor": "editor.checkbox", "option": "colorByValue" }],
+          [{ "label": "順位グラデーション 開始色", "editor": "editor.color", "option": "paletteStartColor" }],
+          [{ "label": "順位グラデーション 終了色", "editor": "editor.color", "option": "paletteEndColor" }]
+        ]
+      },
+      {
+        "label": "値ベース配色（配色をオンにしたとき）",
+        "layout": [
+          [{ "label": "低い値の色（安全＝緑）", "editor": "editor.color", "option": "lowColor" }],
+          [{ "label": "高い値の色（危険＝赤）", "editor": "editor.color", "option": "highColor" }],
+          [{ "label": "中間色を使う", "editor": "editor.checkbox", "option": "useMidColor" }],
+          [{ "label": "中間色", "editor": "editor.color", "option": "midColor" }],
+          [{ "label": "高低を反転", "editor": "editor.checkbox", "option": "reverseScale" }],
+          [{ "label": "スケール最小値（空欄＝自動）", "editor": "editor.number", "option": "scaleMin" }],
+          [{ "label": "スケール最大値（空欄＝自動）", "editor": "editor.number", "option": "scaleMax" }]
+        ]
+      },
+      {
+        "label": "並び替えと絞り込み",
+        "layout": [
+          [{ "label": "降順で並べる", "editor": "editor.checkbox", "option": "sortDescending" }],
+          [{ "label": "上位N件のみ表示（0＝全件）", "editor": "editor.number", "option": "topN" }]
+        ]
+      },
+      {
+        "label": "表示",
+        "layout": [
+          [{ "label": "ヘッダー", "editor": "editor.checkbox", "option": "showHeader" }],
+          [{ "label": "順位番号", "editor": "editor.checkbox", "option": "showRank" }],
+          [{ "label": "国旗", "editor": "editor.checkbox", "option": "showFlag" }],
+          [{ "label": "バー", "editor": "editor.checkbox", "option": "showBar" }],
+          [{ "label": "数値", "editor": "editor.checkbox", "option": "showValue" }],
+          [{ "label": "構成比（%）", "editor": "editor.checkbox", "option": "showShare" }],
+          [{ "label": "コンパクト表示", "editor": "editor.checkbox", "option": "compact" }]
+        ]
+      },
+      {
+        "label": "演出",
+        "layout": [
+          [{ "label": "バーを発光", "editor": "editor.checkbox", "option": "glow" }],
+          [{ "label": "初期アニメーション", "editor": "editor.checkbox", "option": "animate" }]
+        ]
+      },
+      {
+        "label": "デバッグ",
+        "layout": [
+          [{ "label": "デバッグ表示", "editor": "editor.checkbox", "option": "debug" }]
+        ]
+      }
+    ]
+  }
+}

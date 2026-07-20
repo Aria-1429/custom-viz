@@ -1,0 +1,99 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz Radar Chart",
+    "description": "A radar (spider) chart that overlays multiple series across shared axes",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 520,
+      "initialHeight": 480
+    },
+    "optionsSchema": {
+      "axisField": { "type": "string", "default": "" },
+      "seriesField1": { "type": "string", "default": "" },
+      "seriesField2": { "type": "string", "default": "" },
+      "seriesField3": { "type": "string", "default": "" },
+      "seriesField4": { "type": "string", "default": "" },
+      "seriesField5": { "type": "string", "default": "" },
+      "seriesField6": { "type": "string", "default": "" },
+      "seriesColor1": { "type": "string", "default": "#5b8def" },
+      "seriesColor2": { "type": "string", "default": "#2dd4bf" },
+      "seriesColor3": { "type": "string", "default": "#f0912e" },
+      "seriesColor4": { "type": "string", "default": "#ef4d6a" },
+      "seriesColor5": { "type": "string", "default": "#a78bfa" },
+      "seriesColor6": { "type": "string", "default": "#f5c518" },
+      "fillOpacity": { "type": "number", "default": 22 },
+      "strokeWidth": { "type": "number", "default": 2 },
+      "rings": { "type": "number", "default": 4 },
+      "startAngle": { "type": "number", "default": -90 },
+      "sharedScale": { "type": "boolean", "default": false },
+      "showDots": { "type": "boolean", "default": true },
+      "showAxisLabels": { "type": "boolean", "default": true },
+      "showValueLabels": { "type": "boolean", "default": true },
+      "showLegend": { "type": "boolean", "default": true },
+      "glow": { "type": "boolean", "default": true },
+      "debug": { "type": "boolean", "default": false }
+    },
+    "editorConfig": [
+      {
+        "label": "データ設定",
+        "layout": [
+          [{ "label": "軸（メトリック名）のフィールド", "editor": "editor.columnSelector", "option": "axisField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "系列 1 の値フィールド", "editor": "editor.columnSelector", "option": "seriesField1", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "系列 2 の値フィールド", "editor": "editor.columnSelector", "option": "seriesField2", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "系列 3 の値フィールド", "editor": "editor.columnSelector", "option": "seriesField3", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "系列 4 の値フィールド", "editor": "editor.columnSelector", "option": "seriesField4", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "系列 5 の値フィールド", "editor": "editor.columnSelector", "option": "seriesField5", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "系列 6 の値フィールド", "editor": "editor.columnSelector", "option": "seriesField6", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }]
+        ]
+      },
+      {
+        "label": "レーダー",
+        "layout": [
+          [{ "label": "塗りの不透明度（％）", "editor": "editor.number", "option": "fillOpacity" }],
+          [{ "label": "輪郭線の太さ（px）", "editor": "editor.number", "option": "strokeWidth" }],
+          [{ "label": "グリッドのリング本数", "editor": "editor.number", "option": "rings" }],
+          [{ "label": "開始角度（度、-90 = 真上）", "editor": "editor.number", "option": "startAngle" }],
+          [{ "label": "全軸を共通スケールにする", "editor": "editor.checkbox", "option": "sharedScale" }],
+          [{ "label": "頂点ドットを表示", "editor": "editor.checkbox", "option": "showDots" }],
+          [{ "label": "発光エフェクト", "editor": "editor.checkbox", "option": "glow" }]
+        ]
+      },
+      {
+        "label": "ラベル",
+        "layout": [
+          [{ "label": "軸ラベルを表示", "editor": "editor.checkbox", "option": "showAxisLabels" }],
+          [{ "label": "ホバー時に値を表示", "editor": "editor.checkbox", "option": "showValueLabels" }],
+          [{ "label": "凡例を表示", "editor": "editor.checkbox", "option": "showLegend" }]
+        ]
+      },
+      {
+        "label": "系列の色",
+        "layout": [
+          [{ "label": "系列 1", "editor": "editor.color", "option": "seriesColor1" }],
+          [{ "label": "系列 2", "editor": "editor.color", "option": "seriesColor2" }],
+          [{ "label": "系列 3", "editor": "editor.color", "option": "seriesColor3" }],
+          [{ "label": "系列 4", "editor": "editor.color", "option": "seriesColor4" }],
+          [{ "label": "系列 5", "editor": "editor.color", "option": "seriesColor5" }],
+          [{ "label": "系列 6", "editor": "editor.color", "option": "seriesColor6" }]
+        ]
+      },
+      {
+        "label": "デバッグ",
+        "layout": [
+          [{ "label": "options / データ形状をダンプ表示", "editor": "editor.checkbox", "option": "debug" }]
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz Donut Timechart",
+    "description": "A status card combining a donut chart, a detailed legend and a trend sparkline",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 640,
+      "initialHeight": 560
+    },
+    "optionsSchema": {
+      "timeField": { "type": "string", "default": "" },
+      "categoryField": { "type": "string", "default": "" },
+      "valueField": { "type": "string", "default": "" },
+      "color1": { "type": "string", "default": "#3fd66e" },
+      "color2": { "type": "string", "default": "#f0912e" },
+      "color3": { "type": "string", "default": "#ef4d6a" },
+      "color4": { "type": "string", "default": "#5b8def" },
+      "color5": { "type": "string", "default": "#a78bfa" },
+      "color6": { "type": "string", "default": "#2dd4bf" },
+      "color7": { "type": "string", "default": "#f5c518" },
+      "color8": { "type": "string", "default": "#38bdf8" },
+      "totalColor": { "type": "string", "default": "#7da6dd" },
+      "sparkColor": { "type": "string", "default": "#3d7fd9" },
+      "thickness": { "type": "number", "default": 26 },
+      "gap": { "type": "number", "default": 2 },
+      "maxSegments": { "type": "number", "default": 6 },
+      "rounded": { "type": "boolean", "default": false },
+      "glow": { "type": "boolean", "default": true },
+      "glowStrength": { "type": "number", "default": 6 },
+      "centerPercent": { "type": "boolean", "default": true },
+      "showLegend": { "type": "boolean", "default": true },
+      "showPercent": { "type": "boolean", "default": false },
+      "showTotalRow": { "type": "boolean", "default": true },
+      "showSparkline": { "type": "boolean", "default": true },
+      "sparkHeight": { "type": "number", "default": 110 },
+      "sparkFill": { "type": "boolean", "default": true },
+      "autoFit": { "type": "boolean", "default": true },
+      "debug": { "type": "boolean", "default": false }
+    },
+    "editorConfig": [
+      {
+        "label": "データフィールド",
+        "layout": [
+          [{ "label": "時刻フィールド（timechart 形式・未指定で _time 自動）", "editor": "editor.columnSelector", "option": "timeField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "カテゴリフィールド（stats 形式・未指定で第1列）", "editor": "editor.columnSelector", "option": "categoryField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "値フィールド（stats 形式・未指定で第2列）", "editor": "editor.columnSelector", "option": "valueField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }]
+        ]
+      },
+      {
+        "label": "ドーナツ",
+        "layout": [
+          [{ "label": "リングの太さ（px）", "editor": "editor.number", "option": "thickness" }],
+          [{ "label": "セグメント間の隙間（px）", "editor": "editor.number", "option": "gap" }],
+          [{ "label": "最大セグメント数（超過分は Others に集約）", "editor": "editor.number", "option": "maxSegments" }],
+          [{ "label": "セグメント端を丸める", "editor": "editor.checkbox", "option": "rounded" }],
+          [{ "label": "中央に最大セグメントの割合を表示", "editor": "editor.checkbox", "option": "centerPercent" }],
+          [{ "label": "発光エフェクト", "editor": "editor.checkbox", "option": "glow" }],
+          [{ "label": "発光の強さ（px）", "editor": "editor.number", "option": "glowStrength" }]
+        ]
+      },
+      {
+        "label": "凡例",
+        "layout": [
+          [{ "label": "凡例を表示", "editor": "editor.checkbox", "option": "showLegend" }],
+          [{ "label": "割合（%）を表示", "editor": "editor.checkbox", "option": "showPercent" }],
+          [{ "label": "合計行を表示", "editor": "editor.checkbox", "option": "showTotalRow" }]
+        ]
+      },
+      {
+        "label": "トレンドチャート",
+        "layout": [
+          [{ "label": "トレンドチャートを表示", "editor": "editor.checkbox", "option": "showSparkline" }],
+          [{ "label": "トレンドチャートの高さ（px）", "editor": "editor.number", "option": "sparkHeight" }],
+          [{ "label": "ライン下を塗りつぶす", "editor": "editor.checkbox", "option": "sparkFill" }],
+          [{ "label": "トレンドラインの色", "editor": "editor.color", "option": "sparkColor" }]
+        ]
+      },
+      {
+        "label": "色",
+        "layout": [
+          [{ "label": "系列 1", "editor": "editor.color", "option": "color1" }],
+          [{ "label": "系列 2", "editor": "editor.color", "option": "color2" }],
+          [{ "label": "系列 3", "editor": "editor.color", "option": "color3" }],
+          [{ "label": "系列 4", "editor": "editor.color", "option": "color4" }],
+          [{ "label": "系列 5", "editor": "editor.color", "option": "color5" }],
+          [{ "label": "系列 6", "editor": "editor.color", "option": "color6" }],
+          [{ "label": "系列 7", "editor": "editor.color", "option": "color7" }],
+          [{ "label": "系列 8", "editor": "editor.color", "option": "color8" }],
+          [{ "label": "合計行のドット", "editor": "editor.color", "option": "totalColor" }]
+        ]
+      },
+      {
+        "label": "表示",
+        "layout": [
+          [{ "label": "パネルサイズに自動フィット", "editor": "editor.checkbox", "option": "autoFit" }],
+          [{ "label": "デバッグ情報を表示", "editor": "editor.checkbox", "option": "debug" }]
+        ]
+      }
+    ]
+  }
+}

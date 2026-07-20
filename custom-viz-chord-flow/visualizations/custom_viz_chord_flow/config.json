@@ -1,0 +1,119 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz Chord Flow",
+    "description": "An animated chord diagram: entities on a ring, mutual flows as gradient ribbons, with directional glow particles streaming along each flow",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 700,
+      "initialHeight": 560
+    },
+    "optionsSchema": {
+      "sourceField": { "type": "string", "default": "" },
+      "targetField": { "type": "string", "default": "" },
+      "valueField": { "type": "string", "default": "" },
+      "useGradientRibbons": { "type": "boolean", "default": true },
+      "ribbonOpacity": { "type": "number", "default": 55 },
+      "useValueColors": { "type": "boolean", "default": false },
+      "lowColor": { "type": "string", "default": "#3fb950" },
+      "highColor": { "type": "string", "default": "#ef4d4d" },
+      "useMidColor": { "type": "boolean", "default": true },
+      "midColor": { "type": "string", "default": "#f5c518" },
+      "reverse": { "type": "boolean", "default": false },
+      "showSelfLoops": { "type": "boolean", "default": false },
+      "showParticles": { "type": "boolean", "default": true },
+      "particleSpeed": { "type": "number", "default": 100 },
+      "particleDensity": { "type": "number", "default": 100 },
+      "particleSize": { "type": "number", "default": 0 },
+      "glow": { "type": "boolean", "default": true },
+      "taperRibbons": { "type": "boolean", "default": true },
+      "showArrows": { "type": "boolean", "default": false },
+      "arcThickness": { "type": "number", "default": 0 },
+      "arcPadding": { "type": "number", "default": 2 },
+      "rotateSpeed": { "type": "number", "default": 0 },
+      "showLabels": { "type": "boolean", "default": true },
+      "showValues": { "type": "boolean", "default": true },
+      "labelSize": { "type": "number", "default": 0 },
+      "showHeader": { "type": "boolean", "default": true },
+      "highlightOnHover": { "type": "boolean", "default": true },
+      "clickToFocus": { "type": "boolean", "default": true },
+      "debug": { "type": "boolean", "default": false }
+    },
+    "editorConfig": [
+      {
+        "label": "データ",
+        "layout": [
+          [{ "label": "送信元フィールド", "editor": "editor.columnSelector", "option": "sourceField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "送信先フィールド", "editor": "editor.columnSelector", "option": "targetField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "数値（流量）フィールド", "editor": "editor.columnSelector", "option": "valueField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "自己ループ（送信元＝送信先）を表示", "editor": "editor.checkbox", "option": "showSelfLoops" }]
+        ]
+      },
+      {
+        "label": "リボン",
+        "layout": [
+          [{ "label": "グラデーションリボン（送信元色→送信先色）", "editor": "editor.checkbox", "option": "useGradientRibbons" }],
+          [{ "label": "リボンの不透明度（％）", "editor": "editor.number", "option": "ribbonOpacity" }],
+          [{ "label": "送信元を太く／送信先を細くする（方向を表現）", "editor": "editor.checkbox", "option": "taperRibbons" }],
+          [{ "label": "送信先側に矢印を表示", "editor": "editor.checkbox", "option": "showArrows" }],
+          [{ "label": "値でリボンを着色（低→高）", "editor": "editor.checkbox", "option": "useValueColors" }],
+          [{ "label": "低い値の色", "editor": "editor.color", "option": "lowColor" }],
+          [{ "label": "高い値の色", "editor": "editor.color", "option": "highColor" }],
+          [{ "label": "中間色を使う（3色スケール）", "editor": "editor.checkbox", "option": "useMidColor" }],
+          [{ "label": "中間色", "editor": "editor.color", "option": "midColor" }],
+          [{ "label": "高低を反転（高い値＝低い色）", "editor": "editor.checkbox", "option": "reverse" }]
+        ]
+      },
+      {
+        "label": "フローパーティクル",
+        "layout": [
+          [{ "label": "フローパーティクルを表示", "editor": "editor.checkbox", "option": "showParticles" }],
+          [{ "label": "パーティクル速度（％）", "editor": "editor.number", "option": "particleSpeed" }],
+          [{ "label": "パーティクル密度（％）", "editor": "editor.number", "option": "particleDensity" }],
+          [{ "label": "パーティクルサイズ（px、0で自動）", "editor": "editor.number", "option": "particleSize" }],
+          [{ "label": "発光エフェクト", "editor": "editor.checkbox", "option": "glow" }]
+        ]
+      },
+      {
+        "label": "リング",
+        "layout": [
+          [{ "label": "弧の太さ（px、0で自動）", "editor": "editor.number", "option": "arcThickness" }],
+          [{ "label": "弧と弧の間隔（度）", "editor": "editor.number", "option": "arcPadding" }],
+          [{ "label": "リング回転（度/秒、0で停止、負値で逆回転）", "editor": "editor.number", "option": "rotateSpeed" }]
+        ]
+      },
+      {
+        "label": "ラベル",
+        "layout": [
+          [{ "label": "ラベルを表示", "editor": "editor.checkbox", "option": "showLabels" }],
+          [{ "label": "ラベルに値を併記", "editor": "editor.checkbox", "option": "showValues" }],
+          [{ "label": "ラベル文字サイズ（px、0で自動）", "editor": "editor.number", "option": "labelSize" }]
+        ]
+      },
+      {
+        "label": "表示",
+        "layout": [
+          [{ "label": "サマリーヘッダーを表示", "editor": "editor.checkbox", "option": "showHeader" }],
+          [{ "label": "ホバーで関連フローをハイライト", "editor": "editor.checkbox", "option": "highlightOnHover" }],
+          [{ "label": "クリックで選択を固定", "editor": "editor.checkbox", "option": "clickToFocus" }]
+        ]
+      },
+      {
+        "label": "デバッグ",
+        "layout": [
+          [{ "label": "オプション診断オーバーレイを表示", "editor": "editor.checkbox", "option": "debug" }]
+        ]
+      }
+    ]
+  }
+}

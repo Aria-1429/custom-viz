@@ -1,0 +1,83 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz Sankey Flow",
+    "description": "A multi-stage Sankey flow diagram with gradient links, hover highlighting and a value-based link color scale",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 800,
+      "initialHeight": 420
+    },
+    "optionsSchema": {
+      "useGradientLinks": { "type": "boolean", "default": true },
+      "linkOpacity": { "type": "number", "default": 40 },
+      "useValueColors": { "type": "boolean", "default": false },
+      "lowColor": { "type": "string", "default": "#3fb950" },
+      "highColor": { "type": "string", "default": "#ef4d4d" },
+      "useMidColor": { "type": "boolean", "default": true },
+      "midColor": { "type": "string", "default": "#f5c518" },
+      "reverse": { "type": "boolean", "default": false },
+      "nodeWidth": { "type": "number", "default": 12 },
+      "nodePadding": { "type": "number", "default": 14 },
+      "showLabels": { "type": "boolean", "default": true },
+      "showValues": { "type": "boolean", "default": true },
+      "labelSize": { "type": "number", "default": 0 },
+      "showHeader": { "type": "boolean", "default": true },
+      "highlightOnHover": { "type": "boolean", "default": true },
+      "debug": { "type": "boolean", "default": false }
+    },
+    "editorConfig": [
+      {
+        "label": "Links",
+        "layout": [
+          [{ "label": "Gradient links (source → target color)", "editor": "editor.checkbox", "option": "useGradientLinks" }],
+          [{ "label": "Link opacity (%)", "editor": "editor.number", "option": "linkOpacity" }],
+          [{ "label": "Color links by value (low → high)", "editor": "editor.checkbox", "option": "useValueColors" }],
+          [{ "label": "Low value color", "editor": "editor.color", "option": "lowColor" }],
+          [{ "label": "High value color", "editor": "editor.color", "option": "highColor" }],
+          [{ "label": "Use middle color (3-color scale)", "editor": "editor.checkbox", "option": "useMidColor" }],
+          [{ "label": "Middle color", "editor": "editor.color", "option": "midColor" }],
+          [{ "label": "Reverse (high value = low color)", "editor": "editor.checkbox", "option": "reverse" }]
+        ]
+      },
+      {
+        "label": "Nodes",
+        "layout": [
+          [{ "label": "Node width (px)", "editor": "editor.number", "option": "nodeWidth" }],
+          [{ "label": "Node padding (px)", "editor": "editor.number", "option": "nodePadding" }]
+        ]
+      },
+      {
+        "label": "Labels",
+        "layout": [
+          [{ "label": "Show node labels", "editor": "editor.checkbox", "option": "showLabels" }],
+          [{ "label": "Show values in labels", "editor": "editor.checkbox", "option": "showValues" }],
+          [{ "label": "Label size (px, 0 = auto)", "editor": "editor.number", "option": "labelSize" }]
+        ]
+      },
+      {
+        "label": "Display",
+        "layout": [
+          [{ "label": "Show summary header", "editor": "editor.checkbox", "option": "showHeader" }],
+          [{ "label": "Highlight flows on hover", "editor": "editor.checkbox", "option": "highlightOnHover" }]
+        ]
+      },
+      {
+        "label": "Debug",
+        "layout": [
+          [{ "label": "Show options debug overlay", "editor": "editor.checkbox", "option": "debug" }]
+        ]
+      }
+    ]
+  }
+}

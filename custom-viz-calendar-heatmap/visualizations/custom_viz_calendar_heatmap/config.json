@@ -1,0 +1,96 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz Calendar Heatmap",
+    "description": "A GitHub-style calendar heatmap with auto-fit and an editable low/high value color scale",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 780,
+      "initialHeight": 260
+    },
+    "optionsSchema": {
+      "dateField": { "type": "string", "default": "" },
+      "valueField": { "type": "string", "default": "" },
+      "useValueColors": { "type": "boolean", "default": false },
+      "lowColor": { "type": "string", "default": "#3fb950" },
+      "highColor": { "type": "string", "default": "#ef4d4d" },
+      "useMidColor": { "type": "boolean", "default": true },
+      "midColor": { "type": "string", "default": "#f5c518" },
+      "reverse": { "type": "boolean", "default": false },
+      "scaleMin": { "type": "number" },
+      "scaleMax": { "type": "number" },
+      "baseColor": { "type": "string", "default": "#39d353" },
+      "levels": { "type": "number", "default": 5 },
+      "maxCellSize": { "type": "number", "default": 34 },
+      "weekStartMonday": { "type": "boolean", "default": false },
+      "showHeader": { "type": "boolean", "default": true },
+      "showMonthLabels": { "type": "boolean", "default": true },
+      "showWeekdayLabels": { "type": "boolean", "default": true },
+      "showLegend": { "type": "boolean", "default": true },
+      "glow": { "type": "boolean", "default": false },
+      "debug": { "type": "boolean", "default": false }
+    },
+    "editorConfig": [
+      {
+        "label": "データ",
+        "layout": [
+          [{ "label": "日付フィールド（空欄=第1列）", "editor": "editor.columnSelector", "option": "dateField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "値フィールド（空欄=第2列）", "editor": "editor.columnSelector", "option": "valueField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }]
+        ]
+      },
+      {
+        "label": "値カラースケール",
+        "layout": [
+          [{ "label": "値で色分け（低→高）", "editor": "editor.checkbox", "option": "useValueColors" }],
+          [{ "label": "低値の色（例: 安全＝緑）", "editor": "editor.color", "option": "lowColor" }],
+          [{ "label": "高値の色（例: 危険＝赤）", "editor": "editor.color", "option": "highColor" }],
+          [{ "label": "中間色を使う（3色スケール）", "editor": "editor.checkbox", "option": "useMidColor" }],
+          [{ "label": "中間色", "editor": "editor.color", "option": "midColor" }],
+          [{ "label": "反転（高い値＝低値側の色）", "editor": "editor.checkbox", "option": "reverse" }],
+          [{ "label": "スケール下限（空欄=データ最小）", "editor": "editor.number", "option": "scaleMin" }],
+          [{ "label": "スケール上限（空欄=データ最大）", "editor": "editor.number", "option": "scaleMax" }]
+        ]
+      },
+      {
+        "label": "グラデーション（値カラースケール OFF 時）",
+        "layout": [
+          [{ "label": "最大強度の色", "editor": "editor.color", "option": "baseColor" }],
+          [{ "label": "強度レベル数", "editor": "editor.number", "option": "levels" }]
+        ]
+      },
+      {
+        "label": "セル",
+        "layout": [
+          [{ "label": "セルサイズ上限（px、0=領域いっぱい）", "editor": "editor.number", "option": "maxCellSize" }],
+          [{ "label": "高強度セルを発光させる", "editor": "editor.checkbox", "option": "glow" }]
+        ]
+      },
+      {
+        "label": "カレンダー",
+        "layout": [
+          [{ "label": "週の開始を月曜にする", "editor": "editor.checkbox", "option": "weekStartMonday" }],
+          [{ "label": "サマリーヘッダーを表示", "editor": "editor.checkbox", "option": "showHeader" }],
+          [{ "label": "月ラベルを表示", "editor": "editor.checkbox", "option": "showMonthLabels" }],
+          [{ "label": "曜日ラベルを表示", "editor": "editor.checkbox", "option": "showWeekdayLabels" }],
+          [{ "label": "凡例を表示", "editor": "editor.checkbox", "option": "showLegend" }]
+        ]
+      },
+      {
+        "label": "デバッグ",
+        "layout": [
+          [{ "label": "options 診断オーバーレイを表示", "editor": "editor.checkbox", "option": "debug" }]
+        ]
+      }
+    ]
+  }
+}

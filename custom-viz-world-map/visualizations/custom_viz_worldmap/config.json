@@ -1,0 +1,98 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz Worldmap",
+    "description": "A custom visualization for Splunk Dashboard Studio",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 400,
+      "initialHeight": 300
+    },
+    "optionsSchema": {
+      "srcLatField": { "type": "string", "default": "" },
+      "srcLonField": { "type": "string", "default": "" },
+      "dstLatField": { "type": "string", "default": "" },
+      "dstLonField": { "type": "string", "default": "" },
+      "severityField": { "type": "string", "default": "" },
+      "countField": { "type": "string", "default": "" },
+      "srcNameField": { "type": "string", "default": "" },
+      "dstNameField": { "type": "string", "default": "" },
+      "highColor": { "type": "string", "default": "#ff5a2e" },
+      "mediumColor": { "type": "string", "default": "#e6b93c" },
+      "lowColor": { "type": "string", "default": "#38a6ff" },
+      "extraColor1": { "type": "string", "default": "#b17aff" },
+      "extraColor2": { "type": "string", "default": "#2dd4bf" },
+      "extraColor3": { "type": "string", "default": "#ff7ab8" },
+      "extraColor4": { "type": "string", "default": "#9aa7b8" },
+      "useBgColor": { "type": "boolean", "default": false },
+      "bgColor": { "type": "string", "default": "#03080f" },
+      "useLandColor": { "type": "boolean", "default": false },
+      "landColor": { "type": "string", "default": "#0d2b52" },
+      "showTitle": { "type": "boolean", "default": true },
+      "titleText": { "type": "string", "default": "GLOBAL THREAT MAP" },
+      "showLegend": { "type": "boolean", "default": true },
+      "showFilter": { "type": "boolean", "default": true },
+      "animDuration": { "type": "number", "default": 2.8 }
+    },
+    "editorConfig": [
+      {
+        "label": "データフィールド",
+        "layout": [
+          [{ "label": "送信元 緯度", "editor": "editor.columnSelector", "option": "srcLatField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "送信元 経度", "editor": "editor.columnSelector", "option": "srcLonField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "宛先 緯度", "editor": "editor.columnSelector", "option": "dstLatField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "宛先 経度", "editor": "editor.columnSelector", "option": "dstLonField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "深刻度（severity）", "editor": "editor.columnSelector", "option": "severityField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "件数（count）", "editor": "editor.columnSelector", "option": "countField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "送信元 表示名", "editor": "editor.columnSelector", "option": "srcNameField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "宛先 表示名", "editor": "editor.columnSelector", "option": "dstNameField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }]
+        ]
+      },
+      {
+        "label": "表示",
+        "layout": [
+          [{ "label": "タイトルを表示", "editor": "editor.checkbox", "option": "showTitle" }],
+          [{ "label": "凡例を表示", "editor": "editor.checkbox", "option": "showLegend" }],
+          [{ "label": "深刻度フィルタを表示", "editor": "editor.checkbox", "option": "showFilter" }],
+          [{ "label": "アニメーション周期（秒、0で停止）", "editor": "editor.number", "option": "animDuration" }]
+        ]
+      },
+      {
+        "label": "線の色",
+        "layout": [
+          [{ "label": "High（高）", "editor": "editor.color", "option": "highColor" }],
+          [{ "label": "Medium（中）", "editor": "editor.color", "option": "mediumColor" }],
+          [{ "label": "Low（低）", "editor": "editor.color", "option": "lowColor" }],
+          [{ "label": "その他の深刻度 1", "editor": "editor.color", "option": "extraColor1" }],
+          [{ "label": "その他の深刻度 2", "editor": "editor.color", "option": "extraColor2" }],
+          [{ "label": "その他の深刻度 3", "editor": "editor.color", "option": "extraColor3" }],
+          [{ "label": "その他の深刻度 4", "editor": "editor.color", "option": "extraColor4" }]
+        ]
+      },
+      {
+        "label": "背景",
+        "layout": [
+          [{ "label": "カスタム背景色を使う", "editor": "editor.checkbox", "option": "useBgColor" }],
+          [{ "label": "背景色", "editor": "editor.color", "option": "bgColor" }]
+        ]
+      },
+      {
+        "label": "陸地",
+        "layout": [
+          [{ "label": "カスタム陸地色を使う", "editor": "editor.checkbox", "option": "useLandColor" }],
+          [{ "label": "陸地色", "editor": "editor.color", "option": "landColor" }]
+        ]
+      }
+    ]
+  }
+}

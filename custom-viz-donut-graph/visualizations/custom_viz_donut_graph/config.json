@@ -1,0 +1,82 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz Donut Graph",
+    "description": "A donut chart visualization with a center total and detailed legend",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 640,
+      "initialHeight": 400
+    },
+    "optionsSchema": {
+      "categoryField": { "type": "string", "default": "" },
+      "valueField": { "type": "string", "default": "" },
+      "color1": { "type": "string", "default": "#5b8def" },
+      "color2": { "type": "string", "default": "#2dd4bf" },
+      "color3": { "type": "string", "default": "#f5c518" },
+      "color4": { "type": "string", "default": "#f0912e" },
+      "color5": { "type": "string", "default": "#ef4d6a" },
+      "color6": { "type": "string", "default": "#a78bfa" },
+      "thickness": { "type": "number", "default": 24 },
+      "gap": { "type": "number", "default": 3 },
+      "maxSegments": { "type": "number", "default": 6 },
+      "showLegend": { "type": "boolean", "default": true },
+      "showTotal": { "type": "boolean", "default": true },
+      "showPercent": { "type": "boolean", "default": true },
+      "showBar": { "type": "boolean", "default": true },
+      "rounded": { "type": "boolean", "default": false },
+      "glow": { "type": "boolean", "default": true },
+      "glowStrength": { "type": "number", "default": 6 }
+    },
+    "editorConfig": [
+      {
+        "label": "データ設定",
+        "layout": [
+          [{ "label": "カテゴリのフィールド", "editor": "editor.columnSelector", "option": "categoryField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "値のフィールド", "editor": "editor.columnSelector", "option": "valueField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }]
+        ]
+      },
+      {
+        "label": "ドーナツ",
+        "layout": [
+          [{ "label": "リングの太さ（px）", "editor": "editor.number", "option": "thickness" }],
+          [{ "label": "セグメントの隙間（px）", "editor": "editor.number", "option": "gap" }],
+          [{ "label": "最大セグメント数（残りは Others に集約）", "editor": "editor.number", "option": "maxSegments" }],
+          [{ "label": "セグメント端を丸くする", "editor": "editor.checkbox", "option": "rounded" }],
+          [{ "label": "中央にトータルを表示", "editor": "editor.checkbox", "option": "showTotal" }],
+          [{ "label": "発光エフェクト", "editor": "editor.checkbox", "option": "glow" }],
+          [{ "label": "発光の強さ（px）", "editor": "editor.number", "option": "glowStrength" }]
+        ]
+      },
+      {
+        "label": "凡例",
+        "layout": [
+          [{ "label": "凡例を表示", "editor": "editor.checkbox", "option": "showLegend" }],
+          [{ "label": "パーセントを表示", "editor": "editor.checkbox", "option": "showPercent" }],
+          [{ "label": "割合バーを表示", "editor": "editor.checkbox", "option": "showBar" }]
+        ]
+      },
+      {
+        "label": "色",
+        "layout": [
+          [{ "label": "セグメント 1", "editor": "editor.color", "option": "color1" }],
+          [{ "label": "セグメント 2", "editor": "editor.color", "option": "color2" }],
+          [{ "label": "セグメント 3", "editor": "editor.color", "option": "color3" }],
+          [{ "label": "セグメント 4", "editor": "editor.color", "option": "color4" }],
+          [{ "label": "セグメント 5", "editor": "editor.color", "option": "color5" }],
+          [{ "label": "セグメント 6", "editor": "editor.color", "option": "color6" }]
+        ]
+      }
+    ]
+  }
+}

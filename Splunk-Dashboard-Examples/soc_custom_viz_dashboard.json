@@ -1,0 +1,825 @@
+{
+    "title": "SOC 統合監視ダッシュボード",
+    "description": "自作カスタムビジュアライゼーション12種で構成したSOC向けダークテーマ監視画面。全パネルは makeresults 自己完結でインデックス不要。",
+    "inputs": {
+        "input_time": {
+            "options": {
+                "defaultValue": "-24h@h,now",
+                "token": "global_time"
+            },
+            "title": "時間範囲",
+            "type": "input.timerange"
+        }
+    },
+    "defaults": {
+        "dataSources": {
+            "ds.search": {
+                "options": {
+                    "queryParameters": {
+                        "latest": "now"
+                    }
+                }
+            }
+        },
+        "visualizations": {
+            "global": {
+                "showLastUpdated": true
+            }
+        }
+    },
+    "visualizations": {
+        "alertcat": {
+            "dataSources": {
+                "primary": "ds_alertcat"
+            },
+            "description": "アラートをカテゴリ別に集計したドーナツ。",
+            "options": {
+                "categoryField": "カテゴリ",
+                "color1": "#ff4d6a",
+                "color2": "#ff9f45",
+                "color3": "#ffd166",
+                "color4": "#2dd4bf",
+                "color5": "#38bdf8",
+                "color6": "#8b7cf6",
+                "gap": 3,
+                "glow": true,
+                "glowStrength": 7,
+                "maxSegments": 6,
+                "rounded": true,
+                "showBar": true,
+                "showLegend": true,
+                "showPercent": true,
+                "showTotal": true,
+                "thickness": 26,
+                "valueField": "件数"
+            },
+            "title": "アラート分類",
+            "type": "custom_viz_donut_graph.custom_viz_donut_graph",
+            "showProgressBar": false,
+            "showLastUpdated": false
+        },
+        "calendar": {
+            "dataSources": {
+                "primary": "ds_calendar"
+            },
+            "description": "日別のインシデント件数を GitHub 風カレンダーで。",
+            "options": {
+                "dateField": "_time",
+                "glow": true,
+                "highColor": "#ef4d6a",
+                "levels": 5,
+                "lowColor": "#1e5f8c",
+                "maxCellSize": 0,
+                "midColor": "#f5c518",
+                "showHeader": true,
+                "showLegend": true,
+                "showMonthLabels": true,
+                "showWeekdayLabels": true,
+                "useMidColor": true,
+                "useValueColors": true,
+                "valueField": "incidents",
+                "weekStartMonday": true
+            },
+            "title": "日次インシデント発生ヒートマップ",
+            "type": "custom_viz_calendar_heatmap.custom_viz_calendar_heatmap",
+            "showProgressBar": false,
+            "showLastUpdated": false
+        },
+        "chord": {
+            "dataSources": {
+                "primary": "ds_chord"
+            },
+            "description": "セキュリティゾーン間の通信量をコード図で。",
+            "options": {
+                "arcPadding": 4,
+                "arcThickness": 18,
+                "clickToFocus": true,
+                "glow": true,
+                "highColor": "#ef4d6a",
+                "highlightOnHover": true,
+                "labelSize": 12,
+                "lowColor": "#1e5f8c",
+                "midColor": "#f5c518",
+                "particleDensity": 100,
+                "particleSize": 3,
+                "particleSpeed": 100,
+                "ribbonOpacity": 72,
+                "rotateSpeed": 0,
+                "showArrows": true,
+                "showHeader": true,
+                "showLabels": true,
+                "showParticles": true,
+                "showSelfLoops": true,
+                "showValues": true,
+                "sourceField": "source",
+                "taperRibbons": true,
+                "targetField": "target",
+                "useGradientRibbons": true,
+                "useMidColor": true,
+                "useValueColors": true,
+                "valueField": "value"
+            },
+            "title": "ゾーン間トラフィックマトリクス",
+            "type": "custom_viz_chord_flow.custom_viz_chord_flow",
+            "showProgressBar": false,
+            "showLastUpdated": false
+        },
+        "donuttime": {
+            "dataSources": {
+                "primary": "ds_donuttime"
+            },
+            "description": "時系列の深刻度分布とスパークライン。",
+            "options": {
+                "autoFit": true,
+                "categoryField": "severity",
+                "centerPercent": true,
+                "color1": "#ff4d6a",
+                "color2": "#ff9f45",
+                "color3": "#ffd166",
+                "color4": "#38bdf8",
+                "gap": 3,
+                "glow": true,
+                "glowStrength": 6,
+                "maxSegments": 8,
+                "rounded": true,
+                "showLegend": true,
+                "showPercent": true,
+                "showSparkline": true,
+                "showTotalRow": true,
+                "sparkColor": "#38bdf8",
+                "sparkFill": true,
+                "sparkHeight": 60,
+                "thickness": 24,
+                "timeField": "_time",
+                "totalColor": "#dbe9ff",
+                "valueField": "count"
+            },
+            "title": "深刻度別アラート推移",
+            "type": "custom_viz_donut_timechart.custom_viz_donut_timechart",
+            "showProgressBar": false,
+            "showLastUpdated": false
+        },
+        "kpi_alerts": {
+            "dataSources": {
+                "primary": "ds_kpi_alerts"
+            },
+            "options": {
+                "backgroundColor": "transparent",
+                "sparklineDisplay": "off",
+                "trendDisplay": "off",
+                "unitPosition": "after",
+                "valueColor": "#ffd166"
+            },
+            "type": "splunk.singlevalue",
+            "showProgressBar": false,
+            "showLastUpdated": false
+        },
+        "kpi_blocked": {
+            "dataSources": {
+                "primary": "ds_kpi_blocked"
+            },
+            "options": {
+                "backgroundColor": "transparent",
+                "sparklineDisplay": "off",
+                "trendDisplay": "off",
+                "unitPosition": "after",
+                "valueColor": "#38bdf8"
+            },
+            "type": "splunk.singlevalue",
+            "showProgressBar": false,
+            "showLastUpdated": false
+        },
+        "kpi_crit": {
+            "dataSources": {
+                "primary": "ds_kpi_crit"
+            },
+            "options": {
+                "backgroundColor": "transparent",
+                "sparklineDisplay": "off",
+                "trendDisplay": "off",
+                "unitPosition": "after",
+                "valueColor": "#ff4d6a"
+            },
+            "type": "splunk.singlevalue",
+            "showProgressBar": false,
+            "showLastUpdated": false
+        },
+        "kpi_events": {
+            "dataSources": {
+                "primary": "ds_kpi_events"
+            },
+            "options": {
+                "backgroundColor": "transparent",
+                "sparklineDisplay": "off",
+                "trendDisplay": "off",
+                "unitPosition": "after",
+                "valueColor": "#dbe9ff"
+            },
+            "type": "splunk.singlevalue",
+            "showProgressBar": false,
+            "showLastUpdated": false
+        },
+        "network": {
+            "dataSources": {
+                "primary": "ds_network"
+            },
+            "description": "ホスト間通信を流れる矢印で。太さ=通信量。",
+            "options": {
+                "autoFit": true,
+                "curved": true,
+                "edgeOpacity": 80,
+                "edgeScale": 110,
+                "flowDash": 60,
+                "flowSpeed": 110,
+                "glow": true,
+                "highColor": "#ef4d6a",
+                "highlightOnHover": true,
+                "labelSize": 12,
+                "lowColor": "#1e5f8c",
+                "maxNodes": 50,
+                "midColor": "#f5c518",
+                "nodeScale": 110,
+                "showArrows": true,
+                "showFlow": true,
+                "showHeader": true,
+                "showLabels": true,
+                "showValues": true,
+                "spacing": 140,
+                "useMidColor": true,
+                "useValueColors": true
+            },
+            "title": "ラテラルムーブメント 通信グラフ",
+            "type": "custom_viz_network_graph.custom_viz_network_graph",
+            "showProgressBar": false,
+            "showLastUpdated": false
+        },
+        "radar": {
+            "dataSources": {
+                "primary": "ds_radar"
+            },
+            "description": "ドメイン別の統制成熟度（現状/目標/前月）。",
+            "options": {
+                "axisField": "ドメイン",
+                "fillOpacity": 28,
+                "glow": true,
+                "rings": 5,
+                "seriesColor1": "#38bdf8",
+                "seriesColor2": "#2dd4bf",
+                "seriesColor3": "#8b7cf6",
+                "seriesField1": "現状",
+                "seriesField2": "目標",
+                "seriesField3": "前月",
+                "sharedScale": true,
+                "showAxisLabels": true,
+                "showDots": true,
+                "showLegend": true,
+                "showValueLabels": false,
+                "startAngle": -90,
+                "strokeWidth": 2
+            },
+            "title": "セキュリティ統制カバレッジ",
+            "type": "custom_viz_radar_chart.custom_viz_radar_chart",
+            "showProgressBar": false,
+            "showLastUpdated": false
+        },
+        "sankey": {
+            "dataSources": {
+                "primary": "ds_sankey"
+            },
+            "description": "攻撃の段階遷移をサンキーで。ブロック/封じ込めも可視化。",
+            "options": {
+                "highColor": "#ef4d6a",
+                "highlightOnHover": true,
+                "labelSize": 12,
+                "linkOpacity": 55,
+                "lowColor": "#1e5f8c",
+                "midColor": "#f5c518",
+                "nodePadding": 14,
+                "nodeWidth": 16,
+                "showHeader": true,
+                "showLabels": true,
+                "showValues": true,
+                "useGradientLinks": true,
+                "useMidColor": true,
+                "useValueColors": true
+            },
+            "title": "キルチェーン ステージ遷移",
+            "type": "custom_viz_sankey_flow.custom_viz_sankey_flow",
+            "showProgressBar": false,
+            "showLastUpdated": false
+        },
+        "sevtable": {
+            "dataSources": {
+                "primary": "ds_sevtable"
+            },
+            "description": "深刻度でソートし色分けバッジ表示。",
+            "options": {
+                "cellStyle": "badge",
+                "compact": false,
+                "criticalColor": "#ef4d6a",
+                "highColor": "#f0912e",
+                "infoColor": "#38bdf8",
+                "lowColor": "#38bdf8",
+                "maxRows": 50,
+                "mediumColor": "#f5c518",
+                "rowBar": true,
+                "severityField": "深刻度",
+                "showSummary": true,
+                "showTitle": true,
+                "sortBySeverity": true,
+                "title": "直近のノータブルイベント",
+                "zebra": true
+            },
+            "title": "ノータブルイベント一覧",
+            "type": "custom_viz_severity_table.custom_viz_severity_table",
+            "showProgressBar": false,
+            "showLastUpdated": false
+        },
+        "terrain": {
+            "dataSources": {
+                "primary": "ds_terrain"
+            },
+            "description": "値=イベント数を起伏で表現。深夜/特定曜日のスパイクが山として可視化される。",
+            "options": {
+                "autoRotate": true,
+                "glow": true,
+                "height": 100,
+                "highColor": "#ef4d6a",
+                "lightAngle": 135,
+                "lowColor": "#0c2740",
+                "midColor": "#f5c518",
+                "peakColor": "#ffffff",
+                "pitch": 55,
+                "rotateSpeed": 30,
+                "shading": 75,
+                "showAxes": true,
+                "showBase": true,
+                "showHeader": true,
+                "showLegend": true,
+                "showPeakMarker": true,
+                "showShadow": true,
+                "useMidColor": true,
+                "usePeakColor": true,
+                "wireframe": false,
+                "yaw": 35
+            },
+            "title": "攻撃サーフェス 時間×曜日 ヒートマップ地形",
+            "type": "custom_viz_metric_terrain.custom_viz_metric_terrain",
+            "showProgressBar": false,
+            "showLastUpdated": false
+        },
+        "tophosts": {
+            "dataSources": {
+                "primary": "ds_tophosts"
+            },
+            "description": "被攻撃回数の多いホストを値ベースのカラースケールで。",
+            "options": {
+                "animate": true,
+                "fillHeight": true,
+                "glow": true,
+                "highColor": "#ef4d6a",
+                "labelField": "ホスト",
+                "lowColor": "#1e5f8c",
+                "midColor": "#f5c518",
+                "showAxis": true,
+                "showPercent": true,
+                "showTitle": true,
+                "showTrack": true,
+                "showValue": true,
+                "sortAscending": false,
+                "sortByValue": true,
+                "topN": 8,
+                "useMidColor": true,
+                "useValueColors": true,
+                "valueField": "攻撃数"
+            },
+            "title": "攻撃対象ホスト TOP8",
+            "type": "custom_viz_gradient_bar.custom_viz_gradient_bar",
+            "showProgressBar": false,
+            "showLastUpdated": false
+        },
+        "viz_country": {
+            "dataSources": {
+                "primary": "ds_country"
+            },
+            "description": "国旗付きランキング。件数を色で表現。",
+            "options": {
+                "animate": true,
+                "colorByValue": true,
+                "glow": true,
+                "highColor": "#ef4d6a",
+                "lowColor": "#1e5f8c",
+                "midColor": "#f5c518",
+                "showBar": true,
+                "showFlag": true,
+                "showHeader": true,
+                "showRank": true,
+                "showShare": true,
+                "showValue": true,
+                "sortDescending": true,
+                "topN": 10,
+                "useMidColor": true
+            },
+            "title": "攻撃元国 ランキング",
+            "type": "custom_viz_country_graph.custom_viz_country_graph",
+            "showProgressBar": false,
+            "showLastUpdated": false
+        },
+        "worldmap": {
+            "dataSources": {
+                "primary": "ds_worldmap"
+            },
+            "description": "送信元→宛先の攻撃を深刻度別に地図上でアニメーション表示。",
+            "options": {
+                "animDuration": 3,
+                "bgColor": "#060b16",
+                "countField": "count",
+                "dstLatField": "dstLat",
+                "dstLonField": "dstLon",
+                "dstNameField": "dstName",
+                "highColor": "#ef4d6a",
+                "landColor": "#101a2e",
+                "lowColor": "#38bdf8",
+                "mediumColor": "#f5c518",
+                "severityField": "severity",
+                "showFilter": true,
+                "showLegend": true,
+                "showTitle": true,
+                "srcLatField": "srcLat",
+                "srcLonField": "srcLon",
+                "srcNameField": "srcName",
+                "titleText": "攻撃元→データセンター 地理フロー",
+                "useBgColor": true,
+                "useLandColor": true
+            },
+            "title": "攻撃元ジオマップ",
+            "type": "custom_viz_worldmap.custom_viz_worldmap",
+            "showProgressBar": false,
+            "showLastUpdated": false
+        }
+    },
+    "dataSources": {
+        "ds_alertcat": {
+            "name": "ds_alertcat",
+            "options": {
+                "query": "| makeresults format=csv data=\"カテゴリ,件数\nMalware,428\nIntrusion,317\nRecon,255\nPolicy Violation,188\nData Exfil,97\nCredential Access,63\" ",
+                "queryParameters": {
+                    "earliest": "-24h@h",
+                    "latest": "now"
+                }
+            },
+            "type": "ds.search"
+        },
+        "ds_calendar": {
+            "name": "ds_calendar",
+            "options": {
+                "query": "| makeresults count=92\n| streamstats count as n\n| eval _time = relative_time(now(), \"-91d@d\") + (n-1)*86400\n| eval dow = strftime(_time, \"%w\")\n| eval wk  = tonumber(strftime(_time, \"%W\"))\n| eval base = if(dow=0 OR dow=6, 4, 14)\n| eval spike = if(n%17==0, 55, 0)\n| eval incidents = base + spike + (n*2654435761 % 11)\n| table _time incidents",
+                "queryParameters": {
+                    "earliest": "-24h@h",
+                    "latest": "now"
+                }
+            },
+            "type": "ds.search"
+        },
+        "ds_chord": {
+            "name": "ds_chord",
+            "options": {
+                "query": "| makeresults format=csv data=\"source,target,value\nInternet,DMZ,4200\nDMZ,Internal,1800\nInternal,Internal,3100\nInternal,Database,2400\nDatabase,Internal,900\nInternal,Cloud,1500\nCloud,Internet,1100\nDMZ,Internet,700\nInternal,DMZ,600\nDatabase,Cloud,400\" ",
+                "queryParameters": {
+                    "earliest": "-24h@h",
+                    "latest": "now"
+                }
+            },
+            "type": "ds.search"
+        },
+        "ds_country": {
+            "name": "ds_country",
+            "options": {
+                "query": "| makeresults format=csv data=\"国,件数\nCN,3421\nRU,2588\nUS,1904\nBR,1233\nIN,988\nNG,741\nKR,522\nDE,388\nGB,301\nVN,255\" \n| table 国 件数",
+                "queryParameters": {
+                    "earliest": "-24h@h",
+                    "latest": "now"
+                }
+            },
+            "type": "ds.search"
+        },
+        "ds_donuttime": {
+            "name": "ds_donuttime",
+            "options": {
+                "query": "| makeresults count=48\n| streamstats count as n\n| eval _time = relative_time(now(), \"-24h\") + (n-1)*1800\n| eval sev = case(n%4==0,\"Critical\", n%4==1,\"High\", n%4==2,\"Medium\", 1==1,\"Low\")\n| eval base = case(sev==\"Critical\",5, sev==\"High\",18, sev==\"Medium\",40, 1==1,70)\n| eval wave = round(base + 20*(1+sin(n/4.0)) + (n*2654435761 % 13))\n| table _time sev wave\n| rename sev as severity wave as count",
+                "queryParameters": {
+                    "earliest": "-24h@h",
+                    "latest": "now"
+                }
+            },
+            "type": "ds.search"
+        },
+        "ds_kpi_alerts": {
+            "name": "ds_kpi_alerts",
+            "options": {
+                "query": "| makeresults\n| eval a=1274 | fields a | rename a as \"アラート\" ",
+                "queryParameters": {
+                    "earliest": "-24h@h",
+                    "latest": "now"
+                }
+            },
+            "type": "ds.search"
+        },
+        "ds_kpi_blocked": {
+            "name": "ds_kpi_blocked",
+            "options": {
+                "query": "| makeresults\n| eval b=9852 | fields b | rename b as \"ブロック済み接続\" ",
+                "queryParameters": {
+                    "earliest": "-24h@h",
+                    "latest": "now"
+                }
+            },
+            "type": "ds.search"
+        },
+        "ds_kpi_crit": {
+            "name": "ds_kpi_crit",
+            "options": {
+                "query": "| makeresults\n| eval c=37 | fields c | rename c as \"Critical\" ",
+                "queryParameters": {
+                    "earliest": "-24h@h",
+                    "latest": "now"
+                }
+            },
+            "type": "ds.search"
+        },
+        "ds_kpi_events": {
+            "name": "ds_kpi_events",
+            "options": {
+                "query": "| makeresults\n| eval events=184203 | fields events | rename events as \"総イベント数(24h)\" ",
+                "queryParameters": {
+                    "earliest": "-24h@h",
+                    "latest": "now"
+                }
+            },
+            "type": "ds.search"
+        },
+        "ds_network": {
+            "name": "ds_network",
+            "options": {
+                "query": "| makeresults format=csv data=\"src,dst,weight\nattacker-ext,vpn-gw-02,90\nvpn-gw-02,jump-host-01,70\njump-host-01,dc01,120\njump-host-01,file-srv-07,45\ndc01,db-prod-03,80\ndc01,web-front-01,30\ndb-prod-03,exfil-node,110\nweb-front-01,mail-relay-01,20\nfile-srv-07,exfil-node,60\nmail-relay-01,attacker-ext,35\" ",
+                "queryParameters": {
+                    "earliest": "-24h@h",
+                    "latest": "now"
+                }
+            },
+            "type": "ds.search"
+        },
+        "ds_radar": {
+            "name": "ds_radar",
+            "options": {
+                "query": "| makeresults format=csv data=\"ドメイン,現状,目標,前月\nIdentity,72,95,64\nEndpoint,85,95,80\nNetwork,68,90,68\nCloud,54,90,48\nData,61,85,55\nAppSec,77,90,70\" ",
+                "queryParameters": {
+                    "earliest": "-24h@h",
+                    "latest": "now"
+                }
+            },
+            "type": "ds.search"
+        },
+        "ds_sankey": {
+            "name": "ds_sankey",
+            "options": {
+                "query": "| makeresults format=csv data=\"source,target,value\nRecon,Initial Access,320\nInitial Access,Execution,214\nInitial Access,Blocked,106\nExecution,Persistence,150\nExecution,Privilege Esc,64\nPersistence,Lateral Movement,98\nPrivilege Esc,Lateral Movement,52\nLateral Movement,Exfiltration,71\nLateral Movement,Contained,79\nExfiltration,Impact,33\" ",
+                "queryParameters": {
+                    "earliest": "-24h@h",
+                    "latest": "now"
+                }
+            },
+            "type": "ds.search"
+        },
+        "ds_sevtable": {
+            "name": "ds_sevtable",
+            "options": {
+                "query": "| makeresults format=csv data=\"時刻,ルール名,送信元IP,宛先,深刻度,件数\n14:32:07,C2 Beacon Detected,203.0.113.44,10.4.2.19,critical,12\n14:28:51,Ransomware File Ops,198.51.100.7,10.4.8.30,critical,8\n14:19:33,Brute Force SSH,203.0.113.90,10.4.2.5,high,214\n14:11:02,Suspicious PowerShell,10.4.9.11,10.4.9.11,high,5\n13:58:44,Port Scan Sweep,45.83.66.12,10.4.0.0/16,medium,1043\n13:40:18,Anomalous DNS Query,10.4.3.7,8.8.8.8,medium,67\n13:22:09,New Admin Account,10.4.1.2,DC01,high,1\n12:55:30,Geo-Improbable Login,185.220.101.5,vpn-gw,medium,3\n12:30:11,TLS Cert Anomaly,93.184.216.34,proxy,low,22\n11:47:52,Outbound Data Transfer,10.4.7.19,203.0.113.201,high,1\" ",
+                "queryParameters": {
+                    "earliest": "-24h@h",
+                    "latest": "now"
+                }
+            },
+            "type": "ds.search"
+        },
+        "ds_terrain": {
+            "name": "ds_terrain",
+            "options": {
+                "query": "| makeresults count=168\n| streamstats count as n\n| eval hour = (n-1) % 24\n| eval dow  = floor((n-1)/24)\n| eval weekday = mvindex(split(\"Mon,Tue,Wed,Thu,Fri,Sat,Sun\",\",\"), dow)\n| eval base = 20 + 60*exp(-(pow(hour-3,2))/18)\n| eval biz  = if(hour>=9 AND hour<=18 AND dow<5, 45, 0)\n| eval spike= if((dow=2 AND hour=3) OR (dow=5 AND hour=14), 130, 0)\n| eval jitter = (n*2654435761 % 23)\n| eval events = round(base + biz + spike + jitter)\n| table hour weekday events\n| rename hour as \"時\" weekday as \"曜日\" events as \"イベント数\" ",
+                "queryParameters": {
+                    "earliest": "-24h@h",
+                    "latest": "now"
+                }
+            },
+            "type": "ds.search"
+        },
+        "ds_tophosts": {
+            "name": "ds_tophosts",
+            "options": {
+                "query": "| makeresults format=csv data=\"ホスト,攻撃数\nweb-front-01,1842\ndb-prod-03,1317\nvpn-gw-02,988\nmail-relay-01,742\ndc01,631\nfile-srv-07,455\napp-node-12,318\njump-host-01,192\" ",
+                "queryParameters": {
+                    "earliest": "-24h@h",
+                    "latest": "now"
+                }
+            },
+            "type": "ds.search"
+        },
+        "ds_worldmap": {
+            "name": "ds_worldmap",
+            "options": {
+                "query": "| makeresults format=csv data=\"srcName,srcLat,srcLon,dstName,dstLat,dstLon,severity,count\nBeijing CN,39.90,116.40,Tokyo DC,35.68,139.76,critical,842\nMoscow RU,55.75,37.61,Tokyo DC,35.68,139.76,critical,631\nSao Paulo BR,-23.55,-46.63,Tokyo DC,35.68,139.76,high,317\nLagos NG,6.52,3.37,Tokyo DC,35.68,139.76,high,254\nAmsterdam NL,52.37,4.90,Osaka DC,34.69,135.50,medium,188\nMumbai IN,19.07,72.87,Osaka DC,34.69,135.50,medium,142\nSeoul KR,37.56,126.97,Tokyo DC,35.68,139.76,low,97\nFrankfurt DE,50.11,8.68,Osaka DC,34.69,135.50,low,63\" ",
+                "queryParameters": {
+                    "earliest": "-24h@h",
+                    "latest": "now"
+                }
+            },
+            "type": "ds.search"
+        }
+    },
+    "layout": {
+        "globalInputs": [
+            "input_time"
+        ],
+        "layoutDefinitions": {
+            "layout_1": {
+                "options": {
+                    "backgroundColor": "#060b16",
+                    "display": "auto-scale",
+                    "height": 1438,
+                    "width": 1460
+                },
+                "structure": [
+                    {
+                        "type": "block",
+                        "item": "kpi_events",
+                        "position": {
+                            "x": 16,
+                            "y": 16,
+                            "w": 348,
+                            "h": 76
+                        }
+                    },
+                    {
+                        "type": "block",
+                        "item": "kpi_alerts",
+                        "position": {
+                            "x": 376,
+                            "y": 16,
+                            "w": 348,
+                            "h": 76
+                        }
+                    },
+                    {
+                        "type": "block",
+                        "item": "kpi_crit",
+                        "position": {
+                            "x": 736,
+                            "y": 16,
+                            "w": 348,
+                            "h": 76
+                        }
+                    },
+                    {
+                        "type": "block",
+                        "item": "kpi_blocked",
+                        "position": {
+                            "x": 1096,
+                            "y": 16,
+                            "w": 348,
+                            "h": 76
+                        }
+                    },
+                    {
+                        "type": "block",
+                        "item": "terrain",
+                        "position": {
+                            "x": 16,
+                            "y": 104,
+                            "w": 948,
+                            "h": 250
+                        }
+                    },
+                    {
+                        "type": "block",
+                        "item": "sevtable",
+                        "position": {
+                            "x": 976,
+                            "y": 104,
+                            "w": 468,
+                            "h": 250
+                        }
+                    },
+                    {
+                        "type": "block",
+                        "item": "worldmap",
+                        "position": {
+                            "x": 16,
+                            "y": 366,
+                            "w": 948,
+                            "h": 270
+                        }
+                    },
+                    {
+                        "type": "block",
+                        "item": "viz_country",
+                        "position": {
+                            "x": 976,
+                            "y": 366,
+                            "w": 468,
+                            "h": 270
+                        }
+                    },
+                    {
+                        "type": "block",
+                        "item": "tophosts",
+                        "position": {
+                            "x": 16,
+                            "y": 648,
+                            "w": 468,
+                            "h": 250
+                        }
+                    },
+                    {
+                        "type": "block",
+                        "item": "alertcat",
+                        "position": {
+                            "x": 496,
+                            "y": 648,
+                            "w": 468,
+                            "h": 250
+                        }
+                    },
+                    {
+                        "type": "block",
+                        "item": "radar",
+                        "position": {
+                            "x": 976,
+                            "y": 648,
+                            "w": 468,
+                            "h": 250
+                        }
+                    },
+                    {
+                        "type": "block",
+                        "item": "donuttime",
+                        "position": {
+                            "x": 16,
+                            "y": 910,
+                            "w": 708,
+                            "h": 210
+                        }
+                    },
+                    {
+                        "type": "block",
+                        "item": "calendar",
+                        "position": {
+                            "x": 736,
+                            "y": 910,
+                            "w": 708,
+                            "h": 210
+                        }
+                    },
+                    {
+                        "type": "block",
+                        "item": "network",
+                        "position": {
+                            "x": 16,
+                            "y": 1132,
+                            "w": 468,
+                            "h": 290
+                        }
+                    },
+                    {
+                        "type": "block",
+                        "item": "chord",
+                        "position": {
+                            "x": 496,
+                            "y": 1132,
+                            "w": 468,
+                            "h": 290
+                        }
+                    },
+                    {
+                        "type": "block",
+                        "item": "sankey",
+                        "position": {
+                            "x": 976,
+                            "y": 1132,
+                            "w": 468,
+                            "h": 290
+                        }
+                    }
+                ],
+                "type": "absolute"
+            }
+        },
+        "tabs": {
+            "items": [
+                {
+                    "label": "新規タブ",
+                    "layoutId": "layout_1"
+                }
+            ]
+        }
+    }
+}
