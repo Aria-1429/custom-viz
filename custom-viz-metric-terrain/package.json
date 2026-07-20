@@ -1,6 +1,6 @@
 {
   "name": "custom_viz_metric_terrain",
-  "version": "0.1.1",
+  "version": "1.0.0",
   "description": "A custom isometric 3D metric terrain visualization for Splunk Dashboard Studio",
   "author": "Yuto Ishitsuki",
   "type": "module",

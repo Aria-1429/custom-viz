@@ -1,6 +1,6 @@
 {
   "name": "custom_viz_chord_flow",
-  "version": "0.5.2",
+  "version": "1.0.0",
   "description": "An animated chord diagram with directional flow particles for Splunk Dashboard Studio",
   "author": "Yuto Ishitsuki",
   "type": "module",

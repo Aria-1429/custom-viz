@@ -1,6 +1,6 @@
 {
   "name": "custom_viz_sankey_flow",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "A multi-stage Sankey flow diagram visualization for Splunk Dashboard Studio",
   "author": "Yuto Ishitsuki",
   "type": "module",
