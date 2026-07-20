@@ -1,0 +1,9 @@
+node_modules/
+stage/
+.DS_Store
+.env
+.env.local
+
+# dist は中身を無視するが、パッケージ成果物(.spl)だけはリポジトリに含める
+dist/*
+!dist/*.spl
