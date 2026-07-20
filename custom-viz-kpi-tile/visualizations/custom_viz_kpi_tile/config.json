@@ -1,0 +1,100 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz KPI Tile",
+    "description": "A KPI stat tile with a big value, day-over-day delta, sparkline bars and a selectable icon",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 320,
+      "initialHeight": 210
+    },
+    "optionsSchema": {
+      "labelField": { "type": "string", "default": "" },
+      "valueField": { "type": "string", "default": "" },
+
+      "titleText": { "type": "string", "default": "" },
+      "deltaLabel": { "type": "string", "default": "前日比" },
+
+      "accentColor": { "type": "string", "default": "#22d3ee" },
+      "showGlow": { "type": "boolean", "default": true },
+
+      "iconIndex": { "type": "number", "default": 1 },
+      "showIcon": { "type": "boolean", "default": true },
+
+      "showTitle": { "type": "boolean", "default": true },
+      "showDelta": { "type": "boolean", "default": true },
+      "deltaAsPercent": { "type": "boolean", "default": false },
+      "semanticDeltaColor": { "type": "boolean", "default": false },
+      "invertDeltaColor": { "type": "boolean", "default": false },
+
+      "showSparkline": { "type": "boolean", "default": true },
+      "sparkBars": { "type": "number", "default": 0 },
+
+      "valueDecimals": { "type": "number", "default": 0 },
+      "abbreviateValue": { "type": "boolean", "default": false },
+      "animate": { "type": "boolean", "default": true },
+
+      "debug": { "type": "boolean", "default": false }
+    },
+    "editorConfig": [
+      {
+        "label": "データフィールド",
+        "layout": [
+          [{ "label": "ラベル（時刻）フィールド", "editor": "editor.columnSelector", "option": "labelField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "値フィールド", "editor": "editor.columnSelector", "option": "valueField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }]
+        ]
+      },
+      {
+        "label": "アイコン",
+        "layout": [
+          [{ "label": "アイコンを表示", "editor": "editor.checkbox", "option": "showIcon" }],
+          [{ "label": "アイコン番号（1〜12。編集モード中はタイル上のアイコンをクリックしても選択可）", "editor": "editor.number", "option": "iconIndex" }]
+        ]
+      },
+      {
+        "label": "色・発光",
+        "layout": [
+          [{ "label": "アクセントカラー", "editor": "editor.color", "option": "accentColor" }],
+          [{ "label": "発光（グロー）を表示", "editor": "editor.checkbox", "option": "showGlow" }]
+        ]
+      },
+      {
+        "label": "表示",
+        "layout": [
+          [{ "label": "タイトルを表示", "editor": "editor.checkbox", "option": "showTitle" }],
+          [{ "label": "増減（前日比）を表示", "editor": "editor.checkbox", "option": "showDelta" }],
+          [{ "label": "増減を％で表示", "editor": "editor.checkbox", "option": "deltaAsPercent" }],
+          [{ "label": "増減で色分け（増＝緑／減＝赤）", "editor": "editor.checkbox", "option": "semanticDeltaColor" }],
+          [{ "label": "増減の色を反転（増＝赤／減＝緑）", "editor": "editor.checkbox", "option": "invertDeltaColor" }],
+          [{ "label": "スパークライン（ミニ棒グラフ）を表示", "editor": "editor.checkbox", "option": "showSparkline" }],
+          [{ "label": "スパークラインの本数（0で全ポイント）", "editor": "editor.number", "option": "sparkBars" }]
+        ]
+      },
+      {
+        "label": "数値",
+        "layout": [
+          [{ "label": "小数点以下の桁数", "editor": "editor.number", "option": "valueDecimals" }],
+          [{ "label": "数値を省略表記（1.5M など）", "editor": "editor.checkbox", "option": "abbreviateValue" }],
+          [{ "label": "カウントアップアニメーション", "editor": "editor.checkbox", "option": "animate" }]
+        ]
+      },
+      {
+        "label": "デバッグ",
+        "layout": [
+          [{ "label": "オプションのデバッグ表示", "editor": "editor.checkbox", "option": "debug" }]
+        ]
+      }
+    ],
+    "defaultContext": {}
+  }
+}
