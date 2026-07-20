@@ -72,7 +72,27 @@ yarn package        # dist/<viz>-<ver>-<hash>.spl を生成（stage/ 経由で t
 ```
 - パッケージ化のたびに **バージョンを上げる**（`package.json` と `package/app/app.conf` 両方）:
   `npm version minor --no-git-tag-version` → app.conf の `version = x.y.z` を sed で同期。
-- `dist/` に旧バージョンの `.spl` が残るので、`rm -f dist/*.spl` してから package すると取り違え防止。
+- **旧版の `.spl` は残す方針**（リリース運用参照）。`rm -f dist/*.spl` は**しない**
+  （取り違えは新版のみをアップロードすれば足りる。ファイル名にバージョン＋ハッシュが入るので判別可）。
+
+#### ⚠️ `yarn build` は `.spl` を巻き添え削除しない（2026-07-20 修正済み・要確認）
+
+`build.mjs` は非 watch ビルド時に `dist/` を掃除するが、**当初は `rmSync(distDir, {recursive:true})`
+で dist/ を丸ごと消していた**ため、`yarn build` を回すたびに残す方針の `.spl` まで消えていた
+（radial-bar で 1.0.1 の .spl を消失→復元する事故が発生）。**全 18 viz の build.mjs を修正済み**で、
+今は「`.spl` は温存し、`dist/` 直下のビルド成果物(`<viz>/` や `.map`)だけ削除」する:
+
+```js
+if (!isWatch && existsSync(distDir)) {
+    for (const entry of readdirSync(distDir)) {
+        if (entry.endsWith('.spl')) continue;          // .spl は残す
+        rmSync(join(distDir, entry), { recursive: true, force: true });
+    }
+}
+```
+
+新しい viz をスケルトン複製で作ったら、`build.mjs` がこの形になっているか（＝旧い丸ごと削除の
+ままでないか）を必ず確認する。複製元が古いと事故が再発する。
 
 ---
 
