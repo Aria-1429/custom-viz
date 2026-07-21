@@ -835,10 +835,26 @@ function AlertTable({ fieldNames, rows, severityIndex, colorScheme, opts, width,
 
             <div style={cardStyle}>
                 <table style={tableStyle}>
+                    {/* tableLayout:fixed は列幅を colgroup（無ければ先頭行）から決める。
+                        行頭カラーバー列に明示幅を与えないと、その列が等分の 1 枠を
+                        丸取りして左に巨大な余白ができ、右側の列が見切れる。
+                        colgroup で「バー列=4px 固定・データ列=均等」を宣言して解消する。 */}
+                    <colgroup>
+                        {hasRowBar ? <col style={{ width: '4px' }} /> : null}
+                        {shownCols.map((cellIndex) => (
+                            <col key={`col-${fieldNames[cellIndex]}`} />
+                        ))}
+                    </colgroup>
                     <thead>
                         <tr>
                             {hasRowBar ? (
-                                <th style={{ ...thStyle, padding: `${density.padV}px 0` }} />
+                                <th
+                                    style={{
+                                        ...thStyle,
+                                        padding: `${density.padV}px 0`,
+                                        width: '4px',
+                                    }}
+                                />
                             ) : null}
                             {shownCols.map((cellIndex) => (
                                 <th key={fieldNames[cellIndex]} style={thStyle}>
