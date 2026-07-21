@@ -1,6 +1,6 @@
 {
   "name": "custom_viz_donut_graph",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A custom donut chart visualization for Splunk Dashboard Studio",
   "author": "Yuto Ishitsuki",
   "type": "module",

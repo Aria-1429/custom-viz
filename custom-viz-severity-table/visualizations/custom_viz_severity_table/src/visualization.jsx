@@ -1051,14 +1051,13 @@ function App({ colorScheme }) {
 }
 
 // -----------------------------------------------------------------------------
-// ガード:useTheme() が undefined の間は App を実行せず、
-// テーマ取得後にのみ App をレンダリングする
+// テーマは通常マウントゲートで取得済み。万一未着でも light 既定で必ず描画する
 // -----------------------------------------------------------------------------
 function Root() {
     const themeApi = useTheme();
-    const colorScheme = themeApi?.theme;
+    const colorScheme = themeApi?.theme || 'light'; // 通常はゲートで取得済み。万一未着でも light で必ず描画
 
-    if (!themeApi || colorScheme === undefined || colorScheme === null) {
+    if (!colorScheme) {
         return (
             <div
                 style={{
@@ -1083,13 +1082,36 @@ function Root() {
 // -----------------------------------------------------------------------------
 // マウント処理(DOM準備前に実行された場合にも対応し、安定して表示させる)
 // -----------------------------------------------------------------------------
+// ホスト初期化完了（DashboardExtensionAPI 注入＋テーマ/データの初期 state 受信）を
+// 待ってからマウントする。公式フックは購読登録時に現在値を再送しないため、
+// 初期 state がマウントより後に届くと取り逃して永久に描画されないことがある。
+// 最大5秒待っても揃わない場合はフォールバック描画（テーマは light 既定）に入る。
+const MOUNT_START = Date.now();
+
+function hostReady() {
+    try {
+        const api = globalThis.DashboardExtensionAPI;
+        return Boolean(api && api.getTheme()?.theme && api.getDataSources());
+    } catch (e) {
+        return false;
+    }
+}
+
 function mount() {
     const rootElement = document.getElementById('root') || document.body;
     createRoot(rootElement).render(<Root />);
 }
 
+function mountWhenReady() {
+    if (hostReady() || Date.now() - MOUNT_START >= 5000) {
+        mount();
+    } else {
+        setTimeout(mountWhenReady, 50);
+    }
+}
+
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', mount, { once: true });
+    document.addEventListener('DOMContentLoaded', mountWhenReady, { once: true });
 } else {
-    mount();
+    mountWhenReady();
 }

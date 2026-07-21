@@ -1,6 +1,6 @@
 {
   "name": "custom_viz_heat_matrix",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A universal cross-tab heatmap matrix with continuous color scale, for Splunk Dashboard Studio",
   "author": "Yuto Ishitsuki",
   "type": "module",

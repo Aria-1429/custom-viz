@@ -1,6 +1,6 @@
 {
   "name": "custom_viz_waterfall_chart",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A waterfall (bridge) chart showing how sequential increases and decreases build up to a total, for Splunk Dashboard Studio",
   "author": "Yuto Ishitsuki",
   "type": "module",

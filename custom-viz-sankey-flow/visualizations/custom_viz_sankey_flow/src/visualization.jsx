@@ -758,8 +758,7 @@ function SankeyFlow({ mode }) {
 
 function App() {
     const themeApi = useTheme();
-    const colorScheme = themeApi?.theme;
-    if (!colorScheme) return null;
+    const colorScheme = themeApi?.theme || 'light'; // 通常はゲートで取得済み。万一未着でも light で必ず描画
     const mode = colorScheme === 'dark' ? 'dark' : 'light';
     return (
         <SplunkThemeProvider family="enterprise" colorScheme={colorScheme} density="comfortable">
@@ -768,9 +767,34 @@ function App() {
     );
 }
 
-const rootElement = document.getElementById('root') || document.body;
-createRoot(rootElement).render(
-    <VisualizationExtensionProvider>
-        <App />
-    </VisualizationExtensionProvider>
-);
+// ホスト初期化完了（DashboardExtensionAPI 注入＋テーマ/データの初期 state 受信）を
+// 待ってからマウントする。公式フックは購読登録時に現在値を再送しないため、
+// 初期 state がマウントより後に届くと取り逃して永久に描画されないことがある。
+// 最大5秒待っても揃わない場合はフォールバック描画（テーマは light 既定）に入る。
+const MOUNT_START = Date.now();
+
+function hostReady() {
+    try {
+        const api = globalThis.DashboardExtensionAPI;
+        return Boolean(api && api.getTheme()?.theme && api.getDataSources());
+    } catch (e) {
+        return false;
+    }
+}
+
+function mountApp() {
+    const rootElement = document.getElementById('root') || document.body;
+    createRoot(rootElement).render(
+        <VisualizationExtensionProvider>
+            <App />
+        </VisualizationExtensionProvider>
+    );
+}
+
+(function mountWhenReady() {
+    if (hostReady() || Date.now() - MOUNT_START >= 5000) {
+        mountApp();
+    } else {
+        setTimeout(mountWhenReady, 50);
+    }
+})();

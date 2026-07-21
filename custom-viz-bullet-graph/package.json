@@ -1,6 +1,6 @@
 {
   "name": "custom_viz_bullet_graph",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A bullet graph list comparing measures against targets and qualitative ranges, for Splunk Dashboard Studio",
   "author": "Yuto Ishitsuki",
   "type": "module",

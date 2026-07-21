@@ -1,6 +1,6 @@
 {
   "name": "custom_viz_kpi_tile",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A KPI stat tile with big value, day-over-day delta, sparkline bars and selectable icon for Splunk Dashboard Studio",
   "author": "Yuto Ishitsuki",
   "type": "module",
