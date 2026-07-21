@@ -30,9 +30,6 @@ const EXTRA_COLOR_DEFAULTS = ['#b17aff', '#2dd4bf', '#ff7ab8', '#9aa7b8'];
 // 凡例・フィルタ・ホットスポット優先度の並び順（既知のものを先頭に、他は登場順）
 const KNOWN_SEVERITY_ORDER = ['critical', 'high', 'medium', 'low'];
 
-// 弧を流れる光の筋（パス長を1に正規化した値）
-const STREAK_LEN = 0.3; // 筋の長さ（パス全体の30%）
-
 // ライト/ダークモード別の地図配色
 const MAP_PALETTES = {
     dark: {
@@ -324,8 +321,10 @@ function buildSeverityModel(threats, options) {
     return { severityList, severityColors };
 }
 
-// 弧（ベジェ曲線）のパスを生成
-function arcPath(sx, sy, tx, ty) {
+// 弧（2次ベジェ曲線）の制御点を求める。
+// SVG パス文字列と Canvas サンプリングの両方で同一曲線を使うため、
+// 制御点 (cx, cy) を単一の関数から供給して食い違いを防ぐ。
+function arcControl(sx, sy, tx, ty) {
     const dx = tx - sx;
     const dy = ty - sy;
     const dist = Math.hypot(dx, dy) || 1;
@@ -337,7 +336,22 @@ function arcPath(sx, sy, tx, ty) {
     const dir = ny < 0 ? 1 : -1;
     const cx = mx + nx * bend * dir;
     const cy = my + ny * bend * dir - dist * 0.12;
+    return { cx, cy };
+}
+
+// 弧（ベジェ曲線）の SVG パス文字列を生成（ベース軌道の描画に使用）
+function arcPath(sx, sy, tx, ty) {
+    const { cx, cy } = arcControl(sx, sy, tx, ty);
     return `M ${sx.toFixed(1)} ${sy.toFixed(1)} Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${tx.toFixed(1)} ${ty.toFixed(1)}`;
+}
+
+// 2次ベジェの点 (t: 0..1)。Canvas での彗星サンプリングに使用
+function bezierPoint(sx, sy, cx, cy, tx, ty, t) {
+    const u = 1 - t;
+    const a = u * u;
+    const b = 2 * u * t;
+    const c = t * t;
+    return { x: a * sx + b * cx + c * tx, y: a * sy + b * cy + c * ty };
 }
 
 // ツールチップ用の地点表記（名前が無ければ緯度経度で代替）
@@ -377,6 +391,112 @@ function useContainerSize() {
 }
 
 // ---------------------------------------------------------------------------
+// 弧を流れる「光の帯」キャンバス
+//   流れる筋だけを Canvas に描く（地図・陸地・ホットスポット・弧のベース軌道は
+//   SVG のまま）。彗星の尾ではなく、元の意図どおり「光っている短いセグメントが
+//   弧に沿って飛んでいく」表現。チープに見せないため:
+//     - 帯を Severity 色のグロー(太)＋同色の芯(細)の2重＋加算合成 lighter で発光させる
+//       （白い芯ドットは置かない。色だけで光らせる）
+//     - 帯の前後両端を滑らかにフェード（棒が急に切れないので安っぽくならない）
+//     - 進行方向に沿って点を連ね、弧の向きに正しく光が乗る
+//   実装メモ:
+//     - 弧は 2次ベジェ。SVG と同じ制御点(arcControl)をサンプリングして完全一致。
+//     - animDuration=0 で rAF を回さない（静的表示。CPU 0）。
+//     - devicePixelRatio は 2 で頭打ち（高精細でも描画量を抑える）。
+// ---------------------------------------------------------------------------
+// 帯の弧長比（パス全体に対する光の帯の長さ）
+const FLOW_LEN = 0.22;
+// 帯を構成するサンプル点の数（多いほど滑らか。数十本×この数でも 60fps 余裕）
+const FLOW_SAMPLES = 16;
+
+function ArcFlowCanvas({ arcs, width, height, duration }) {
+    const canvasRef = useRef(null);
+    // 最新の arcs / サイズを rAF ループから参照するための ref（再購読でループを
+    // 張り直さず、値だけ差し替える）
+    const stateRef = useRef({ arcs, width, height, duration });
+    stateRef.current = { arcs, width, height, duration };
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas || !width || !height) return undefined;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return undefined;
+
+        const dpr = Math.min(2, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
+        canvas.width = Math.max(1, Math.round(width * dpr));
+        canvas.height = Math.max(1, Math.round(height * dpr));
+
+        let raf = 0;
+        let start = 0;
+
+        // 光の帯1本を描く。head は帯の先頭位置(0..1)。帯は head から後方へ
+        // FLOW_LEN ぶんの区間を占め、その区間内で前後両端に向かってフェードする。
+        const drawFlow = (a, head) => {
+            const { sx, sy, cx, cy, tx, ty, color, w } = a;
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter'; // 加算合成で光が重なって発光
+            for (let k = 0; k <= FLOW_SAMPLES; k += 1) {
+                const u = k / FLOW_SAMPLES; // 0=帯の先頭, 1=帯の末尾
+                const tt = head - u * FLOW_LEN;
+                if (tt < 0 || tt > 1) continue; // パス外（出発前/到達後）は描かない
+                const p = bezierPoint(sx, sy, cx, cy, tx, ty, tt);
+                // 帯内の輝度エンベロープ: 中央付近が最も明るく、前後端で 0 へ。
+                // sin(π·u) で滑らかな山形にし、棒の急な切れ目を無くす。
+                const env = Math.sin(Math.PI * u);
+                if (env <= 0.02) continue;
+                // 帯の色（Severity色）だけで発光させる。白い芯は置かない。
+                // グロー（太・柔らかい）＋ その上に同色の締まった芯を重ね、
+                // 加算合成で中心ほど輝度が乗って発光する光の帯にする。
+                ctx.fillStyle = color;
+                ctx.globalAlpha = 0.4 * env;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, Math.max(0.6, w * 2.4 * env), 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 0.6 * env;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, Math.max(0.4, w * 1.0 * env), 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        };
+
+        const frame = (now) => {
+            const st = stateRef.current;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.clearRect(0, 0, st.width, st.height);
+            if (st.duration > 0 && st.arcs.length > 0) {
+                if (!start) start = now;
+                // 全弧で位相を共有（同時に出発・到達）。帯の先頭は 0→1 を周回。
+                // 帯の末尾が終点を過ぎてから次周が始点に入るよう、1+FLOW_LEN 周期で
+                // 動かして「到達 → 一瞬消える → 再出発」を途切れなくループさせる。
+                const phase = ((now - start) / (st.duration * 1000)) % 1;
+                const head = phase * (1 + FLOW_LEN);
+                st.arcs.forEach((a) => drawFlow(a, head));
+            }
+            raf = requestAnimationFrame(frame);
+        };
+        raf = requestAnimationFrame(frame);
+        return () => cancelAnimationFrame(raf);
+    }, [width, height]);
+
+    return (
+        <canvas
+            ref={canvasRef}
+            width={width}
+            height={height}
+            style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                pointerEvents: 'none',
+                zIndex: 1,
+            }}
+        />
+    );
+}
+
+// ---------------------------------------------------------------------------
 // 表示ステート
 // ---------------------------------------------------------------------------
 function LoadingState() {
@@ -407,7 +527,6 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
 
     // アニメーション: animDuration=0 で停止（静的表示）
     const animOn = opts.animDuration > 0;
-    const streakDur = `${opts.animDuration}s`;
 
     // サーチ結果が変わってフィルタ中のSeverityが消えた場合は全件表示に戻す
     const effectiveFilter =
@@ -468,7 +587,7 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
         };
     }, [customLand, palette]);
 
-    // 線の色から導出する派生色（ホットスポットの中心点・グロー）
+    // 線の色から導出する派生色（ホットスポットの中心点・グロー・コメット先端）
     const derived = useMemo(() => {
         const out = {};
         severityList.forEach((sev) => {
@@ -520,6 +639,26 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
                 ? projected
                 : projected.filter((t) => t.severity === effectiveFilter),
         [projected, effectiveFilter]
+    );
+
+    // Canvas の光の帯用の弧データ（制御点・色・線幅を事前計算して rAF から使う）
+    const flowArcs = useMemo(
+        () =>
+            visible.map((t) => {
+                const { cx, cy } = arcControl(t.sx, t.sy, t.tx, t.ty);
+                const width = Math.min(1 + Math.sqrt(t.count) * 0.12, 2.2);
+                return {
+                    sx: t.sx,
+                    sy: t.sy,
+                    cx,
+                    cy,
+                    tx: t.tx,
+                    ty: t.ty,
+                    color: derived[t.severity]?.css || 'rgb(56, 166, 255)',
+                    w: width,
+                };
+            }),
+        [visible, derived]
     );
 
     // 攻撃元・攻撃先のホットスポット
@@ -649,6 +788,10 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
                         <filter id="gtm-soft-blur" x="-20%" y="-20%" width="140%" height="140%">
                             <feGaussianBlur stdDeviation="2.5" />
                         </filter>
+                        {/* 弧の発光: ベース軌道をにじませてネオンの熱量を出す */}
+                        <filter id="gtm-arc-glow" x="-30%" y="-30%" width="160%" height="160%">
+                            <feGaussianBlur stdDeviation="3.2" />
+                        </filter>
                     </defs>
 
                     {/* 背景（完全透過時は描画しない） */}
@@ -740,7 +883,11 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
                         </g>
                     ))}
 
-                    {/* 攻撃の弧: 透過したベース線の上を、Severity色の線が飛んでいく */}
+                    {/* 攻撃の弧のベース軌道（SVG）。流れる彗星は上に重ねた Canvas が担当。
+                        ツールチップ(title)はここに置き、常にホバー可能にする。
+                          軌道1: 太く柔らかい発光ハロー（熱をにじませる）
+                          軌道2: 細い芯線（弧の存在を常に示す薄い実線）
+                        animOn 時は軌道を控えめにして彗星を主役に、静的時は芯線を濃くする。 */}
                     {visible.map((t) => {
                         const color = derived[t.severity]?.css || 'rgb(56, 166, 255)';
                         const d = arcPath(t.sx, t.sy, t.tx, t.ty);
@@ -749,55 +896,38 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
                         return (
                             <g key={`arc-${t.id}`}>
                                 <title>{tip}</title>
-                                {/* ベース: 透過した線（うっすらとした軌道） */}
                                 <path
                                     d={d}
                                     fill="none"
                                     stroke={color}
-                                    strokeWidth={width * 3}
-                                    opacity="0.1"
-                                    filter="url(#gtm-soft-blur)"
+                                    strokeWidth={width * 2.4}
+                                    strokeLinecap="round"
+                                    opacity={animOn ? '0.14' : '0.28'}
+                                    filter="url(#gtm-arc-glow)"
                                 />
                                 <path
                                     d={d}
                                     fill="none"
                                     stroke={color}
-                                    strokeWidth={width}
-                                    opacity={animOn ? '0.25' : '0.7'}
+                                    strokeWidth={width * 0.7}
+                                    strokeLinecap="round"
+                                    opacity={animOn ? '0.3' : '0.75'}
                                 />
-                                {/*
-                                  飛んでいく線（Severity色・明るい）:
-                                  dasharrayの合計(1.6)をパス長(1)+筋の長さ(0.3)より大きくし、
-                                  dashoffsetを 0.3 -> -1 へ線形に動かすことで、
-                                  始点から現れて終点へ抜ける動きが途切れなくループする。
-                                  dur/beginを全弧で共通にして、同時に出発し同時に到達させる。
-                                  animDuration=0 のときは筋を描かず静的表示。
-                                */}
-                                {animOn && (
-                                    <path
-                                        d={d}
-                                        fill="none"
-                                        stroke={color}
-                                        strokeWidth={width * 1.4}
-                                        strokeLinecap="butt"
-                                        pathLength="1"
-                                        strokeDasharray={`${STREAK_LEN} 1.3`}
-                                        opacity="1"
-                                    >
-                                        <animate
-                                            attributeName="stroke-dashoffset"
-                                            values={`${STREAK_LEN};-1`}
-                                            dur={streakDur}
-                                            begin="0s"
-                                            calcMode="linear"
-                                            repeatCount="indefinite"
-                                        />
-                                    </path>
-                                )}
                             </g>
                         );
                     })}
                 </svg>
+            )}
+
+            {/* 流れる光の帯（Canvas オーバーレイ）。地図 SVG の上・オーバーレイ UI の下。
+                animDuration=0 のときは rAF を回さず何も描かない（静的表示・CPU 0）。 */}
+            {geo && size && (
+                <ArcFlowCanvas
+                    arcs={flowArcs}
+                    width={size.w}
+                    height={size.h}
+                    duration={opts.animDuration}
+                />
             )}
 
             {/* タイトル（左上・地図の内側）

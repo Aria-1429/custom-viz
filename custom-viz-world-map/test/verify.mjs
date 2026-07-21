@@ -30,8 +30,26 @@ globalThis.Node = win.Node;
 globalThis.MouseEvent = win.MouseEvent;
 globalThis.CustomEvent = win.CustomEvent;
 globalThis.getComputedStyle = win.getComputedStyle.bind(win);
-globalThis.requestAnimationFrame = (cb) => setTimeout(cb, 0);
+globalThis.requestAnimationFrame = (cb) => setTimeout(() => cb(performance.now()), 0);
 globalThis.cancelAnimationFrame = (id) => clearTimeout(id);
+globalThis.performance = globalThis.performance || { now: () => 0 };
+
+// happy-dom は canvas.getContext を実装しないため 2D コンテキストをスタブ化。
+// 彗星描画（fill 回数）を数えて「Canvas に描かれたか / 静止時は描かれないか」を検証する。
+const canvasStub = { fills: 0, arcs: 0, clears: 0 };
+const ctxStub = {
+    setTransform() {},
+    clearRect() { canvasStub.clears += 1; },
+    save() {},
+    restore() {},
+    beginPath() {},
+    arc() { canvasStub.arcs += 1; },
+    fill() { canvasStub.fills += 1; },
+    set fillStyle(v) {}, get fillStyle() { return '#000'; },
+    set globalAlpha(v) {}, get globalAlpha() { return 1; },
+    set globalCompositeOperation(v) {}, get globalCompositeOperation() { return 'source-over'; },
+};
+win.HTMLCanvasElement.prototype.getContext = function () { return ctxStub; };
 
 // コンテナ実寸を固定（オートフィット系のため）
 Object.defineProperty(win.HTMLElement.prototype, 'clientWidth', { get: () => 900 });
@@ -105,7 +123,11 @@ globalThis.DashboardExtensionAPI = {
 win.DashboardExtensionAPI = globalThis.DashboardExtensionAPI;
 
 const fire = (key, payload) => listeners[key].forEach((cb) => cb(payload));
-const streaks = () => [...doc.querySelectorAll('svg path[pathLength]')];
+// 流れる彗星は Canvas に描くため DOM に出ない。弧の本数は SVG のベース軌道で数える。
+// ベース軌道は 1 弧あたり2枚（発光ハロー=filter付き + 芯線）。
+// ハロー層(filter="url(#gtm-arc-glow)")を 1 弧 = 1 とみなして数える。
+const streaks = () =>
+    [...doc.querySelectorAll('svg path[filter="url(#gtm-arc-glow)"]')];
 const strokes = () => streaks().map((p) => p.getAttribute('stroke'));
 const titles = () => [...doc.querySelectorAll('svg title')].map((t) => t.textContent);
 
@@ -128,6 +150,10 @@ console.log('\n[1] initial render (dark, auto field detection)');
     check('arc tooltip src → dst', titles().some((t) => t.includes('Shanghai') && t.includes('Tokyo')), JSON.stringify(titles().slice(0, 4)));
     check('hotspot tooltip has target name', titles().some((t) => t.startsWith('Target: Tokyo')));
     check('pulse/streak animations present', doc.querySelectorAll('svg animate').length > 0);
+    // 彗星は Canvas に描かれる：アニメーション中は fill が発生している
+    canvasStub.fills = 0;
+    await sleep(120);
+    check('comets drawn on canvas (animated)', canvasStub.fills > 0, `got ${canvasStub.fills}`);
 }
 
 // ---- 2. 色オプションの反映 ---------------------------------------------------
@@ -152,9 +178,14 @@ console.log('\n[3] display toggles + animation off');
     check('legend hidden', !doc.body.innerHTML.includes('0 0 8px'));
     check('no animate elements when animDuration=0', doc.querySelectorAll('svg animate').length === 0,
         `got ${doc.querySelectorAll('svg animate').length}`);
-    check('no streak paths (static mode)', streaks().length === 0);
-    // 静的モードでは本線が濃くなる
-    const staticArcs = [...doc.querySelectorAll('svg path[opacity="0.7"]')];
+    // 静的モードでは彗星を描かない → Canvas への fill が止まる（rAF で clear のみ継続）
+    canvasStub.fills = 0;
+    await sleep(120);
+    check('no comet fills on canvas (static mode)', canvasStub.fills === 0, `got ${canvasStub.fills}`);
+    // ベース軌道は静的でも残る（弧の存在を示す）
+    check('base tracks remain in static mode', streaks().length === 6, `got ${streaks().length}`);
+    // 静的モードでは芯線が濃くなる（animOn 時 0.3 → 静的 0.75）
+    const staticArcs = [...doc.querySelectorAll('svg path[opacity="0.75"]')];
     check('static arcs drawn brighter', staticArcs.length === 6, `got ${staticArcs.length}`);
 }
 

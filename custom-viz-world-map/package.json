@@ -1,6 +1,6 @@
 {
   "name": "custom_viz_worldmap",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "A custom visualization for Splunk Dashboard Studio",
   "author": "Yuto Ishitsuki",
   "type": "module",
