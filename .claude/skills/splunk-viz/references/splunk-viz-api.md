@@ -98,7 +98,14 @@ if (!isWatch && existsSync(distDir)) {
 
 ## 2. 実装の定番パターン（visualization.jsx）
 
-### ルート構成（テーマガード必須）
+### ルート構成（マウントゲート必須。2026-07-21 全viz適用済み）
+
+**背景**: カスタムvizはサンドボックスiframeで動き、テーマ/データ等の状態は親から postMessage で
+非同期に届く。公式Reactフックは「`getX()` でシード → `useEffect` で購読」だが**購読登録時に現在値を
+再送しない**（`invokeImmediately` 不使用）ため、初期stateがマウント後〜購読前に届くと取り逃し、
+`useTheme` 等が **undefined のまま永久に描画されない**ことがある（リロード連発・ブラウザが重い時に
+顕在化）。対策は「**初期stateが揃ってからマウントする**」マウントゲート。公式構成（import/Provider/
+フック）はそのまま維持できるのが利点。正常時の表示遅延は最大+50ms（通常はゼロ）。
 
 ```jsx
 import {
@@ -109,8 +116,7 @@ import { createRoot } from 'react-dom/client';
 
 function App() {
   const themeApi = useTheme();
-  const colorScheme = themeApi?.theme;
-  if (!colorScheme) return null;            // テーマ未取得の間はレンダリングしない（表示崩れ防止の要）
+  const colorScheme = themeApi?.theme || 'light'; // 通常はゲートで取得済み。万一未着でも light で必ず描画
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   return (
     <SplunkThemeProvider family="enterprise" colorScheme={colorScheme} density="comfortable">
@@ -118,11 +124,41 @@ function App() {
     </SplunkThemeProvider>
   );
 }
-const rootElement = document.getElementById('root') || document.body;
-createRoot(rootElement).render(
-  <VisualizationExtensionProvider><App /></VisualizationExtensionProvider>
-);
+
+// ホスト初期化完了（DashboardExtensionAPI 注入＋テーマ/データの初期 state 受信）を
+// 待ってからマウントする。最大5秒でフォールバック描画に入る。
+const MOUNT_START = Date.now();
+
+function hostReady() {
+  try {
+    const api = globalThis.DashboardExtensionAPI;
+    return Boolean(api && api.getTheme()?.theme && api.getDataSources());
+  } catch (e) {
+    return false;
+  }
+}
+
+function mountApp() {
+  const rootElement = document.getElementById('root') || document.body;
+  createRoot(rootElement).render(
+    <VisualizationExtensionProvider><App /></VisualizationExtensionProvider>
+  );
+}
+
+(function mountWhenReady() {
+  if (hostReady() || Date.now() - MOUNT_START >= 5000) {
+    mountApp();
+  } else {
+    setTimeout(mountWhenReady, 50);
+  }
+})();
 ```
+
+- ゲートが待つのは**ハンドシェイク完了**（stateの容れ物）であってサーチ完了ではない。
+  `getDataSources()` は接続確立時点で `{loading:true}` を返すので、スピナー→本描画の流れは従来どおり。
+- happy-dom 検証はモックを eval 前に定義するため初回チェックで即マウント（既存 verify 影響なし）。
+- 塞げない残余リスク: API注入前にバンドルが実行されるとライブラリのモジュール評価が throw
+  （コンソールに "DashboardExtensionAPI is not available..."）。観測されたら追加対策する方針。
 
 ### データ正規化（rows / columns 両形式に対応・落とさない）
 

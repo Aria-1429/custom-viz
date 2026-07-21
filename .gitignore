@@ -1,6 +1,7 @@
 # 依存・ビルド成果物（各 viz 共通）
 **/node_modules/
 **/stage/
+/packages/
 
 # dist は中身を無視するが、パッケージ成果物(.spl)だけはリポジトリに含める
 **/dist/*

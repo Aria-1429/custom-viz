@@ -1,6 +1,6 @@
 {
   "name": "custom_viz_country_graph",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A country ranking bar chart with flags, top-N limiting, sorting, and an editable low/high value color scale",
   "author": "Yuto Ishitsuki",
   "type": "module",
