@@ -36,12 +36,18 @@ import './visualization.css';
 // ・質感: フラット / ソフトシャドウ / ネオン発光 / 立体パイプ の4種＋
 //   線幅・破線・流れアニメーション・不透明度。背景は透明で、どんな
 //   ダッシュボードにも馴染む。
+// ・流れアニメーションは world-map と同じ「テーパー形状の光の帯」を Canvas に
+//   描く（v1.6.0）。以前の SVG stroke-dashoffset で細かい粒を流す方式は
+//   点滅感（チカチカ）が強かったため廃止。帯は両端が sin エンベロープで
+//   滑らかに窄まるポリゴンを 1 回塗りで描き、下に淡い同色グローを敷く
+//   （加算合成は使わない＝白飛びしない）。端点パルスも同じ Canvas の
+//   rAF ループに統合し、アニメ停止時は rAF を回さない（CPU 0）。
 // ・データが無い/数値が無い場合も線は消さず、ニュートラル色（グレー）で
 //   描画し、値ラベルに N/A を表示する（コネクタとしての表示を維持）。
 // ---------------------------------------------------------------------------
 
 // バージョン表記（デプロイ確認用。編集モードの案内・色設定パネル・debug に表示）
-const VIZ_VERSION = '1.5.0';
+const VIZ_VERSION = '1.7.0';
 
 // オプションのデフォルト（config.json の optionsSchema.default と一致させる）
 const DEFAULTS = {
@@ -153,16 +159,6 @@ function fmtValue(n, decimals) {
     if (Math.abs(n) >= 1e15) return n.toExponential(2);
     const d = clamp(Math.round(decimals) || 0, 0, 6);
     return n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
-}
-
-// CJK を含むかで文字幅を推定（値ラベルのチップ幅算出用の近似）
-function estimateTextWidth(text, fontSize) {
-    let w = 0;
-    for (const ch of String(text)) {
-        const cp = ch.codePointAt(0);
-        w += cp > 0x2e7f ? fontSize : fontSize * 0.62;
-    }
-    return w;
 }
 
 // ---------------------------------------------------------------------------
@@ -606,6 +602,230 @@ function polylineGeometry(pts) {
 }
 
 // ---------------------------------------------------------------------------
+// 流れる「光の帯」キャンバス（world-map v1.1.1 と同方式）
+//   角丸パス（roundedPathD と同じ幾何）を折れ線に平坦化し、弧長でサンプル
+//   できる track を作る。帯は「両端が sin エンベロープで窄まるテーパー
+//   ポリゴン」を 1 回塗りで描くため、アルファ累積も加算合成の白飛びも無く、
+//   以前の破線オフセット方式のような点滅感（チカチカ）が出ない。
+//   端点パルスも同じ rAF ループで描き、SVG の毎フレーム属性更新を全廃。
+//   アニメが全て停止（flowSpeed=0 かつ pulse 無し）のときはこのコンポーネント
+//   自体をマウントしない（rAF ゼロ・CPU 0）。
+//
+//   v1.7.0 の 2 つの改良:
+//   ・端点フェード: パス範囲外のサンプルを単純に捨てるだけだと、境界を跨いだ
+//     瞬間にポリゴンの端がサンプル間隔ぶん飛び、始点/終点で段階的な
+//     カクつき（デュデュデュ）に見える。端点近傍で幅を smoothstep で 0 に
+//     窄めるフェード窓を掛け、消えるサンプルは常に幅ほぼ 0 → 出入りが滑らか。
+//   ・パネル間同期: 位相は rAF のローカル経過時間でなく壁時計（Date.now）から
+//     算出し、帯の長さもパス長の固定比率にする。これで複数の link-line パネル
+//     （別 iframe で状態は共有できない）でも、同じ速度設定なら線の長さに
+//     関係なく「同時に出発・同時に終点へ到着」する。
+// ---------------------------------------------------------------------------
+
+// 帯を構成するサンプル点の数（多いほど滑らか。1 本×この数なので 60fps 余裕）
+const FLOW_SAMPLES = 24;
+// 帯の弧長比（パス全体に対する光の帯の長さ。world-map と同じく比率固定に
+// することで、どの線でも「出発→到着」が周期内の同じ位相で起きる）
+const FLOW_LEN = 0.24;
+// 速度1 のときの周期（秒）。周期 = FLOW_PERIOD / flowSpeed。
+// 壁時計を同じ周期で割るので、同じ速度設定のパネル同士は自動的に同位相になる
+const FLOW_PERIOD = 8;
+
+// 0..1 に丸めた smoothstep（端点フェード窓用）
+function smooth01(x) {
+    const t = clamp01(x);
+    return t * t * (3 - 2 * t);
+}
+
+// 角丸ポリラインを「弧長つき折れ線」に平坦化する（roundedPathD と同じ丸め幾何）
+function buildFlowTrack(pts, radius) {
+    if (!pts || pts.length < 2) return null;
+    const prims = [];
+    let cur = pts[0];
+    for (let i = 1; i < pts.length - 1; i += 1) {
+        const p0 = pts[i - 1];
+        const p1 = pts[i];
+        const p2 = pts[i + 1];
+        const v1 = { x: p1.x - p0.x, y: p1.y - p0.y };
+        const v2 = { x: p2.x - p1.x, y: p2.y - p1.y };
+        const len1 = Math.hypot(v1.x, v1.y);
+        const len2 = Math.hypot(v2.x, v2.y);
+        const rr = Math.min(radius, len1 / 2, len2 / 2);
+        if (rr < 0.5 || len1 < 1e-6 || len2 < 1e-6) {
+            prims.push({ type: 'L', a: cur, b: p1 });
+            cur = p1;
+            continue;
+        }
+        const a = { x: p1.x - (v1.x / len1) * rr, y: p1.y - (v1.y / len1) * rr };
+        const b = { x: p1.x + (v2.x / len2) * rr, y: p1.y + (v2.y / len2) * rr };
+        prims.push({ type: 'L', a: cur, b: a });
+        prims.push({ type: 'Q', a, c: p1, b });
+        cur = b;
+    }
+    prims.push({ type: 'L', a: cur, b: pts[pts.length - 1] });
+
+    const samples = [];
+    let total = 0;
+    const push = (x, y) => {
+        if (samples.length > 0) {
+            const s = samples[samples.length - 1];
+            const d = Math.hypot(x - s.x, y - s.y);
+            if (d < 1e-6) return;
+            total += d;
+        }
+        samples.push({ x, y, d: total });
+    };
+    push(prims[0].a.x, prims[0].a.y);
+    for (const pr of prims) {
+        if (pr.type === 'L') {
+            push(pr.b.x, pr.b.y);
+        } else {
+            const STEPS = 8; // 角丸（2次ベジェ）の分割数
+            for (let s = 1; s <= STEPS; s += 1) {
+                const t = s / STEPS;
+                const u = 1 - t;
+                push(
+                    u * u * pr.a.x + 2 * u * t * pr.c.x + t * t * pr.b.x,
+                    u * u * pr.a.y + 2 * u * t * pr.c.y + t * t * pr.b.y
+                );
+            }
+        }
+    }
+    return samples.length >= 2 ? { samples, total } : null;
+}
+
+// track 上の弧長位置 dist の点（座標＋単位法線）
+function trackPointAt(track, dist) {
+    const { samples } = track;
+    const d = clamp(dist, 0, track.total);
+    let i = 1;
+    while (i < samples.length - 1 && samples[i].d < d) i += 1;
+    const s0 = samples[i - 1];
+    const s1 = samples[i];
+    const seg = s1.d - s0.d;
+    const t = seg > 1e-6 ? (d - s0.d) / seg : 0;
+    const dx = s1.x - s0.x;
+    const dy = s1.y - s0.y;
+    const len = Math.hypot(dx, dy) || 1;
+    return { x: s0.x + dx * t, y: s0.y + dy * t, nx: -dy / len, ny: dx / len };
+}
+
+function FlowCanvas({ track, color, lineWidth, speed, pulseCaps, caps, capR, width, height, opacity }) {
+    const canvasRef = useRef(null);
+    // 最新の track / 色 / 速度を rAF ループから参照するための ref
+    // （再購読でループを張り直さず、値だけ差し替える）
+    const stateRef = useRef(null);
+    stateRef.current = { track, color, lineWidth, speed, pulseCaps, caps, capR, width, height, opacity };
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas || !width || !height) return undefined;
+        const ctx = typeof canvas.getContext === 'function' ? canvas.getContext('2d') : null;
+        if (!ctx) return undefined;
+
+        // 高精細でも描画量を抑える（world-map と同じく dpr は 2 で頭打ち）
+        const dpr = Math.min(2, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
+        canvas.width = Math.max(1, Math.round(width * dpr));
+        canvas.height = Math.max(1, Math.round(height * dpr));
+
+        let raf = 0;
+
+        const frame = () => {
+            const st = stateRef.current;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.clearRect(0, 0, st.width, st.height);
+            // 位相は壁時計から算出（rAF のローカル経過時間だとパネルごとに開始が
+            // ずれる。Date.now は iframe 間で共通なので、同じ速度設定のパネルは
+            // 何もしなくても同位相＝同時に出発・到着する）
+            const nowSec = Date.now() / 1000;
+
+            // --- 光の帯（テーパーポリゴン 1 回塗り × 2 層） ---
+            const tr = st.track;
+            if (st.speed > 0 && tr && tr.total > 4) {
+                const bandLen = tr.total * FLOW_LEN;
+                const period = FLOW_PERIOD / st.speed;
+                // 帯の末尾が終点を抜けてから次周が始点に入る（途切れないループ）。
+                // 帯長がパス長の固定比率なので、先頭の到着位相 1/(1+FLOW_LEN) も
+                // 全パネル共通になる
+                const s = (nowSec % period) / period;
+                const head = s * (tr.total + bandLen);
+                // 端点フェード窓の長さ。境界に近いサンプルの幅を smoothstep で
+                // 0 へ窄め、サンプルがパス外に出て消える瞬間のジャンプを不可視にする
+                const fade = bandLen * 0.5;
+                const pts = [];
+                for (let k = 0; k <= FLOW_SAMPLES; k += 1) {
+                    const u = k / FLOW_SAMPLES; // 0=帯の先頭, 1=帯の末尾
+                    const d = head - u * bandLen;
+                    if (d < 0 || d > tr.total) continue; // パス外（出発前/到達後）は描かない
+                    const p = trackPointAt(tr, d);
+                    const env =
+                        Math.sin(Math.PI * u) * smooth01(d / fade) * smooth01((tr.total - d) / fade);
+                    pts.push({ ...p, env });
+                }
+                if (pts.length >= 2) {
+                    const hwBase = Math.max(2, st.lineWidth * 0.62);
+                    // 中心線の左右に張り出したテーパーポリゴンを 1 回で塗る。
+                    // 重ね塗りしないのでアルファが累積せず白飛びしない
+                    const fillBand = (scale, alpha, fillStyle) => {
+                        ctx.beginPath();
+                        pts.forEach((p, i) => {
+                            const hw = hwBase * scale * p.env;
+                            if (i === 0) ctx.moveTo(p.x + p.nx * hw, p.y + p.ny * hw);
+                            else ctx.lineTo(p.x + p.nx * hw, p.y + p.ny * hw);
+                        });
+                        for (let i = pts.length - 1; i >= 0; i -= 1) {
+                            const p = pts[i];
+                            const hw = hwBase * scale * p.env;
+                            ctx.lineTo(p.x - p.nx * hw, p.y - p.ny * hw);
+                        }
+                        ctx.closePath();
+                        ctx.globalAlpha = alpha;
+                        ctx.fillStyle = fillStyle;
+                        ctx.fill();
+                    };
+                    // 線自体が同色で不透明なので、帯は白へ寄せた明色で「線の上を走る光」に見せる
+                    fillBand(2.3, 0.16 * st.opacity, mixColor(st.color, '#ffffff', 0.35)); // 太く淡いグロー
+                    fillBand(1.0, 0.85 * st.opacity, mixColor(st.color, '#ffffff', 0.6)); // 締まった芯
+                }
+            }
+
+            // --- 端点パルス（広がるリング。これも壁時計位相でパネル間同期） ---
+            if (st.pulseCaps && st.caps.length > 0) {
+                const period = 2.4;
+                const phase = (nowSec % period) / period;
+                ctx.globalAlpha = (1 - phase) * 0.5 * st.opacity;
+                ctx.strokeStyle = st.color;
+                ctx.lineWidth = 1.5;
+                for (const c of st.caps) {
+                    ctx.beginPath();
+                    ctx.arc(c.x, c.y, st.capR + st.capR * 1.7 * phase, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+            raf = requestAnimationFrame(frame);
+        };
+        raf = requestAnimationFrame(frame);
+        return () => cancelAnimationFrame(raf);
+    }, [width, height]);
+
+    return (
+        <canvas
+            ref={canvasRef}
+            data-role="flow-canvas"
+            width={width}
+            height={height}
+            style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                pointerEvents: 'none',
+            }}
+        />
+    );
+}
+
+// ---------------------------------------------------------------------------
 // 本体
 // ---------------------------------------------------------------------------
 
@@ -918,46 +1138,6 @@ function LinkLine({ mode }) {
         }
     }, [setOptions, options]);
 
-    // --- アニメーション（rAF で stroke-dashoffset / 端点パルスを直接更新） ---
-    const svgRef = useRef(null);
-    const speedRef = useRef(opts.flowSpeed);
-    speedRef.current = opts.flowSpeed;
-    const flowActive = opts.flowSpeed > 0;
-    const animActive = flowActive || opts.pulseCaps;
-    useEffect(() => {
-        if (!animActive || typeof requestAnimationFrame === 'undefined') return undefined;
-        let raf = 0;
-        let prev = null;
-        let off = 0;
-        let tSec = 0;
-        const step = (ts) => {
-            if (prev === null) prev = ts;
-            const dt = Math.min(0.1, Math.max(0, (ts - prev) / 1000));
-            prev = ts;
-            off += dt * speedRef.current * 60; // 速度1 ≒ 60px/秒
-            tSec += dt;
-            const rootEl = svgRef.current;
-            if (rootEl && typeof rootEl.querySelectorAll === 'function') {
-                rootEl.querySelectorAll('[data-anim="dash"]').forEach((el) => {
-                    const period = parseNum(el.getAttribute('data-period'));
-                    const p = Number.isFinite(period) && period > 0 ? period : 60;
-                    el.setAttribute('stroke-dashoffset', String(-(off % p)));
-                });
-                rootEl.querySelectorAll('[data-anim="pulse"]').forEach((el) => {
-                    const period = parseNum(el.getAttribute('data-period')) || 2.4;
-                    const base = parseNum(el.getAttribute('data-base')) || 8;
-                    const amp = parseNum(el.getAttribute('data-amp')) || 12;
-                    const phase = (tSec % period) / period;
-                    el.setAttribute('r', String(base + amp * phase));
-                    el.setAttribute('opacity', String((1 - phase) * 0.5));
-                });
-            }
-            raf = requestAnimationFrame(step);
-        };
-        raf = requestAnimationFrame(step);
-        return () => cancelAnimationFrame(raf);
-    }, [animActive]);
-
     // --- 幾何・色の算出 ---
     const { w, h } = dims;
     const pxPts = points.map((p) => ({ x: p.x * w, y: p.y * h }));
@@ -980,16 +1160,9 @@ function LinkLine({ mode }) {
     const overallAngle = Math.atan2(endPt.y - startPt.y, endPt.x - startPt.x);
     const perp = { x: Math.sin(overallAngle), y: -Math.cos(overallAngle) }; // 進行方向の左手（≒上）側
 
-    // 破線と流れアニメーション:
-    //   dashLength > 0 → 本体を破線にし、flowSpeed > 0 ならその破線を流す
-    //   dashLength = 0 → 実線。flowSpeed > 0 なら明るい粒（オーバーレイ破線）を流す
+    // 破線（静的スタイル）。流れアニメーションは Canvas の光の帯が担う
     const dashGap = Math.max(2, Math.round(opts.dashLength * 0.75));
     const dashArr = opts.dashLength > 0 ? `${opts.dashLength} ${dashGap}` : undefined;
-    const mainPeriod = opts.dashLength > 0 ? opts.dashLength + dashGap : 0;
-    const useFlowOverlay = flowActive && opts.dashLength === 0;
-    const flowDot = Math.max(3, lw * 1.1);
-    const flowGap = Math.max(10, flowDot * 3);
-    const flowPeriod = flowDot + flowGap;
 
     // 質感ごとのストロークレイヤー（下から順に描画）。
     // strokePaint は始点→終点の淡いグラデーション（立体感）。lineGradient オフで単色
@@ -1045,9 +1218,7 @@ function LinkLine({ mode }) {
               : rawValue
           : 'N/A';
     const labelFont = clamp(11.5 + lw * 0.35, 11, 20);
-    const chipH = labelFont + 12;
     const chipDotR = Math.max(3, labelFont * 0.26);
-    const chipW = estimateTextWidth(labelText, labelFont) + chipDotR * 2 + labelFont * 1.7;
     const chipBg = mode === 'dark' ? 'rgba(10,14,26,0.88)' : 'rgba(255,255,255,0.92)';
     // dataviz 原則: テキストは系列色でなくインク色。色の識別はチップ内のドットが担う
     const chipInk = mode === 'dark' ? 'rgba(228,234,244,0.95)' : 'rgba(28,36,48,0.92)';
@@ -1071,6 +1242,12 @@ function LinkLine({ mode }) {
         boxShadow: mode === 'dark' ? '0 2px 10px rgba(0,0,0,0.35)' : '0 2px 10px rgba(20,30,40,0.12)',
     };
 
+    // 流れる光の帯・端点パルス（Canvas）。どちらも無ければ Canvas 自体をマウントしない
+    const pulseActive = opts.pulseCaps && opts.showEndCaps;
+    const animActive = opts.flowSpeed > 0 || pulseActive;
+    const flowTrack = opts.flowSpeed > 0 ? buildFlowTrack(pxPts, opts.cornerRadius) : null;
+    const pulseCapPts = pulseActive ? [startPt, ...(opts.arrowHead ? [] : [endPt])] : [];
+
     return (
         <div
             ref={setContainer}
@@ -1085,7 +1262,6 @@ function LinkLine({ mode }) {
             }}
         >
             <svg
-                ref={svgRef}
                 width={w}
                 height={h}
                 viewBox={`0 0 ${w} ${h}`}
@@ -1134,7 +1310,6 @@ function LinkLine({ mode }) {
                     {/* 線本体（質感レイヤー） */}
                     {layers.map((l) => {
                         const isDashTarget = (l.main || l.dashed) && opts.dashLength > 0;
-                        const animated = isDashTarget && flowActive;
                         const pathEl = (
                             <path
                                 key={l.key}
@@ -1147,8 +1322,6 @@ function LinkLine({ mode }) {
                                 strokeDasharray={isDashTarget ? dashArr : undefined}
                                 opacity={l.opacity}
                                 data-role={l.main ? 'main-line' : `line-${l.key}`}
-                                data-anim={animated ? 'dash' : undefined}
-                                data-period={animated ? mainPeriod : undefined}
                                 filter={l.shadow ? 'url(#llShadow)' : l.filter}
                             />
                         );
@@ -1161,36 +1334,6 @@ function LinkLine({ mode }) {
                             </g>
                         );
                     })}
-
-                    {/* 流れる粒（実線のときのオーバーレイ。ぼかした下層＋シャープな粒の2層） */}
-                    {useFlowOverlay && (
-                        <g data-role="flow-group">
-                            <path
-                                d={pathD}
-                                fill="none"
-                                stroke={withAlpha(mixColor(color, '#ffffff', 0.5), 0.55)}
-                                strokeWidth={Math.max(3.5, lw * 0.85)}
-                                strokeLinecap="round"
-                                strokeDasharray={`${flowDot} ${flowGap}`}
-                                filter="url(#llBlurTight)"
-                                data-role="flow-glow"
-                                data-anim="dash"
-                                data-period={flowPeriod}
-                            />
-                            <path
-                                d={pathD}
-                                fill="none"
-                                stroke={mixColor(color, '#ffffff', 0.75)}
-                                strokeWidth={Math.max(2, lw * 0.4)}
-                                strokeLinecap="round"
-                                strokeDasharray={`${flowDot} ${flowGap}`}
-                                opacity={0.95}
-                                data-role="flow"
-                                data-anim="dash"
-                                data-period={flowPeriod}
-                            />
-                        </g>
-                    )}
 
                     {/* 端点コネクタ（ポート風: 淡いハロー＋面フィルのリング＋色のコアドット） */}
                     {opts.showEndCaps &&
@@ -1216,21 +1359,6 @@ function LinkLine({ mode }) {
                                     filter="url(#llChipShadow)"
                                 />
                                 <circle cx={p.x} cy={p.y} r={capR * 0.42} fill={color} />
-                                {opts.pulseCaps && (
-                                    <circle
-                                        cx={p.x}
-                                        cy={p.y}
-                                        r={capR}
-                                        fill="none"
-                                        stroke={color}
-                                        strokeWidth={1.5}
-                                        opacity={0}
-                                        data-anim="pulse"
-                                        data-base={capR}
-                                        data-amp={capR * 1.7}
-                                        data-period="2.4"
-                                    />
-                                )}
                             </g>
                         ))}
 
@@ -1246,36 +1374,6 @@ function LinkLine({ mode }) {
                         />
                     )}
 
-                    {/* 値ラベル（線の中央。インク色テキスト＋色ドットのチップ） */}
-                    {opts.showValue && (
-                        <g data-role="value-label">
-                            <rect
-                                x={geo.mid.x - chipW / 2}
-                                y={geo.mid.y - chipH / 2}
-                                width={chipW}
-                                height={chipH}
-                                rx={chipH / 2}
-                                fill={chipBg}
-                                stroke={withAlpha(color, 0.45)}
-                                strokeWidth={1}
-                                filter="url(#llChipShadow)"
-                            />
-                            <circle cx={geo.mid.x - chipW / 2 + chipH / 2} cy={geo.mid.y} r={chipDotR} fill={color} />
-                            <text
-                                x={geo.mid.x - chipW / 2 + chipH / 2 + chipDotR + labelFont * 0.45}
-                                y={geo.mid.y}
-                                textAnchor="start"
-                                dominantBaseline="central"
-                                fontSize={labelFont}
-                                fontWeight={650}
-                                letterSpacing="0.2"
-                                fill={chipInk}
-                                style={{ fontFamily: FONT_STACK }}
-                            >
-                                {labelText}
-                            </text>
-                        </g>
-                    )}
                 </g>
 
                 {/* 線編集（表示モード・トグルON）: 点ハンドルと「＋」（追加）ハンドル */}
@@ -1333,6 +1431,64 @@ function LinkLine({ mode }) {
                     </g>
                 )}
             </svg>
+
+            {/* 流れる光の帯＋端点パルス（Canvas オーバーレイ。線 SVG の上・ラベル/UI の下）。
+                アニメーションが無いときはマウントせず rAF ゼロ（CPU 0）。 */}
+            {animActive && (
+                <FlowCanvas
+                    track={flowTrack}
+                    color={color}
+                    lineWidth={lw}
+                    speed={opts.flowSpeed}
+                    pulseCaps={pulseActive}
+                    caps={pulseCapPts}
+                    capR={capR}
+                    width={w}
+                    height={h}
+                    opacity={opts.lineOpacity / 100}
+                />
+            )}
+
+            {/* 値ラベル（線の中央。インク色テキスト＋色ドットのチップ。Canvas より上に置く） */}
+            {opts.showValue && (
+                <div
+                    data-role="value-label"
+                    style={{
+                        position: 'absolute',
+                        left: geo.mid.x,
+                        top: geo.mid.y,
+                        transform: 'translate(-50%, -50%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: chipDotR + 3,
+                        padding: `${Math.round(labelFont * 0.34)}px ${Math.round(labelFont * 0.85)}px`,
+                        borderRadius: 999,
+                        background: chipBg,
+                        border: `1px solid ${withAlpha(color, 0.45)}`,
+                        boxShadow: mode === 'dark' ? '0 1px 4px rgba(0,0,0,0.45)' : '0 1px 4px rgba(20,30,40,0.18)',
+                        opacity: opts.lineOpacity / 100,
+                        fontSize: labelFont,
+                        fontWeight: 650,
+                        letterSpacing: 0.2,
+                        color: chipInk,
+                        whiteSpace: 'nowrap',
+                        pointerEvents: 'none',
+                        userSelect: 'none',
+                    }}
+                >
+                    <span
+                        data-role="value-dot"
+                        style={{
+                            width: chipDotR * 2,
+                            height: chipDotR * 2,
+                            borderRadius: '50%',
+                            background: color,
+                            flex: 'none',
+                        }}
+                    />
+                    <span data-role="value-text">{labelText}</span>
+                </div>
+            )}
 
             {/* 表示モード: 右上のツールボタン（色設定・線編集トグル・リセット）＋操作ヒント */}
             {!isEdit && opts.allowViewEdit && (

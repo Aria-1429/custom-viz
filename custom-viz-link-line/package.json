@@ -1,6 +1,6 @@
 {
   "name": "custom_viz_link_line",
-  "version": "1.5.0",
+  "version": "1.7.0",
   "description": "An editable connector line between servers with value-based threshold colors for Splunk Dashboard Studio (SOC topology link)",
   "author": "Yuto Ishitsuki",
   "type": "module",

@@ -73,7 +73,7 @@
           [{ "label": "線の太さ（px）", "editor": "editor.number", "option": "lineWidth" }],
           [{ "label": "線にグラデーション（立体感）", "editor": "editor.checkbox", "option": "lineGradient" }],
           [{ "label": "破線の長さ（px、0で実線）", "editor": "editor.number", "option": "dashLength" }],
-          [{ "label": "流れアニメーション速度（0で停止）", "editor": "editor.number", "option": "flowSpeed" }],
+          [{ "label": "光の帯の速度（0で停止）", "editor": "editor.number", "option": "flowSpeed" }],
           [{ "label": "端点をパルス発光させる（アニメーション）", "editor": "editor.checkbox", "option": "pulseCaps" }],
           [{ "label": "不透明度（10〜100%）", "editor": "editor.number", "option": "lineOpacity" }]
         ]
