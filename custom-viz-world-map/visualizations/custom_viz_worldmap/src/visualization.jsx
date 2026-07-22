@@ -393,14 +393,18 @@ function useContainerSize() {
 // ---------------------------------------------------------------------------
 // 弧を流れる「光の帯」キャンバス
 //   流れる筋だけを Canvas に描く（地図・陸地・ホットスポット・弧のベース軌道は
-//   SVG のまま）。彗星の尾ではなく、元の意図どおり「光っている短いセグメントが
-//   弧に沿って飛んでいく」表現。チープに見せないため:
-//     - 帯を Severity 色のグロー(太)＋同色の芯(細)の2重＋加算合成 lighter で発光させる
-//       （白い芯ドットは置かない。色だけで光らせる）
-//     - 帯の前後両端を滑らかにフェード（棒が急に切れないので安っぽくならない）
-//     - 進行方向に沿って点を連ね、弧の向きに正しく光が乗る
+//   SVG のまま）。元の意図どおり「Severity 色の短いセグメントが弧に沿って
+//   飛んでいく」表現。
+//   ※加算合成(lighter)での発光は廃止：弧が終点に収束する場所で重なった光の
+//     RGB が飽和して真っ白に見えたため。通常合成＋純粋な Severity 色のみで
+//     描くことで、何本重なっても色相が保たれる（白くならない）。
+//   チープな単色ベタ棒に見せないため:
+//     - 帯は「両端が滑らかに窄まるテーパー形状」のポリゴンを 1 回塗りで描く
+//       （幅・不透明度とも sin エンベロープで両端 0 へ。急な切れ目が無い）
+//     - 下に太く淡い同色グローを敷き、柔らかい輪郭を出す
 //   実装メモ:
 //     - 弧は 2次ベジェ。SVG と同じ制御点(arcControl)をサンプリングして完全一致。
+//     - ポリゴン 1 回塗りなのでサンプル同士のアルファ累積も起きない。
 //     - animDuration=0 で rAF を回さない（静的表示。CPU 0）。
 //     - devicePixelRatio は 2 で頭打ち（高精細でも描画量を抑える）。
 // ---------------------------------------------------------------------------
@@ -430,33 +434,53 @@ function ArcFlowCanvas({ arcs, width, height, duration }) {
         let start = 0;
 
         // 光の帯1本を描く。head は帯の先頭位置(0..1)。帯は head から後方へ
-        // FLOW_LEN ぶんの区間を占め、その区間内で前後両端に向かってフェードする。
+        // FLOW_LEN ぶんの区間を占め、幅・不透明度とも sin エンベロープで
+        // 前後両端に向かって 0 に窄まる（テーパー形状）。
         const drawFlow = (a, head) => {
             const { sx, sy, cx, cy, tx, ty, color, w } = a;
-            ctx.save();
-            ctx.globalCompositeOperation = 'lighter'; // 加算合成で光が重なって発光
+            // 帯の中心線サンプル（座標＋法線＋エンベロープ）を先に集める
+            const pts = [];
             for (let k = 0; k <= FLOW_SAMPLES; k += 1) {
                 const u = k / FLOW_SAMPLES; // 0=帯の先頭, 1=帯の末尾
                 const tt = head - u * FLOW_LEN;
                 if (tt < 0 || tt > 1) continue; // パス外（出発前/到達後）は描かない
                 const p = bezierPoint(sx, sy, cx, cy, tx, ty, tt);
-                // 帯内の輝度エンベロープ: 中央付近が最も明るく、前後端で 0 へ。
-                // sin(π·u) で滑らかな山形にし、棒の急な切れ目を無くす。
-                const env = Math.sin(Math.PI * u);
-                if (env <= 0.02) continue;
-                // 帯の色（Severity色）だけで発光させる。白い芯は置かない。
-                // グロー（太・柔らかい）＋ その上に同色の締まった芯を重ね、
-                // 加算合成で中心ほど輝度が乗って発光する光の帯にする。
-                ctx.fillStyle = color;
-                ctx.globalAlpha = 0.4 * env;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, Math.max(0.6, w * 2.4 * env), 0, Math.PI * 2);
-                ctx.fill();
-                ctx.globalAlpha = 0.6 * env;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, Math.max(0.4, w * 1.0 * env), 0, Math.PI * 2);
-                ctx.fill();
+                // 2次ベジェの接線 → 単位法線（帯の幅方向）
+                const dx = 2 * (1 - tt) * (cx - sx) + 2 * tt * (tx - cx);
+                const dy = 2 * (1 - tt) * (cy - sy) + 2 * tt * (ty - cy);
+                const len = Math.hypot(dx, dy) || 1;
+                pts.push({
+                    x: p.x,
+                    y: p.y,
+                    nx: -dy / len,
+                    ny: dx / len,
+                    env: Math.sin(Math.PI * u),
+                });
             }
+            if (pts.length < 2) return;
+            // 中心線の左右に halfWidth ぶん張り出したテーパーポリゴンを 1 回で
+            // 塗る。重ね塗りしないのでアルファが累積せず、色は fillStyle の
+            // Severity 色を超えない（＝白飛びしない）。
+            const fillBand = (scale, alpha) => {
+                ctx.beginPath();
+                pts.forEach((p, i) => {
+                    const hw = w * scale * p.env;
+                    if (i === 0) ctx.moveTo(p.x + p.nx * hw, p.y + p.ny * hw);
+                    else ctx.lineTo(p.x + p.nx * hw, p.y + p.ny * hw);
+                });
+                for (let i = pts.length - 1; i >= 0; i -= 1) {
+                    const p = pts[i];
+                    const hw = w * scale * p.env;
+                    ctx.lineTo(p.x - p.nx * hw, p.y - p.ny * hw);
+                }
+                ctx.closePath();
+                ctx.globalAlpha = alpha;
+                ctx.fill();
+            };
+            ctx.save();
+            ctx.fillStyle = color;
+            fillBand(2.4, 0.18); // 太く淡い同色グロー（柔らかい輪郭）
+            fillBand(1.0, 0.9); // 締まった芯
             ctx.restore();
         };
 
