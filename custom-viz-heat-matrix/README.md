@@ -100,3 +100,38 @@ yarn package    # dist/custom_viz_heat_matrix-<ver>-<hash>.spl
 4. `https://<host>:8000/en-US/_bump` で Bump version → ブラウザをハードリロード（Ctrl+Shift+R）
 
 Dashboard Studio の JSON では `"type": "custom_viz_heat_matrix.custom_viz_heat_matrix"`。
+
+---
+
+## リリースノート
+
+このセクションは本ビジュアライゼーションのバージョン履歴を記録します。
+新しいバージョンをパッケージ化するたびに、履歴の先頭（下の区切り線の直下）に新しいエントリを追記してください。
+
+書式は [Keep a Changelog](https://keepachangelog.com/ja/1.0.0/) に準拠し、バージョンは [セマンティックバージョニング](https://semver.org/lang/ja/) に従います。
+変更種別: `追加` / `変更` / `修正` / `削除` / `非推奨` / `セキュリティ`。
+
+---
+
+### [1.0.1] - 2026-07-21
+
+#### 修正
+
+- **まれにパネルが描画されない事象への対策（マウントゲート導入）**。ホスト初期化完了
+  （`DashboardExtensionAPI` 注入＋テーマ／データの初期 state 受信）を待ってから React を
+  マウントするよう変更。公式フックは購読登録時に現在値を再送しないため、初期 state が
+  マウント後に届くと取り逃して `useTheme` 等が undefined のまま永久に非表示となる
+  競合があった。
+- **テーマ未取得時のフォールバックを追加**。最大5秒待っても初期 state が揃わない場合は
+  light テーマで必ず描画を開始する（永久に真っ白のままになる経路を排除）。
+
+#### パッケージ
+- `dist/custom_viz_heat_matrix-1.0.1-d824e00.spl`
+
+### [1.0.0] - 2026-07-20
+
+任意の 2 軸クロス集計を色の行列で表示する汎用ヒートマップ・マトリクス。
+
+#### 追加
+- 新規作成（初回リリース）。
+- パッケージ: `dist/custom_viz_heat_matrix-1.0.0-8eedea9.spl`
