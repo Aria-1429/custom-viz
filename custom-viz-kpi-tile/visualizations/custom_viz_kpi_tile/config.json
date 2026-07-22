@@ -27,6 +27,7 @@
 
       "accentColor": { "type": "string", "default": "#22d3ee" },
       "showGlow": { "type": "boolean", "default": true },
+      "bgOpacity": { "type": "number", "default": 100 },
 
       "iconIndex": { "type": "number", "default": 1 },
       "showIcon": { "type": "boolean", "default": true },
@@ -38,6 +39,7 @@
       "invertDeltaColor": { "type": "boolean", "default": false },
 
       "showSparkline": { "type": "boolean", "default": true },
+      "sparkAsLine": { "type": "boolean", "default": false },
       "sparkBars": { "type": "number", "default": 0 },
 
       "valueDecimals": { "type": "number", "default": 0 },
@@ -58,14 +60,15 @@
         "label": "アイコン",
         "layout": [
           [{ "label": "アイコンを表示", "editor": "editor.checkbox", "option": "showIcon" }],
-          [{ "label": "アイコン番号（1〜12。編集モード中はタイル上のアイコンをクリックしても選択可）", "editor": "editor.number", "option": "iconIndex" }]
+          [{ "label": "アイコン番号（1〜12）", "editor": "editor.number", "option": "iconIndex" }]
         ]
       },
       {
         "label": "色・発光",
         "layout": [
           [{ "label": "アクセントカラー", "editor": "editor.color", "option": "accentColor" }],
-          [{ "label": "発光（グロー）を表示", "editor": "editor.checkbox", "option": "showGlow" }]
+          [{ "label": "発光（グロー）を表示", "editor": "editor.checkbox", "option": "showGlow" }],
+          [{ "label": "背景の不透明度（%）", "editor": "editor.number", "option": "bgOpacity" }]
         ]
       },
       {
@@ -74,10 +77,11 @@
           [{ "label": "タイトルを表示", "editor": "editor.checkbox", "option": "showTitle" }],
           [{ "label": "増減（前日比）を表示", "editor": "editor.checkbox", "option": "showDelta" }],
           [{ "label": "増減を％で表示", "editor": "editor.checkbox", "option": "deltaAsPercent" }],
-          [{ "label": "増減で色分け（増＝緑／減＝赤）", "editor": "editor.checkbox", "option": "semanticDeltaColor" }],
-          [{ "label": "増減の色を反転（増＝赤／減＝緑）", "editor": "editor.checkbox", "option": "invertDeltaColor" }],
-          [{ "label": "スパークライン（ミニ棒グラフ）を表示", "editor": "editor.checkbox", "option": "showSparkline" }],
-          [{ "label": "スパークラインの本数（0で全ポイント）", "editor": "editor.number", "option": "sparkBars" }]
+          [{ "label": "増減で色分け", "editor": "editor.checkbox", "option": "semanticDeltaColor" }],
+          [{ "label": "増減の色を反転", "editor": "editor.checkbox", "option": "invertDeltaColor" }],
+          [{ "label": "スパークラインを表示", "editor": "editor.checkbox", "option": "showSparkline" }],
+          [{ "label": "線グラフで表示", "editor": "editor.checkbox", "option": "sparkAsLine" }],
+          [{ "label": "ポイント数（0で全て）", "editor": "editor.number", "option": "sparkBars" }]
         ]
       },
       {

@@ -323,5 +323,99 @@ console.log('\n[12] debug overlay');
     check('debug dump visible', doc.body.textContent.includes('"normalized"'));
 }
 
+// ---- 13. 背景の不透明度（bgOpacity） -------------------------------------------
+console.log('\n[13] bgOpacity');
+{
+    // happy-dom は rgba をスペース入り（rgba(13, 16, 32, 0.4)）に正規化するので正規表現で比較
+    const cardBg = () => {
+        const el = [...doc.querySelectorAll('div')].find(
+            (d) => d.style && d.style.background && d.style.background.includes('linear-gradient')
+        );
+        return el ? el.style.background : '';
+    };
+    const baseAlpha = (bg) => {
+        const m = bg.match(/rgba\(13,\s*16,\s*32,\s*([\d.]+)\)\s*$/);
+        return m ? Number(m[1]) : null;
+    };
+
+    await setOpts({ animate: false, debug: false });
+    check('default bgOpacity=100 → base alpha 1', baseAlpha(cardBg()) === 1, cardBg().slice(-60));
+
+    await setOpts({ animate: false, bgOpacity: 40 });
+    check('bgOpacity=40 → base alpha 0.4', baseAlpha(cardBg()) === 0.4, cardBg().slice(-60));
+    check('bgOpacity=40 → gradient alpha scaled (0.2*0.4=0.08)', /rgba\(34,\s*211,\s*238,\s*0\.08\)/.test(cardBg()), cardBg().slice(0, 80));
+
+    await setOpts({ animate: false, bgOpacity: 0 });
+    check('bgOpacity=0 → base alpha 0', baseAlpha(cardBg()) === 0, cardBg().slice(-60));
+    {
+        const spark = [...doc.querySelectorAll('svg[data-role="spark"] rect')];
+        check('bgOpacity=0 でもスパークは不透過のまま', spark.length > 0 && spark.every((r) => r.getAttribute('fill') === '#22d3ee'));
+        const titleEl = [...doc.querySelectorAll('div')].find((d) => d.textContent === '重大アラート' && d.style.color);
+        check('bgOpacity=0 でもタイトル色は不変', titleEl && titleEl.style.color === '#22d3ee', titleEl && titleEl.style.color);
+    }
+
+    await setOpts({ animate: false, bgOpacity: 250 });
+    check('範囲外(250)は100へclamp → base alpha 1', baseAlpha(cardBg()) === 1, cardBg().slice(-60));
+
+    await setOpts({ animate: false, bgOpacity: 'abc' });
+    check('不正値はデフォルト100 → base alpha 1', baseAlpha(cardBg()) === 1, cardBg().slice(-60));
+
+    // ライトテーマでも同様に効く
+    state.theme = 'light';
+    fire('theme', { theme: 'light' });
+    await setOpts({ animate: false, bgOpacity: 40 });
+    check('light: bgOpacity=40 → white base alpha 0.4', /rgba\(255,\s*255,\s*255,\s*0\.4\)\s*$/.test(cardBg()), cardBg().slice(-60));
+    state.theme = 'dark';
+    fire('theme', { theme: 'dark' });
+    await sleep(250);
+}
+
+// ---- 14. スパークラインの線グラフ切替（sparkAsLine） ----------------------------
+console.log('\n[14] sparkAsLine');
+{
+    await setOpts({ animate: false });
+    let svg = doc.querySelector('svg[data-role="spark"]');
+    check('default is bars style', svg && svg.getAttribute('data-spark-style') === 'bars',
+        svg && svg.getAttribute('data-spark-style'));
+
+    await setOpts({ animate: false, sparkAsLine: true });
+    svg = doc.querySelector('svg[data-role="spark"]');
+    check('sparkAsLine=true → line style', svg && svg.getAttribute('data-spark-style') === 'line',
+        svg && svg.getAttribute('data-spark-style'));
+
+    const paths = [...doc.querySelectorAll('svg[data-role="spark"] path')];
+    const line = paths.find((p) => p.getAttribute('stroke') === '#22d3ee' && p.getAttribute('fill') === 'none');
+    check('accent-colored line path rendered', !!line);
+    const area = paths.find((p) => (p.getAttribute('fill') || '').includes('url(#spark-line-grad)'));
+    check('area path filled with gradient', !!area, paths.map((p) => p.getAttribute('fill')).join(' | '));
+    check('area path closes to bottom (Z)', area && /Z\s*$/.test(area.getAttribute('d') || ''));
+
+    const grad = doc.querySelector('svg[data-role="spark"] linearGradient#spark-line-grad');
+    check('linearGradient defined', !!grad);
+    check('gradient is vertical (y1=0→y2=1)', grad && grad.getAttribute('y1') === '0' && grad.getAttribute('y2') === '1',
+        grad && `y1=${grad.getAttribute('y1')} y2=${grad.getAttribute('y2')}`);
+    const stops = grad ? [...grad.querySelectorAll('stop')] : [];
+    check('top stop is translucent accent (0.45)', stops[0] && /rgba\(34,\s*211,\s*238,\s*0\.45\)/.test(stops[0].getAttribute('stop-color') || ''),
+        stops[0] && stops[0].getAttribute('stop-color'));
+    check('bottom stop fades to alpha 0', stops[1] && /rgba\(34,\s*211,\s*238,\s*0\)/.test(stops[1].getAttribute('stop-color') || ''),
+        stops[1] && stops[1].getAttribute('stop-color'));
+
+    const dot = doc.querySelector('svg[data-role="spark"] circle');
+    check('latest point dot rendered (accent)', dot && dot.getAttribute('fill') === '#22d3ee');
+
+    const hits = [...doc.querySelectorAll('svg[data-role="spark"] rect[data-role="spark-hit"]')];
+    check('20 tooltip hit rects', hits.length === 20, `got ${hits.length}`);
+    check('hit rect has tooltip title', hits[0] && !!hits[0].querySelector('title'));
+
+    await setOpts({ animate: false, sparkAsLine: true, sparkBars: 5 });
+    const hits5 = [...doc.querySelectorAll('svg[data-role="spark"] rect[data-role="spark-hit"]')];
+    check('sparkBars=5 → 5 points in line mode', hits5.length === 5, `got ${hits5.length}`);
+
+    await setOpts({ animate: false, sparkAsLine: false });
+    svg = doc.querySelector('svg[data-role="spark"]');
+    check('back to bars style', svg && svg.getAttribute('data-spark-style') === 'bars');
+    check('bars restored (20 rects)', [...doc.querySelectorAll('svg[data-role="spark"] rect')].length === 20);
+}
+
 console.log(`\n=== ${pass} passed, ${fail} failed ===`);
 process.exit(fail === 0 ? 0 : 1);
