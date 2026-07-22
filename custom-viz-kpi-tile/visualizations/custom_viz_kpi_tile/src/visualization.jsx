@@ -45,6 +45,7 @@ const DEFAULTS = {
 
     accentColor: '#22d3ee', // アクセントカラー（タイル全体の基調色）
     showGlow: true, // 発光（グロー）
+    bgOpacity: 100, // カード背景の不透明度（%、0で完全透過）
 
     iconIndex: 1, // アイコン番号（1〜ICONS.length）
     showIcon: true, // アイコンバッジを表示
@@ -56,6 +57,7 @@ const DEFAULTS = {
     invertDeltaColor: false, // 色分けを反転（増=赤/減=緑。アラート系向け）
 
     showSparkline: true, // スパークラインを表示
+    sparkAsLine: false, // スパークラインを線グラフで表示（false = 棒）
     sparkBars: 0, // 表示する棒の本数（0 = 全ポイント）
 
     valueDecimals: 0, // 小数点以下の桁数
@@ -168,7 +170,7 @@ function mixColor(color, toward, ratio) {
 // rgba 化（不透明度付き）。hex/rgb どちらでも受ける
 function withAlpha(color, alpha) {
     const rgb = hexToRgb(color) || parseRgb(color);
-    if (rgb) return `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`;
+    if (rgb) return `rgba(${rgb.r},${rgb.g},${rgb.b},${Math.round(alpha * 1000) / 1000})`;
     return color;
 }
 
@@ -236,6 +238,7 @@ function normalizeOptions(raw) {
 
         accentColor: colorOr(o.accentColor, DEFAULTS.accentColor),
         showGlow: bool(o.showGlow, DEFAULTS.showGlow),
+        bgOpacity: clamp(Math.round(numOr(o.bgOpacity, DEFAULTS.bgOpacity)), 0, 100),
 
         iconIndex: clamp(Math.round(numOr(o.iconIndex, DEFAULTS.iconIndex)), 1, ICONS.length),
         showIcon: bool(o.showIcon, DEFAULTS.showIcon),
@@ -247,6 +250,7 @@ function normalizeOptions(raw) {
         invertDeltaColor: bool(o.invertDeltaColor, DEFAULTS.invertDeltaColor),
 
         showSparkline: bool(o.showSparkline, DEFAULTS.showSparkline),
+        sparkAsLine: bool(o.sparkAsLine, DEFAULTS.sparkAsLine),
         sparkBars: clamp(Math.round(numOr(o.sparkBars, DEFAULTS.sparkBars)), 0, 500),
 
         valueDecimals: clamp(Math.round(numOr(o.valueDecimals, DEFAULTS.valueDecimals)), 0, 6),
@@ -391,11 +395,14 @@ function buildSeries(rawRows, fieldNames, opts) {
 // テーマ×アクセントの配色
 // ---------------------------------------------------------------------------
 
-function tileColors(mode, accent) {
+// bgAlpha(0〜1) はカード背景（ベース色とグラデ）だけに乗算する。枠線・文字・バッジ・
+// スパークラインは可読性維持のため透過しない。
+function tileColors(mode, accent, bgAlpha = 1) {
+    const a = clamp01(bgAlpha);
     if (mode === 'dark') {
         return {
-            cardBase: '#0d1020',
-            cardGrad: `linear-gradient(150deg, ${withAlpha(accent, 0.2)} 0%, ${withAlpha(accent, 0.05)} 42%, rgba(10,12,24,0) 72%)`,
+            cardBase: withAlpha('#0d1020', a),
+            cardGrad: `linear-gradient(150deg, ${withAlpha(accent, 0.2 * a)} 0%, ${withAlpha(accent, 0.05 * a)} 42%, rgba(10,12,24,0) 72%)`,
             border: withAlpha(accent, 0.45),
             title: accent,
             value: mixColor(accent, '#ffffff', 0.38),
@@ -412,8 +419,8 @@ function tileColors(mode, accent) {
         };
     }
     return {
-        cardBase: '#ffffff',
-        cardGrad: `linear-gradient(150deg, ${withAlpha(accent, 0.12)} 0%, ${withAlpha(accent, 0.03)} 42%, rgba(255,255,255,0) 72%)`,
+        cardBase: withAlpha('#ffffff', a),
+        cardGrad: `linear-gradient(150deg, ${withAlpha(accent, 0.12 * a)} 0%, ${withAlpha(accent, 0.03 * a)} 42%, rgba(255,255,255,0) 72%)`,
         border: withAlpha(accent, 0.4),
         title: mixColor(accent, '#000000', 0.25),
         value: mixColor(accent, '#000000', 0.35),
@@ -597,7 +604,7 @@ function KpiTile({ mode }) {
     }
 
     const { w, h } = dims;
-    const pal = tileColors(mode, opts.accentColor);
+    const pal = tileColors(mode, opts.accentColor, opts.bgOpacity / 100);
     const accent = opts.accentColor;
 
     // --- サイズ計算（スケール clamp + 段階退避） ---
@@ -779,33 +786,93 @@ function KpiTile({ mode }) {
             {/* スペーサ */}
             <div style={{ flex: 1, minHeight: 0 }} />
 
-            {/* スパークライン（ミニ棒グラフ） */}
+            {/* スパークライン（ミニ棒グラフ／折れ線グラフ） */}
             {sparkVisible && (
-                <svg data-role="spark" width={sparkW} height={sparkH} style={{ display: 'block', flex: 'none' }}>
-                    {barPoints.map((p, i) => {
-                        const n = barPoints.length;
-                        const pitch = sparkW / n;
-                        const bw = clamp(pitch * 0.62, 2, 14);
-                        const x = i * pitch + (pitch - bw) / 2;
-                        const frac = clamp01((p.value - Math.min(0, vMin)) / range);
-                        const bh = Math.max(2, frac * (sparkH - 2));
-                        const y = sparkH - bh;
-                        const opacity = n > 1 ? 0.4 + 0.6 * (i / (n - 1)) : 1;
-                        return (
-                            <rect
-                                key={`b${i}`}
-                                x={x}
-                                y={y}
-                                width={bw}
-                                height={bh}
-                                rx={Math.min(2, bw / 2)}
-                                fill={pal.bar}
-                                opacity={opacity}
-                            >
-                                <title>{`${p.label}: ${fmtValue(p.value, opts.valueDecimals, false)}`}</title>
-                            </rect>
-                        );
-                    })}
+                <svg
+                    data-role="spark"
+                    data-spark-style={opts.sparkAsLine ? 'line' : 'bars'}
+                    width={sparkW}
+                    height={sparkH}
+                    style={{ display: 'block', flex: 'none' }}
+                >
+                    {opts.sparkAsLine
+                        ? (() => {
+                              const n = barPoints.length;
+                              const pitch = sparkW / n;
+                              const dotR = clamp(2.6 * s, 2, 5);
+                              const topPad = dotR + 1;
+                              const lineW = clamp(1.7 * s, 1.2, 3);
+                              const pts = barPoints.map((p, i) => {
+                                  const frac = clamp01((p.value - Math.min(0, vMin)) / range);
+                                  return {
+                                      x: i * pitch + pitch / 2,
+                                      y: topPad + (1 - frac) * (sparkH - topPad - 1),
+                                  };
+                              });
+                              const lineD = pts.map((pt, i) => `${i === 0 ? 'M' : 'L'}${pt.x},${pt.y}`).join(' ');
+                              const areaD = `M${pts[0].x},${sparkH} ${pts
+                                  .map((pt) => `L${pt.x},${pt.y}`)
+                                  .join(' ')} L${pts[n - 1].x},${sparkH} Z`;
+                              const last = pts[n - 1];
+                              return (
+                                  <>
+                                      <defs>
+                                          {/* 線の下は下方向へ薄くなるアクセント色グラデーション */}
+                                          <linearGradient id="spark-line-grad" x1="0" y1="0" x2="0" y2="1">
+                                              <stop offset="0%" stopColor={withAlpha(accent, 0.45)} />
+                                              <stop offset="100%" stopColor={withAlpha(accent, 0)} />
+                                          </linearGradient>
+                                      </defs>
+                                      <path d={areaD} fill="url(#spark-line-grad)" stroke="none" />
+                                      <path
+                                          d={lineD}
+                                          fill="none"
+                                          stroke={pal.bar}
+                                          strokeWidth={lineW}
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                      />
+                                      <circle cx={last.x} cy={last.y} r={dotR} fill={pal.bar} />
+                                      {barPoints.map((p, i) => (
+                                          <rect
+                                              key={`h${i}`}
+                                              data-role="spark-hit"
+                                              x={i * pitch}
+                                              y={0}
+                                              width={pitch}
+                                              height={sparkH}
+                                              fill="transparent"
+                                          >
+                                              <title>{`${p.label}: ${fmtValue(p.value, opts.valueDecimals, false)}`}</title>
+                                          </rect>
+                                      ))}
+                                  </>
+                              );
+                          })()
+                        : barPoints.map((p, i) => {
+                              const n = barPoints.length;
+                              const pitch = sparkW / n;
+                              const bw = clamp(pitch * 0.62, 2, 14);
+                              const x = i * pitch + (pitch - bw) / 2;
+                              const frac = clamp01((p.value - Math.min(0, vMin)) / range);
+                              const bh = Math.max(2, frac * (sparkH - 2));
+                              const y = sparkH - bh;
+                              const opacity = n > 1 ? 0.4 + 0.6 * (i / (n - 1)) : 1;
+                              return (
+                                  <rect
+                                      key={`b${i}`}
+                                      x={x}
+                                      y={y}
+                                      width={bw}
+                                      height={bh}
+                                      rx={Math.min(2, bw / 2)}
+                                      fill={pal.bar}
+                                      opacity={opacity}
+                                  >
+                                      <title>{`${p.label}: ${fmtValue(p.value, opts.valueDecimals, false)}`}</title>
+                                  </rect>
+                              );
+                          })}
                 </svg>
             )}
 
