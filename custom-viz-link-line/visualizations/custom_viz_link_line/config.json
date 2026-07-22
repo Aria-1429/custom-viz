@@ -1,0 +1,99 @@
+{
+  "showTitleAndDescription": false,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz Link Line",
+    "description": "An editable connector line between servers. Bend and drag the line in edit mode; the color follows single-value thresholds",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 360,
+      "initialHeight": 140
+    },
+    "optionsSchema": {
+      "valueField": { "type": "string", "default": "" },
+
+      "linePoints": { "type": "string", "default": "" },
+      "cornerRadius": { "type": "number", "default": 14 },
+      "allowViewEdit": { "type": "boolean", "default": true },
+
+      "styleMode": { "type": "number", "default": 1 },
+      "lineWidth": { "type": "number", "default": 6 },
+      "lineGradient": { "type": "boolean", "default": true },
+      "dashLength": { "type": "number", "default": 0 },
+      "flowSpeed": { "type": "number", "default": 0 },
+      "pulseCaps": { "type": "boolean", "default": false },
+      "lineOpacity": { "type": "number", "default": 100 },
+
+      "showEndCaps": { "type": "boolean", "default": true },
+      "arrowHead": { "type": "boolean", "default": false },
+      "showValue": { "type": "boolean", "default": true },
+      "valueDecimals": { "type": "number", "default": 0 },
+
+      "colorMethod": { "type": "string", "default": "range" },
+      "colorBands": { "type": "string", "default": "" },
+      "colorMatches": { "type": "string", "default": "" },
+      "useThresholds": { "type": "boolean", "default": true },
+      "baseColor": { "type": "string", "default": "#53a051" },
+      "threshold1": { "type": "number", "default": 40 },
+      "color1": { "type": "string", "default": "#f8be34" },
+      "threshold2": { "type": "number", "default": 70 },
+      "color2": { "type": "string", "default": "#f1813f" },
+      "threshold3": { "type": "number", "default": 90 },
+      "color3": { "type": "string", "default": "#dc4e41" },
+
+      "debug": { "type": "boolean", "default": false }
+    },
+    "editorConfig": [
+      {
+        "label": "データフィールド",
+        "layout": [
+          [{ "label": "値フィールド（未指定なら数値を含む最後の列・最終行）", "editor": "editor.columnSelector", "option": "valueField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }]
+        ]
+      },
+      {
+        "label": "線の形状（線は表示画面の「✎ 線を編集」でドラッグ編集し、その後この編集画面で保存して確定。編集モード中はドラッグ不可）",
+        "layout": [
+          [{ "label": "表示画面での線編集を許可（✎ボタンを表示）", "editor": "editor.checkbox", "option": "allowViewEdit" }],
+          [{ "label": "折れ角の丸み（px、0で角ばった折れ線）", "editor": "editor.number", "option": "cornerRadius" }]
+        ]
+      },
+      {
+        "label": "質感",
+        "layout": [
+          [{ "label": "質感（1=フラット、2=ソフトシャドウ、3=ネオン発光、4=立体パイプ）", "editor": "editor.number", "option": "styleMode" }],
+          [{ "label": "線の太さ（px）", "editor": "editor.number", "option": "lineWidth" }],
+          [{ "label": "線にグラデーション（立体感）", "editor": "editor.checkbox", "option": "lineGradient" }],
+          [{ "label": "破線の長さ（px、0で実線）", "editor": "editor.number", "option": "dashLength" }],
+          [{ "label": "流れアニメーション速度（0で停止）", "editor": "editor.number", "option": "flowSpeed" }],
+          [{ "label": "端点をパルス発光させる（アニメーション）", "editor": "editor.checkbox", "option": "pulseCaps" }],
+          [{ "label": "不透明度（10〜100%）", "editor": "editor.number", "option": "lineOpacity" }]
+        ]
+      },
+      {
+        "label": "端点・値ラベル",
+        "layout": [
+          [{ "label": "両端にコネクタ（丸端子）を表示", "editor": "editor.checkbox", "option": "showEndCaps" }],
+          [{ "label": "終点に矢印を表示", "editor": "editor.checkbox", "option": "arrowHead" }],
+          [{ "label": "値ラベルを線の中央に表示", "editor": "editor.checkbox", "option": "showValue" }],
+          [{ "label": "小数点以下の桁数", "editor": "editor.number", "option": "valueDecimals" }]
+        ]
+      },
+      {
+        "label": "デバッグ",
+        "layout": [
+          [{ "label": "オプションのデバッグ表示", "editor": "editor.checkbox", "option": "debug" }]
+        ]
+      }
+    ],
+    "defaultContext": {}
+  }
+}
