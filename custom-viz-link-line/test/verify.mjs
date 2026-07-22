@@ -41,6 +41,31 @@ win.HTMLElement.prototype.getBoundingClientRect = function () {
     return { left: 0, top: 0, right: 900, bottom: 560, width: 900, height: 560, x: 0, y: 0 };
 };
 
+// Canvas 2D コンテキストのスタブ（光の帯 Canvas 用。呼ばれた操作名を記録する）
+function makeCtx2d() {
+    const ops = [];
+    const rec = (name) => (...args) => { ops.push(name); };
+    return {
+        ops,
+        setTransform: rec('setTransform'),
+        clearRect: rec('clearRect'),
+        beginPath: rec('beginPath'),
+        moveTo: rec('moveTo'),
+        lineTo: rec('lineTo'),
+        closePath: rec('closePath'),
+        fill: rec('fill'),
+        stroke: rec('stroke'),
+        arc: rec('arc'),
+        save: rec('save'),
+        restore: rec('restore'),
+    };
+}
+win.HTMLCanvasElement.prototype.getContext = function getContext() {
+    if (!this.__ctx2d) this.__ctx2d = makeCtx2d();
+    return this.__ctx2d;
+};
+globalThis.HTMLCanvasElement = win.HTMLCanvasElement;
+
 globalThis.ResizeObserver = class {
     constructor(cb) { this.cb = cb; }
     observe() { setTimeout(() => this.cb([]), 0); }
@@ -111,6 +136,8 @@ const setData = async (data) => {
 };
 const ev = (type, init = {}) => new win.MouseEvent(type, { bubbles: true, cancelable: true, ...init });
 const mainLine = () => doc.querySelector('path[data-role="main-line"]');
+const valueText = () => doc.querySelector('[data-role="value-label"] [data-role="value-text"]');
+const flowCanvas = () => doc.querySelector('canvas[data-role="flow-canvas"]');
 // 線の「色」を返す。lineGradient オン時は stroke が url(#llGrad) になるため、
 // グラデーション中央ストップ（= ベース色そのもの）を読む
 const lineColor = () => {
@@ -142,9 +169,9 @@ console.log('\n[1] basic render');
     const caps = [...doc.querySelectorAll('[data-role="endcap"]')];
     check('2 endcaps', caps.length === 2, `got ${caps.length}`);
     check('no arrow by default', !doc.querySelector('[data-role="arrow"]'));
-    const label = doc.querySelector('[data-role="value-label"] text');
+    const label = valueText();
     check('value label shows 95', label && label.textContent === '95', label && label.textContent);
-    check('no flow overlay by default', !doc.querySelector('[data-role="flow"]'));
+    check('no flow canvas by default (flowSpeed 0)', !flowCanvas());
     check('edit toggle (✎) shown in view mode', !!doc.querySelector('[data-role="edit-toggle"]'));
     check('color toggle (🎨) shown in view mode', !!doc.querySelector('[data-role="color-toggle"]'));
     check('no edit layer until unlocked', !doc.querySelector('[data-role="edit-layer"]'));
@@ -187,12 +214,12 @@ console.log('\n[3] field selection');
         fields: [{ name: '_time' }, { name: 'errors' }, { name: 'users' }],
         rows: [['t1', '5', '1000'], ['t2', '88', '2000']],
     });
-    let label = doc.querySelector('[data-role="value-label"] text');
+    let label = valueText();
     check('fallback = last numeric column (users → 2,000)', label && label.textContent === '2,000',
         label && label.textContent);
 
     await setOpts({ valueField: "> primary | seriesByName('errors')" });
-    label = doc.querySelector('[data-role="value-label"] text');
+    label = valueText();
     check('DOS-selected errors → 88', label && label.textContent === '88', label && label.textContent);
     check('88 ≥ t2(70) → orange', lineColor() === '#f1813f', lineColor());
 
@@ -242,17 +269,20 @@ console.log('\n[5] texture & decorations');
         mainLine().getAttribute('stroke-dasharray'));
 
     await setOpts({ dashLength: 12, flowSpeed: 2 });
-    await sleep(350);
-    check('dashed + flow → main line animated (dashoffset set)',
-        mainLine().getAttribute('data-anim') === 'dash' && !!mainLine().getAttribute('stroke-dashoffset'),
-        String(mainLine().getAttribute('stroke-dashoffset')));
+    await sleep(400);
+    check('dashed + flow → flow canvas mounted', !!flowCanvas());
+    check('dashes stay static (no dashoffset animation)', !mainLine().getAttribute('stroke-dashoffset')
+        && !mainLine().getAttribute('data-anim'));
 
     await setOpts({ flowSpeed: 2 });
-    await sleep(350);
-    const flow = doc.querySelector('[data-role="flow"]');
-    check('solid + flow → overlay dots exist', !!flow);
-    check('flow overlay animated (negative dashoffset)', flow && parseFloat(flow.getAttribute('stroke-dashoffset')) < 0,
-        flow && String(flow.getAttribute('stroke-dashoffset')));
+    await sleep(400);
+    const cv = flowCanvas();
+    check('solid + flow → flow canvas mounted', !!cv);
+    const ctx = cv && cv.getContext('2d');
+    check('flow canvas rAF running (clearRect called)', ctx && ctx.ops.includes('clearRect'));
+    check('light band drawn (tapered polygon filled)', ctx && ctx.ops.includes('fill'),
+        ctx && `ops=${[...new Set(ctx.ops)].join(',')}`);
+    check('no SVG flow overlay anymore', !doc.querySelector('[data-role="flow"]'));
 
     await setOpts({ lineOpacity: 50 });
     const g = mainLine().parentElement;
@@ -265,10 +295,12 @@ console.log('\n[5] texture & decorations');
 
     await setOpts({ pulseCaps: true });
     await sleep(400);
-    const pulse = doc.querySelector('[data-anim="pulse"]');
-    check('pulseCaps → pulse rings exist', !!pulse);
-    check('pulse animated by rAF (opacity updated)', pulse && pulse.getAttribute('opacity') !== '0',
-        pulse && String(pulse.getAttribute('opacity')));
+    const pulseCv = flowCanvas();
+    check('pulseCaps → flow canvas mounted (flowSpeed 0 でも)', !!pulseCv);
+    const pulseCtx = pulseCv && pulseCv.getContext('2d');
+    check('pulse rings drawn on canvas (arc + stroke)',
+        pulseCtx && pulseCtx.ops.includes('arc') && pulseCtx.ops.includes('stroke'),
+        pulseCtx && `ops=${[...new Set(pulseCtx.ops)].join(',')}`);
 
     await setOpts({ arrowHead: true });
     check('arrow head rendered', !!doc.querySelector('[data-role="arrow"]'));
@@ -282,7 +314,7 @@ console.log('\n[5] texture & decorations');
     check('value label hidden', !doc.querySelector('[data-role="value-label"]'));
 
     await setOpts({ valueDecimals: 1 });
-    const label = doc.querySelector('[data-role="value-label"] text');
+    const label = valueText();
     check('valueDecimals 1 → 95.0', label && label.textContent === '95.0', label && label.textContent);
 
     await setOpts({});
@@ -398,7 +430,7 @@ console.log('\n[7] guards');
     let p = mainLine();
     check('empty data → line still rendered', !!p);
     check('empty data → neutral gray', lineColor() === '#8b93a1', lineColor());
-    let label = doc.querySelector('[data-role="value-label"] text');
+    let label = valueText();
     check('empty data → N/A label', label && label.textContent === 'N/A', label && label.textContent);
 
     await setData({ fields: FIELDS, rows: [['a', 'xyz'], ['b', 'www']] });
@@ -406,11 +438,11 @@ console.log('\n[7] guards');
     check('non-numeric → neutral gray, no crash', lineColor() === '#8b93a1', lineColor());
 
     await setData({ fields: FIELDS, columns: [['t1', 't2'], ['10', '95']] });
-    label = doc.querySelector('[data-role="value-label"] text');
+    label = valueText();
     check('columns-form → value 95', label && label.textContent === '95', label && label.textContent);
 
     await setData({ fields: [{ name: 'count' }], rows: [['4'], ['9']] });
-    label = doc.querySelector('[data-role="value-label"] text');
+    label = valueText();
     check('single-column → value 9', label && label.textContent === '9', label && label.textContent);
 
     await setData({ fields: FIELDS, rows: ROWS });
@@ -422,15 +454,15 @@ console.log('\n[8] theme switch');
     state.theme = 'light';
     fire('theme', { theme: 'light' });
     await sleep(250);
-    const rect = doc.querySelector('[data-role="value-label"] rect');
-    check('light theme → white label chip', rect && rect.getAttribute('fill') === 'rgba(255,255,255,0.92)',
-        rect && rect.getAttribute('fill'));
+    const chip = doc.querySelector('[data-role="value-label"]');
+    check('light theme → white label chip', chip && chip.style.background === 'rgba(255, 255, 255, 0.92)',
+        chip && chip.style.background);
     state.theme = 'dark';
     fire('theme', { theme: 'dark' });
     await sleep(250);
-    const rect2 = doc.querySelector('[data-role="value-label"] rect');
-    check('dark theme → dark label chip', rect2 && rect2.getAttribute('fill') === 'rgba(10,14,26,0.88)',
-        rect2 && rect2.getAttribute('fill'));
+    const chip2 = doc.querySelector('[data-role="value-label"]');
+    check('dark theme → dark label chip', chip2 && chip2.style.background === 'rgba(10, 14, 26, 0.88)',
+        chip2 && chip2.style.background);
 }
 
 // ---- 9. debug オーバーレイ -----------------------------------------------------
@@ -456,7 +488,7 @@ console.log('\n[10] dynamic color (range / match)');
     await setData({ fields: [{ name: 'status' }], rows: [['OK']] });
     await setOpts({ colorMethod: 'match', colorMatches: '[["OK","#11aa22"],["NG","#aa1122"]]' });
     check('match: value OK → #11aa22', lineColor() === '#11aa22', lineColor());
-    let label = doc.querySelector('[data-role="value-label"] text');
+    let label = valueText();
     check('match: label shows raw string OK', label && label.textContent === 'OK', label && label.textContent);
     await setData({ fields: [{ name: 'status' }], rows: [['WARN']] });
     check('match: unmatched → neutral gray', lineColor() === '#8b93a1', lineColor());
@@ -480,7 +512,7 @@ console.log('\n[10] dynamic color (range / match)');
     check('row labels 以上 / 〜 90 / より小さい 40',
         doc.body.textContent.includes('以上') && doc.body.textContent.includes('〜 90')
         && doc.body.textContent.includes('より小さい 40'));
-    check('version marker shown in panel', doc.body.textContent.includes('v1.5.0'));
+    check('version marker shown in panel', doc.body.textContent.includes('v1.7.0'));
 
     // ＋範囲の追加 → 5 行・colorBands/colorMethod が保存される
     doc.querySelector('[data-role="band-add"]').dispatchEvent(ev('click'));
@@ -557,7 +589,7 @@ console.log('\n[10] dynamic color (range / match)');
     fire('mode', { mode: 'edit' });
     await sleep(250);
     check('edit mode → no color toggle', !doc.querySelector('[data-role="color-toggle"]'));
-    check('edit mode note includes version', doc.body.textContent.includes('v1.5.0'));
+    check('edit mode note includes version', doc.body.textContent.includes('v1.7.0'));
     state.mode = 'view';
     fire('mode', { mode: 'view' });
     await sleep(250);
