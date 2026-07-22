@@ -1,5 +1,7 @@
 # Custom Viz Link Line（サーバ間コネクタ線）
 
+![表示例](examples/example.png)
+
 Splunk Dashboard Studio 用のカスタムビジュアライゼーション。
 SOC ダッシュボードなどで「サーバ（パネル）同士を線で繋ぎ、接続の状態に応じて線の色を変える」ためのコネクタ線。
 
