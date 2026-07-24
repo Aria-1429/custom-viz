@@ -1,0 +1,115 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz Spotlight Frame",
+    "description": "A data-driven status frame: colored border, glow and header badge that react to a status/severity value. Overlay or place next to other panels to spotlight their state.",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 400,
+      "initialHeight": 260
+    },
+    "optionsSchema": {
+      "valueField": { "type": "string", "default": "" },
+      "labelField": { "type": "string", "default": "" },
+
+      "titleText": { "type": "string", "default": "" },
+      "showTitle": { "type": "boolean", "default": true },
+      "showBadge": { "type": "boolean", "default": true },
+      "showCounts": { "type": "boolean", "default": true },
+
+      "matchMode": { "type": "number", "default": 0 },
+      "warnThreshold": { "type": "number", "default": 1 },
+      "critThreshold": { "type": "number", "default": 1 },
+      "higherIsWorse": { "type": "boolean", "default": true },
+
+      "okLabel": { "type": "string", "default": "OK" },
+      "warnLabel": { "type": "string", "default": "WARNING" },
+      "critLabel": { "type": "string", "default": "CRITICAL" },
+
+      "okColor": { "type": "string", "default": "#22c55e" },
+      "warnColor": { "type": "string", "default": "#f59e0b" },
+      "critColor": { "type": "string", "default": "#ef4444" },
+
+      "borderWidth": { "type": "number", "default": 4 },
+      "cornerRadius": { "type": "number", "default": 12 },
+      "showGlow": { "type": "boolean", "default": true },
+      "glowStrength": { "type": "number", "default": 60 },
+      "frameOnly": { "type": "boolean", "default": false },
+      "fillOpacity": { "type": "number", "default": 8 },
+
+      "pulseMode": { "type": "number", "default": 2 },
+      "pulsePeriod": { "type": "number", "default": 1.6 },
+
+      "debug": { "type": "boolean", "default": false }
+    },
+    "editorConfig": [
+      {
+        "label": "データフィールド",
+        "layout": [
+          [{ "label": "状態値フィールド", "editor": "editor.columnSelector", "option": "valueField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "ラベルフィールド（任意）", "editor": "editor.columnSelector", "option": "labelField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }]
+        ]
+      },
+      {
+        "label": "状態の判定",
+        "layout": [
+          [{ "label": "判定モード（0=自動 / 1=数値しきい値 / 2=文字列一致）", "editor": "editor.number", "option": "matchMode" }],
+          [{ "label": "警告のしきい値（数値モード）", "editor": "editor.number", "option": "warnThreshold" }],
+          [{ "label": "危険のしきい値（数値モード）", "editor": "editor.number", "option": "critThreshold" }],
+          [{ "label": "大きいほど悪い（数値モード）", "editor": "editor.checkbox", "option": "higherIsWorse" }]
+        ]
+      },
+      {
+        "label": "状態の色",
+        "layout": [
+          [{ "label": "正常の色", "editor": "editor.color", "option": "okColor" }],
+          [{ "label": "警告の色", "editor": "editor.color", "option": "warnColor" }],
+          [{ "label": "危険の色", "editor": "editor.color", "option": "critColor" }]
+        ]
+      },
+      {
+        "label": "枠・発光",
+        "layout": [
+          [{ "label": "枠の太さ（px）", "editor": "editor.number", "option": "borderWidth" }],
+          [{ "label": "角丸（px）", "editor": "editor.number", "option": "cornerRadius" }],
+          [{ "label": "発光（グロー）を表示", "editor": "editor.checkbox", "option": "showGlow" }],
+          [{ "label": "発光の強さ（0〜100）", "editor": "editor.number", "option": "glowStrength" }],
+          [{ "label": "枠だけ表示（中を透明に）", "editor": "editor.checkbox", "option": "frameOnly" }],
+          [{ "label": "背景の塗り不透明度（%）", "editor": "editor.number", "option": "fillOpacity" }]
+        ]
+      },
+      {
+        "label": "アニメーション",
+        "layout": [
+          [{ "label": "点滅モード（0=なし / 1=警告以上 / 2=危険のみ / 3=常時）", "editor": "editor.number", "option": "pulseMode" }],
+          [{ "label": "点滅の周期（秒、0で停止）", "editor": "editor.number", "option": "pulsePeriod" }]
+        ]
+      },
+      {
+        "label": "表示",
+        "layout": [
+          [{ "label": "タイトルを表示", "editor": "editor.checkbox", "option": "showTitle" }],
+          [{ "label": "状態バッジを表示", "editor": "editor.checkbox", "option": "showBadge" }],
+          [{ "label": "件数の内訳を表示", "editor": "editor.checkbox", "option": "showCounts" }]
+        ]
+      },
+      {
+        "label": "デバッグ",
+        "layout": [
+          [{ "label": "オプションのデバッグ表示", "editor": "editor.checkbox", "option": "debug" }]
+        ]
+      }
+    ],
+    "defaultContext": {}
+  }
+}

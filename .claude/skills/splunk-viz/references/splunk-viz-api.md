@@ -5,7 +5,9 @@
 
 > 前提リポジトリ: `<リポジトリルート>/` 配下。1 viz = 1 private GitHub repo（Aria-1429、gh認証済み）。
 > 既存 viz: donut-graph, donut-timechart, gradient-bar, country-graph, world-map, severity-table,
-> radar-chart, calendar-heatmap, sankey-flow, network-graph, chord-flow。push はユーザーが手動（スキル方針でClaudeはpushしない）。
+> radar-chart, calendar-heatmap, sankey-flow, network-graph, chord-flow, kpi-tile, link-line,
+> spotlight-frame（データ駆動ステータス枠。他パネルに重ね／隣接して状態を縁取る脇役 viz）ほか。
+> push はユーザーが手動（スキル方針でClaudeはpushしない）。
 
 ---
 
