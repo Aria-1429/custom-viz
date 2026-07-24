@@ -48,7 +48,8 @@ Splunk **Dashboard Studio** 向けのカスタムビジュアライゼーショ�
 
 | プレビュー | 名前 / バージョン | 概要 |
 | --- | --- | --- |
-| <img src="custom-viz-world-map/examples/example.png" width="240"> | **[World Map](custom-viz-world-map/)**<br>v1.1.1 | 世界地図上に値を可視化するコロプレス／マーカー地図。 |
+| <img src="custom-viz-world-map/examples/example.png" width="240"> | **[World Map](custom-viz-world-map/)**<br>v1.1.1 | 世界地図上に起点→終点の弧を描くアタックマップ。弧に沿って光の帯が流れ、着弾点をホットスポット表示。Severity で色分け。 |
+| <img src="custom-viz-japan-map/examples/example.png" width="240"> | **[Japan Map](custom-viz-japan-map/)**<br>v1.0.0 | World Map の日本地図版。都道府県境あり（県名ツールチップ付き）の日本列島に、国内の起点→終点の弧＋流れる光の帯＋ホットスポットを描く。仕様は World Map と共通。 |
 | <img src="custom-viz-country-graph/examples/example.png" width="240"> | **[Country Graph](custom-viz-country-graph/)**<br>v1.0.1 | 国旗付きの国別ランキング棒グラフ。上位 N 制限・ソート・低／高値カラースケール。 |
 
 > 各ビジュアライゼーションの詳細（データ仕様・編集オプション・サンプル SPL）は、
