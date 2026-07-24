@@ -11,8 +11,8 @@ Splunk向けのカスタムビジュアライゼーション(React/JSX)を開発
 
 ## 最初に読む：実装ナレッジ（必読）
 
-**新規作成・改修に着手する前に必ず [references/splunk-viz-api.md](references/splunk-viz-api.md) を読むこと。**
-過去の実装で得た再利用可能なナレッジを集約している:
+**新規作成・改修に着手する前に必ず [references/studio-extension-viz.md](references/studio-extension-viz.md) を読むこと。**
+Dashboard Studio 拡張 viz の実装ナレッジを集約している:
 
 1. プロジェクト構成 / スケルトン複製 / ビルド・パッケージ手順
 2. 実装の定番パターン（テーマガード・データ正規化・オートフィット・堅牢性チェックリスト）
@@ -20,10 +20,17 @@ Splunk向けのカスタムビジュアライゼーション(React/JSX)を開発
 4. **値→色マッピング**：`editor.dynamicColor` はカスタムvizで使えない（配列がoptionsに来ない）。値ベースのカラースケールを自前実装する
 5. ローカル検証（happy-dom で実機なしにバンドルを叩く）
 6. デプロイ（アンインストール・再起動なし。`_bump`）
-7. GitHub 運用（1 viz = 1 private repo、push はユーザー手動）
+7. GitHub 運用（モノレポ `Aria-1429/custom-viz`、push はユーザー手動）
 8. データモデルの型
 
 タスクに関係する章は、着手前に該当箇所を Read すること。
+
+**別系統の話（Dashboard Framework）**：`@splunk/create` で作る独立Reactアプリ／`DashboardCore` + preset は、
+このプロジェクトの Studio 拡張とは**別物**。カスタムinput UI・レイアウト/器の制御・ホストDOMアクセスは
+Framework のみ可。Studio 拡張でもトークンの読み取りや**クリック契機の setToken**（`triggerDrilldown`）は
+できる（詳しい能力差は [references/dashboard-framework.md](references/dashboard-framework.md)）。
+**同一成果物での切り替えは不可**。要件が拡張で組めないときは Framework アプリを別成果物として
+`dashboard-apps/<name>/` に作る（切り替え判断チェックリストと再利用方針は同ファイル §6）。
 
 ## 開発方針
 
@@ -54,7 +61,7 @@ Splunk向けのカスタムビジュアライゼーション(React/JSX)を開発
   - 変更種別の見出し（`####`）で整理：`追加` / `変更` / `修正` / `削除` / `非推奨` / `セキュリティ`
   - 生成した `.spl` のパス（`dist/....spl`）も記載する
   - まだリリースノートセクションが無い viz を作るときは README 末尾に新設し、`1.0.0` に「新規作成（初回リリース）」を書く
-- **実機デプロイ**：アンインストール・再起動は不要。`version` を上げ、Splunk の Upgrade チェックを通し、`_bump` ＋ハードリロードで反映する（詳細は [references/splunk-viz-api.md](references/splunk-viz-api.md) の「デプロイ」章）。
+- **実機デプロイ**：アンインストール・再起動は不要。`version` を上げ、Splunk の Upgrade チェックを通し、`_bump` ＋ハードリロードで反映する（詳細は [references/studio-extension-viz.md](references/studio-extension-viz.md) の「デプロイ」章）。
 
 ## 依存パッケージ
 
@@ -104,7 +111,7 @@ Splunk向けのカスタムビジュアライゼーション(React/JSX)を開発
 ## 安定性・堅牢性
 
 - 表示されないケースがあるため、安定して表示される設計にする(データ欠損・空データ・型不一致などに対するガード処理を入れる)。
-- **マウントゲート必須**：ホスト初期化完了（`DashboardExtensionAPI` 注入＋テーマ/データの初期 state 受信）を待ってから `createRoot().render()` する。公式フックは購読登録時に現在値を再送しないため、初期 state を取り逃すと `useTheme()` 等が undefined のまま永久に描画されない（詳細と実装コードは [references/splunk-viz-api.md](references/splunk-viz-api.md) の「ルート構成（マウントゲート必須）」）。
+- **マウントゲート必須**：ホスト初期化完了（`DashboardExtensionAPI` 注入＋テーマ/データの初期 state 受信）を待ってから `createRoot().render()` する。公式フックは購読登録時に現在値を再送しないため、初期 state を取り逃すと `useTheme()` 等が undefined のまま永久に描画されない（詳細と実装コードは [references/studio-extension-viz.md](references/studio-extension-viz.md) の「ルート構成（マウントゲート必須）」）。
 - テーマは `themeApi?.theme || 'light'` でフォールバックし、未取得でも必ず描画する（ゲート通過後は通常取得済み。`return null` で永久に待つガードは書かない）。
 
 ## 成果物と一緒に提示するもの
