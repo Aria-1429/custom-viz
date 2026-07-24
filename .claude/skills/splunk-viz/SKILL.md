@@ -25,12 +25,11 @@ Dashboard Studio 拡張 viz の実装ナレッジを集約している:
 
 タスクに関係する章は、着手前に該当箇所を Read すること。
 
-**別系統の話（Dashboard Framework）**：`@splunk/create` で作る独立Reactアプリ／`DashboardCore` + preset は、
-このプロジェクトの Studio 拡張とは**別物**。カスタムinput UI・レイアウト/器の制御・ホストDOMアクセスは
-Framework のみ可。Studio 拡張でもトークンの読み取りや**クリック契機の setToken**（`triggerDrilldown`）は
-できる（詳しい能力差は [references/dashboard-framework.md](references/dashboard-framework.md)）。
-**同一成果物での切り替えは不可**。要件が拡張で組めないときは Framework アプリを別成果物として
-`dashboard-apps/<name>/` に作る（切り替え判断チェックリストと再利用方針は同ファイル §6）。
+**カスタム viz には2方式ある**（classic / Studio 拡張）。どのダッシュボードで使うかで選ぶ。
+方式の取り違えは「一覧に出ない」で詰まるので、迷ったら [references/custom-viz-methods.md](references/custom-viz-methods.md) を先に読む:
+- **classic**（`SplunkVisualizationBase` + `formatter.html`、`visualizations.conf` に `framework_type` なし）
+  … **Simple XML と Dashboard Studio の両方で表示できる**唯一の方式。
+- **Studio 拡張**（このリポジトリの `custom-viz-*/`。`framework_type = studio_visualization` + `config.json`）… Studio 専用。
 
 ## 開発方針
 
