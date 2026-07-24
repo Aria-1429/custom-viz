@@ -20,6 +20,7 @@ Splunk **Dashboard Studio** 向けのカスタムビジュアライゼーショ�
 | <img src="custom-viz-chord-flow/examples/example.png" width="240"> | **[Chord Flow](custom-viz-chord-flow/)**<br>v1.0.1 | アニメ付きコード図。リング上のエンティティ間の相互フローをグラデーションリボンで結び、方向付き発光粒子が流れる。 |
 | <img src="custom-viz-network-graph/examples/example.png" width="240"> | **[Network Graph](custom-viz-network-graph/)**<br>v1.0.1 | 力学ベースのフォースダイレクテッド・ネットワーク図。流れる破線エッジ、線幅連動の矢印、ドラッグ／ズーム／パン対応。 |
 | <img src="custom-viz-link-line/examples/example.png" width="240"> | **[Link Line](custom-viz-link-line/)**<br>v1.7.0 | サーバ間コネクタ線。表示画面の「✎ 線を編集」でキャンバス上の線を直接編集（ドラッグ移動・折れ点追加・削除）、「🎨 色を設定」で標準の動的色設定を再現したパネル（範囲/一致・プリセットパレット・反転・＋追加）から値→色を設定し、ダッシュボードの編集→保存で確定。質感4種（フラット／ソフトシャドウ／ネオン／立体パイプ）・破線・流れる光の帯（Canvas）・パルス対応。 |
+| <img src="custom-viz-spotlight-frame/examples/example.png" width="240"> | **[Spotlight Frame](custom-viz-spotlight-frame/)**<br>v1.0.0 | データ駆動のステータス枠。サーチ結果を OK／WARNING／CRITICAL に分類し、パネル外周の枠色・発光・状態バッジ・点滅で表現。複数行は最悪ケースに丸め、件数内訳と Critical 対象名を併記。判定は自動／数値しきい値／文字列一致の3モード。枠だけ表示（frameOnly）で他パネルへ重ね置きでき、単体では控えめだがダッシュボード全体の状態把握を強化する脇役。 |
 
 ### 分布・多変量の可視化
 
