@@ -323,13 +323,14 @@ console.log('\n[9] huge numbers use exponential notation');
     check('no 30-digit comma monster', !/(\d{1,3},){8,}/.test(header), header.slice(0, 120));
 }
 
-// ---- 10. debug オーバーレイ ----------------------------------------------------
-console.log('\n[10] debug overlay');
+// ---- 10. debug オプションは廃止済み ---------------------------------------------
+console.log('\n[10] debug option removed');
 {
     state.options = { debug: true };
     fire('options', { options: state.options });
     await sleep(250);
-    check('debug dump visible', doc.body.textContent.includes('"normalized"'));
+    check('no debug overlay even with debug:true', !doc.body.textContent.includes('"normalized"'));
+    check('chart still renders', doc.querySelectorAll('.cf-ribbon').length > 0);
 }
 
 // ---- 11. ラベルフィット（見切れ防止の段階退避） -------------------------------

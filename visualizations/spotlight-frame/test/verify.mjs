@@ -155,32 +155,192 @@ console.log('\n[3] all ok → OK');
     check('badge OK', badge() && badge().textContent.includes('OK'));
 }
 
-// ---- 4. 数値しきい値モード（matchMode=1, higherIsWorse） -----------------------
-console.log('\n[4] numeric threshold mode');
+// ---- 4. 数値モード：editor.threshold の帯が色と段を決める --------------------
+// v1.2.0 で warnThreshold / critThreshold / higherIsWorse を廃止し、
+// 「値の範囲と色」（colorBands）1本に統合した。帯は何段でも作れる。
+console.log('\n[4] numeric mode driven by editor.threshold colorBands');
 {
     await setData({ fields: [{ name: 'host' }, { name: 'errors' }], rows: [['a', '0'], ['b', '3'], ['c', '12']] });
-    // crit>=10, warn>=3
-    await setOpts({ matchMode: 1, warnThreshold: 3, critThreshold: 10, higherIsWorse: true });
+    await setOpts({
+        matchMode: 'numeric',
+        colorBands: [
+            { from: null, to: 3, value: '#00ff00' },
+            { from: 3, to: 10, value: '#ffaa00' },
+            { from: 10, to: null, value: '#ff0000' },
+        ],
+    });
     let f = frame();
-    check('num: worst is crit (12>=10)', f && f.getAttribute('data-status') === 'crit', f && f.getAttribute('data-status'));
-    const body = doc.body.textContent;
-    check('num counts Crit 1', body.includes('Crit 1'), body.slice(0, 200));
-    check('num counts Warn 1', body.includes('Warn 1'));
-    check('num counts OK 1', body.includes('OK 1'));
+    check('worst is top band (12 → 10+)', f && f.getAttribute('data-status') === 'crit', f && f.getAttribute('data-status'));
+    check('border uses the top band color #ff0000', f && f.style.border.includes('#ff0000'), f && f.style.border);
+    let body = doc.body.textContent;
+    check('breakdown shows top band 10+ x1', body.includes('10 + 1'), body.slice(0, 240));
+    check('breakdown shows middle band 3–10 x1', body.includes('3–10 1'), body.slice(0, 240));
+    check('breakdown shows bottom band < 3 x1', body.includes('< 3 1'), body.slice(0, 240));
 
-    // しきい値を上げると warn 止まり
-    await setOpts({ matchMode: 1, warnThreshold: 3, critThreshold: 100, higherIsWorse: true });
+    // 帯の色を変えると枠色が追随する（新コントロールが色を駆動している証拠）
+    await setOpts({
+        matchMode: 'numeric',
+        colorBands: [
+            { from: null, to: 3, value: '#00ff00' },
+            { from: 3, to: 10, value: '#ffaa00' },
+            { from: 10, to: null, value: '#0000ff' },
+        ],
+    });
     f = frame();
-    check('num: raised crit threshold → warn', f && f.getAttribute('data-status') === 'warn', f && f.getAttribute('data-status'));
+    check('changing the top band color changes the frame', f && f.style.border.includes('#0000ff'), f && f.style.border);
+
+    // 帯の上限を上げると最上段に届かず1段下がる
+    await setOpts({
+        matchMode: 'numeric',
+        colorBands: [
+            { from: null, to: 3, value: '#00ff00' },
+            { from: 3, to: 100, value: '#ffaa00' },
+            { from: 100, to: null, value: '#ff0000' },
+        ],
+    });
+    f = frame();
+    check('raising the top band → not top tier', f && f.getAttribute('data-status') === 'warn', f && f.getAttribute('data-status'));
+    check('border uses the middle band color', f && f.style.border.includes('#ffaa00'), f && f.style.border);
 }
 
-// ---- 5. lowerIsWorse（可用性%など小さいほど悪い） -----------------------------
-console.log('\n[5] higherIsWorse=false');
+// ---- 4b. 任意段数（2段 / 5段）でも動く ----------------------------------------
+console.log('\n[4b] arbitrary number of bands');
+{
+    // 5段
+    await setData({ fields: [{ name: 'h' }, { name: 'v' }], rows: [['a', '5'], ['b', '25'], ['c', '45'], ['d', '65'], ['e', '85']] });
+    await setOpts({
+        matchMode: 'numeric',
+        colorBands: [
+            { from: null, to: 20, value: '#111111' },
+            { from: 20, to: 40, value: '#222222' },
+            { from: 40, to: 60, value: '#333333' },
+            { from: 60, to: 80, value: '#444444' },
+            { from: 80, to: null, value: '#555555' },
+        ],
+    });
+    let f = frame();
+    check('5 bands: worst is the 5th', f && f.style.border.includes('#555555'), f && f.style.border);
+    {
+        const body = doc.body.textContent;
+        const labels = ['80 + 1', '60–80 1', '40–60 1', '20–40 1', '< 20 1'];
+        check('5 bands: all 5 breakdown entries shown', labels.every((l) => body.includes(l)),
+            `${JSON.stringify(labels.filter((l) => !body.includes(l)))} missing in ${body.slice(0, 300)}`);
+    }
+
+    // 2段
+    await setOpts({ matchMode: 'numeric', colorBands: [{ from: null, to: 50, value: '#00ff00' }, { from: 50, to: null, value: '#ff0000' }] });
+    f = frame();
+    check('2 bands: worst is the 2nd', f && f.style.border.includes('#ff0000'), f && f.style.border);
+    check('2 bands: top tier reached', f && f.getAttribute('data-status') === 'crit', f && f.getAttribute('data-status'));
+}
+
+// ---- 5. 「小さいほど悪い」は降順の帯で表現する（higherIsWorse は不要） ----------
+console.log('\n[5] lower-is-worse expressed as descending bands');
 {
     await setData({ fields: [{ name: 'svc' }, { name: 'uptime' }], rows: [['a', '99.9'], ['b', '95'], ['c', '80']] });
-    await setOpts({ matchMode: 1, warnThreshold: 98, critThreshold: 90, higherIsWorse: false });
+    // 小さいほど悪い = 低い方の帯を「最上段（危険）」にはできないので、
+    // 帯の色を逆順にすることで表現する（80 が赤くなる）
+    await setOpts({
+        matchMode: 'numeric',
+        colorBands: [
+            { from: null, to: 90, value: '#ff0000' },
+            { from: 90, to: 98, value: '#ffaa00' },
+            { from: 98, to: null, value: '#00ff00' },
+        ],
+    });
     const f = frame();
-    check('low-is-worse: 80<=90 → crit', f && f.getAttribute('data-status') === 'crit', f && f.getAttribute('data-status'));
+    check('80 falls into the lowest band (red)', doc.body.textContent.includes('< 90 1'), doc.body.textContent.slice(0, 240));
+    check('renders without crashing', !!f);
+}
+
+// ---- 5b. 壊れた/未ソート/重複/開区間の帯でも落ちない -------------------------
+console.log('\n[5b] malformed / unsorted / overlapping / open bands degrade safely');
+{
+    await setData({ fields: [{ name: 'h' }, { name: 'v' }], rows: [['a', '5'], ['b', '55']] });
+    const bads = [
+        [],
+        'not-an-array',
+        null,
+        [{ from: 'x', to: 'y', value: 'not-a-color' }],
+        [{ value: '#ff0000' }],                                        // 上下限なし（全域）
+        [{ from: 50, to: 10, value: '#ff0000' }, { from: 0, to: 50, value: '#00ff00' }], // 逆転＋未ソート
+        [{ from: 0, to: 100, value: '#00ff00' }, { from: 40, to: 80, value: '#ff0000' }], // 重複
+        [{ from: null, to: null, value: '#00ff00' }],
+    ];
+    for (const b of bads) {
+        await setOpts({ matchMode: 'numeric', colorBands: b });
+        const f = frame();
+        check(`bands ${JSON.stringify(b).slice(0, 46)} → still renders`, !!f, String(f));
+        check(`  ... and no crash message`, !doc.body.textContent.includes('状態を判定できませんでした'), doc.body.textContent.slice(0, 100));
+    }
+    await setOpts({});
+}
+
+// ---- 5c. 文字列パスの色は statusColors パレット（正常→警告→危険の順） ---------
+// 文字列カテゴリは数値レンジで表せないため threshold ではなく順序付きパレットを使う。
+console.log('\n[5c] string path colored by statusColors palette');
+{
+    await setData({ fields: FIELDS, rows: ROWS }); // critical あり
+    await setOpts({ matchMode: 'string', statusColors: ['#00ff00', '#0000ff', '#ff00ff'] });
+    let f = frame();
+    check('3rd palette entry → crit frame', f && f.style.border.includes('#ff00ff'), f && f.style.border);
+    check('status still crit', f && f.getAttribute('data-status') === 'crit', f && f.getAttribute('data-status'));
+
+    // warning 止まりのデータ → 2番目の色
+    await setData({ fields: FIELDS, rows: [['a', 'ok'], ['b', 'warning']] });
+    f = frame();
+    check('2nd palette entry → warn frame', f && f.style.border.includes('#0000ff'), f && f.style.border);
+
+    // ok のみ → 1番目の色
+    await setData({ fields: FIELDS, rows: [['a', 'ok'], ['b', 'healthy']] });
+    f = frame();
+    check('1st palette entry → ok frame', f && f.style.border.includes('#00ff00'), f && f.style.border);
+
+    // パレットが短ければ循環する（落ちない）
+    await setData({ fields: FIELDS, rows: ROWS });
+    await setOpts({ matchMode: 'string', statusColors: ['#00ff00'] });
+    f = frame();
+    check('short palette cycles (crit reuses only color)', f && f.style.border.includes('#00ff00'), f && f.style.border);
+
+    // 壊れたパレット → 既定へ
+    for (const bad of [[], ['nope', 7], 'x', null, {}]) {
+        await setOpts({ matchMode: 'string', statusColors: bad });
+        f = frame();
+        check(`malformed statusColors ${JSON.stringify(bad)} → default crit #ef4444`, f && f.style.border.includes('#ef4444'), f && f.style.border);
+    }
+    await setOpts({});
+}
+
+// ---- 5d. 独自ステータス語彙でも落ちず、妥当な色が付く ------------------------
+// 文字列パスはキーワード辞書で 正常/警告/危険 に丸める。辞書に無い語は
+// 「判定不能」になるが、混在していても既知の語だけで判定でき、落ちない。
+console.log('\n[5d] custom / unknown status vocabulary');
+{
+    // 完全に独自の語彙のみ → 判定不能メッセージ（クラッシュしない）
+    await setData({ fields: FIELDS, rows: [['a', 'zzz'], ['b', 'qqq']] });
+    await setOpts({ matchMode: 'string' });
+    check('unknown-only vocabulary → guard message, no crash',
+        doc.body.textContent.includes('状態を判定できませんでした'), doc.body.textContent.slice(0, 120));
+
+    // 既知語と未知語の混在 → 既知語だけで判定される
+    await setData({ fields: FIELDS, rows: [['a', 'zzz'], ['b', 'P1 alert'], ['c', 'ok']] });
+    let f = frame();
+    check('mixed known/unknown classifies on known words', f && f.getAttribute('data-status') === 'crit', f && f.getAttribute('data-status'));
+    check('mixed: still renders a frame', !!f);
+
+    // 日本語のステータス語彙
+    await setData({ fields: FIELDS, rows: [['a', '正常'], ['b', '警告'], ['c', '重大']] });
+    f = frame();
+    check('Japanese vocabulary → crit', f && f.getAttribute('data-status') === 'crit', f && f.getAttribute('data-status'));
+    const body = doc.body.textContent;
+    check('Japanese vocabulary breakdown has 3 tiers', body.includes('Crit 1') && body.includes('Warn 1') && body.includes('OK 1'), body.slice(0, 240));
+
+    // 数値と文字列が混ざる auto モードでも落ちない
+    await setData({ fields: FIELDS, rows: [['a', '42'], ['b', 'critical'], ['c', 'ok'], ['d', ''], ['e', null]] });
+    await setOpts({});
+    check('auto mode with mixed types renders', !!frame());
+    check('auto mode with mixed types has no guard message',
+        !doc.body.textContent.includes('状態を判定できませんでした'), doc.body.textContent.slice(0, 120));
 }
 
 // ---- 6. フィールド選択（columnSelector DOS 文字列） --------------------------
@@ -190,7 +350,7 @@ console.log('\n[6] field selection via DOS string');
         fields: [{ name: 'host' }, { name: 'label' }, { name: 'state' }],
         rows: [['h1', 'foo', 'ok'], ['h2', 'bar', 'critical'], ['h3', 'baz', 'ok']],
     });
-    await setOpts({ matchMode: 2, valueField: "> primary | seriesByName('state')", labelField: "> primary | seriesByName('host')" });
+    await setOpts({ matchMode: 'string', valueField: "> primary | seriesByName('state')", labelField: "> primary | seriesByName('host')" });
     const f = frame();
     check('DOS: value field state → crit', f && f.getAttribute('data-status') === 'crit', f && f.getAttribute('data-status'));
     check('DOS: crit sample from host (h2)', doc.body.textContent.includes('h2'), doc.body.textContent.slice(0, 300));
@@ -205,11 +365,11 @@ console.log('\n[7] single scalar value');
     check('scalar: single critical → crit', f && f.getAttribute('data-status') === 'crit', f && f.getAttribute('data-status'));
 }
 
-// ---- 8. 点滅（pulseMode=2, crit のみ） --------------------------------------
+// ---- 8. 点滅（pulseMode='crit'） --------------------------------------
 console.log('\n[8] pulse animation on critical');
 {
     await setData({ fields: FIELDS, rows: ROWS }); // critical あり
-    await setOpts({ pulseMode: 2, pulsePeriod: 1.6 });
+    await setOpts({ pulseMode: 'crit', pulsePeriod: 1.6 });
     let f = frame();
     check('pulse active on crit', f && /spotlightFramePulse/.test(f.style.animation), f && f.style.animation);
 
@@ -220,7 +380,7 @@ console.log('\n[8] pulse animation on critical');
 
     // pulsePeriod=0 で停止
     await setData({ fields: FIELDS, rows: ROWS });
-    await setOpts({ pulseMode: 2, pulsePeriod: 0 });
+    await setOpts({ pulseMode: 'crit', pulsePeriod: 0 });
     f = frame();
     check('pulsePeriod 0 disables pulse', f && (!f.style.animation || f.style.animation === 'none'), f && f.style.animation);
     check('keyframes injected', !!doc.getElementById('spotlight-frame-pulse-keyframes'));
@@ -259,8 +419,88 @@ console.log('\n[11] guards');
 
     // 判定不能（未知の文字列のみ、文字列一致モード）
     await setData({ fields: [{ name: 'x' }], rows: [['zzz'], ['qqq']] });
-    await setOpts({ matchMode: 2 });
+    await setOpts({ matchMode: 'string' });
     check('unclassifiable message', doc.body.textContent.includes('状態を判定できませんでした'), doc.body.textContent.slice(0, 160));
+}
+
+// ---- 12. 旧数値コードの回帰（後方互換は意図的に実装しない） --------------------
+// v1.1.0 で matchMode/pulseMode を editor.select の文字列へ移行した。旧ダッシュボードに
+// 残った数値コードは「読み替えず」既定値へ倒す（既定値と同じ値は options に載らないため、
+// 読み替えを実装すると「既定値を選び直したときだけ直らない」不具合になる）。
+console.log('\n[12] legacy numeric codes fall back to defaults (no back-compat)');
+{
+    // matchMode: 旧 2（文字列一致）→ 既定 'auto' に倒れる。
+    // 'auto' は数値を数値として判定するので、数値データが文字列一致で無視されず分類される
+    await setData({ fields: [{ name: 'host' }, { name: 'errors' }], rows: [['a', '0'], ['b', '99']] });
+    await setOpts({ matchMode: 2, warnThreshold: 3, critThreshold: 10, higherIsWorse: true });
+    let f = frame();
+    check(
+        'legacy matchMode:2 does NOT select string mode (falls back to auto → numeric classified)',
+        f && f.getAttribute('data-status') === 'crit',
+        f && f.getAttribute('data-status')
+    );
+    check(
+        'legacy matchMode:2 did not produce unclassifiable message',
+        !doc.body.textContent.includes('状態を判定できませんでした')
+    );
+
+    // pulseMode: 旧 0（点滅なし）→ 既定 'crit' に倒れる ⇒ crit データでは点滅する
+    await setData({ fields: FIELDS, rows: ROWS }); // critical あり
+    await setOpts({ pulseMode: 0, pulsePeriod: 1.6 });
+    f = frame();
+    check(
+        'legacy pulseMode:0 does NOT disable pulse (falls back to crit default)',
+        f && /spotlightFramePulse/.test(f.style.animation),
+        f && f.style.animation
+    );
+
+    // pulseMode: 旧 3（常時）→ 既定 'crit' に倒れる ⇒ ok データでは点滅しない
+    await setData({ fields: FIELDS, rows: [['a', 'ok'], ['b', 'up']] });
+    await setOpts({ pulseMode: 3, pulsePeriod: 1.6 });
+    f = frame();
+    check(
+        'legacy pulseMode:3 does NOT force always-on pulse (falls back to crit default)',
+        f && (!f.style.animation || f.style.animation === 'none'),
+        f && f.style.animation
+    );
+
+    // --- v1.2.0 で廃止したキーは一切読まない ---
+    // okColor/warnColor/critColor（→ statusColors / colorBands へ統合）
+    await setData({ fields: FIELDS, rows: ROWS }); // critical あり
+    await setOpts({ matchMode: 'string', okColor: '#111111', warnColor: '#222222', critColor: '#00ffff' });
+    f = frame();
+    check(
+        'legacy critColor ignored (frame keeps default #ef4444)',
+        f && f.style.border.includes('#ef4444') && !f.style.border.includes('#00ffff'),
+        f && f.style.border
+    );
+
+    // warnThreshold / critThreshold / higherIsWorse（→ colorBands へ統合）
+    await setData({ fields: [{ name: 'h' }, { name: 'v' }], rows: [['a', '0'], ['b', '5']] });
+    await setOpts({ matchMode: 'numeric', warnThreshold: 100, critThreshold: 200, higherIsWorse: false });
+    f = frame();
+    // 既定の帯（<1 / 1-10 / 10+）で判定される。旧しきい値が効いていれば 5 は crit になるはず
+    check(
+        'legacy warn/critThreshold + higherIsWorse ignored (default bands used → 5 is middle band)',
+        f && f.getAttribute('data-status') === 'warn',
+        f && f.getAttribute('data-status')
+    );
+    check(
+        'legacy numeric keys did not resurrect old classification',
+        doc.body.textContent.includes('1–10 1'),
+        doc.body.textContent.slice(0, 240)
+    );
+    await setOpts({});
+}
+
+// ---- 13. debug オプション廃止（オーバーレイが出ないこと） ----------------------
+console.log('\n[13] debug option removed');
+{
+    await setData({ fields: FIELDS, rows: ROWS });
+    await setOpts({ debug: true });
+    check('debug overlay no longer renders', !doc.body.textContent.includes('"normalized"'), doc.body.textContent.slice(0, 160));
+    check('frame still renders with stale debug option', !!frame());
+    await setOpts({});
 }
 
 // ---- 結果 -------------------------------------------------------------------

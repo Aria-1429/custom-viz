@@ -394,10 +394,12 @@ console.log('\n[11] guards');
 }
 
 // ---- 12. debug オーバーレイ ----------------------------------------------------
-console.log('\n[12] debug overlay');
+console.log('\n[12] debug overlay removed');
 {
+    // debug オプションは廃止済み。旧キーを渡してもオーバーレイは出ず、本体は描画され続ける。
     await setOpts({ animate: false, debug: true });
-    check('debug dump visible', doc.body.textContent.includes('"normalized"'));
+    check('no debug dump even with debug:true', !doc.body.textContent.includes('"normalized"'));
+    check('tile still renders', doc.querySelectorAll('svg').length > 0);
 }
 
 // ---- 13. 背景の不透明度（bgOpacity） -------------------------------------------

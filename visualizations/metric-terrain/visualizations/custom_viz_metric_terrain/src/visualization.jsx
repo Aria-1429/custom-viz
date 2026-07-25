@@ -61,7 +61,6 @@ const DEFAULTS = {
     showAxes: true,
     showLegend: true,
     showPeakMarker: true,
-    debug: false,
 };
 
 const MAX_GRID = 80; // X/Y の各軸のセル数上限（大きすぎると 6400 面を超えて破綻する）
@@ -194,7 +193,6 @@ function normalizeOptions(raw) {
         showAxes: bool('showAxes'),
         showLegend: bool('showLegend'),
         showPeakMarker: bool('showPeakMarker'),
-        debug: bool('debug'),
         // 生フィールド指定（DOS 文字列 or 名前）はそのまま持ち回る
         _xField: o.xField,
         _yField: o.yField,
@@ -993,7 +991,6 @@ function MetricTerrain({ mode }) {
                         </span>
                     </Paragraph>
                 </div>
-                {opts.debug && <DebugOverlay options={options} opts={opts} grid={grid} />}
             </div>
         );
     }
@@ -1154,7 +1151,6 @@ function MetricTerrain({ mode }) {
                 </div>
             )}
 
-            {opts.debug && <DebugOverlay options={options} opts={opts} grid={grid} />}
         </div>
     );
 }
@@ -1203,49 +1199,6 @@ function AxisLabel({ text, style, fg }) {
         >
             {text}
         </div>
-    );
-}
-
-function DebugOverlay({ options, opts, grid }) {
-    return (
-        <pre
-            style={{
-                position: 'absolute',
-                top: 6,
-                right: 6,
-                maxWidth: 360,
-                maxHeight: '70%',
-                overflow: 'auto',
-                margin: 0,
-                padding: 8,
-                fontSize: 10,
-                lineHeight: 1.35,
-                background: 'rgba(0,0,0,0.82)',
-                color: '#b9f18d',
-                border: '1px solid #30363d',
-                borderRadius: 6,
-                zIndex: 10,
-            }}
-        >
-            {JSON.stringify(
-                {
-                    rawOptions: options,
-                    resolved: {
-                        xField: opts._xField,
-                        yField: opts._yField,
-                        valueField: opts._valueField,
-                        height: opts.height,
-                        yaw: opts.yaw,
-                        pitch: opts.pitch,
-                    },
-                    grid: grid
-                        ? { X: grid.X, Y: grid.Y, count: grid.count, min: grid.min, max: grid.max, resampled: grid.resampled }
-                        : null,
-                },
-                null,
-                2
-            )}
-        </pre>
     );
 }
 

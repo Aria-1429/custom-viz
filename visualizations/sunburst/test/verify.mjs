@@ -590,12 +590,23 @@ console.log('\n[13] palette options');
     await setOpts({ animate: false, fadeChildren: false });
     const fills = new Set(atDepth(1).map((s) => s.getAttribute('fill')));
     check('3 distinct ring-1 colors', fills.size === 3, Array.from(fills).join(','));
-    check('uses color1 for the first branch', fills.has('#4c9be8'), Array.from(fills).join(','));
+    check('uses 1st default palette entry for the first branch', fills.has('#4c9be8'), Array.from(fills).join(','));
 
-    await setOpts({ animate: false, fadeChildren: false, color1: '#ff0000' });
-    check('color1 override applied',
+    // editor.seriesColors は hex 文字列の配列を生で渡してくる
+    await setOpts({ animate: false, fadeChildren: false, seriesColors: ['#ff0000', '#00ff00'] });
+    check('seriesColors override applied',
         new Set(atDepth(1).map((s) => s.getAttribute('fill'))).has('#ff0000'),
         atDepth(1).map((s) => s.getAttribute('fill')).join(','));
+    // パレットが扇形数より短くても循環して埋まる（既定色に落ちない）
+    check('short palette cycles instead of falling back',
+        atDepth(1).every((s) => ['#ff0000', '#00ff00'].includes(s.getAttribute('fill'))),
+        atDepth(1).map((s) => s.getAttribute('fill')).join(','));
+
+    // 旧 color1..colorN は読まない（既定値はoptionsに載らない罠の回帰）
+    await setOpts({ animate: false, fadeChildren: false, color1: '#ff0000', color2: '#00ff00' });
+    const legacyFills = atDepth(1).map((s) => s.getAttribute('fill'));
+    check('legacy color1 ignored', !legacyFills.includes('#ff0000'), legacyFills.join(','));
+    check('falls back to default palette', legacyFills.includes('#4c9be8'), legacyFills.join(','));
 
     await setOpts({ animate: false });
     check('fade makes ring2 differ from ring1',
@@ -666,15 +677,6 @@ console.log('\n[18] stale drillPath falls back to root');
     await setOpts({ animate: false, drillPath: 'nonexistent' });
     check('renders root when drillPath is unknown', atDepth(1).length === 3, `got ${atDepth(1).length}`);
     check('breadcrumb shows only root', crumbs().length === 1, `got ${crumbs().length}`);
-    await setOpts({ animate: false });
-}
-
-// ---- 19. debug オーバーレイ ----------------------------------------------------------------
-console.log('\n[19] debug overlay');
-{
-    await setOpts({ animate: false, debug: true });
-    check('debug dump visible', doc.body.textContent.includes('"normalized"'));
-    check('version shown', doc.body.textContent.includes('1.2.0'));
     await setOpts({ animate: false });
 }
 

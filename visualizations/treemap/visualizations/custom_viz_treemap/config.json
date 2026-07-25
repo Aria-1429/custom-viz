@@ -24,14 +24,13 @@
       "level2Field": { "type": "string", "default": "" },
       "level3Field": { "type": "string", "default": "" },
 
-      "color1": { "type": "string", "default": "#4c9be8" },
-      "color2": { "type": "string", "default": "#26c2a5" },
-      "color3": { "type": "string", "default": "#f2b53c" },
-      "color4": { "type": "string", "default": "#f2653f" },
-      "color5": { "type": "string", "default": "#a97bf0" },
-      "color6": { "type": "string", "default": "#f75d97" },
-      "color7": { "type": "string", "default": "#5ed4f0" },
-      "color8": { "type": "string", "default": "#94a3b5" },
+      "seriesColors": {
+        "default": ["#4c9be8", "#26c2a5", "#f2b53c", "#f2653f", "#a97bf0", "#f75d97", "#5ed4f0", "#94a3b5"],
+        "anyOf": [
+          { "type": "array", "items": { "type": "string" } },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      },
       "shadeChildren": { "type": "boolean", "default": true },
 
       "maxDepth": { "type": "number", "default": 2 },
@@ -51,9 +50,7 @@
       "valueDecimals": { "type": "number", "default": 0 },
       "abbreviateValue": { "type": "boolean", "default": true },
 
-      "drillPath": { "type": "string", "default": "" },
-
-      "debug": { "type": "boolean", "default": false }
+      "drillPath": { "type": "string", "default": "" }
     },
     "editorConfig": [
       {
@@ -68,14 +65,7 @@
       {
         "label": "配色",
         "layout": [
-          [{ "label": "色1", "editor": "editor.color", "option": "color1" }],
-          [{ "label": "色2", "editor": "editor.color", "option": "color2" }],
-          [{ "label": "色3", "editor": "editor.color", "option": "color3" }],
-          [{ "label": "色4", "editor": "editor.color", "option": "color4" }],
-          [{ "label": "色5", "editor": "editor.color", "option": "color5" }],
-          [{ "label": "色6", "editor": "editor.color", "option": "color6" }],
-          [{ "label": "色7", "editor": "editor.color", "option": "color7" }],
-          [{ "label": "色8（以降は繰り返し）", "editor": "editor.color", "option": "color8" }],
+          [{ "label": "タイルの色", "editor": "editor.seriesColors", "option": "seriesColors" }],
           [{ "label": "子タイルを濃淡で塗り分け", "editor": "editor.checkbox", "option": "shadeChildren" }]
         ]
       },
@@ -106,12 +96,6 @@
         "layout": [
           [{ "label": "小数点以下の桁数", "editor": "editor.number", "option": "valueDecimals" }],
           [{ "label": "数値を省略表記（1.5M など）", "editor": "editor.checkbox", "option": "abbreviateValue" }]
-        ]
-      },
-      {
-        "label": "デバッグ",
-        "layout": [
-          [{ "label": "オプションのデバッグ表示", "editor": "editor.checkbox", "option": "debug" }]
         ]
       }
     ],

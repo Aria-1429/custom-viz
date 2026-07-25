@@ -104,6 +104,20 @@ index=web sourcetype=access_combined
 
 ---
 
+### [1.1.0] - 2026-07-25
+
+#### 変更
+
+- **編集画面のオプションラベルをすべて日本語化**した。セクション見出し（`Links`→「リンク」、`Nodes`→「ノード」、`Labels`→「ラベル」、`Display`→「表示」）および全項目のラベルを、他 viz（chord-flow 等）と揃えた表記に統一した。オプションのキー名（`option` / `optionsSchema`）は英語のまま変更していない。
+
+#### 削除
+
+- **`debug`（オプション診断オーバーレイ）を廃止**した。`config.json` の `optionsSchema` / `editorConfig`（「Debug」セクションごと）、`visualization.jsx` の `DEFAULTS` / `normalizeOptions` / オーバーレイ描画をすべて削除した。
+
+#### 成果物
+
+- `dist/custom_viz_sankey_flow-1.1.0-fcde869.spl`
+
 ### [1.0.2] - 2026-07-25
 
 #### 変更

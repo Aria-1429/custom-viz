@@ -229,7 +229,6 @@ function normalizeOptions(raw) {
         compact: safeBool(o.compact, false),
         glow: safeBool(o.glow, true),
         animate: safeBool(o.animate, true),
-        debug: safeBool(o.debug, false),
     };
 }
 
@@ -602,18 +601,6 @@ function buildStyles(colorScheme, opts, plan) {
             color: faintColor,
             lineHeight: 1.2,
         },
-        debugBox: {
-            margin: '8px',
-            padding: '8px 10px',
-            border: `1px solid ${borderStrong}`,
-            borderRadius: '6px',
-            fontFamily: MONO_FONT,
-            fontSize: '10px',
-            lineHeight: 1.5,
-            color: mutedColor,
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-all',
-        },
     };
 }
 
@@ -766,13 +753,6 @@ function CountryGraphTable({ fieldNames, rows, colorScheme, opts }) {
         >
         <div style={styles.wrapper} className={wrapperClass}>
             <GlobalStyles />
-            {opts.debug && (
-                <div style={styles.debugBox}>
-                    {`options = ${JSON.stringify(opts, null, 2)}\nfields = ${JSON.stringify(
-                        fieldNames,
-                    )}\nrows = ${rows.length}, shown = ${items.length}\nscale = [${scaleLo}, ${scaleHi}]`}
-                </div>
-            )}
             {opts.showHeader && (
                 <div style={styles.headerRow}>
                     <span>

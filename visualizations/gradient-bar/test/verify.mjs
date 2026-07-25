@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 // happy-dom は gradient-bar には入れず、sankey-flow の node_modules から借用する
-const HAPPY = join(HERE, '..', '..', 'custom-viz-sankey-flow', 'node_modules', 'happy-dom', 'lib', 'index.js');
+const HAPPY = join(HERE, '..', '..', 'sankey-flow', 'node_modules', 'happy-dom', 'lib', 'index.js');
 const { Window } = await import(HAPPY);
 const BUNDLE = join(HERE, '..', 'dist', 'custom_viz_gradient_bar', 'visualization.js');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -113,6 +113,10 @@ function barWidthPct(el) {
     const m = (el.getAttribute('style') || '').match(/width:\s*([\d.]+)%/);
     return m ? parseFloat(m[1]) : null;
 }
+// 描画されたラベルを表示順で取得（並び順の検証用）
+function labelOrder() {
+    return [...doc.querySelectorAll('div[title]')].map((d) => d.getAttribute('title'));
+}
 
 // ---- バンドル実行 -----------------------------------------------------------
 const code = readFileSync(BUNDLE, 'utf8');
@@ -146,19 +150,114 @@ await sleep(120);
     check('drops small values (cache-01/900 gone)', !text.includes('cache-01'));
 }
 
-// ---- 3. sortByValue off → 検索結果順 --------------------------------------
-console.log('\n[3] sortByValue = false (input order), topN reset');
-setOptions({ topN: 0, sortByValue: false });
+// ---- 3. sortMode の3モード ------------------------------------------------
+// 有効行の値: web-01=5200, web-02=1400, db-01=3600, db-02=1500, cache-01=900
+const BY_DESC = ['web-01', 'db-01', 'db-02', 'web-02', 'cache-01'];
+const BY_ASC = [...BY_DESC].slice().reverse();
+const BY_INPUT = ['web-01', 'web-02', 'db-01', 'db-02', 'cache-01'];
+
+console.log('\n[3] sortMode = none / desc / asc');
+setOptions({ topN: 0, sortMode: 'none' });
 await sleep(120);
 {
-    const labels = [...doc.querySelectorAll('div[title]')].map((d) => d.getAttribute('title'));
-    // 入力順の先頭は web-01
-    check('first label is web-01 (input order)', labels[0] === 'web-01', JSON.stringify(labels));
+    check('sortMode=none keeps input order', labelOrder().join(',') === BY_INPUT.join(','), JSON.stringify(labelOrder()));
+}
+setOptions({ sortMode: 'desc' });
+await sleep(120);
+{
+    check('sortMode=desc sorts by value desc', labelOrder().join(',') === BY_DESC.join(','), JSON.stringify(labelOrder()));
+}
+setOptions({ sortMode: 'asc' });
+await sleep(120);
+{
+    check('sortMode=asc sorts by value asc', labelOrder().join(',') === BY_ASC.join(','), JSON.stringify(labelOrder()));
+    // 昇順では最初のバーが最も細い
+    const b = bars();
+    const w0 = barWidthPct(b[0]);
+    check('asc: first bar is narrowest', b.every((x) => barWidthPct(x) >= w0 - 0.01), `w0=${w0}`);
+}
+setOptions({ sortMode: 'bogus' });
+await sleep(120);
+{
+    check('unknown sortMode falls back to desc', labelOrder().join(',') === BY_DESC.join(','), JSON.stringify(labelOrder()));
+}
+
+// ---- 3b. 旧 boolean オプションは読み替えない（回帰） -----------------------
+// キー名変更時に旧オプションへフォールバックすると「既定値を選んだときだけ直らない」
+// 不具合になる（skills/splunk-viz 参照）。旧値は完全に無視され既定（desc）になること。
+console.log('\n[3b] legacy sort booleans are ignored');
+{
+    state.options = {}; // 素の状態から旧オプションだけを与える
+    setOptions({ sortByValue: false });
+    await sleep(120);
+    check('legacy sortByValue:false ignored → still desc', labelOrder().join(',') === BY_DESC.join(','), JSON.stringify(labelOrder()));
+
+    state.options = {};
+    setOptions({ sortByValue: true, sortAscending: true });
+    await sleep(120);
+    check('legacy sortAscending:true ignored → still desc', labelOrder().join(',') === BY_DESC.join(','), JSON.stringify(labelOrder()));
+
+    // 旧 boolean と新 sortMode が同居しても、新オプションだけが効く
+    state.options = {};
+    setOptions({ sortAscending: true, sortMode: 'none' });
+    await sleep(120);
+    check('sortMode wins over legacy booleans', labelOrder().join(',') === BY_INPUT.join(','), JSON.stringify(labelOrder()));
+    state.options = {};
+    setOptions({});
+    await sleep(120);
+}
+
+// ---- 3c. デバッグオーバーレイは廃止された ---------------------------------
+console.log('\n[3c] debug overlay removed');
+{
+    setOptions({ debug: true });
+    await sleep(120);
+    // 旧オーバーレイは rawOptions を JSON.stringify した <pre>。要素ごと出ないこと。
+    check('no <pre> debug overlay rendered', doc.querySelectorAll('pre').length === 0, `got ${doc.querySelectorAll('pre').length}`);
+    check('no raw options dump in text', !doc.body.textContent.includes('"barThickness"'));
+    check('chart still renders normally', bars().length === 5, `got ${bars().length}`);
+    state.options = {};
+    setOptions({});
+    await sleep(120);
+}
+
+// ---- 3d. scaleMin / scaleMax（空欄=自動 が壊れていないこと） ---------------
+console.log('\n[3d] scaleMin/scaleMax blank = auto');
+{
+    setOptions({ useValueColors: true, useMidColor: false });
+    await sleep(150);
+    const hexes = (s) => [...s.matchAll(/#([0-9a-f]{6})/gi)].map((m) => m[1]);
+    const avg = (arr, i) => arr.reduce((sum, h) => sum + parseInt(h.slice(i, i + 2), 16), 0) / arr.length;
+    // 空欄（未設定）: データ min(900)〜max(5200) が自動スケール → 最大は赤、最小は緑
+    const bAuto = bars();
+    const maxAuto = hexes(bAuto[0].getAttribute('style') || '');
+    const minAuto = hexes(bAuto[bAuto.length - 1].getAttribute('style') || '');
+    check('blank scale → auto: max bar red-dominant', avg(maxAuto, 0) > avg(maxAuto, 2));
+    check('blank scale → auto: min bar green-dominant', avg(minAuto, 2) > avg(minAuto, 0));
+
+    // 空文字を明示的に渡しても自動のまま（旧 string 型スキーマ由来の値への耐性）
+    setOptions({ scaleMin: '', scaleMax: '' });
+    await sleep(150);
+    const bBlank = bars();
+    check('empty-string scale behaves same as auto',
+        (bBlank[0].getAttribute('style') || '') === (bAuto[0].getAttribute('style') || ''));
+
+    // 明示スケール: 上限をデータ最小より低くすると全バーが高値側（赤）に振り切る
+    setOptions({ scaleMin: 0, scaleMax: 100 });
+    await sleep(150);
+    {
+        const bFixed = bars();
+        const minFixed = hexes(bFixed[bFixed.length - 1].getAttribute('style') || '');
+        check('explicit scaleMax=100 → even min bar is red-dominant', avg(minFixed, 0) > avg(minFixed, 2));
+    }
+    state.options = {};
+    setOptions({});
+    await sleep(120);
 }
 
 // ---- 4. 値ベースのカラースケール ------------------------------------------
 console.log('\n[4] useValueColors = true (green→red)');
-setOptions({ sortByValue: true, sortAscending: false, useValueColors: true, useMidColor: false });
+setOptions({ sortMode: 'desc', useValueColors: true, useMidColor: false });
 await sleep(150);
 {
     const b = bars();

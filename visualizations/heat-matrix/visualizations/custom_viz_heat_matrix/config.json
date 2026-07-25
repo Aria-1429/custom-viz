@@ -48,9 +48,7 @@
       "maxCellSize": { "type": "number", "default": 0 },
 
       "valueDecimals": { "type": "number", "default": 0 },
-      "abbreviateValue": { "type": "boolean", "default": false },
-
-      "debug": { "type": "boolean", "default": false }
+      "abbreviateValue": { "type": "boolean", "default": false }
     },
     "editorConfig": [
       {
@@ -102,12 +100,6 @@
         "layout": [
           [{ "label": "小数点以下の桁数", "editor": "editor.number", "option": "valueDecimals" }],
           [{ "label": "数値を省略表記（1.5M など）", "editor": "editor.checkbox", "option": "abbreviateValue" }]
-        ]
-      },
-      {
-        "label": "デバッグ",
-        "layout": [
-          [{ "label": "オプションのデバッグ表示", "editor": "editor.checkbox", "option": "debug" }]
         ]
       }
     ],

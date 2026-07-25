@@ -159,6 +159,19 @@ yarn package        # dist/custom_viz_chord_flow-<ver>-<hash>.spl を生成
 
 ---
 
+### [1.1.0] - 2026-07-25
+
+#### 削除
+
+- **`debug`（オプション診断オーバーレイ）を廃止**した。`config.json` の `optionsSchema` /
+  `editorConfig`（「デバッグ」セクションごと）、`visualization.jsx` の `DEFAULTS` /
+  `normalizeOptions` / オーバーレイ描画をすべて削除した。
+
+#### 成果物
+
+- `dist/custom_viz_chord_flow-1.1.0-fcde869.spl`
+
+
 ### [1.0.2] - 2026-07-25
 
 #### 変更

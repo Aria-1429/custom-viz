@@ -27,13 +27,13 @@
       "countField": { "type": "string", "default": "" },
       "srcNameField": { "type": "string", "default": "" },
       "dstNameField": { "type": "string", "default": "" },
-      "highColor": { "type": "string", "default": "#ff5a2e" },
-      "mediumColor": { "type": "string", "default": "#e6b93c" },
-      "lowColor": { "type": "string", "default": "#38a6ff" },
-      "extraColor1": { "type": "string", "default": "#b17aff" },
-      "extraColor2": { "type": "string", "default": "#2dd4bf" },
-      "extraColor3": { "type": "string", "default": "#ff7ab8" },
-      "extraColor4": { "type": "string", "default": "#9aa7b8" },
+      "severityColors": {
+        "default": ["#ff5a2e", "#e6b93c", "#38a6ff", "#b17aff", "#2dd4bf", "#ff7ab8", "#9aa7b8"],
+        "anyOf": [
+          { "type": "array", "items": { "type": "string" } },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      },
       "useBgColor": { "type": "boolean", "default": false },
       "bgColor": { "type": "string", "default": "#03080f" },
       "useLandColor": { "type": "boolean", "default": false },
@@ -72,13 +72,7 @@
       {
         "label": "線の色",
         "layout": [
-          [{ "label": "High（高）", "editor": "editor.color", "option": "highColor" }],
-          [{ "label": "Medium（中）", "editor": "editor.color", "option": "mediumColor" }],
-          [{ "label": "Low（低）", "editor": "editor.color", "option": "lowColor" }],
-          [{ "label": "その他の深刻度 1", "editor": "editor.color", "option": "extraColor1" }],
-          [{ "label": "その他の深刻度 2", "editor": "editor.color", "option": "extraColor2" }],
-          [{ "label": "その他の深刻度 3", "editor": "editor.color", "option": "extraColor3" }],
-          [{ "label": "その他の深刻度 4", "editor": "editor.color", "option": "extraColor4" }]
+          [{ "label": "深刻度の色（凡例の並び順に上から適用。色数が足りない場合は循環します）", "editor": "editor.seriesColors", "option": "severityColors" }]
         ]
       },
       {

@@ -638,17 +638,33 @@ console.log('\n[15] palette options');
     await setOpts({ animate: false, shadeChildren: false });
     const fills = new Set(leaves().map((t) => t.getAttribute('fill')));
     check('3 distinct colors without shading', fills.size === 3, Array.from(fills).join(','));
-    check('uses color1 for first group', fills.has('#4c9be8'), Array.from(fills).join(','));
+    check('uses 1st default palette entry for first group', fills.has('#4c9be8'), Array.from(fills).join(','));
 
-    await setOpts({ animate: false, shadeChildren: false, color1: '#ff0000' });
-    check('color1 override applied',
-        new Set(leaves().map((t) => t.getAttribute('fill'))).has('#ff0000'),
-        leaves().map((t) => t.getAttribute('fill')).join(','));
+    await setOpts({ animate: false, shadeChildren: false, seriesColors: ['#ff0000', '#00ff00'] });
+    const custom = new Set(leaves().map((t) => t.getAttribute('fill')));
+    check('seriesColors override applied',
+        custom.has('#ff0000') && custom.has('#00ff00'),
+        Array.from(custom).join(','));
+    // 3 グループに対しパレットは 2 色しかない → 循環して埋まる（既定色に落ちない）
+    check('short palette cycles instead of falling back',
+        Array.from(custom).every((c) => c === '#ff0000' || c === '#00ff00'),
+        Array.from(custom).join(','));
 
     await setOpts({ animate: false });
     check('shading on gives parent/leaf different fills',
         new Set(tiles().map((t) => t.getAttribute('fill'))).size > 3,
         tiles().map((t) => t.getAttribute('fill')).join(','));
+}
+
+// ---- 15b. 旧 color1..color8 は読まない（既定値はoptionsに載らない罠の回帰） --------
+console.log('\n[15b] legacy color keys must not leak');
+{
+    await setOpts({ animate: false, shadeChildren: false, color1: '#ff0000', color2: '#00ff00' });
+    const fills = new Set(leaves().map((t) => t.getAttribute('fill')));
+    check('legacy color1 ignored', !fills.has('#ff0000'), Array.from(fills).join(','));
+    check('legacy color2 ignored', !fills.has('#00ff00'), Array.from(fills).join(','));
+    check('falls back to default palette', fills.has('#4c9be8'), Array.from(fills).join(','));
+    await setOpts({ animate: false });
 }
 
 // ---- 16. アニメーション ----------------------------------------------------------
@@ -688,12 +704,13 @@ console.log('\n[18] stale drillPath falls back to root');
     await setOpts({ animate: false });
 }
 
-// ---- 19. debug オーバーレイ ---------------------------------------------------------
-console.log('\n[19] debug overlay');
+// ---- 19. debug オプションは廃止済み（残骸が復活していないこと） ---------------------
+console.log('\n[19] debug option removed');
 {
     await setOpts({ animate: false, debug: true });
-    check('debug dump visible', doc.body.textContent.includes('"normalized"'));
-    check('version shown', doc.body.textContent.includes('1.1.0'));
+    check('no debug overlay rendered', !doc.body.textContent.includes('"normalized"'),
+        doc.body.textContent.slice(0, 120));
+    check('still renders normally with unknown option', groups().length === 3, `got ${groups().length}`);
     await setOpts({ animate: false });
 }
 

@@ -60,7 +60,6 @@ const DEFAULTS = {
     valueDecimals: 0, // 小数点以下の桁数
     abbreviateValue: false, // 1.5M などの省略表記
 
-    debug: false, // options デバッグ表示
 };
 
 // 種別トークン
@@ -243,7 +242,6 @@ function normalizeOptions(raw) {
         valueDecimals: clamp(Math.round(numOr(o.valueDecimals, DEFAULTS.valueDecimals)), 0, 6),
         abbreviateValue: bool(o.abbreviateValue, DEFAULTS.abbreviateValue),
 
-        debug: bool(o.debug, DEFAULTS.debug),
     };
 }
 
@@ -865,42 +863,6 @@ function WaterfallChart({ mode }) {
                     })}
             </svg>
 
-            {/* デバッグ */}
-            {opts.debug && (
-                <pre
-                    style={{
-                        position: 'absolute',
-                        right: 8,
-                        bottom: 8,
-                        maxWidth: '60%',
-                        maxHeight: '60%',
-                        overflow: 'auto',
-                        margin: 0,
-                        padding: 8,
-                        fontSize: 10,
-                        lineHeight: 1.3,
-                        background: pal.panelBg,
-                        color: pal.subText,
-                        border: `1px solid ${pal.panelBorder}`,
-                        borderRadius: 6,
-                        zIndex: 20,
-                    }}
-                >
-                    {JSON.stringify(
-                        {
-                            fields: fieldNames,
-                            labelIdx: model.labelIdx,
-                            valIdx: model.valIdx,
-                            typeIdx: model.typeIdx,
-                            bars,
-                            options,
-                            normalized: opts,
-                        },
-                        null,
-                        1
-                    )}
-                </pre>
-            )}
         </div>
     );
 }

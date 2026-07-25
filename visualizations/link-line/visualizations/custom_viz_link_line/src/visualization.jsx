@@ -18,9 +18,9 @@ import './visualization.css';
 // 線の色を変える」ためのコネクタ・ビジュアライゼーション。
 //
 // ・データ: シングルバリュー。サーチ結果の値フィールド（既定は「数値を含む
-//   最後の列」）の最終行を採用し、しきい値（基本色＋しきい値×3）で線の色を
-//   決める（標準 Single Value の範囲色に相当。editor.dynamicColor はカスタム
-//   viz では使えないため自前実装）。
+//   最後の列」）の最終行を採用し、編集画面の「線の色」（editor.threshold）で
+//   設定した範囲バンド `[{from,to,value}]` から線の色を決める（v1.9.0 で
+//   viz 内の自作色パネルを廃止し、標準の編集パネルに一本化）。
 // ・線の形: 「表示モード」でキャンバス上で直接編集する。
 //   ※ Studio の編集モード中はホストがカスタム viz(iframe)への入力を遮断する
 //     （viz 本体への mousedown はパネル選択に使われる）ため、編集モードでは
@@ -46,8 +46,11 @@ import './visualization.css';
 //   描画し、値ラベルに N/A を表示する（コネクタとしての表示を維持）。
 // ---------------------------------------------------------------------------
 
-// バージョン表記（デプロイ確認用。編集モードの案内・色設定パネル・debug に表示）
-const VIZ_VERSION = '1.7.0';
+// バージョン表記（デプロイ確認用。編集モードの案内に表示）
+const VIZ_VERSION = '1.9.1';
+
+// 列挙型オプションの許容値（未知値は既定へ丸める。旧バージョンの数値コードは復元しない）
+const STYLE_MODES = ['flat', 'shadow', 'neon', 'pipe'];
 
 // オプションのデフォルト（config.json の optionsSchema.default と一致させる）
 const DEFAULTS = {
@@ -57,7 +60,7 @@ const DEFAULTS = {
     cornerRadius: 14, // 折れ角の丸み（px）
     allowViewEdit: true, // 表示モードでの線編集（✎ボタン）を許可
 
-    styleMode: 1, // 1=フラット, 2=ソフトシャドウ, 3=ネオン発光, 4=立体パイプ
+    styleMode: 'flat', // flat=フラット / shadow=ソフトシャドウ / neon=ネオン発光 / pipe=立体パイプ
     lineWidth: 6, // 線の太さ（px）
     lineGradient: true, // 始点→終点の淡いグラデーション（立体感）
     dashLength: 0, // 破線の長さ（px、0で実線）
@@ -70,19 +73,16 @@ const DEFAULTS = {
     showValue: true, // 値ラベル（線の中央）
     valueDecimals: 0, // 小数点以下の桁数
 
-    colorMethod: 'range', // 動的色設定の方式（range=範囲 / match=一致）
-    colorBands: '', // 動的色設定・範囲（JSON。'' = 簡易しきい値を使用）
-    colorMatches: '', // 動的色設定・一致（JSON）
-    useThresholds: true, // しきい値で色分け
-    baseColor: '#53a051', // 基本色（しきい値1未満／固定色）
-    threshold1: 40,
-    color1: '#f8be34',
-    threshold2: 70,
-    color2: '#f1813f',
-    threshold3: 90,
-    color3: '#dc4e41',
-
-    debug: false,
+    // 値→色の範囲バンド（editor.threshold が [{from,to,value}] の配列を生で渡してくる）。
+    // config.json の optionsSchema.colorBands.default と一致させること。
+    colorBands: [
+        { from: 0, to: 40, value: '#53a051' },
+        { from: 40, to: 70, value: '#f8be34' },
+        { from: 70, to: 90, value: '#f1813f' },
+        // 最上位は上限なし [90, ∞)。旧実装の threshold3（90 以上すべて赤）と揃える。
+        // 上限を 100 にすると 100 超の値がどのバンドにも入らず灰色になってしまう。
+        { from: 90, to: null, value: '#dc4e41' },
+    ],
 };
 
 // 既定の線（左→右の水平線。正規化座標）
@@ -172,7 +172,10 @@ function normalizeOptions(raw) {
         const n = parseNum(v);
         return Number.isFinite(n) ? n : d;
     };
-    const colorOr = (v, d) => (hexToRgb(v) ? v : d);
+    // 列挙値：ホワイトリストに無ければ既定へ丸める。
+    // ここで旧バージョンの数値コードを読み替えては「いけない」（既定値と同じ値は
+    // options に載らないため、既定を選び直しても旧値が復活してしまう）。
+    const enumOr = (v, list, d) => (list.includes(v) ? v : d);
 
     return {
         valueField: typeof o.valueField === 'string' || Array.isArray(o.valueField) ? o.valueField : '',
@@ -181,7 +184,7 @@ function normalizeOptions(raw) {
         cornerRadius: clamp(numOr(o.cornerRadius, DEFAULTS.cornerRadius), 0, 300),
         allowViewEdit: bool(o.allowViewEdit, DEFAULTS.allowViewEdit),
 
-        styleMode: clamp(Math.round(numOr(o.styleMode, DEFAULTS.styleMode)), 1, 4),
+        styleMode: enumOr(o.styleMode, STYLE_MODES, DEFAULTS.styleMode),
         lineWidth: clamp(numOr(o.lineWidth, DEFAULTS.lineWidth), 1, 40),
         lineGradient: bool(o.lineGradient, DEFAULTS.lineGradient),
         dashLength: clamp(numOr(o.dashLength, DEFAULTS.dashLength), 0, 200),
@@ -194,19 +197,11 @@ function normalizeOptions(raw) {
         showValue: bool(o.showValue, DEFAULTS.showValue),
         valueDecimals: clamp(Math.round(numOr(o.valueDecimals, DEFAULTS.valueDecimals)), 0, 6),
 
-        colorMethod: o.colorMethod === 'match' ? 'match' : 'range',
-        colorBands: typeof o.colorBands === 'string' ? o.colorBands : '',
-        colorMatches: typeof o.colorMatches === 'string' ? o.colorMatches : '',
-        useThresholds: bool(o.useThresholds, DEFAULTS.useThresholds),
-        baseColor: colorOr(o.baseColor, DEFAULTS.baseColor),
-        threshold1: numOr(o.threshold1, DEFAULTS.threshold1),
-        color1: colorOr(o.color1, DEFAULTS.color1),
-        threshold2: numOr(o.threshold2, DEFAULTS.threshold2),
-        color2: colorOr(o.color2, DEFAULTS.color2),
-        threshold3: numOr(o.threshold3, DEFAULTS.threshold3),
-        color3: colorOr(o.color3, DEFAULTS.color3),
-
-        debug: bool(o.debug, DEFAULTS.debug),
+        // editor.threshold の生配列。ここでは「配列でなければ既定へ倒す」だけに留め、
+        // 個々の行の検証は colorForValue() 側で行う（1 行だけ壊れていても他は活かす）。
+        // ⚠ 旧バージョンの文字列 colorBands（自作パネルのシリアライズ形式）や
+        //    threshold1/color1 等へのフォールバックは意図的に実装しない。
+        colorBands: Array.isArray(o.colorBands) ? o.colorBands : DEFAULTS.colorBands,
     };
 }
 
@@ -350,167 +345,70 @@ function extractValue(rawRows, fieldNames, opts) {
 }
 
 // ---------------------------------------------------------------------------
-// 値→色（動的色設定＝範囲バンド優先、無ければ簡易しきい値）
-// 標準の editor.dynamicColor はカスタム viz に編集内容が渡らない（ホスト専用の
-// context に保存され options に来ない）ため、標準パネルと同じ操作感の
-// 「範囲を＋で追加する」エディタを viz 内（表示画面）に自前実装している。
+// 値→色（編集画面の「線の色」＝ editor.threshold）
+//
+// editor.threshold は `[{ from, to, value }]` の配列を **生のまま** options に
+// 渡してくる（DOS 文字列を経由しない数少ない色系 editor 型）。v1.9.0 で
+// viz 内の自作色パネル（🎨 色を設定）を廃止し、この標準パネルに一本化した。
+//
+// ホストから来る配列は次のどれもありうるので、すべて壊れずに処理する:
+//   ・未ソート／範囲の重なり
+//   ・openRanges:true による開区間（from または to が null / undefined）
+//   ・空配列・配列以外・行が object でない・色が不正な文字列
 // ---------------------------------------------------------------------------
 
-// colorBands JSON（[[from, "#rrggbb"], ..., [null, "#rrggbb"]]。from 降順・null=「より小さい」）
-function parseColorBands(str) {
-    if (typeof str !== 'string' || str.trim() === '') return null;
-    try {
-        const arr = JSON.parse(str);
-        if (!Array.isArray(arr) || arr.length === 0) return null;
-        const bands = [];
-        for (const it of arr) {
-            let from;
-            let color;
-            if (Array.isArray(it)) {
-                from = it[0];
-                color = it[1];
-            } else if (it && typeof it === 'object') {
-                from = it.from;
-                color = it.color;
-            } else {
-                return null;
-            }
-            if (!hexToRgb(color)) return null;
-            if (from === null || from === undefined || from === '') {
-                bands.push({ from: null, color });
-            } else {
-                const n = parseNum(from);
-                if (!Number.isFinite(n)) return null;
-                bands.push({ from: n, color });
-            }
-        }
-        // from 降順・「より小さい」(null) は最後
-        bands.sort((a, b) => {
-            if (a.from === null) return 1;
-            if (b.from === null) return -1;
-            return b.from - a.from;
-        });
-        return bands;
-    } catch (e) {
-        return null;
-    }
+// 1 行を { from, to, color } へ正規化。使えない行は null（＝スキップ）を返す。
+// from/to が欠けている（開区間）場合は ∓Infinity として扱う。
+function normalizeBand(row) {
+    if (!row || typeof row !== 'object' || Array.isArray(row)) return null;
+    const color = row.value;
+    if (!hexToRgb(color)) return null; // 色が読めない行は無視（部分的に壊れていても他は活かす）
+    const rawFrom = row.from;
+    const rawTo = row.to;
+    const from =
+        rawFrom === null || rawFrom === undefined || rawFrom === '' ? -Infinity : parseNum(rawFrom);
+    const to = rawTo === null || rawTo === undefined || rawTo === '' ? Infinity : parseNum(rawTo);
+    if (Number.isNaN(from) || Number.isNaN(to)) return null;
+    if (from > to) return null; // 逆転した範囲は無視
+    return { from, to, color: String(color).trim() };
 }
 
-function serializeColorBands(bands) {
-    return JSON.stringify(bands.map((b) => [b.from, b.color]));
+// 値がバンドに入るか。**半開区間 [from, to)** で判定する
+// （標準 viz の「40 〜 70」表記＝ 40 は含み 70 は含まない、と同じ）。
+// ただし上限が Infinity（開区間）のときだけは to も含む＝ [from, ∞)。
+function bandContains(band, value) {
+    if (value < band.from) return false;
+    if (band.to === Infinity) return true;
+    return value < band.to;
 }
 
-// 一致（値の完全一致 → 色）の JSON（[["key", "#rrggbb"], ...]）
-function parseColorMatches(str) {
-    if (typeof str !== 'string' || str.trim() === '') return null;
-    try {
-        const arr = JSON.parse(str);
-        if (!Array.isArray(arr) || arr.length === 0) return null;
-        const matches = [];
-        for (const it of arr) {
-            let key;
-            let color;
-            if (Array.isArray(it)) {
-                key = it[0];
-                color = it[1];
-            } else if (it && typeof it === 'object') {
-                key = it.key;
-                color = it.color;
-            } else {
-                return null;
-            }
-            if (!hexToRgb(color)) return null;
-            matches.push({ key: key === null || key === undefined ? '' : String(key), color });
-        }
-        return matches;
-    } catch (e) {
-        return null;
-    }
-}
-
-function serializeColorMatches(matches) {
-    return JSON.stringify(matches.map((m) => [m.key, m.color]));
-}
-
-// プリセットパレット（標準の動的色設定に倣った 7 段ランプ。左=低↓ / 右=高↑）
-const RAMP_RG_DARK = ['#d13b2e', '#dd6832', '#e28f2e', '#c9a32b', '#a8b02f', '#7ca832', '#4f9c45'];
-const RAMP_RG_LIGHT = ['#e06c5d', '#ea8f62', '#f0ac60', '#e3c65b', '#c1cc66', '#96bf5e', '#6fb35e'];
-const RAMP_BLUE_DARK = ['#0e4d64', '#136180', '#1a769c', '#2389b8', '#3f9fc6', '#6ab6d4', '#93cbe0'];
-const RAMP_BLUE_LIGHT = ['#5da7c7', '#72b3cf', '#87bfd8', '#9ccbe0', '#b1d7e8', '#c6e3f1', '#dbeff9'];
-
-// ランプ一覧（idx 0=赤→緑, 1=緑→赤, 2=青）。dark/light はプリセットパレットのタブに対応
-function getRamps(dark) {
-    const rg = dark ? RAMP_RG_DARK : RAMP_RG_LIGHT;
-    const blue = dark ? RAMP_BLUE_DARK : RAMP_BLUE_LIGHT;
-    return [rg, [...rg].reverse(), blue];
-}
-
-// ランプをバンド行数に合わせてサンプリングして色を割り当てる
-// （行は from 降順・最後が「より小さい」。上の行ほど高い値 = ランプの右端↑）
-function applyRampToBands(bands, ramp) {
-    const n = bands.length;
-    return bands.map((b, i) => {
-        const t = n <= 1 ? 0 : 1 - i / (n - 1); // 上の行 → 1、最下行 → 0
-        const idx = Math.round(t * (ramp.length - 1));
-        return { ...b, color: ramp[idx] };
-    });
-}
-
-// 簡易しきい値オプションから同等のバンド列を作る（色設定パネルの初期値に使用）
-function bandsFromFixedThresholds(opts) {
-    const bands = [
-        { t: opts.threshold1, c: opts.color1 },
-        { t: opts.threshold2, c: opts.color2 },
-        { t: opts.threshold3, c: opts.color3 },
-    ]
-        .filter((b) => Number.isFinite(b.t))
-        .sort((a, b) => b.t - a.t)
-        .map((b) => ({ from: b.t, color: b.c }));
-    bands.push({ from: null, color: opts.baseColor });
-    return bands;
-}
-
-function colorFromBands(value, bands) {
-    for (const b of bands) {
-        if (b.from === null) return b.color;
-        if (value >= b.from) return b.color;
-    }
-    return bands[bands.length - 1].color;
-}
-
-// 色解決の入口。method='match' は生値の完全一致、'range' は範囲バンド（無ければ簡易しきい値）
-function resolveLineColor(state, value, rawValue, opts) {
-    if (state.method === 'match') {
-        const key = rawValue === null || rawValue === undefined ? '' : String(rawValue).trim();
-        if (state.matches) {
-            for (const m of state.matches) {
-                if (m.key !== '' && m.key === key) return m.color;
-            }
-        }
-        return NEUTRAL_COLOR;
-    }
-    if (!Number.isFinite(value)) return NEUTRAL_COLOR;
-    if (state.bands && state.bands.length > 0) return colorFromBands(value, state.bands);
-    return colorForValue(value, opts);
-}
-
+// 値→色。
+//
+// 【重なりの決定規則】複数のバンドが同じ値を含む場合は
+//   ① from が大きい方（＝より狭く・より高い範囲を指す方）を優先
+//   ② from が同じなら to が小さい方（＝より狭い方）を優先
+//   ③ それも同じなら配列で先に現れた方を優先
+// を安定な順序で適用する。これで並び順に依存せず常に同じ色が出る。
+//
+// どのバンドにも入らない／有効なバンドが 1 つも無い／値が数値でない場合は
+// ニュートラル色へ倒す（例外は投げない）。
 function colorForValue(value, opts) {
     if (!Number.isFinite(value)) return NEUTRAL_COLOR;
-    const bands = parseColorBands(opts.colorBands);
-    if (bands) return colorFromBands(value, bands);
-    if (!opts.useThresholds) return opts.baseColor;
-    const fixed = [
-        { t: opts.threshold1, c: opts.color1 },
-        { t: opts.threshold2, c: opts.color2 },
-        { t: opts.threshold3, c: opts.color3 },
-    ]
-        .filter((b) => Number.isFinite(b.t))
-        .sort((a, b) => a.t - b.t);
-    let col = opts.baseColor;
-    for (const b of fixed) {
-        if (value >= b.t) col = b.c;
+    const raw = Array.isArray(opts && opts.colorBands) ? opts.colorBands : [];
+    let best = null;
+    for (let i = 0; i < raw.length; i += 1) {
+        const band = normalizeBand(raw[i]);
+        if (!band || !bandContains(band, value)) continue;
+        if (
+            best === null ||
+            band.from > best.from ||
+            (band.from === best.from && band.to < best.to)
+        ) {
+            best = band;
+        }
     }
-    return col;
+    if (best) return best.color;
+    return NEUTRAL_COLOR;
 }
 
 // ---------------------------------------------------------------------------
@@ -873,13 +771,12 @@ function LinkLine({ mode }) {
     const [draft, setDraft] = useState(null); // 編集中のローカル点列（null = options 由来）
     const dragRef = useRef(null); // { idx, work, moved } ドラッグ中の状態
     const lastSavedRef = useRef(null); // 直近 setOptions した linePoints JSON（echo と外部変更の区別用）
-    // 直近 setOptions した色設定（echo と外部変更の区別用）
-    const lastColorRef = useRef({ bands: null, matches: null, method: null });
 
-    // 表示モードで行った変更のうち、まだホストの options に反映されていないもの。
-    // ホストによっては表示モード中の setOptions が保存対象に取り込まれないため、
-    // ここに保持しておき「編集モードに入った瞬間」に再送（flush）して確定させる。
-    const pendingRef = useRef({}); // { linePoints? / colorBands? / colorMatches? / colorMethod? }
+    // 表示モードで行った線の形（linePoints）の変更のうち、まだホストの options に
+    // 反映されていないもの。ホストによっては表示モード中の setOptions が保存対象に
+    // 取り込まれないため、ここに保持しておき「編集モードに入った瞬間」に再送（flush）して確定させる。
+    // ※色（colorBands）は編集画面の editor.threshold で設定するのでこの仕組みは通らない。
+    const pendingRef = useRef({}); // { linePoints? }
 
     // 最新の options / setOptions を effect から stale なく参照するためのミラー
     const optionsRef = useRef(options);
@@ -901,48 +798,15 @@ function LinkLine({ mode }) {
         }
     }, [opts.linePoints]);
 
-    // 色設定 3 オプションも同様（echo 消し込み・外部変更でドラフト破棄）
-    useEffect(() => {
-        const pairs = [
-            ['colorBands', opts.colorBands, lastColorRef.current.bands],
-            ['colorMatches', opts.colorMatches, lastColorRef.current.matches],
-            ['colorMethod', opts.colorMethod, lastColorRef.current.method],
-        ];
-        let external = false;
-        for (const [key, val, last] of pairs) {
-            const incoming = typeof val === 'string' ? val : '';
-            if (pendingRef.current[key] !== undefined && incoming === pendingRef.current[key]) {
-                delete pendingRef.current[key];
-            }
-            if (last !== null && incoming !== last) external = true;
-        }
-        if (external) {
-            setColorDraft(null);
-            delete pendingRef.current.colorBands;
-            delete pendingRef.current.colorMatches;
-            delete pendingRef.current.colorMethod;
-            lastColorRef.current = { bands: null, matches: null, method: null };
-        }
-    }, [opts.colorBands, opts.colorMatches, opts.colorMethod]);
-
     // 表示モードでの線編集トグル（編集モード中は iframe への入力がホストに遮断されるため、
-    // 線のドラッグ編集・色設定は表示モードで行う）
+    // 線のドラッグ編集は表示モードで行う）
     const [unlocked, setUnlocked] = useState(false);
     const lineEditActive = !isEdit && unlocked && opts.allowViewEdit;
-
-    // 動的色設定パネル（標準の dynamicColor 相当を viz 内で再現）
-    // colorDraft = { method: 'range'|'match', bands: [...], matches: [{key,color}] } | null
-    const [colorEditorOpen, setColorEditorOpen] = useState(false);
-    const [colorDraft, setColorDraft] = useState(null);
-    const [paletteDark, setPaletteDark] = useState(true); // プリセットパレットのダーク/ライト
-    const [rampIdx, setRampIdx] = useState(0); // 選択中ランプ（0=赤→緑,1=緑→赤,2=青）
-    const [rampMenuOpen, setRampMenuOpen] = useState(false);
 
     // モードが切り替わったら編集 UI を閉じる。ドラフトは破棄しない（表示モードの変更を
     // 編集モードへ持ち越し、下の flush effect で確定させるため）
     useEffect(() => {
         setUnlocked(false);
-        setColorEditorOpen(false);
     }, [isEdit]);
 
     // ★編集モードに入った瞬間、表示モードで行った未確定の変更（pending）を setOptions で再送する。
@@ -957,11 +821,6 @@ function LinkLine({ mode }) {
         const pend = pendingRef.current;
         if (pend.linePoints !== undefined && pend.linePoints !== (typeof raw.linePoints === 'string' ? raw.linePoints : '')) {
             patch.linePoints = pend.linePoints;
-        }
-        for (const key of ['colorBands', 'colorMatches', 'colorMethod']) {
-            if (pend[key] !== undefined && pend[key] !== (typeof raw[key] === 'string' ? raw[key] : '')) {
-                patch[key] = pend[key];
-            }
         }
         if (Object.keys(patch).length > 0 && typeof setOptionsRef.current === 'function') {
             setOptionsRef.current({ ...raw, ...patch });
@@ -1059,99 +918,14 @@ function LinkLine({ mode }) {
         }
     }, [setOptions, options]);
 
-    // --- 動的色設定パネルの操作（変更は即 setOptions で保存） ---
-    // 現在の色設定（ドラフトが無ければ options から構築）
-    const buildColorState = useCallback(
-        () => ({
-            method: opts.colorMethod,
-            bands: parseColorBands(opts.colorBands) || bandsFromFixedThresholds(opts),
-            matches: parseColorMatches(opts.colorMatches) || [{ key: '', color: '#53a051' }],
-        }),
-        [opts]
-    );
-
-    const saveColor = useCallback(
-        (next) => {
-            const bandsJson = serializeColorBands(next.bands);
-            const matchesJson = serializeColorMatches(next.matches);
-            const method = next.method === 'match' ? 'match' : 'range';
-            lastColorRef.current = { bands: bandsJson, matches: matchesJson, method };
-            pendingRef.current.colorBands = bandsJson;
-            pendingRef.current.colorMatches = matchesJson;
-            pendingRef.current.colorMethod = method;
-            setColorDraft(next);
-            if (typeof setOptions === 'function') {
-                setOptions({
-                    ...(options && typeof options === 'object' ? options : {}),
-                    colorBands: bandsJson,
-                    colorMatches: matchesJson,
-                    colorMethod: method,
-                });
-            }
-        },
-        [setOptions, options]
-    );
-
-    const toggleColorEditor = useCallback(() => {
-        setColorEditorOpen((open) => {
-            if (!open) {
-                setColorDraft((d) => d || buildColorState());
-                setRampMenuOpen(false);
-            }
-            return !open;
-        });
-    }, [buildColorState]);
-
-    // ドラフトを変換して保存（bands は from 降順・null 最後を維持）
-    const colorMutate = useCallback(
-        (fn) => {
-            const cur = colorDraft || buildColorState();
-            const next = fn({
-                method: cur.method,
-                bands: cur.bands.map((b) => ({ ...b })),
-                matches: cur.matches.map((m) => ({ ...m })),
-            });
-            next.bands.sort((a, b) => {
-                if (a.from === null) return 1;
-                if (b.from === null) return -1;
-                return b.from - a.from;
-            });
-            saveColor(next);
-        },
-        [colorDraft, buildColorState, saveColor]
-    );
-
-    const revertColorToDefault = useCallback(() => {
-        lastColorRef.current = { bands: '', matches: '', method: 'range' };
-        pendingRef.current.colorBands = '';
-        pendingRef.current.colorMatches = '';
-        pendingRef.current.colorMethod = 'range';
-        setColorDraft(null);
-        setColorEditorOpen(false);
-        if (typeof setOptions === 'function') {
-            setOptions({
-                ...(options && typeof options === 'object' ? options : {}),
-                colorBands: '',
-                colorMatches: '',
-                colorMethod: 'range',
-            });
-        }
-    }, [setOptions, options]);
-
     // --- 幾何・色の算出 ---
     const { w, h } = dims;
     const pxPts = points.map((p) => ({ x: p.x * w, y: p.y * h }));
     const pathD = roundedPathD(pxPts, opts.cornerRadius);
     const geo = polylineGeometry(pxPts);
-    // 色: ドラフト（パネル編集中）があればそれを優先してライブプレビュー
-    // （ホストが表示モードの setOptions を反映しない環境でも見た目が追従する）
+    // 色: 編集画面の「線の色」（editor.threshold）で設定した範囲バンドから解決する
     const rawValue = extracted.raw;
-    const colorState = colorDraft || {
-        method: opts.colorMethod,
-        bands: parseColorBands(opts.colorBands),
-        matches: parseColorMatches(opts.colorMatches),
-    };
-    const color = resolveLineColor(colorState, value, rawValue, opts);
+    const color = colorForValue(value, opts);
     const lw = opts.lineWidth;
 
     // 端点と全体方向（グラデーション・パイプのハイライトオフセットに使用）
@@ -1168,13 +942,13 @@ function LinkLine({ mode }) {
     // strokePaint は始点→終点の淡いグラデーション（立体感）。lineGradient オフで単色
     const strokePaint = opts.lineGradient ? 'url(#llGrad)' : color;
     const layers = [];
-    if (opts.styleMode === 3) {
+    if (opts.styleMode === 'neon') {
         // ネオン発光: ガウスぼかしのハロー2層 + 本体 + 明るい芯
         layers.push({ key: 'halo1', w: lw * 2.6, c: withAlpha(color, 0.5), filter: 'url(#llBlurWide)', opacity: 0.55 });
         layers.push({ key: 'halo2', w: lw * 1.35, c: withAlpha(color, 0.85), filter: 'url(#llBlurTight)', opacity: 0.8 });
         layers.push({ key: 'main', w: lw, c: strokePaint, main: true });
         layers.push({ key: 'core', w: Math.max(1, lw * 0.34), c: mixColor(color, '#ffffff', 0.65), dashed: true });
-    } else if (opts.styleMode === 4) {
+    } else if (opts.styleMode === 'pipe') {
         // 立体パイプ: 暗い縁 + 本体 + 上側に寄せたスペキュラハイライト
         layers.push({ key: 'edge', w: lw * 1.45, c: mixColor(color, '#000000', 0.5) });
         layers.push({ key: 'main', w: lw, c: strokePaint, main: true });
@@ -1186,7 +960,7 @@ function LinkLine({ mode }) {
             opacity: 0.85,
             offsetPerp: lw * 0.22,
         });
-    } else if (opts.styleMode === 2) {
+    } else if (opts.styleMode === 'shadow') {
         // ソフトシャドウ
         layers.push({ key: 'main', w: lw, c: strokePaint, main: true, shadow: true });
     } else {
@@ -1227,7 +1001,6 @@ function LinkLine({ mode }) {
     const chromeBg = mode === 'dark' ? 'rgba(13,16,32,0.85)' : 'rgba(255,255,255,0.9)';
     const chromeBorder = mode === 'dark' ? 'rgba(139,147,161,0.5)' : 'rgba(90,100,110,0.4)';
     const handleFill = mode === 'dark' ? '#0e1424' : '#ffffff';
-    const panelBg = mode === 'dark' ? 'rgba(13,16,32,0.97)' : 'rgba(255,255,255,0.98)';
     const chipStyle = {
         padding: '4px 11px',
         fontSize: 11,
@@ -1339,7 +1112,7 @@ function LinkLine({ mode }) {
                     {opts.showEndCaps &&
                         [startPt, ...(opts.arrowHead ? [] : [endPt])].map((p, i) => (
                             <g key={`cap${i}`} data-role="endcap">
-                                {opts.styleMode === 3 && (
+                                {opts.styleMode === 'neon' && (
                                     <circle
                                         cx={p.x}
                                         cy={p.y}
@@ -1509,18 +1282,6 @@ function LinkLine({ mode }) {
                             </div>
                         )}
                         <div
-                            data-role="color-toggle"
-                            onClick={toggleColorEditor}
-                            title="値の範囲→線の色を設定します（標準の動的色設定に相当）"
-                            style={{
-                                ...chipStyle,
-                                border: `1px solid ${colorEditorOpen ? color : chromeBorder}`,
-                                opacity: colorEditorOpen ? 1 : 0.55,
-                            }}
-                        >
-                            🎨 色を設定
-                        </div>
-                        <div
                             data-role="edit-toggle"
                             onClick={() => setUnlocked((v) => !v)}
                             title={
@@ -1557,393 +1318,6 @@ function LinkLine({ mode }) {
                             確定はダッシュボードの「編集」→「保存」
                         </div>
                     )}
-
-                    {/* 動的色設定パネル（標準の動的色設定 UI を再現: 範囲/一致・プリセットパレット） */}
-                    {colorEditorOpen &&
-                        (() => {
-                            const cd = colorDraft || buildColorState();
-                            const ramps = getRamps(paletteDark);
-                            const ramp = ramps[clamp(rampIdx, 0, ramps.length - 1)];
-                            const thresholds = cd.bands.filter((b) => b.from !== null).map((b) => b.from);
-                            const minFrom = thresholds.length ? Math.min(...thresholds) : '';
-                            const seg = (active, left) => ({
-                                flex: 1,
-                                textAlign: 'center',
-                                padding: '5px 0',
-                                fontSize: 11,
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                userSelect: 'none',
-                                border: `1px solid ${active ? '#5c8bff' : chromeBorder}`,
-                                borderRadius: left ? '4px 0 0 4px' : '0 4px 4px 0',
-                                background: active ? withAlpha('#5c8bff', 0.15) : 'transparent',
-                                color: hintColor,
-                                position: 'relative',
-                                zIndex: active ? 1 : 0,
-                                marginLeft: left ? 0 : -1,
-                            });
-                            const swatchStyle = {
-                                width: 28,
-                                height: 22,
-                                padding: 0,
-                                border: `1px solid ${chromeBorder}`,
-                                borderRadius: 4,
-                                background: 'transparent',
-                                cursor: 'pointer',
-                            };
-                            const inputStyle = {
-                                width: 64,
-                                fontSize: 11,
-                                padding: '3px 4px',
-                                borderRadius: 4,
-                                border: `1px solid ${chromeBorder}`,
-                                background: 'transparent',
-                                color: hintColor,
-                            };
-                            const xStyle = { cursor: 'pointer', padding: '0 4px', opacity: 0.8 };
-                            return (
-                                <div
-                                    data-role="color-editor"
-                                    style={{
-                                        position: 'absolute',
-                                        top: 34,
-                                        right: 8,
-                                        width: 252,
-                                        maxHeight: 'calc(100% - 44px)',
-                                        overflowY: 'auto',
-                                        boxSizing: 'border-box',
-                                        padding: 10,
-                                        borderRadius: 8,
-                                        background: panelBg,
-                                        border: `1px solid ${chromeBorder}`,
-                                        color: hintColor,
-                                        fontSize: 11,
-                                        zIndex: 20,
-                                    }}
-                                >
-                                    <div style={{ fontWeight: 700, marginBottom: 8 }}>動的色設定：メジャー値</div>
-
-                                    {/* 方式（範囲 / 一致） */}
-                                    <div style={{ display: 'flex', marginBottom: 10 }}>
-                                        <div
-                                            data-role="method-range"
-                                            onClick={() => colorMutate((d) => ({ ...d, method: 'range' }))}
-                                            style={seg(cd.method === 'range', true)}
-                                        >
-                                            範囲
-                                        </div>
-                                        <div
-                                            data-role="method-match"
-                                            onClick={() => colorMutate((d) => ({ ...d, method: 'match' }))}
-                                            style={seg(cd.method === 'match', false)}
-                                        >
-                                            一致
-                                        </div>
-                                    </div>
-
-                                    {cd.method === 'range' ? (
-                                        <>
-                                            <div style={{ marginBottom: 6 }}>プリセットパレット</div>
-                                            <div style={{ display: 'flex', marginBottom: 8 }}>
-                                                <div
-                                                    data-role="palette-dark"
-                                                    onClick={() => setPaletteDark(true)}
-                                                    style={seg(paletteDark, true)}
-                                                >
-                                                    ダークカラー
-                                                </div>
-                                                <div
-                                                    data-role="palette-light"
-                                                    onClick={() => setPaletteDark(false)}
-                                                    style={seg(!paletteDark, false)}
-                                                >
-                                                    ライトカラー
-                                                </div>
-                                            </div>
-
-                                            {/* パレットバー（クリックで各範囲へ適用）＋ ▾ で他のパレット */}
-                                            <div
-                                                style={{
-                                                    position: 'relative',
-                                                    display: 'flex',
-                                                    alignItems: 'stretch',
-                                                    gap: 4,
-                                                    marginBottom: 8,
-                                                }}
-                                            >
-                                                <div
-                                                    data-role="palette-bar"
-                                                    title="クリックで各範囲に適用"
-                                                    onClick={() =>
-                                                        colorMutate((d) => ({ ...d, bands: applyRampToBands(d.bands, ramp) }))
-                                                    }
-                                                    style={{
-                                                        flex: 1,
-                                                        display: 'flex',
-                                                        border: `1px solid ${chromeBorder}`,
-                                                        borderRadius: 4,
-                                                        overflow: 'hidden',
-                                                        cursor: 'pointer',
-                                                    }}
-                                                >
-                                                    {ramp.map((c, k) => (
-                                                        <div
-                                                            key={`sw${k}`}
-                                                            style={{
-                                                                flex: 1,
-                                                                height: 22,
-                                                                background: c,
-                                                                color: 'rgba(255,255,255,0.9)',
-                                                                fontSize: 10,
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                justifyContent: 'center',
-                                                            }}
-                                                        >
-                                                            {k === 0 ? '↓' : k === ramp.length - 1 ? '↑' : ''}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                                <div
-                                                    data-role="palette-menu-toggle"
-                                                    onClick={() => setRampMenuOpen((v) => !v)}
-                                                    style={{ ...chipStyle, padding: '0 8px', display: 'flex', alignItems: 'center' }}
-                                                >
-                                                    ▾
-                                                </div>
-                                                {rampMenuOpen && (
-                                                    <div
-                                                        data-role="palette-menu"
-                                                        style={{
-                                                            position: 'absolute',
-                                                            top: 26,
-                                                            left: 0,
-                                                            right: 0,
-                                                            background: panelBg,
-                                                            border: `1px solid ${chromeBorder}`,
-                                                            borderRadius: 6,
-                                                            padding: 6,
-                                                            zIndex: 30,
-                                                        }}
-                                                    >
-                                                        {ramps.map((r, ri) => (
-                                                            <div
-                                                                key={`ramp${ri}`}
-                                                                data-role="palette-item"
-                                                                onClick={() => {
-                                                                    setRampIdx(ri);
-                                                                    setRampMenuOpen(false);
-                                                                    colorMutate((d) => ({
-                                                                        ...d,
-                                                                        bands: applyRampToBands(d.bands, r),
-                                                                    }));
-                                                                }}
-                                                                style={{
-                                                                    display: 'flex',
-                                                                    marginBottom: 4,
-                                                                    borderRadius: 3,
-                                                                    overflow: 'hidden',
-                                                                    cursor: 'pointer',
-                                                                    border: `1px solid ${chromeBorder}`,
-                                                                }}
-                                                            >
-                                                                {r.map((c, k) => (
-                                                                    <div key={`c${k}`} style={{ flex: 1, height: 14, background: c }} />
-                                                                ))}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {/* ⇄ 反転・＋範囲の追加 */}
-                                            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                                                <div
-                                                    data-role="band-invert"
-                                                    title="色の並びを反転"
-                                                    onClick={() =>
-                                                        colorMutate((d) => {
-                                                            const colors = d.bands.map((b) => b.color).reverse();
-                                                            return {
-                                                                ...d,
-                                                                bands: d.bands.map((b, k) => ({ ...b, color: colors[k] })),
-                                                            };
-                                                        })
-                                                    }
-                                                    style={{ ...chipStyle, padding: '4px 9px' }}
-                                                >
-                                                    ⇄
-                                                </div>
-                                                <div
-                                                    data-role="band-add"
-                                                    onClick={() =>
-                                                        colorMutate((d) => {
-                                                            const ts = d.bands
-                                                                .filter((x) => x.from !== null)
-                                                                .map((x) => x.from);
-                                                            const top = d.bands.find((x) => x.from !== null);
-                                                            return {
-                                                                ...d,
-                                                                bands: [
-                                                                    ...d.bands,
-                                                                    {
-                                                                        from: ts.length ? Math.max(...ts) + 20 : 50,
-                                                                        color: top ? top.color : ramp[ramp.length - 1],
-                                                                    },
-                                                                ],
-                                                            };
-                                                        })
-                                                    }
-                                                    style={chipStyle}
-                                                >
-                                                    ＋ 範囲の追加
-                                                </div>
-                                            </div>
-
-                                            {/* 範囲行（80 以上 / 60 〜 80 / … / より小さい 20） */}
-                                            {cd.bands.map((b, i) => (
-                                                <div
-                                                    key={`band${i}`}
-                                                    data-role="color-band-row"
-                                                    style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}
-                                                >
-                                                    <input
-                                                        type="color"
-                                                        data-role="band-color"
-                                                        value={b.color}
-                                                        onChange={(e) =>
-                                                            colorMutate((d) => {
-                                                                d.bands[i].color = e.target.value;
-                                                                return d;
-                                                            })
-                                                        }
-                                                        style={swatchStyle}
-                                                    />
-                                                    {b.from === null ? (
-                                                        <span style={{ flex: 1 }}>より小さい {minFrom}</span>
-                                                    ) : (
-                                                        <>
-                                                            <input
-                                                                type="number"
-                                                                data-role="band-from"
-                                                                value={b.from}
-                                                                onChange={(e) => {
-                                                                    const n = parseNum(e.target.value);
-                                                                    if (!Number.isFinite(n)) return;
-                                                                    colorMutate((d) => {
-                                                                        d.bands[i].from = n;
-                                                                        return d;
-                                                                    });
-                                                                }}
-                                                                style={inputStyle}
-                                                            />
-                                                            <span style={{ flex: 1 }}>
-                                                                {i === 0 ? '以上' : `〜 ${cd.bands[i - 1].from}`}
-                                                            </span>
-                                                            <span
-                                                                data-role="band-remove"
-                                                                onClick={() =>
-                                                                    colorMutate((d) => ({
-                                                                        ...d,
-                                                                        bands: d.bands.filter((_, k) => k !== i),
-                                                                    }))
-                                                                }
-                                                                title="この範囲を削除"
-                                                                style={xStyle}
-                                                            >
-                                                                ×
-                                                            </span>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </>
-                                    ) : (
-                                        <>
-                                            {/* 一致行（値の完全一致 → 色） */}
-                                            {cd.matches.map((m, i) => (
-                                                <div
-                                                    key={`match${i}`}
-                                                    data-role="color-match-row"
-                                                    style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}
-                                                >
-                                                    <input
-                                                        type="color"
-                                                        data-role="match-color"
-                                                        value={m.color}
-                                                        onChange={(e) =>
-                                                            colorMutate((d) => {
-                                                                d.matches[i].color = e.target.value;
-                                                                return d;
-                                                            })
-                                                        }
-                                                        style={swatchStyle}
-                                                    />
-                                                    <input
-                                                        type="text"
-                                                        data-role="match-key"
-                                                        value={m.key}
-                                                        placeholder="値（完全一致）"
-                                                        onChange={(e) =>
-                                                            colorMutate((d) => {
-                                                                d.matches[i].key = e.target.value;
-                                                                return d;
-                                                            })
-                                                        }
-                                                        style={{ ...inputStyle, flex: 1, width: 'auto' }}
-                                                    />
-                                                    <span
-                                                        data-role="match-remove"
-                                                        onClick={() =>
-                                                            colorMutate((d) => ({
-                                                                ...d,
-                                                                matches: d.matches.filter((_, k) => k !== i),
-                                                            }))
-                                                        }
-                                                        title="この一致を削除"
-                                                        style={xStyle}
-                                                    >
-                                                        ×
-                                                    </span>
-                                                </div>
-                                            ))}
-                                            <div
-                                                data-role="match-add"
-                                                onClick={() =>
-                                                    colorMutate((d) => ({
-                                                        ...d,
-                                                        matches: [...d.matches, { key: '', color: ramp[0] }],
-                                                    }))
-                                                }
-                                                style={{ ...chipStyle, display: 'inline-block', marginTop: 2 }}
-                                            >
-                                                ＋ 一致の追加
-                                            </div>
-                                            <div style={{ marginTop: 6, fontSize: 9.5, opacity: 0.7 }}>
-                                                値がいずれにも一致しない場合はグレー表示
-                                            </div>
-                                        </>
-                                    )}
-
-                                    <div
-                                        style={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center',
-                                            marginTop: 10,
-                                        }}
-                                    >
-                                        <div data-role="band-revert" onClick={revertColorToDefault} style={{ ...chipStyle, opacity: 0.8 }}>
-                                            既定に戻す
-                                        </div>
-                                        <span style={{ opacity: 0.55, fontSize: 9.5 }}>v{VIZ_VERSION}</span>
-                                    </div>
-                                    <div style={{ marginTop: 8, fontSize: 9.5, opacity: 0.7, lineHeight: 1.5 }}>
-                                        変更は即時反映。確定はダッシュボードの「編集」→「保存」。
-                                    </div>
-                                </div>
-                            );
-                        })()}
                 </>
             )}
 
@@ -1963,7 +1337,7 @@ function LinkLine({ mode }) {
                         userSelect: 'none',
                     }}
                 >
-                    線の形・色の範囲は表示画面の「✎ 線を編集」「🎨 色を設定」で調整します（編集モード中はドラッグ不可） v{VIZ_VERSION}
+                    線の形は表示画面の「✎ 線を編集」で調整します（編集モード中はドラッグ不可）。色は右パネルの「線の色」で設定 v{VIZ_VERSION}
                 </div>
             )}
 
@@ -1974,47 +1348,6 @@ function LinkLine({ mode }) {
                 </div>
             )}
 
-            {/* デバッグ */}
-            {opts.debug && (
-                <pre
-                    data-role="debug"
-                    style={{
-                        position: 'absolute',
-                        left: 4,
-                        top: 4,
-                        maxWidth: '95%',
-                        maxHeight: '90%',
-                        overflow: 'auto',
-                        margin: 0,
-                        padding: 6,
-                        fontSize: 9,
-                        lineHeight: 1.3,
-                        background: chromeBg,
-                        color: hintColor,
-                        border: `1px solid ${chromeBorder}`,
-                        borderRadius: 6,
-                        zIndex: 20,
-                    }}
-                >
-                    {JSON.stringify(
-                        {
-                            version: VIZ_VERSION,
-                            fields: fieldNames,
-                            valIdx: extracted.valIdx,
-                            value,
-                            rawValue,
-                            color,
-                            colorState,
-                            points,
-                            mode: modeApi?.mode,
-                            options,
-                            normalized: opts,
-                        },
-                        null,
-                        1
-                    )}
-                </pre>
-            )}
         </div>
     );
 }

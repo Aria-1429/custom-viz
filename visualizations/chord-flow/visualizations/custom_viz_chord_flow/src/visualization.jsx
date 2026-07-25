@@ -77,7 +77,6 @@ const DEFAULTS = {
     showHeader: true, // 上部サマリー
     highlightOnHover: true, // ホバーで関連フローをハイライト
     clickToFocus: true, // クリックで選択をロック（再クリック/背景クリックで解除）
-    debug: false, // options の生値を出す診断オーバーレイ
 };
 
 // エンティティのカテゴリカルパレット（ライト/ダーク両テーマで視認できる12色）
@@ -172,7 +171,6 @@ function normalizeOptions(raw) {
         showHeader: bool('showHeader'),
         highlightOnHover: bool('highlightOnHover'),
         clickToFocus: bool('clickToFocus'),
-        debug: bool('debug'),
     };
 }
 
@@ -1404,29 +1402,6 @@ function ChordFlow({ mode }) {
                 </div>
             )}
 
-            {/* 診断オーバーレイ（options の生値を確認する。dynamicColor 事件の教訓） */}
-            {opts.debug && (
-                <pre
-                    style={{
-                        position: 'absolute',
-                        right: 4,
-                        bottom: 4,
-                        maxWidth: '60%',
-                        maxHeight: '60%',
-                        overflow: 'auto',
-                        margin: 0,
-                        padding: 8,
-                        fontSize: 10,
-                        background: colors.tooltipBg,
-                        border: `1px solid ${colors.tooltipBorder}`,
-                        borderRadius: 6,
-                        color: colors.text,
-                        zIndex: 20,
-                    }}
-                >
-                    {JSON.stringify({ options, normalized: opts }, null, 2)}
-                </pre>
-            )}
         </div>
     );
 }

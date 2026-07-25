@@ -320,11 +320,12 @@ console.log('\n[12] guards');
     check('recovers after guard', bars().length === 5, `got ${bars().length}`);
 }
 
-// ---- 13. debug オーバーレイ ----------------------------------------------------
-console.log('\n[13] debug overlay');
+// ---- 13. debug オプションは廃止済み ---------------------------------------------
+console.log('\n[13] debug option removed');
 {
     await setOpts({ animate: false, debug: true });
-    check('debug dump visible', doc.body.textContent.includes('"normalized"'));
+    check('no debug overlay even with debug:true', !doc.body.textContent.includes('"normalized"'));
+    check('chart still renders', doc.querySelectorAll('rect[data-role="wf-bar"]').length > 0);
     await setOpts({ animate: false });
 }
 

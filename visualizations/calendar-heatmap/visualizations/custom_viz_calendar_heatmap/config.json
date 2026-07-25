@@ -37,8 +37,7 @@
       "showMonthLabels": { "type": "boolean", "default": true },
       "showWeekdayLabels": { "type": "boolean", "default": true },
       "showLegend": { "type": "boolean", "default": true },
-      "glow": { "type": "boolean", "default": false },
-      "debug": { "type": "boolean", "default": false }
+      "glow": { "type": "boolean", "default": false }
     },
     "editorConfig": [
       {
@@ -83,12 +82,6 @@
           [{ "label": "月ラベルを表示", "editor": "editor.checkbox", "option": "showMonthLabels" }],
           [{ "label": "曜日ラベルを表示", "editor": "editor.checkbox", "option": "showWeekdayLabels" }],
           [{ "label": "凡例を表示", "editor": "editor.checkbox", "option": "showLegend" }]
-        ]
-      },
-      {
-        "label": "デバッグ",
-        "layout": [
-          [{ "label": "options 診断オーバーレイを表示", "editor": "editor.checkbox", "option": "debug" }]
         ]
       }
     ]

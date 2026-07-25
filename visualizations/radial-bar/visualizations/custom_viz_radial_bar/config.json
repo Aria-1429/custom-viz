@@ -28,12 +28,13 @@
       "highColor": { "type": "string", "default": "#38bdf8" },
       "useMidColor": { "type": "boolean", "default": true },
       "reverse": { "type": "boolean", "default": false },
-      "color1": { "type": "string", "default": "#38bdf8" },
-      "color2": { "type": "string", "default": "#4f7bf0" },
-      "color3": { "type": "string", "default": "#6366f1" },
-      "color4": { "type": "string", "default": "#7c3aed" },
-      "color5": { "type": "string", "default": "#a855f7" },
-      "color6": { "type": "string", "default": "#ec4899" },
+      "seriesColors": {
+        "default": ["#38bdf8", "#4f7bf0", "#6366f1", "#7c3aed", "#a855f7", "#ec4899"],
+        "anyOf": [
+          { "type": "array", "items": { "type": "string" } },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      },
       "maxBars": { "type": "number", "default": 12 },
       "gapDeg": { "type": "number", "default": 4 },
       "innerRadiusPct": { "type": "number", "default": 34 },
@@ -90,12 +91,7 @@
       {
         "label": "色（カテゴリ別・値ベースがOFFのとき）",
         "layout": [
-          [{ "label": "バー 1", "editor": "editor.color", "option": "color1" }],
-          [{ "label": "バー 2", "editor": "editor.color", "option": "color2" }],
-          [{ "label": "バー 3", "editor": "editor.color", "option": "color3" }],
-          [{ "label": "バー 4", "editor": "editor.color", "option": "color4" }],
-          [{ "label": "バー 5", "editor": "editor.color", "option": "color5" }],
-          [{ "label": "バー 6", "editor": "editor.color", "option": "color6" }]
+          [{ "label": "バーの色", "editor": "editor.seriesColors", "option": "seriesColors" }]
         ]
       }
     ]

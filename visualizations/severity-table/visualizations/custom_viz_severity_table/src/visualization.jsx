@@ -14,13 +14,16 @@ import chartIcon from './assets/ChartColumnSquare.svg';
 // -----------------------------------------------------------------------------
 // 重要度(severity)の定義
 //   - severity 系フィールドの値をキーに色分けする
-//   - 数値(1..5 や CVSS 等)も閾値でレベルへマッピングする
+//   - 数値(1..5 や CVSS 等)もバンド(editor.threshold)で色分けする
 //   - 未定義の値は通常のテキストとして表示される(安全側にフォールバック)
+//
+// ★色は「値の範囲と色」(severityBands) ただ一つが決める。
+//   固定 5 レベルの色オプション(criticalColor 等)は廃止した。
+//   critical/high/... という名前の知識は「並び順(ソート・色の割り当て順)」と
+//   「日本語ラベル」にのみ使う。データ側の深刻度が 5 種でなくても、
+//   P1/P2/P3 や 緊急/注意 のような独自の値でも、そのまま扱える。
 // -----------------------------------------------------------------------------
-// レベルは表示順(重大→情報)。summary の並び・ソート優先度もこの順に従う。
-const SEVERITY_LEVELS = ['critical', 'high', 'medium', 'low', 'info'];
-
-// レベル -> ソート優先度(小さいほど上位)
+// 既知レベル -> ソート優先度(小さいほど上位)。表示順・色の割り当て順もこれに従う。
 const SEVERITY_RANK = {
     critical: 0,
     high: 1,
@@ -29,6 +32,10 @@ const SEVERITY_RANK = {
     info: 4,
     informational: 4,
 };
+
+// 未知(エイリアス表に無い)の深刻度に与える基準ランク。
+// 既知レベルより後ろ(＝低い深刻度側)に並べるが、値の無い行(=99)より前に置く。
+const UNKNOWN_RANK_BASE = 50;
 
 // 文字列値 -> 正規レベル(エイリアス吸収)
 const SEVERITY_ALIASES = {
@@ -61,6 +68,161 @@ const SEVERITY_FIELD_NAMES = ['severity', 'sev', 'priority', 'urgency', 'level',
 // 等幅数字にする列(時刻・時間系・数値系)
 const TIME_FIELD_PATTERN = /(^_?time$|time|date|count|total|score|_num$)/i;
 
+// 既定バンドを組み立てるための基準色(重大→情報)。既定値の見た目を従来と揃えるためだけに使う。
+const DEFAULT_LEVEL_COLORS = {
+    critical: '#ff5c3d',
+    high: '#ffab2e',
+    medium: '#f2c14b',
+    low: '#4dcf6e',
+    info: '#4fa8f0',
+};
+
+// -----------------------------------------------------------------------------
+// 数値深刻度のバンド(editor.threshold)
+//   editor.threshold は [{from, to, value}] を生で届ける(value は色文字列)。
+//   既定値は旧実装の閾値(>=4 重大 / >=3 高 / >=2 中 / >=1 低 / それ未満 情報)を
+//   そのまま再現する。並びは昇順(低い値→高い値)。
+// -----------------------------------------------------------------------------
+const DEFAULT_SEVERITY_BANDS = [
+    { from: 0, to: 1, value: DEFAULT_LEVEL_COLORS.info },
+    { from: 1, to: 2, value: DEFAULT_LEVEL_COLORS.low },
+    { from: 2, to: 3, value: DEFAULT_LEVEL_COLORS.medium },
+    { from: 3, to: 4, value: DEFAULT_LEVEL_COLORS.high },
+    { from: 4, to: 5, value: DEFAULT_LEVEL_COLORS.critical },
+];
+
+// 数値らしきものを取り出す(null/undefined は開区間を意味するのでそのまま返す)
+function bandBound(v) {
+    if (v === null || v === undefined || v === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+}
+
+// -----------------------------------------------------------------------------
+// バンド配列の正規化(防御的)
+//   - 配列でない / 空 / 全滅 → 既定バンドへフォールバック
+//   - from/to は null(開区間)を許容し、-Infinity / +Infinity に展開する
+//   - from > to は入れ替える。色が不正な行は捨てる
+//   - 最後に from 昇順へソートする(未ソートで届いても正しく判定できるように)
+// -----------------------------------------------------------------------------
+function normalizeBands(raw) {
+    if (!Array.isArray(raw)) return DEFAULT_SEVERITY_BANDS;
+    const out = [];
+    raw.forEach((b) => {
+        if (!b || typeof b !== 'object') return;
+        const color = asColor(b.value, null);
+        if (!color) return;
+        let lo = bandBound(b.from);
+        let hi = bandBound(b.to);
+        // 開区間(openRanges)は ±Infinity として扱う
+        if (lo === null) lo = -Infinity;
+        if (hi === null) hi = Infinity;
+        if (lo > hi) {
+            const t = lo;
+            lo = hi;
+            hi = t;
+        }
+        out.push({ from: lo, to: hi, value: color });
+    });
+    if (out.length === 0) return DEFAULT_SEVERITY_BANDS;
+    // from 昇順(同値なら to 昇順)。重複・重なりがあっても後段で決定的に選べる
+    out.sort((a, b) => (a.from !== b.from ? a.from - b.from : a.to - b.to));
+    return out;
+}
+
+// -----------------------------------------------------------------------------
+// 文字列の深刻度 -> 色の割り当て(データ駆動)
+//
+//   固定 5 色を廃止したため、文字列の深刻度もユーザー設定の severityBands から
+//   色を取る。方式は「ランク順のサンプリング」:
+//     ① データに実際に出てくる深刻度(正規化済みキー)を重複なく集める
+//     ② 深刻度の高い順に並べる
+//        - 既知エイリアス(critical/warn/error/…)は SEVERITY_RANK 順
+//        - 未知の値(P1 / 緊急 / …)は既知より後ろに置き、初出順で安定させる
+//     ③ バンド色を「高い範囲 → 低い範囲」の順に並べ、②の並びへ順に割り当てる
+//        深刻度の種類数とバンド数が食い違っても比例配分で必ず色が付く
+//
+//   これにより「色の設定は severityBands 一つだけ」に統一され、
+//   深刻度の段階数が 5 でなくても、値が未知の文字列でも破綻しない。
+// -----------------------------------------------------------------------------
+
+// 文字列 -> 正規キー。既知ならエイリアス解決した正規レベル名、未知なら小文字の生値。
+function severityKeyOf(text) {
+    const key = String(text).trim().toLowerCase();
+    if (key === '') return null;
+    return SEVERITY_ALIASES[key] || key;
+}
+
+// 正規キーのソート優先度(小さいほど重大)。未知は既知の後ろ。
+function severityKeyRank(key) {
+    const known = SEVERITY_RANK[key];
+    return known === undefined ? UNKNOWN_RANK_BASE : known;
+}
+
+// バンド色を「高い範囲 → 低い範囲」の順に取り出す(重複色は保持する)。
+// bands は from 昇順に正規化済みなので、逆順にすれば重大側が先頭になる。
+function bandColorsHighToLow(bands) {
+    const colors = bands.map((b) => b.value).reverse();
+    return colors.length > 0 ? colors : DEFAULT_SEVERITY_BANDS.map((b) => b.value).reverse();
+}
+
+// 出現した深刻度キー -> 色 の対応表を作る
+//   keysInOrder: 深刻度の高い順に並んだ正規キーの配列
+//   colors:      高い順に並んだバンド色
+function buildStringColorMap(keysInOrder, colors) {
+    const map = new Map();
+    const n = keysInOrder.length;
+    const m = colors.length;
+    if (n === 0 || m === 0) return map;
+    keysInOrder.forEach((key, i) => {
+        // 比例配分。n<=m なら色の上位から順に、n>m なら色を引き伸ばして割り当てる。
+        const idx = n === 1 ? 0 : Math.min(m - 1, Math.round((i * (m - 1)) / (n - 1)));
+        map.set(key, colors[idx]);
+    });
+    return map;
+}
+
+// 行データから「出現した深刻度キーの高い順の配列」を作る
+function collectSeverityKeys(rows, severityIndex) {
+    if (severityIndex < 0) return [];
+    const seen = new Map(); // key -> 初出インデックス
+    rows.forEach((row, i) => {
+        const key = severityKeyOf(cellToText(Array.isArray(row) ? row[severityIndex] : undefined));
+        if (key && !seen.has(key)) seen.set(key, i);
+    });
+    return [...seen.keys()].sort((a, b) => {
+        const ra = severityKeyRank(a);
+        const rb = severityKeyRank(b);
+        if (ra !== rb) return ra - rb;
+        // 同ランク(未知同士など)は初出順 → 決定的な色割り当てになる
+        return seen.get(a) - seen.get(b);
+    });
+}
+
+// 数値をバンドに当てる。返り値は bands のインデックス(該当なしは -1)
+//   - 区間は [from, to) 半開。ただし最大バンドの上端のみ閉区間として扱う
+//     (旧実装で 5 が「重大」になったのと同じにするため)
+//   - 重なりがある場合は「最も高い範囲」を優先(降順に見て最初に当たったもの)
+function matchBandIndex(num, bands) {
+    let best = -1;
+    for (let i = bands.length - 1; i >= 0; i -= 1) {
+        const b = bands[i];
+        const isTopBand = i === bands.length - 1;
+        const inRange = num >= b.from && (isTopBand ? num <= b.to : num < b.to);
+        if (inRange) {
+            best = i;
+            break;
+        }
+    }
+    if (best >= 0) return best;
+    // どのバンドにも当たらない: 範囲外は最も近い端のバンドへ丸める
+    const first = bands[0];
+    const last = bands[bands.length - 1];
+    if (num < first.from) return 0;
+    if (num > last.to) return bands.length - 1;
+    return -1;
+}
+
 // -----------------------------------------------------------------------------
 // オプション既定値と正規化(未設定・型不一致に耐える)
 // -----------------------------------------------------------------------------
@@ -68,18 +230,9 @@ const DEFAULT_OPTIONS = {
     severityField: '', // columnSelector(未指定なら自動判定)
     sortBySeverity: true, // 重大度でソート
     maxRows: 200, // 最大表示行(0=無制限)
-    // 5レベルの色(重大→情報)
-    criticalColor: '#ff5c3d',
-    highColor: '#ffab2e',
-    mediumColor: '#f2c14b',
-    lowColor: '#4dcf6e',
-    infoColor: '#4fa8f0',
-    // 数値 severity を使うか / その閾値(値 >= threshold で該当レベル)
+    // 数値 severity を使うか / 色を決める唯一の設定(editor.threshold)
     numericSeverity: false,
-    criticalThreshold: 4,
-    highThreshold: 3,
-    mediumThreshold: 2,
-    lowThreshold: 1,
+    severityBands: DEFAULT_SEVERITY_BANDS,
     // 表示スタイル
     cellStyle: 'pill', // pill | dot | text | bar
     rowBar: true, // 行頭に重大度カラーバー
@@ -88,7 +241,6 @@ const DEFAULT_OPTIONS = {
     showSummary: true, // 上部の件数サマリ
     showTitle: true, // タイトル表示
     title: '', // 空ならデフォルト文言
-    debug: false,
 };
 
 function clampInt(v, lo, hi, fallback) {
@@ -120,24 +272,12 @@ function normalizeOptions(raw) {
         severityField: typeof o.severityField === 'string' ? o.severityField : d.severityField,
         sortBySeverity: asBool(o.sortBySeverity, d.sortBySeverity),
         maxRows: clampInt(o.maxRows, 0, 100000, d.maxRows),
-        criticalColor: asColor(o.criticalColor, d.criticalColor),
-        highColor: asColor(o.highColor, d.highColor),
-        mediumColor: asColor(o.mediumColor, d.mediumColor),
-        lowColor: asColor(o.lowColor, d.lowColor),
-        infoColor: asColor(o.infoColor, d.infoColor),
         numericSeverity: asBool(o.numericSeverity, d.numericSeverity),
-        criticalThreshold: Number.isFinite(Number(o.criticalThreshold))
-            ? Number(o.criticalThreshold)
-            : d.criticalThreshold,
-        highThreshold: Number.isFinite(Number(o.highThreshold))
-            ? Number(o.highThreshold)
-            : d.highThreshold,
-        mediumThreshold: Number.isFinite(Number(o.mediumThreshold))
-            ? Number(o.mediumThreshold)
-            : d.mediumThreshold,
-        lowThreshold: Number.isFinite(Number(o.lowThreshold))
-            ? Number(o.lowThreshold)
-            : d.lowThreshold,
+        // ★旧キー(criticalThreshold / criticalColor 等)は一切読まない。
+        //   既定値と同じ値が options に載らない仕様のため、旧キーへフォールバックすると
+        //   「既定値を選んだときだけ直らない」不具合になる。
+        //   旧ダッシュボードの色・しきい値は既定バンドに戻る(README 参照)。
+        severityBands: normalizeBands(o.severityBands),
         cellStyle,
         rowBar: asBool(o.rowBar, d.rowBar),
         zebra: asBool(o.zebra, d.zebra),
@@ -145,29 +285,10 @@ function normalizeOptions(raw) {
         showSummary: asBool(o.showSummary, d.showSummary),
         showTitle: asBool(o.showTitle, d.showTitle),
         title: typeof o.title === 'string' ? o.title : d.title,
-        debug: asBool(o.debug, d.debug),
     };
 }
 
-// レベル -> 色(オプションから引く)
-function levelColor(level, opts) {
-    switch (level) {
-        case 'critical':
-            return opts.criticalColor;
-        case 'high':
-            return opts.highColor;
-        case 'medium':
-            return opts.mediumColor;
-        case 'low':
-            return opts.lowColor;
-        case 'info':
-            return opts.infoColor;
-        default:
-            return null;
-    }
-}
-
-// 表示ラベル(日本語)
+// 表示ラベル(日本語)。既知の 5 レベルのみ。未知の値は生の文字列をそのまま出す。
 const LEVEL_LABEL = {
     critical: '重大',
     high: '高',
@@ -175,6 +296,12 @@ const LEVEL_LABEL = {
     low: '低',
     info: '情報',
 };
+
+// 正規キー -> サマリ等の表示ラベル。未知キーは生値(元の表記)を使う
+function severityLabel(key, rawSample) {
+    if (LEVEL_LABEL[key]) return LEVEL_LABEL[key];
+    return rawSample || String(key);
+}
 
 // -----------------------------------------------------------------------------
 // テーマ別パレット
@@ -440,33 +567,55 @@ function autoSeverityIndex(fieldNames) {
     return best;
 }
 
-// 値 -> 正規レベル(文字列エイリアス or 数値閾値)
-function valueToLevel(raw, opts) {
+// 値 -> { key, label, color }
+//   - numericSeverity ON かつ数値 → バンド(editor.threshold)に当てて、
+//     ★そのバンドの色をそのまま使う(固定レベル名を経由しない)
+//   - それ以外は文字列 → 出現順で作った色マップ(stringColors)から引く。
+//     未知の文字列(P1 / 緊急 等)も色マップに載っているので必ず色が付く
+//   - 判定不能なら null(プレーンテキスト表示)
+//
+//   key   … 集計・ソートに使う正規キー(数値パスはバンド番号 'band:N')
+//   label … サマリ表示用のラベル
+//   color … 実際に塗る色
+function valueToSeverity(raw, opts, stringColors) {
     const text = cellToText(raw).trim();
     if (text === '') return null;
 
-    if (opts.numericSeverity) {
-        const num = Number(text.replace(/,/g, ''));
-        if (Number.isFinite(num)) {
-            if (num >= opts.criticalThreshold) return 'critical';
-            if (num >= opts.highThreshold) return 'high';
-            if (num >= opts.mediumThreshold) return 'medium';
-            if (num >= opts.lowThreshold) return 'low';
-            return 'info';
-        }
-    }
-    const key = text.toLowerCase();
-    if (SEVERITY_ALIASES[key]) return SEVERITY_ALIASES[key];
-    // 数値が混ざっている場合のフォールバック(numericSeverity off でも 1..5 を拾う)
     const num = Number(text.replace(/,/g, ''));
-    if (Number.isFinite(num)) {
-        if (num >= 4) return 'critical';
-        if (num >= 3) return 'high';
-        if (num >= 2) return 'medium';
-        if (num >= 1) return 'low';
-        return 'info';
+
+    if (opts.numericSeverity && Number.isFinite(num)) {
+        const bands = opts.severityBands;
+        const idx = matchBandIndex(num, bands);
+        if (idx < 0) return null;
+        const b = bands[idx];
+        return {
+            key: `band:${idx}`,
+            label: bandRangeLabel(b),
+            color: b.value,
+            rank: bands.length - 1 - idx, // 高い範囲ほど上位(0が最重大)
+        };
     }
-    return null;
+
+    const key = severityKeyOf(text);
+    if (!key) return null;
+    const color = stringColors.get(key);
+    if (!color) return null;
+    return {
+        key,
+        label: severityLabel(key, text),
+        color,
+        rank: severityKeyRank(key),
+    };
+}
+
+// バンドの範囲を人が読めるラベルにする(開区間は ≦ / ≧ で表す)
+function bandRangeLabel(b) {
+    const lo = Number.isFinite(b.from) ? b.from : null;
+    const hi = Number.isFinite(b.to) ? b.to : null;
+    if (lo === null && hi === null) return 'すべて';
+    if (lo === null) return `< ${hi}`;
+    if (hi === null) return `≧ ${lo}`;
+    return `${lo}–${hi}`;
 }
 
 // -----------------------------------------------------------------------------
@@ -492,10 +641,11 @@ function NoDataState() {
 }
 
 // severity セルの描画(スタイルはオプションで切替)
-function SeverityCell({ rawValue, level, opts, density }) {
+//   color は severityBands 由来(数値パス=当たったバンドの色 / 文字列パス=色マップの色)
+//   isTop は「そのデータ内で最も重大」なときだけ true(アイコン表示用)
+function SeverityCell({ rawValue, color, isTop, opts, density }) {
     const text = cellToText(rawValue);
-    const color = levelColor(level, opts);
-    if (!level || !color) return <>{text}</>;
+    if (!color) return <>{text}</>;
 
     // density 未指定(通常サイズ)は従来の pill 値にフォールバック
     const pillFont = density ? density.pillFont : 12;
@@ -556,16 +706,17 @@ function SeverityCell({ rawValue, level, opts, density }) {
                 whiteSpace: 'nowrap',
             }}
         >
-            {level === 'critical' ? <CriticalIcon color={color} /> : null}
+            {isTop ? <CriticalIcon color={color} /> : null}
             {text}
         </span>
     );
 }
 
-// 件数サマリ(重大度ごとの件数を上部に表示・データ駆動)
-function SeveritySummary({ counts, opts, palette, density }) {
-    const items = SEVERITY_LEVELS.filter((lv) => counts[lv] > 0);
-    if (items.length === 0) return null;
+// 件数サマリ(深刻度ごとの件数を上部に表示・完全にデータ駆動)
+//   items: [{ key, label, color, count }] を重大度の高い順に受け取る。
+//   5 レベル固定ではないので、P1/P2/P3 でも 緊急/注意 でも、数値バンドでもそのまま出る。
+function SeveritySummary({ items, palette, density }) {
+    if (!items || items.length === 0) return null;
     // density 未指定(通常サイズ)は従来値にフォールバック
     const font = density ? density.summaryFont : 12;
     const gap = density ? density.summaryGap : 8;
@@ -582,11 +733,11 @@ function SeveritySummary({ counts, opts, palette, density }) {
                 minWidth: 0,
             }}
         >
-            {items.map((lv) => {
-                const color = levelColor(lv, opts);
+            {items.map((item) => {
+                const { color } = item;
                 return (
                     <span
-                        key={lv}
+                        key={item.key}
                         style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -608,41 +759,26 @@ function SeveritySummary({ counts, opts, palette, density }) {
                                 flexShrink: 0,
                             }}
                         />
-                        <span style={{ color, fontWeight: 700 }}>{LEVEL_LABEL[lv]}</span>
+                        <span
+                            style={{
+                                color,
+                                fontWeight: 700,
+                                maxWidth: '160px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                            }}
+                            title={item.label}
+                        >
+                            {item.label}
+                        </span>
                         <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                            {counts[lv].toLocaleString()}
+                            {item.count.toLocaleString()}
                         </span>
                     </span>
                 );
             })}
         </div>
-    );
-}
-
-function DebugOverlay({ options, meta }) {
-    return (
-        <pre
-            style={{
-                position: 'absolute',
-                top: 4,
-                right: 4,
-                maxWidth: '46%',
-                maxHeight: '60%',
-                overflow: 'auto',
-                margin: 0,
-                padding: '8px 10px',
-                fontSize: '10px',
-                lineHeight: 1.35,
-                background: 'rgba(0,0,0,0.82)',
-                color: '#7CFC98',
-                border: '1px solid #2a8',
-                borderRadius: '6px',
-                zIndex: 20,
-                whiteSpace: 'pre-wrap',
-            }}
-        >
-            {JSON.stringify({ meta, options }, null, 1)}
-        </pre>
     );
 }
 
@@ -662,24 +798,53 @@ function AlertTable({ fieldNames, rows, severityIndex, colorScheme, opts, width,
     const shownCols = visibleCols || fieldNames.map((_f, i) => i);
     const hiddenCount = fieldNames.length - shownCols.length;
 
-    // 行ごとにレベルを算出 → サマリ集計・ソート・表示制限
-    const prepared = useMemo(() => {
-        const withLevel = rows.map((row, i) => ({
-            row,
-            level: severityIndex >= 0 ? valueToLevel(row[severityIndex], opts) : null,
-            origIndex: i,
-        }));
+    // 文字列の深刻度 -> 色。データに出てくる値をランク順に並べ、バンド色を割り当てる。
+    // numericSeverity ON のときは数値パスが色を直接持つので作らなくてよいが、
+    // 数値に見えない値が混ざったときのために常に用意しておく。
+    const stringColors = useMemo(() => {
+        const keys = collectSeverityKeys(rows, severityIndex);
+        return buildStringColorMap(keys, bandColorsHighToLow(opts.severityBands));
+    }, [rows, severityIndex, opts.severityBands]);
 
-        const counts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
-        withLevel.forEach((r) => {
-            if (r.level && counts[r.level] !== undefined) counts[r.level] += 1;
+    // 行ごとに深刻度を算出 → サマリ集計・ソート・表示制限
+    const prepared = useMemo(() => {
+        const withSev = rows.map((row, i) => {
+            const sev =
+                severityIndex >= 0
+                    ? valueToSeverity(row[severityIndex], opts, stringColors)
+                    : null;
+            return { row, sev, origIndex: i };
         });
 
-        let ordered = withLevel;
+        // サマリ:出現した深刻度をランク順に集計(5 レベル固定ではない)
+        const byKey = new Map();
+        withSev.forEach((r) => {
+            if (!r.sev) return;
+            const cur = byKey.get(r.sev.key);
+            if (cur) {
+                cur.count += 1;
+            } else {
+                byKey.set(r.sev.key, {
+                    key: r.sev.key,
+                    label: r.sev.label,
+                    color: r.sev.color,
+                    rank: r.sev.rank,
+                    count: 1,
+                    firstIndex: r.origIndex,
+                });
+            }
+        });
+        const summaryItems = [...byKey.values()].sort((a, b) =>
+            a.rank !== b.rank ? a.rank - b.rank : a.firstIndex - b.firstIndex
+        );
+        // 最重大キー(pill のアイコン表示に使う)
+        const topKey = summaryItems.length > 0 ? summaryItems[0].key : null;
+
+        let ordered = withSev;
         if (opts.sortBySeverity && severityIndex >= 0) {
-            ordered = [...withLevel].sort((a, b) => {
-                const ra = a.level ? SEVERITY_RANK[a.level] : 99;
-                const rb = b.level ? SEVERITY_RANK[b.level] : 99;
+            ordered = [...withSev].sort((a, b) => {
+                const ra = a.sev ? a.sev.rank : 99;
+                const rb = b.sev ? b.sev.rank : 99;
                 if (ra !== rb) return ra - rb;
                 return a.origIndex - b.origIndex; // 安定ソート(元の順序維持)
             });
@@ -687,8 +852,8 @@ function AlertTable({ fieldNames, rows, severityIndex, colorScheme, opts, width,
 
         const total = ordered.length;
         const limited = opts.maxRows > 0 ? ordered.slice(0, opts.maxRows) : ordered;
-        return { rows: limited, counts, total, shown: limited.length };
-    }, [rows, severityIndex, opts]);
+        return { rows: limited, summaryItems, topKey, total, shown: limited.length };
+    }, [rows, severityIndex, opts, stringColors]);
 
     const rowPadV = `${density.padV}px`;
     const rowPadH = `${density.padH}px`;
@@ -780,19 +945,6 @@ function AlertTable({ fieldNames, rows, severityIndex, colorScheme, opts, width,
     return (
         <div style={containerStyle}>
             <HoverStyle palette={palette} />
-            {opts.debug ? (
-                <DebugOverlay
-                    options={opts}
-                    meta={{
-                        severityIndex,
-                        severityField: fieldNames[severityIndex] ?? null,
-                        total: prepared.total,
-                        shown: prepared.shown,
-                        counts: prepared.counts,
-                    }}
-                />
-            ) : null}
-
             {opts.showTitle ? (
                 <div style={titleRowStyle}>
                     <span style={accentBarStyle} />
@@ -826,8 +978,7 @@ function AlertTable({ fieldNames, rows, severityIndex, colorScheme, opts, width,
 
             {opts.showSummary ? (
                 <SeveritySummary
-                    counts={prepared.counts}
-                    opts={opts}
+                    items={prepared.summaryItems}
                     palette={palette}
                     density={density}
                 />
@@ -882,10 +1033,10 @@ function AlertTable({ fieldNames, rows, severityIndex, colorScheme, opts, width,
                     </thead>
                     <tbody>
                         {prepared.rows.map((item, rowIndex) => {
-                            const { row, level } = item;
+                            const { row, sev } = item;
+                            const rowColor = sev ? sev.color : null;
                             const isLast = rowIndex === prepared.rows.length - 1;
-                            const barColor =
-                                hasRowBar && level ? levelColor(level, opts) : 'transparent';
+                            const barColor = hasRowBar && rowColor ? rowColor : 'transparent';
                             const zebraBg =
                                 opts.zebra && rowIndex % 2 === 1 ? palette.zebraBg : 'transparent';
                             return (
@@ -940,7 +1091,12 @@ function AlertTable({ fieldNames, rows, severityIndex, colorScheme, opts, width,
                                                 {cellIndex === severityIndex ? (
                                                     <SeverityCell
                                                         rawValue={cell}
-                                                        level={level}
+                                                        color={rowColor}
+                                                        isTop={
+                                                            !!sev &&
+                                                            !!prepared.topKey &&
+                                                            sev.key === prepared.topKey
+                                                        }
                                                         opts={opts}
                                                         density={density}
                                                     />

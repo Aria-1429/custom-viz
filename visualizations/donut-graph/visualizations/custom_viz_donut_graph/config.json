@@ -21,12 +21,13 @@
     "optionsSchema": {
       "categoryField": { "type": "string", "default": "" },
       "valueField": { "type": "string", "default": "" },
-      "color1": { "type": "string", "default": "#5b8def" },
-      "color2": { "type": "string", "default": "#2dd4bf" },
-      "color3": { "type": "string", "default": "#f5c518" },
-      "color4": { "type": "string", "default": "#f0912e" },
-      "color5": { "type": "string", "default": "#ef4d6a" },
-      "color6": { "type": "string", "default": "#a78bfa" },
+      "seriesColors": {
+        "default": ["#5b8def", "#2dd4bf", "#f5c518", "#f0912e", "#ef4d6a", "#a78bfa"],
+        "anyOf": [
+          { "type": "array", "items": { "type": "string" } },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      },
       "thickness": { "type": "number", "default": 24 },
       "gap": { "type": "number", "default": 3 },
       "maxSegments": { "type": "number", "default": 6 },
@@ -69,12 +70,7 @@
       {
         "label": "色",
         "layout": [
-          [{ "label": "セグメント 1", "editor": "editor.color", "option": "color1" }],
-          [{ "label": "セグメント 2", "editor": "editor.color", "option": "color2" }],
-          [{ "label": "セグメント 3", "editor": "editor.color", "option": "color3" }],
-          [{ "label": "セグメント 4", "editor": "editor.color", "option": "color4" }],
-          [{ "label": "セグメント 5", "editor": "editor.color", "option": "color5" }],
-          [{ "label": "セグメント 6", "editor": "editor.color", "option": "color6" }]
+          [{ "label": "セグメントの色", "editor": "editor.seriesColors", "option": "seriesColors" }]
         ]
       }
     ]

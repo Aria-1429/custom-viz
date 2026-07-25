@@ -62,7 +62,6 @@ const DEFAULTS = {
     abbreviateValue: false, // 1.5M などの省略表記
     animate: true, // カウントアップアニメーション
 
-    debug: false, // options デバッグ表示
 };
 
 // 選択できるアイコン（24x24 stroke パス。編集モードのピッカーに一覧表示）
@@ -335,7 +334,6 @@ function normalizeOptions(raw) {
         abbreviateValue: bool(o.abbreviateValue, DEFAULTS.abbreviateValue),
         animate: bool(o.animate, DEFAULTS.animate),
 
-        debug: bool(o.debug, DEFAULTS.debug),
     };
 }
 
@@ -1015,44 +1013,6 @@ function KpiTile({ mode }) {
                 </>
             )}
 
-            {/* デバッグ */}
-            {opts.debug && (
-                <pre
-                    style={{
-                        position: 'absolute',
-                        right: 8,
-                        bottom: 8,
-                        maxWidth: '60%',
-                        maxHeight: '60%',
-                        overflow: 'auto',
-                        margin: 0,
-                        padding: 8,
-                        fontSize: 10,
-                        lineHeight: 1.3,
-                        background: pal.panelBg,
-                        color: pal.subText,
-                        border: `1px solid ${pal.panelBorder}`,
-                        borderRadius: 6,
-                        zIndex: 20,
-                    }}
-                >
-                    {JSON.stringify(
-                        {
-                            fields: fieldNames,
-                            labelIdx: series.labelIdx,
-                            valIdx: series.valIdx,
-                            points: series.points.length,
-                            value: series.value,
-                            prev: series.prev,
-                            mode: modeApi?.mode,
-                            options,
-                            normalized: opts,
-                        },
-                        null,
-                        1
-                    )}
-                </pre>
-            )}
         </div>
     );
 }

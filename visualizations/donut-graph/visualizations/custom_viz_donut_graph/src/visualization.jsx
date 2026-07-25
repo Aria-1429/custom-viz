@@ -129,8 +129,8 @@ const MIN_ARC_ABS = 1.5;
 
 // ---------------------------------------------------------------------------
 // オプション正規化：型不一致・範囲外・欠損をすべて安全側へ補正
-// editorConfig は color1..color6 のようにフラットなキーで色を渡すため、
-// それらを配列に組み直す。指定が無いセグメントは既定色にフォールバック。
+// 色は editor.seriesColors が hex 文字列の配列を生で渡してくる。
+// 足りない分・不正な要素は既定色にフォールバックする。
 // ---------------------------------------------------------------------------
 function clampNumber(value, min, max, fallback) {
     const n = Number(value);
@@ -152,17 +152,12 @@ const VALID_VALUE_FORMATS = ['comma', 'compact', 'plain'];
 function normalizeOptions(raw) {
     const o = raw && typeof raw === 'object' ? raw : {};
 
-    // color1..colorN（editorConfig 側）を優先。無ければ配列 colors、さらに無ければ既定色。
-    const colors = [];
-    for (let i = 0; i < DEFAULT_COLORS.length; i += 1) {
-        const flatKey = `color${i + 1}`;
-        let c = pickColor(o, flatKey, null);
-        // 後方互換：配列 colors[] が渡されている場合も拾う
-        if (!c && Array.isArray(o.colors) && isHexColor(o.colors[i])) {
-            c = o.colors[i].trim();
-        }
-        colors.push(c || DEFAULT_COLORS[i]);
-    }
+    // editor.seriesColors は hex 文字列の配列を生で渡してくる。
+    // 要素数はユーザーが増減できるため、既定色より短くても長くても壊れないようにする。
+    const palette = Array.isArray(o.seriesColors) ? o.seriesColors.filter(isHexColor) : [];
+    const colors = palette.length > 0
+        ? palette.map((c) => c.trim())
+        : DEFAULT_COLORS.slice();
 
     const vf = typeof o.valueFormat === 'string' && VALID_VALUE_FORMATS.includes(o.valueFormat.trim())
         ? o.valueFormat.trim()

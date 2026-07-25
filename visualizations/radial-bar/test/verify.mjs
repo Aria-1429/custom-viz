@@ -171,15 +171,32 @@ console.log('\n[2] maxBars=5 → keep top 5');
     check('smallest bar dropped', !doc.body.textContent.includes('MB-AG-T01'), doc.body.textContent.slice(0, 200));
 }
 
-// ---- 3. 値ベース色OFF → カテゴリ別色の反映 ------------------------------------
-console.log('\n[3] useValueColors=false → per-category colors');
+// ---- 3. 値ベース色OFF → カテゴリ別色の反映（editor.seriesColors） ---------------
+console.log('\n[3] useValueColors=false → per-category colors (seriesColors)');
+{
+    state.options = { maxBars: 12, useValueColors: false, seriesColors: ['#ff0000', '#00ff00'] };
+    fire('options', { options: state.options });
+    await sleep(250);
+    const fills = barPaths().map((p) => p.getAttribute('fill'));
+    check('1st palette entry applied to largest bar', fills.includes('#ff0000'), JSON.stringify(fills.slice(0, 3)));
+    check('2nd palette entry applied to 2nd bar', fills.includes('#00ff00'));
+    // パレットがバー数より短くても循環して埋まる（既定色に落ちない）
+    check(
+        'short palette cycles instead of falling back',
+        fills.every((f) => f === '#ff0000' || f === '#00ff00'),
+        JSON.stringify(fills)
+    );
+}
+
+// ---- 3b. 旧 color1..colorN は読まない（既定値はoptionsに載らない罠の回帰） ------
+console.log('\n[3b] legacy color keys must not leak');
 {
     state.options = { maxBars: 12, useValueColors: false, color1: '#ff0000', color2: '#00ff00' };
     fire('options', { options: state.options });
     await sleep(250);
     const fills = barPaths().map((p) => p.getAttribute('fill'));
-    check('color1 applied to largest bar', fills.includes('#ff0000'), JSON.stringify(fills.slice(0, 3)));
-    check('color2 applied to 2nd bar', fills.includes('#00ff00'));
+    check('legacy color1 ignored', !fills.includes('#ff0000'), JSON.stringify(fills));
+    check('falls back to default palette', fills.includes('#38bdf8'), JSON.stringify(fills));
 }
 
 // ---- 4. フィールド選択（columnSelector DOS 文字列） ---------------------------

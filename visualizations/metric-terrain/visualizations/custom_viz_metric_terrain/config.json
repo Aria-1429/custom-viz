@@ -50,8 +50,7 @@
       "showHeader": { "type": "boolean", "default": true },
       "showAxes": { "type": "boolean", "default": true },
       "showLegend": { "type": "boolean", "default": true },
-      "showPeakMarker": { "type": "boolean", "default": true },
-      "debug": { "type": "boolean", "default": false }
+      "showPeakMarker": { "type": "boolean", "default": true }
     },
     "editorConfig": [
       {
@@ -105,12 +104,6 @@
           [{ "label": "軸ラベルを表示", "editor": "editor.checkbox", "option": "showAxes" }],
           [{ "label": "凡例を表示", "editor": "editor.checkbox", "option": "showLegend" }],
           [{ "label": "最高地点にマーカーを表示", "editor": "editor.checkbox", "option": "showPeakMarker" }]
-        ]
-      },
-      {
-        "label": "デバッグ",
-        "layout": [
-          [{ "label": "options 診断オーバーレイを表示", "editor": "editor.checkbox", "option": "debug" }]
         ]
       }
     ]

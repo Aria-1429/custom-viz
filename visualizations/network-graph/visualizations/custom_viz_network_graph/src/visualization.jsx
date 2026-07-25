@@ -59,14 +59,18 @@ const DEFAULTS = {
     highColor: '#ef4d4d',
     useMidColor: true,
     reverse: false,
-    color1: '#7B56DB',
-    color2: '#009CEB',
-    color3: '#00CDAF',
-    color4: '#DD9900',
-    color5: '#FF677B',
-    color6: '#CB2196',
-    debug: false,
 };
+
+// ノードのパレット（editor.seriesColors）。config.json の seriesColors.default と一致させる。
+// ユーザーが色数を増減できるため、消費側は必ず `% length` で循環参照する。
+const DEFAULT_PALETTE = [
+    '#7B56DB', // 紫
+    '#009CEB', // 青
+    '#00CDAF', // ティール
+    '#DD9900', // オレンジ
+    '#FF677B', // ピンク
+    '#CB2196', // マゼンタ
+];
 
 const MAX_LINKS = 800; // レイアウト破綻を防ぐ上限（値の大きい順に残す）
 const MIN_RADIUS = 6; // ノード最小半径 px
@@ -137,12 +141,17 @@ function normalizeOptions(raw) {
         highColor: color('highColor'),
         useMidColor: bool('useMidColor'),
         reverse: bool('reverse'),
-        palette: [
-            color('color1'), color('color2'), color('color3'),
-            color('color4'), color('color5'), color('color6'),
-        ],
-        debug: bool('debug'),
+        // editor.seriesColors は hex 文字列の配列を生で渡してくる。要素数はユーザーが
+        // 増減できるので、不正要素を落としたうえで空なら既定パレットへ倒す。
+        // 旧 color1..color6 へのフォールバックは意図的に行わない（既定値は options に
+        // 載らないため、読み替えると「既定値を選んだときだけ直らない」不具合になる）。
+        palette: paletteOf(o.seriesColors),
     };
+}
+
+function paletteOf(raw) {
+    const list = Array.isArray(raw) ? raw.filter(isHexColor).map((c) => c.trim()) : [];
+    return list.length > 0 ? list : DEFAULT_PALETTE.slice();
 }
 
 // ---------------------------------------------------------------------------
@@ -1206,30 +1215,6 @@ function NetworkGraph({ mode }) {
                     </div>
                 )}
             </div>
-
-            {/* 診断オーバーレイ（options の生値確認。dynamicColor 事件の教訓） */}
-            {opts.debug && (
-                <pre
-                    style={{
-                        position: 'absolute',
-                        right: 4,
-                        bottom: 4,
-                        maxWidth: '60%',
-                        maxHeight: '60%',
-                        overflow: 'auto',
-                        margin: 0,
-                        padding: 8,
-                        fontSize: 10,
-                        background: colors.tooltipBg,
-                        border: `1px solid ${colors.tooltipBorder}`,
-                        borderRadius: 6,
-                        color: colors.text,
-                        zIndex: 20,
-                    }}
-                >
-                    {JSON.stringify({ options, normalized: opts, stats: graph.stats }, null, 2)}
-                </pre>
-            )}
         </div>
     );
 }

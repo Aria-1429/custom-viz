@@ -22,14 +22,13 @@
       "timeField": { "type": "string", "default": "" },
       "categoryField": { "type": "string", "default": "" },
       "valueField": { "type": "string", "default": "" },
-      "color1": { "type": "string", "default": "#3fd66e" },
-      "color2": { "type": "string", "default": "#f0912e" },
-      "color3": { "type": "string", "default": "#ef4d6a" },
-      "color4": { "type": "string", "default": "#5b8def" },
-      "color5": { "type": "string", "default": "#a78bfa" },
-      "color6": { "type": "string", "default": "#2dd4bf" },
-      "color7": { "type": "string", "default": "#f5c518" },
-      "color8": { "type": "string", "default": "#38bdf8" },
+      "seriesColors": {
+        "default": ["#3fd66e", "#f0912e", "#ef4d6a", "#5b8def", "#a78bfa", "#2dd4bf", "#f5c518", "#38bdf8"],
+        "anyOf": [
+          { "type": "array", "items": { "type": "string" } },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      },
       "totalColor": { "type": "string", "default": "#7da6dd" },
       "sparkColor": { "type": "string", "default": "#3d7fd9" },
       "thickness": { "type": "number", "default": 26 },
@@ -45,8 +44,7 @@
       "showSparkline": { "type": "boolean", "default": true },
       "sparkHeight": { "type": "number", "default": 110 },
       "sparkFill": { "type": "boolean", "default": true },
-      "autoFit": { "type": "boolean", "default": true },
-      "debug": { "type": "boolean", "default": false }
+      "autoFit": { "type": "boolean", "default": true }
     },
     "editorConfig": [
       {
@@ -89,22 +87,14 @@
       {
         "label": "色",
         "layout": [
-          [{ "label": "系列 1", "editor": "editor.color", "option": "color1" }],
-          [{ "label": "系列 2", "editor": "editor.color", "option": "color2" }],
-          [{ "label": "系列 3", "editor": "editor.color", "option": "color3" }],
-          [{ "label": "系列 4", "editor": "editor.color", "option": "color4" }],
-          [{ "label": "系列 5", "editor": "editor.color", "option": "color5" }],
-          [{ "label": "系列 6", "editor": "editor.color", "option": "color6" }],
-          [{ "label": "系列 7", "editor": "editor.color", "option": "color7" }],
-          [{ "label": "系列 8", "editor": "editor.color", "option": "color8" }],
+          [{ "label": "系列の色", "editor": "editor.seriesColors", "option": "seriesColors" }],
           [{ "label": "合計行のドット", "editor": "editor.color", "option": "totalColor" }]
         ]
       },
       {
         "label": "表示",
         "layout": [
-          [{ "label": "パネルサイズに自動フィット", "editor": "editor.checkbox", "option": "autoFit" }],
-          [{ "label": "デバッグ情報を表示", "editor": "editor.checkbox", "option": "debug" }]
+          [{ "label": "パネルサイズに自動フィット", "editor": "editor.checkbox", "option": "autoFit" }]
         ]
       }
     ]

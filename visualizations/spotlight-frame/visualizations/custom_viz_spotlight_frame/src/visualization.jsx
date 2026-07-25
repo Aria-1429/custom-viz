@@ -3,7 +3,6 @@ import {
     useDataSources,
     useTheme,
     useOptions,
-    useMode,
 } from '@splunk/dashboard-studio-extension/react';
 import Paragraph from '@splunk/react-ui/Paragraph';
 import WaitSpinner from '@splunk/react-ui/WaitSpinner';
@@ -29,15 +28,28 @@ import './visualization.css';
 //   1列だけのデータは状態値のみの系列として扱う。
 //
 // 状態判定は3モード（判定モード option）:
-//   0 = 自動: 値が数値ならしきい値、文字列なら既知キーワードで判定
-//   1 = 数値しきい値: warn/crit のしきい値で ok/warn/crit を判定
-//   2 = 文字列一致: critical/error/fatal → crit、warn/warning → warn、他 → ok
+//   auto    = 自動: 値が数値なら「値の範囲と色」、文字列なら既知キーワードで判定
+//   numeric = 数値: 「値の範囲と色」（editor.threshold）の帯で判定
+//   string  = 文字列一致: critical/error/fatal → 危険、warn/warning → 警告、他 → 正常
+//
+// 【色の決め方】v1.2.0 で固定3色（okColor/warnColor/critColor）を廃止した。
+//   数値パス : editor.threshold の「値の範囲と色」（colorBands）。帯を何段でも
+//              追加でき、各帯が自分の色を持つ。旧 warnThreshold / critThreshold /
+//              higherIsWorse の3オプションはこれ1つに置き換わった
+//              （降順の帯を作れば「小さいほど悪い」も表現できる）。
+//   文字列パス: editor.seriesColors の statusColors パレット（正常→警告→危険の
+//              深刻度順に上から適用）。数値レンジで表せないカテゴリなので
+//              threshold ではなく順序付きパレットを使う。
 //
 // 表示はコンテナ実寸に自動フィット（ResizeObserver、無い環境は初回計測）。
 // 枠だけ表示（frameOnly）にすると中央を透明化して他パネルへの重ね置きに向く。
 // ---------------------------------------------------------------------------
 
-const VIZ_VERSION = '1.0.0';
+const VIZ_VERSION = '1.2.0';
+
+// 列挙型オプションの許容値（未知値は既定へ丸める。旧バージョンの数値コードは復元しない）
+const MATCH_MODES = ['auto', 'numeric', 'string'];
+const PULSE_MODES = ['none', 'warn', 'crit', 'always'];
 
 // 状態レベル（数値が大きいほど深刻）
 const LV_OK = 0;
@@ -54,18 +66,11 @@ const DEFAULTS = {
     showBadge: true, // 状態バッジを表示
     showCounts: true, // 件数の内訳を表示
 
-    matchMode: 0, // 0=自動 / 1=数値しきい値 / 2=文字列一致
-    warnThreshold: 1, // 警告のしきい値（数値モード）
-    critThreshold: 1, // 危険のしきい値（数値モード）
-    higherIsWorse: true, // 大きいほど悪い（数値モード）
+    matchMode: 'auto', // auto=自動 / numeric=数値 / string=文字列一致
 
     okLabel: 'OK', // 正常のラベル
     warnLabel: 'WARNING', // 警告のラベル
     critLabel: 'CRITICAL', // 危険のラベル
-
-    okColor: '#22c55e', // 正常の色
-    warnColor: '#f59e0b', // 警告の色
-    critColor: '#ef4444', // 危険の色
 
     borderWidth: 4, // 枠の太さ（px）
     cornerRadius: 12, // 角丸（px）
@@ -74,11 +79,80 @@ const DEFAULTS = {
     frameOnly: false, // 枠だけ表示（中を透明に）
     fillOpacity: 8, // 背景の塗り不透明度（%）
 
-    pulseMode: 2, // 0=なし / 1=警告以上 / 2=危険のみ / 3=常時
+    pulseMode: 'crit', // none=点滅しない / warn=警告以上 / crit=危険のみ / always=常時
     pulsePeriod: 1.6, // 点滅の周期（秒、0で停止）
-
-    debug: false, // options デバッグ表示
 };
+
+// --- 数値パスの「値の範囲と色」（editor.threshold）------------------------------
+// config.json の colorBands.default と一致させること。
+// 既定は v1.1.0 の見た目（warn=1 / crit=1、大きいほど悪い）に近い3段:
+//   0 未満なし〜1 未満 = 正常(緑) / 1〜10 = 警告(橙) / 10 以上 = 危険(赤)
+// 帯は上限なし（to:null）・下限なし（from:null）を許すため、消費側では null を
+// ±Infinity として扱う。
+const COLOR_BAND_DEFAULTS = [
+    { from: null, to: 1, value: '#22c55e' },
+    { from: 1, to: 10, value: '#f59e0b' },
+    { from: 10, to: null, value: '#ef4444' },
+];
+
+// --- 文字列パスの色（editor.seriesColors）---------------------------------------
+// 深刻度の低い順（正常 → 警告 → 危険）に上から適用する順序付きパレット。
+// config.json の statusColors.default と一致させること。
+// 文字列カテゴリは数値レンジで表せないため threshold ではなくパレットを使う。
+const STATUS_COLOR_DEFAULTS = ['#22c55e', '#f59e0b', '#ef4444'];
+
+// editor.seriesColors は hex 文字列の配列を生で渡してくる。解釈できない要素は落とし、
+// 空なら既定パレットへ倒す。旧 okColor/warnColor/critColor へのフォールバックは
+// 意図的に行わない（既定値は options に載らないため、読み替えると「既定値を
+// 選んだときだけ直らない」不具合になる）。
+function statusPaletteOf(raw) {
+    const list = Array.isArray(raw) ? raw.filter((c) => hexToRgb(c) !== null) : [];
+    return list.length > 0 ? list : STATUS_COLOR_DEFAULTS;
+}
+
+/**
+ * editor.threshold の生値（[{from,to,value}]）を正規化する。
+ * - 配列でない / 空 / 全要素が壊れている → 既定の帯へ倒す
+ * - from/to は null・欠落・非数値のいずれも「境界なし」(±Infinity) とみなす
+ * - value（色）が解釈できない要素は落とす
+ * - from > to の逆転は入れ替えて救済し、from 昇順に並べ直す（未ソート入力も可）
+ * 重なりは許容する（先に一致した帯が勝つ = 配列の先頭側が優先）。
+ */
+function normalizeBands(raw) {
+    const src = Array.isArray(raw) ? raw : [];
+    const out = [];
+    src.forEach((b) => {
+        if (!b || typeof b !== 'object') return;
+        if (!hexToRgb(b.value)) return;
+        const f = parseNum(b.from);
+        const t = parseNum(b.to);
+        let lo = Number.isFinite(f) ? f : -Infinity;
+        let hi = Number.isFinite(t) ? t : Infinity;
+        if (lo > hi) [lo, hi] = [hi, lo];
+        out.push({ from: lo, to: hi, value: b.value });
+    });
+    if (out.length === 0) {
+        return COLOR_BAND_DEFAULTS.map((b) => ({
+            from: b.from === null ? -Infinity : b.from,
+            to: b.to === null ? Infinity : b.to,
+            value: b.value,
+        }));
+    }
+    out.sort((a, b) => a.from - b.from);
+    return out;
+}
+
+// 数値 → 帯（[from, to) の半開区間。最上段だけ上端も含む）。外れたら null
+function bandFor(n, bands) {
+    for (let i = 0; i < bands.length; i += 1) {
+        const b = bands[i];
+        if (n >= b.from && (n < b.to || (b.to === Infinity && n === Infinity))) return b;
+    }
+    // どの帯にも入らない場合は最も近い端の帯へ丸める（データが帯の外でも必ず色が付く）
+    if (bands.length === 0) return null;
+    if (n < bands[0].from) return bands[0];
+    return bands[bands.length - 1];
+}
 
 // 文字列 → 状態レベルのキーワード（小文字前方一致／部分一致）
 const CRIT_WORDS = ['crit', 'critical', 'fatal', 'error', 'err', 'down', 'fail', 'alert', 'high', 'severe', 'sev1', 'p1', '5', '緊急', '重大', '危険', '異常', '停止'];
@@ -152,8 +226,11 @@ function normalizeOptions(raw) {
         const n = parseNum(v);
         return Number.isFinite(n) ? n : d;
     };
-    const colorOr = (v, d) => (hexToRgb(v) ? v : d);
     const strOr = (v, d) => (typeof v === 'string' ? v : d);
+    // 列挙値：ホワイトリストに無ければ既定へ丸める。
+    // ここで旧バージョンの数値コードを読み替えては「いけない」（既定値と同じ値は
+    // options に載らないため、既定を選び直しても旧値が復活してしまう）。
+    const enumOr = (v, list, d) => (list.includes(v) ? v : d);
 
     return {
         valueField: typeof o.valueField === 'string' || Array.isArray(o.valueField) ? o.valueField : '',
@@ -164,18 +241,15 @@ function normalizeOptions(raw) {
         showBadge: bool(o.showBadge, DEFAULTS.showBadge),
         showCounts: bool(o.showCounts, DEFAULTS.showCounts),
 
-        matchMode: clamp(Math.round(numOr(o.matchMode, DEFAULTS.matchMode)), 0, 2),
-        warnThreshold: numOr(o.warnThreshold, DEFAULTS.warnThreshold),
-        critThreshold: numOr(o.critThreshold, DEFAULTS.critThreshold),
-        higherIsWorse: bool(o.higherIsWorse, DEFAULTS.higherIsWorse),
+        matchMode: enumOr(o.matchMode, MATCH_MODES, DEFAULTS.matchMode),
+        // 数値パス：値の範囲と色（editor.threshold）。壊れた入力は既定の帯へ倒す
+        colorBands: normalizeBands(o.colorBands),
+        // 文字列パス：正常→警告→危険の順に配るパレット（editor.seriesColors）
+        statusColors: statusPaletteOf(o.statusColors),
 
         okLabel: strOr(o.okLabel, DEFAULTS.okLabel),
         warnLabel: strOr(o.warnLabel, DEFAULTS.warnLabel),
         critLabel: strOr(o.critLabel, DEFAULTS.critLabel),
-
-        okColor: colorOr(o.okColor, DEFAULTS.okColor),
-        warnColor: colorOr(o.warnColor, DEFAULTS.warnColor),
-        critColor: colorOr(o.critColor, DEFAULTS.critColor),
 
         borderWidth: clamp(Math.round(numOr(o.borderWidth, DEFAULTS.borderWidth)), 0, 40),
         cornerRadius: clamp(Math.round(numOr(o.cornerRadius, DEFAULTS.cornerRadius)), 0, 80),
@@ -184,10 +258,8 @@ function normalizeOptions(raw) {
         frameOnly: bool(o.frameOnly, DEFAULTS.frameOnly),
         fillOpacity: clamp(Math.round(numOr(o.fillOpacity, DEFAULTS.fillOpacity)), 0, 100),
 
-        pulseMode: clamp(Math.round(numOr(o.pulseMode, DEFAULTS.pulseMode)), 0, 3),
+        pulseMode: enumOr(o.pulseMode, PULSE_MODES, DEFAULTS.pulseMode),
         pulsePeriod: clamp(numOr(o.pulsePeriod, DEFAULTS.pulsePeriod), 0, 30),
-
-        debug: bool(o.debug, DEFAULTS.debug),
     };
 }
 
@@ -301,39 +373,85 @@ function classifyText(raw) {
     return null;
 }
 
-// 数値 → 状態レベル（しきい値方式）
-function classifyNumber(n, opts) {
-    const warn = opts.warnThreshold;
-    const crit = opts.critThreshold;
-    if (opts.higherIsWorse) {
-        if (n >= crit) return LV_CRIT;
-        if (n >= warn) return LV_WARN;
-        return LV_OK;
-    }
-    if (n <= crit) return LV_CRIT;
-    if (n <= warn) return LV_WARN;
-    return LV_OK;
+// ---------------------------------------------------------------------------
+// 「段（tier）」モデル
+//
+// 数値パスの段数はユーザー次第（editor.threshold の帯の数）なので、固定の
+// OK/WARN/CRIT では表せない。両パスを共通の「段」に写して扱う:
+//
+//   tier = { key, rank, color, label }
+//     rank : 0 が最も軽く、大きいほど深刻。帯の並び順（from 昇順）＝ rank。
+//     color: その段の色（数値パスは帯の色、文字列パスはパレットの色）。
+//     label: バッジ／件数内訳に出す名前。
+//
+// pulseMode（none/warn/crit/always）は「危険のみ / 警告以上」という 2 つの相対的な
+// 境目を指すものとして段数に依存しない形へ読み替える:
+//   crit  = 最上段（最も深刻な段）のときだけ点滅
+//   warn  = 最上段の 1 つ下以上（＝上位 2 段）のとき点滅
+// 段が 1 つしかなければ両者は一致し、段が 5 つあっても意味が保たれる。
+// ---------------------------------------------------------------------------
+
+// 文字列パスの段（常に 正常 / 警告 / 危険 の 3 段。色は statusColors パレット順）
+function textTiers(opts) {
+    const pal = opts.statusColors;
+    const at = (i) => pal[i % pal.length];
+    // short は件数内訳用の短縮名（v1.1.0 の "Crit 3 / Warn 12 / OK 40" を踏襲）
+    return [
+        { key: 'ok', rank: LV_OK, color: at(0), label: opts.okLabel, short: 'OK' },
+        { key: 'warn', rank: LV_WARN, color: at(1), label: opts.warnLabel, short: 'Warn' },
+        { key: 'crit', rank: LV_CRIT, color: at(2), label: opts.critLabel, short: 'Crit' },
+    ];
 }
 
-// 1 セルの値を状態レベルへ。判定モードに従う。判定不能なら null
-function classifyCell(raw, opts) {
+// 数値パスの段（editor.threshold の帯そのもの。from 昇順 = rank 昇順）
+function bandTiers(opts) {
+    return opts.colorBands.map((b, i) => ({
+        key: `band${i}`,
+        rank: i,
+        color: b.value,
+        label: bandLabel(b),
+        short: bandLabel(b),
+        band: b,
+    }));
+}
+
+// 帯のラベル（バッジ・件数内訳に出す）。開いた端は「〜」で表す
+function bandLabel(b) {
+    const fin = (v) => (Number.isFinite(v) ? String(v) : '');
+    const lo = fin(b.from);
+    const hi = fin(b.to);
+    if (lo === '' && hi === '') return 'ALL';
+    if (lo === '') return `< ${hi}`;
+    if (hi === '') return `${lo} +`;
+    return `${lo}–${hi}`;
+}
+
+// 1 セルの値を段へ。判定モードに従う。判定不能なら null
+function classifyCell(raw, opts, tiersNum, tiersText) {
     if (raw === null || raw === undefined) return null;
-    if (opts.matchMode === 2) {
-        // 文字列一致モード
-        return classifyText(raw);
-    }
-    if (opts.matchMode === 1) {
-        // 数値しきい値モード
+    const byNumber = () => {
         const n = parseNum(raw);
-        return Number.isFinite(n) ? classifyNumber(n, opts) : null;
+        if (!Number.isFinite(n)) return null;
+        const b = bandFor(n, opts.colorBands);
+        if (!b) return null;
+        const i = opts.colorBands.indexOf(b);
+        return tiersNum[i] || null;
+    };
+    if (opts.matchMode === 'string') {
+        const lv = classifyText(raw);
+        return lv === null ? null : tiersText[lv];
     }
-    // 自動: 数値なら数値、文字列ならキーワード
+    if (opts.matchMode === 'numeric') {
+        return byNumber();
+    }
+    // 自動: 数値なら帯、文字列ならキーワード
     const n = parseNum(raw);
-    if (Number.isFinite(n)) return classifyNumber(n, opts);
-    return classifyText(raw);
+    if (Number.isFinite(n)) return byNumber();
+    const lv = classifyText(raw);
+    return lv === null ? null : tiersText[lv];
 }
 
-// 行群 → { worst, counts, total, samples }
+// 行群 → { worst, counts, total, samples, tiers }
 function buildStatus(rawRows, fieldNames, opts) {
     const rows = expandMultivalueRows(rawRows);
     const colCount = rows.reduce((m, r) => Math.max(m, Array.isArray(r) ? r.length : 0), 0);
@@ -350,43 +468,69 @@ function buildStatus(rawRows, fieldNames, opts) {
         if (labelIdx === valIdx) labelIdx = valIdx === 0 ? -1 : 0;
     }
 
-    const counts = { [LV_OK]: 0, [LV_WARN]: 0, [LV_CRIT]: 0 };
+    const tiersNum = bandTiers(opts);
+    const tiersText = textTiers(opts);
+
+    // 実際に使われた段だけを集計対象にする（数値と文字列が混在する auto でも
+    // 両方の段が同じ counts に載る）
+    const counts = new Map(); // tier.key → { tier, n }
     let classified = 0;
     let worst = null; // 全行が未分類なら null
     const critSamples = [];
+    // 「最上段」は使われた段の中での最大 rank ではなく、その系列で **定義されている**
+    // 段の最大 rank（数値なら帯の最終段、文字列なら危険）を指す。データに最上段が
+    // 無ければ点滅しない、という v1.1.0 の挙動を段数可変のまま保つため。
+    // auto モードでは数値・文字列の両方が来うるので両者の最大を取る。
+    const topRankNum = tiersNum.length > 0 ? tiersNum[tiersNum.length - 1].rank : LV_CRIT;
+    const topRank =
+        opts.matchMode === 'string'
+            ? LV_CRIT
+            : opts.matchMode === 'numeric'
+              ? topRankNum
+              : Math.max(topRankNum, LV_CRIT);
 
     rows.forEach((row) => {
         if (!Array.isArray(row)) return;
-        const lv = classifyCell(row[valIdx], opts);
-        if (lv === null) return;
+        const tier = classifyCell(row[valIdx], opts, tiersNum, tiersText);
+        if (!tier) return;
         classified += 1;
-        counts[lv] += 1;
-        if (worst === null || lv > worst) worst = lv;
-        if (lv === LV_CRIT && labelIdx >= 0 && critSamples.length < 6) {
-            const lab = row[labelIdx];
-            if (lab !== null && lab !== undefined && String(lab).trim() !== '') critSamples.push(String(lab));
-        }
+        const e = counts.get(tier.key);
+        if (e) e.n += 1;
+        else counts.set(tier.key, { tier, n: 1 });
+        if (worst === null || tier.rank > worst.rank) worst = tier;
     });
 
     if (classified === 0) return { error: 'noclass', valIdx, labelIdx };
-    return { worst, counts, total: classified, critSamples, valIdx, labelIdx };
+
+    // 最上段に該当した行のラベルを拾う（バッジ下部の内訳に出す対象名）
+    if (labelIdx >= 0 && worst) {
+        rows.forEach((row) => {
+            if (!Array.isArray(row) || critSamples.length >= 6) return;
+            const tier = classifyCell(row[valIdx], opts, tiersNum, tiersText);
+            if (!tier || tier.key !== worst.key) return;
+            const lab = row[labelIdx];
+            if (lab !== null && lab !== undefined && String(lab).trim() !== '') critSamples.push(String(lab));
+        });
+    }
+
+    // 内訳は深刻な段から順に並べる
+    const breakdown = [...counts.values()].sort((a, b) => b.tier.rank - a.tier.rank);
+
+    return {
+        worst,
+        breakdown,
+        total: classified,
+        critSamples,
+        valIdx,
+        labelIdx,
+        // pulse 判定に使う「その系列で最も深刻な段の rank」
+        topRank,
+    };
 }
 
 // ---------------------------------------------------------------------------
 // 配色（テーマ×状態）
 // ---------------------------------------------------------------------------
-
-function statusColorFor(level, opts) {
-    if (level === LV_CRIT) return opts.critColor;
-    if (level === LV_WARN) return opts.warnColor;
-    return opts.okColor;
-}
-
-function statusLabelFor(level, opts) {
-    if (level === LV_CRIT) return opts.critLabel;
-    if (level === LV_WARN) return opts.warnLabel;
-    return opts.okLabel;
-}
 
 function framePalette(mode, statusColor, opts) {
     const dark = mode === 'dark';
@@ -407,11 +551,6 @@ function framePalette(mode, statusColor, opts) {
         badgeText: dark ? mixColor(statusColor, '#ffffff', 0.35) : mixColor(statusColor, '#000000', 0.15),
         title: dark ? '#c9d1d9' : '#3d444d',
         sub: dark ? '#8b98a5' : '#5c6773',
-        panelBg: dark ? 'rgba(13,16,32,0.97)' : 'rgba(255,255,255,0.98)',
-        panelBorder: withAlpha(statusColor, 0.4),
-        dotOk: opts.okColor,
-        dotWarn: opts.warnColor,
-        dotCrit: opts.critColor,
     };
 }
 
@@ -482,7 +621,6 @@ function SpotlightFrame({ mode }) {
     const { dataSources, loading } = useDataSources();
     const optionsApi = useOptions();
     const options = optionsApi?.options;
-    const modeApi = useMode();
 
     const opts = useMemo(() => normalizeOptions(options), [options]);
 
@@ -532,7 +670,7 @@ function SpotlightFrame({ mode }) {
     if (status.error === 'noclass') {
         return (
             <CenterMessage>
-                状態を判定できませんでした。状態値フィールドの選択や判定モード（0=自動 / 1=数値 / 2=文字列）を確認してください。
+                状態を判定できませんでした。状態値フィールドの選択や判定モード（自動 / 数値 / 文字列一致）を確認してください。
             </CenterMessage>
         );
     }
@@ -541,9 +679,12 @@ function SpotlightFrame({ mode }) {
     }
 
     const { w, h } = dims;
-    const level = status.worst === null ? LV_OK : status.worst;
-    const statusColor = statusColorFor(level, opts);
-    const statusLabel = statusLabelFor(level, opts);
+    // 最悪の段。1 行も分類できないケースは上のガードで弾いているが、
+    // 万一 null でも最下段（最も軽い段）に倒して必ず描画する
+    const worstTier =
+        status.worst || bandTiers(opts)[0] || textTiers(opts)[0];
+    const statusColor = worstTier.color;
+    const statusLabel = worstTier.label;
     const pal = framePalette(mode, statusColor, opts);
 
     // --- サイズ計算（スケール clamp） ---
@@ -556,11 +697,21 @@ function SpotlightFrame({ mode }) {
     const dotSize = Math.round(clamp(9 * s, 7, 16));
 
     // --- 点滅（pulse）判定 ---
+    // 段数は可変なので「危険のみ / 警告以上」を最上段からの相対位置で解釈する:
+    //   crit = 最上段のときだけ / warn = 最上段の1つ下以上（上位2段）のとき
+    // 段が3段（文字列パス既定）なら v1.1.0 と完全に同じ挙動になる。
     const pulseActive =
         opts.pulsePeriod > 0 &&
-        ((opts.pulseMode === 3) ||
-            (opts.pulseMode === 2 && level === LV_CRIT) ||
-            (opts.pulseMode === 1 && level >= LV_WARN));
+        (opts.pulseMode === 'always' ||
+            (opts.pulseMode === 'crit' && worstTier.rank >= status.topRank) ||
+            (opts.pulseMode === 'warn' && worstTier.rank >= status.topRank - 1));
+    // data-status も段数可変のため相対位置で表す（最上段=crit / 1つ下=warn / 他=ok）
+    const statusAttr =
+        worstTier.rank >= status.topRank
+            ? 'crit'
+            : worstTier.rank >= status.topRank - 1
+              ? 'warn'
+              : 'ok';
     const pulseAnim = pulseActive ? `spotlightFramePulse ${opts.pulsePeriod}s ease-in-out infinite` : 'none';
     const badgeAnim = pulseActive ? `spotlightBadgeBlink ${opts.pulsePeriod}s ease-in-out infinite` : 'none';
 
@@ -570,11 +721,11 @@ function SpotlightFrame({ mode }) {
         ? `0 0 ${glowPx}px ${pal.glow}, inset 0 0 ${Math.round(glowPx * 0.9)}px ${pal.glowInset}`
         : 'none';
 
-    // --- 件数の内訳テキスト ---
-    const countParts = [];
-    if (status.counts[LV_CRIT] > 0) countParts.push({ color: pal.dotCrit, text: `Crit ${status.counts[LV_CRIT]}` });
-    if (status.counts[LV_WARN] > 0) countParts.push({ color: pal.dotWarn, text: `Warn ${status.counts[LV_WARN]}` });
-    if (status.counts[LV_OK] > 0) countParts.push({ color: pal.dotOk, text: `OK ${status.counts[LV_OK]}` });
+    // --- 件数の内訳テキスト（深刻な段から順に。各段は自分の色のドットを持つ）---
+    const countParts = status.breakdown.map((e) => ({
+        color: e.tier.color,
+        text: `${e.tier.short} ${e.n}`,
+    }));
 
     const titleVisible = opts.showTitle && h >= 52 && w >= 120;
     const badgeVisible = opts.showBadge && w >= 96;
@@ -600,7 +751,8 @@ function SpotlightFrame({ mode }) {
             {/* 枠本体（外周のボーダー＋発光。点滅はこの層に乗せる） */}
             <div
                 data-role="frame"
-                data-status={level === LV_CRIT ? 'crit' : level === LV_WARN ? 'warn' : 'ok'}
+                data-status={statusAttr}
+                data-tier={worstTier.key}
                 style={{
                     position: 'absolute',
                     inset: 0,
@@ -725,48 +877,6 @@ function SpotlightFrame({ mode }) {
                         </span>
                     )}
                 </div>
-            )}
-
-            {/* デバッグ */}
-            {opts.debug && (
-                <pre
-                    style={{
-                        position: 'absolute',
-                        right: 8,
-                        bottom: 8,
-                        maxWidth: '70%',
-                        maxHeight: '70%',
-                        overflow: 'auto',
-                        margin: 0,
-                        padding: 8,
-                        fontSize: 10,
-                        lineHeight: 1.3,
-                        background: pal.panelBg,
-                        color: pal.sub,
-                        border: `1px solid ${pal.panelBorder}`,
-                        borderRadius: 6,
-                        zIndex: 20,
-                    }}
-                >
-                    {JSON.stringify(
-                        {
-                            version: VIZ_VERSION,
-                            fields: fieldNames,
-                            valIdx: status.valIdx,
-                            labelIdx: status.labelIdx,
-                            worst: status.worst,
-                            counts: status.counts,
-                            total: status.total,
-                            level,
-                            pulseActive,
-                            mode: modeApi?.mode,
-                            options,
-                            normalized: opts,
-                        },
-                        null,
-                        1
-                    )}
-                </pre>
             )}
         </div>
     );

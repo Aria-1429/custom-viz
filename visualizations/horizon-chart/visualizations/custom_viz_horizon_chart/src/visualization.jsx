@@ -61,8 +61,7 @@ const DEFAULTS = {
     autoFitLanes: true, // パネル高さに自動フィット
     curve: true, // 曲線でなめらかに描く
 
-    sortByPeak: false, // 最大値の大きい順に並べ替え
-    sortByTotal: false, // 合計の大きい順に並べ替え
+    sortMode: 'none', // 並び順（none=検索結果順 / peak=最大値順 / total=合計順）
     maxSeries: 60, // 最大表示系列数
 
     showLabels: true, // 系列名を表示
@@ -76,9 +75,10 @@ const DEFAULTS = {
 
     valueDecimals: 0, // 小数点以下の桁数
     abbreviateValue: true, // 1.5M などの省略表記
-
-    debug: false, // options デバッグ表示
 };
+
+// 並び順の取りうる値（未知値・旧オプションの残骸は既定 'none' へ丸める）
+const SORT_MODES = ['none', 'peak', 'total'];
 
 // 描画上限
 const MAX_SERIES_CAP = 200; // maxSeries オプションの上限
@@ -239,8 +239,7 @@ function normalizeOptions(raw) {
         autoFitLanes: bool(o.autoFitLanes, DEFAULTS.autoFitLanes),
         curve: bool(o.curve, DEFAULTS.curve),
 
-        sortByPeak: bool(o.sortByPeak, DEFAULTS.sortByPeak),
-        sortByTotal: bool(o.sortByTotal, DEFAULTS.sortByTotal),
+        sortMode: SORT_MODES.includes(o.sortMode) ? o.sortMode : DEFAULTS.sortMode,
         maxSeries: clamp(Math.round(numOr(o.maxSeries, DEFAULTS.maxSeries)), 1, MAX_SERIES_CAP),
 
         showLabels: bool(o.showLabels, DEFAULTS.showLabels),
@@ -254,8 +253,6 @@ function normalizeOptions(raw) {
 
         valueDecimals: clamp(Math.round(numOr(o.valueDecimals, DEFAULTS.valueDecimals)), 0, 6),
         abbreviateValue: bool(o.abbreviateValue, DEFAULTS.abbreviateValue),
-
-        debug: bool(o.debug, DEFAULTS.debug),
     };
 }
 
@@ -493,7 +490,6 @@ function buildModel(rawRows, fieldNames, opts) {
 
     // (時刻キー, 系列名, 値) の一覧に落とす
     const triples = [];
-    let usedIdx = {};
     if (tidy) {
         const seriesIdx = selSeries >= 0 ? selSeries : autoSeriesIdx;
         if (seriesIdx < 0) return { error: 'novalue' };
@@ -509,7 +505,6 @@ function buildModel(rawRows, fieldNames, opts) {
             }
         }
         if (valIdx < 0) return { error: 'novalue' };
-        usedIdx = { mode: 'tidy', timeIdx, seriesIdx, valIdx, hasRealTime };
         rows.forEach((r, ri) => {
             const tRaw = r[timeIdx];
             const t = hasRealTime ? parseTime(tRaw) : ri;
@@ -528,7 +523,6 @@ function buildModel(rawRows, fieldNames, opts) {
             }
         }
         if (valueCols.length === 0) return { error: 'novalue' };
-        usedIdx = { mode: 'wide', timeIdx, valueCols, hasRealTime };
         rows.forEach((r, ri) => {
             const t = hasRealTime ? parseTime(r[timeIdx]) : ri;
             if (t === null) return;
@@ -606,10 +600,10 @@ function buildModel(rawRows, fieldNames, opts) {
 
     if (series.length === 0) return { error: 'novalue' };
 
-    // 並べ替え
-    if (opts.sortByPeak) {
+    // 並べ替え（'none' は検索結果の出現順のまま）
+    if (opts.sortMode === 'peak') {
         series = [...series].sort((a, b) => b.peak - a.peak);
-    } else if (opts.sortByTotal) {
+    } else if (opts.sortMode === 'total') {
         series = [...series].sort((a, b) => b.total - a.total);
     }
 
@@ -671,7 +665,6 @@ function buildModel(rawRows, fieldNames, opts) {
         downsampled,
         truncatedSeries,
         hiddenCount,
-        usedIdx,
     };
 }
 
@@ -1364,50 +1357,6 @@ function HorizonChart({ mode }) {
                             : 'データなし'
                     }`}
                 </div>
-            )}
-
-            {/* デバッグ */}
-            {opts.debug && (
-                <pre
-                    style={{
-                        position: 'absolute',
-                        right: 8,
-                        bottom: 8,
-                        maxWidth: '60%',
-                        maxHeight: '60%',
-                        overflow: 'auto',
-                        margin: 0,
-                        padding: 8,
-                        fontSize: 10,
-                        lineHeight: 1.3,
-                        background: pal.panelBg,
-                        color: pal.subText,
-                        border: `1px solid ${pal.panelBorder}`,
-                        borderRadius: 6,
-                        zIndex: 20,
-                    }}
-                >
-                    {JSON.stringify(
-                        {
-                            fields: fieldNames,
-                            usedIdx: model.usedIdx,
-                            seriesCount: model.series.length,
-                            seriesNames: model.series.map((s) => s.name),
-                            timeCount: model.times.length,
-                            base: model.base,
-                            step: model.step,
-                            globalMaxDev: model.globalMaxDev,
-                            hasRealTime: model.hasRealTime,
-                            downsampled: model.downsampled,
-                            truncatedSeries: model.truncatedSeries,
-                            laneH,
-                            options,
-                            normalized: opts,
-                        },
-                        null,
-                        1
-                    )}
-                </pre>
             )}
         </div>
     );

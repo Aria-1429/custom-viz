@@ -27,11 +27,10 @@
       "highColor": { "type": "string", "default": "#ef4d4d" },
       "useMidColor": { "type": "boolean", "default": true },
       "reverse": { "type": "boolean", "default": false },
-      "scaleMin": { "type": "string", "default": "" },
-      "scaleMax": { "type": "string", "default": "" },
+      "scaleMin": { "type": "number" },
+      "scaleMax": { "type": "number" },
       "barColor": { "type": "string", "default": "#9333ea" },
-      "sortByValue": { "type": "boolean", "default": true },
-      "sortAscending": { "type": "boolean", "default": false },
+      "sortMode": { "type": "string", "default": "desc" },
       "topN": { "type": "number", "default": 0 },
       "showTitle": { "type": "boolean", "default": true },
       "showAxis": { "type": "boolean", "default": true },
@@ -41,8 +40,7 @@
       "glow": { "type": "boolean", "default": true },
       "animate": { "type": "boolean", "default": true },
       "fillHeight": { "type": "boolean", "default": true },
-      "barThickness": { "type": "number", "default": 0 },
-      "debug": { "type": "boolean", "default": false }
+      "barThickness": { "type": "number", "default": 0 }
     },
     "editorConfig": [
       {
@@ -74,8 +72,20 @@
       {
         "label": "並べ替え・件数",
         "layout": [
-          [{ "label": "値で並べ替える（OFF＝検索結果順）", "editor": "editor.checkbox", "option": "sortByValue" }],
-          [{ "label": "昇順にする（OFF＝降順）", "editor": "editor.checkbox", "option": "sortAscending" }],
+          [
+            {
+              "label": "並び順",
+              "editor": "editor.select",
+              "option": "sortMode",
+              "editorProps": {
+                "values": [
+                  { "label": "検索結果順", "value": "none" },
+                  { "label": "値の大きい順", "value": "desc" },
+                  { "label": "値の小さい順", "value": "asc" }
+                ]
+              }
+            }
+          ],
           [{ "label": "上位N件のみ表示（0＝全件）", "editor": "editor.number", "option": "topN" }]
         ]
       },
@@ -96,12 +106,6 @@
         "layout": [
           [{ "label": "高さいっぱいに広げる", "editor": "editor.checkbox", "option": "fillHeight" }],
           [{ "label": "バーの太さ（px、0＝自動）", "editor": "editor.number", "option": "barThickness" }]
-        ]
-      },
-      {
-        "label": "診断",
-        "layout": [
-          [{ "label": "オプションのデバッグ表示", "editor": "editor.checkbox", "option": "debug" }]
         ]
       }
     ]

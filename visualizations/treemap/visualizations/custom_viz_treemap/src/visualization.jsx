@@ -34,8 +34,6 @@ import './visualization.css';
 // 掘り下げ位置は drillPath オプションに保存され、編集→保存で永続化できる。
 // ---------------------------------------------------------------------------
 
-const VIZ_VERSION = '1.1.0';
-
 // オプションのデフォルト（config.json の optionsSchema.default と一致させる）
 const DEFAULTS = {
     valueField: '', // 値（面積）フィールド（'' = 自動）
@@ -43,15 +41,6 @@ const DEFAULTS = {
     level2Field: '', // 第2階層フィールド
     level3Field: '', // 第3階層フィールド
 
-    // 色覚特性（第2色覚）でも隣接色が潰れないよう色相を広く取ったパレット
-    color1: '#4c9be8',
-    color2: '#26c2a5',
-    color3: '#f2b53c',
-    color4: '#f2653f',
-    color5: '#a97bf0',
-    color6: '#f75d97',
-    color7: '#5ed4f0',
-    color8: '#94a3b5',
     shadeChildren: true, // 子タイルを濃淡で塗り分ける
 
     maxDepth: 2, // 同時に表示する階層数（1〜3）
@@ -73,12 +62,24 @@ const DEFAULTS = {
 
     drillPath: '', // 掘り下げ位置（"index\u0001sourcetype" のような区切り文字列）
 
-    debug: false, // options デバッグ表示
 };
 
 // 階層フィールドのオプションキー（第1〜第3階層）
 const LEVEL_KEYS = ['level1Field', 'level2Field', 'level3Field'];
-const PALETTE_KEYS = ['color1', 'color2', 'color3', 'color4', 'color5', 'color6', 'color7', 'color8'];
+
+// 既定パレット（色覚特性（第2色覚）でも隣接色が潰れないよう色相を広く取った）
+// editor.seriesColors が未設定・空・不正なときのフォールバック。
+// config.json の optionsSchema.seriesColors.default と一致させること。
+const DEFAULT_COLORS = [
+    '#4c9be8',
+    '#26c2a5',
+    '#f2b53c',
+    '#f2653f',
+    '#a97bf0',
+    '#f75d97',
+    '#5ed4f0',
+    '#94a3b5',
+];
 
 // drillPath の区切り（ラベルに現れない制御文字を使う）
 const PATH_SEP = '\u0001';
@@ -214,7 +215,7 @@ function normalizeOptions(raw) {
         const n = parseNum(v);
         return Number.isFinite(n) ? n : d;
     };
-    const colorOr = (v, d) => (hexToRgb(v) ? v : d);
+    const isHexColor = (v) => typeof v === 'string' && Boolean(hexToRgb(v.trim()));
     const fieldOr = (v) => (typeof v === 'string' || Array.isArray(v) ? v : '');
     const strOr = (v, d) => (typeof v === 'string' ? v : d);
 
@@ -244,11 +245,16 @@ function normalizeOptions(raw) {
         abbreviateValue: bool(o.abbreviateValue, DEFAULTS.abbreviateValue),
 
         drillPath: strOr(o.drillPath, ''),
-
-        debug: bool(o.debug, DEFAULTS.debug),
     };
 
-    out.palette = PALETTE_KEYS.map((k) => colorOr(o[k], DEFAULTS[k]));
+    // editor.seriesColors は hex 文字列の配列を生で渡してくる。要素数はユーザーが
+    // 増減できるため、既定より短くても長くても壊れないようにする（消費側は % length）。
+    // ⚠ 旧 color1..color8 は意図的に読まない（既定値は options に載らないホスト挙動のため、
+    //    旧キーへフォールバックすると「既定値を選んだときだけ直らない」不具合になる）。
+    const palette = Array.isArray(o.seriesColors)
+        ? o.seriesColors.filter(isHexColor).map((c) => c.trim())
+        : [];
+    out.palette = palette.length > 0 ? palette : DEFAULT_COLORS.slice();
     return out;
 }
 
@@ -1353,49 +1359,6 @@ function Treemap({ mode }) {
                         </div>
                     );
                 })()
-            )}
-
-            {/* デバッグ */}
-            {opts.debug && (
-                <pre
-                    style={{
-                        position: 'absolute',
-                        right: 8,
-                        bottom: 8,
-                        maxWidth: '60%',
-                        maxHeight: '60%',
-                        overflow: 'auto',
-                        margin: 0,
-                        padding: 8,
-                        fontSize: 10,
-                        lineHeight: 1.3,
-                        background: pal.panelBg,
-                        color: pal.subText,
-                        border: `1px solid ${pal.panelBorder}`,
-                        borderRadius: 6,
-                        zIndex: 20,
-                    }}
-                >
-                    {JSON.stringify(
-                        {
-                            version: VIZ_VERSION,
-                            fields: fieldNames,
-                            usedIdx: model.usedIdx,
-                            levelNames: model.levelNames,
-                            valueName: model.valueName,
-                            drillPath: drill.path,
-                            tiles: tiles.length,
-                            grandTotal,
-                            shownTotal,
-                            negatives: model.negatives,
-                            skipped: model.skipped,
-                            options,
-                            normalized: opts,
-                        },
-                        null,
-                        1
-                    )}
-                </pre>
             )}
         </div>
     );

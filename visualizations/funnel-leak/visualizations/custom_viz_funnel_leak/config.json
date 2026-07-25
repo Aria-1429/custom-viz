@@ -45,8 +45,7 @@
       "labelSize": { "type": "number", "default": 0 },
 
       "highlightOnHover": { "type": "boolean", "default": true },
-      "showHeader": { "type": "boolean", "default": true },
-      "debug": { "type": "boolean", "default": false }
+      "showHeader": { "type": "boolean", "default": true }
     },
     "editorConfig": [
       {
@@ -94,12 +93,6 @@
           [{ "label": "ラベルサイズ（px、0で自動）", "editor": "editor.number", "option": "labelSize" }],
           [{ "label": "ホバーで段をハイライト", "editor": "editor.checkbox", "option": "highlightOnHover" }],
           [{ "label": "サマリーヘッダーを表示", "editor": "editor.checkbox", "option": "showHeader" }]
-        ]
-      },
-      {
-        "label": "デバッグ",
-        "layout": [
-          [{ "label": "オプションのデバッグ表示", "editor": "editor.checkbox", "option": "debug" }]
         ]
       }
     ],

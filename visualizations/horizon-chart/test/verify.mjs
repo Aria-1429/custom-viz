@@ -462,17 +462,63 @@ console.log('\n[10] sorting and series cap');
     await setData(WIDE);
     check('default order preserved', laneNames().join(',') === 'web-01,web-02,db-01', laneNames().join(','));
 
-    await setOpts({ animate: false, sortByPeak: true });
-    check('sorted by peak desc (300,40,20)', laneNames().join(',') === 'web-02,web-01,db-01', laneNames().join(','));
+    // sortMode='none' は明示指定でも検索結果順
+    await setOpts({ animate: false, sortMode: 'none' });
+    check('sortMode=none keeps input order', laneNames().join(',') === 'web-01,web-02,db-01', laneNames().join(','));
+
+    // 最大値: web-01=40, web-02=300, db-01=20
+    await setOpts({ animate: false, sortMode: 'peak' });
+    check('sortMode=peak sorts by peak desc (300,40,20)', laneNames().join(',') === 'web-02,web-01,db-01', laneNames().join(','));
 
     // 合計: web-01=100, web-02=470, db-01=50
-    await setOpts({ animate: false, sortByTotal: true });
-    check('sorted by total desc', laneNames().join(',') === 'web-02,web-01,db-01', laneNames().join(','));
+    await setOpts({ animate: false, sortMode: 'total' });
+    check('sortMode=total sorts by total desc', laneNames().join(',') === 'web-02,web-01,db-01', laneNames().join(','));
 
-    await setOpts({ animate: false, sortByPeak: true, maxSeries: 2 });
+    // 未知値は既定（none）へ丸める
+    await setOpts({ animate: false, sortMode: 'bogus' });
+    check('unknown sortMode falls back to none', laneNames().join(',') === 'web-01,web-02,db-01', laneNames().join(','));
+
+    await setOpts({ animate: false, sortMode: 'peak', maxSeries: 2 });
     check('maxSeries caps to 2 lanes', lanes().length === 2, `got ${lanes().length}`);
     check('cap keeps top by peak', laneNames().join(',') === 'web-02,web-01', laneNames().join(','));
     check('truncation note shown', String(noteText()).includes('省略'), noteText());
+    await setOpts({ animate: false });
+
+    // peak と total で並びが変わるデータで、モードごとの違いを実際に確認する。
+    //   spiky : 最大 100 / 合計 106（瞬間的に跳ねるが平常は低い）
+    //   steady: 最大  40 / 合計 160（常時高いが跳ねない）
+    await setData({
+        fields: [{ name: '_time' }, { name: 'spiky' }, { name: 'steady' }],
+        rows: [
+            ['2026-07-20T00:00:00', '2', '40'],
+            ['2026-07-20T01:00:00', '100', '40'],
+            ['2026-07-20T02:00:00', '2', '40'],
+            ['2026-07-20T03:00:00', '2', '40'],
+        ],
+    });
+    await setOpts({ animate: false, sortMode: 'peak' });
+    check('peak ≠ total: peak puts spiky first', laneNames().join(',') === 'spiky,steady', laneNames().join(','));
+    await setOpts({ animate: false, sortMode: 'total' });
+    check('peak ≠ total: total puts steady first', laneNames().join(',') === 'steady,spiky', laneNames().join(','));
+    await setData(WIDE);
+    await setOpts({ animate: false });
+}
+
+// ---- 10b. 旧 boolean オプションは読み替えない（回帰） ----------------------------
+// キー名変更時に旧オプションへフォールバックすると「既定値を選んだときだけ直らない」
+// 不具合になる（skills/splunk-viz 参照）。旧値は完全に無視され既定順になること。
+console.log('\n[10b] legacy sort booleans are ignored');
+{
+    await setData(WIDE);
+    await setOpts({ animate: false, sortByPeak: true });
+    check('legacy sortByPeak ignored → input order', laneNames().join(',') === 'web-01,web-02,db-01', laneNames().join(','));
+
+    await setOpts({ animate: false, sortByTotal: true });
+    check('legacy sortByTotal ignored → input order', laneNames().join(',') === 'web-01,web-02,db-01', laneNames().join(','));
+
+    // 旧 boolean と新 sortMode が同居しても、新オプションだけが効く
+    await setOpts({ animate: false, sortByPeak: true, sortMode: 'none' });
+    check('sortMode wins over legacy booleans', laneNames().join(',') === 'web-01,web-02,db-01', laneNames().join(','));
     await setOpts({ animate: false });
 }
 
@@ -750,12 +796,13 @@ console.log('\n[21] guards');
     check('recovers after guards', lanes().length === 3, `got ${lanes().length}`);
 }
 
-// ---- 22. debug オーバーレイ -------------------------------------------------------
-console.log('\n[22] debug overlay');
+// ---- 22. debug オーバーレイは廃止された ------------------------------------------
+console.log('\n[22] debug overlay removed');
 {
     await setOpts({ animate: false, debug: true });
-    check('debug dump visible', doc.body.textContent.includes('"normalized"'));
-    check('debug shows band step', doc.body.textContent.includes('"step"'));
+    check('no debug dump even with debug:true', !doc.body.textContent.includes('"normalized"'));
+    check('no options dump rendered', !doc.body.textContent.includes('"abbreviateValue"'));
+    check('chart still renders normally', lanes().length === 3, `got ${lanes().length}`);
     await setOpts({ animate: false });
 }
 

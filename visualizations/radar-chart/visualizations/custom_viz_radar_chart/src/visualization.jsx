@@ -18,12 +18,14 @@ import chartIcon from './assets/ChartColumnSquare.svg';
 // データモデル:
 //   軸フィールド（既定=第1列）  = レーダーの各頂点になるメトリック名。
 //   系列フィールド（既定=第2列以降）= 系列（エンティティ）。数値列 1 つにつき
-//                                       ポリゴンを 1 枚重ねて描く（最大 6 系列）。
+//                                       ポリゴンを 1 枚重ねて描く。
 //
 // 例）各行が 1 つのメトリック、各列が 1 つのエンティティ（host など）の値になっていれば、
 //     エンティティごとに 1 枚のポリゴンが重なり、複数エンティティを一目で比較できる。
 //
-// 編集画面「データ設定」で軸・系列の列を任意に選べる（editor.columnSelector）。
+// 編集画面「データ設定」で軸の列（editor.columnSelector）と系列の列
+// （editor.columnMultiSelectionByFieldNameEditor＝複数選択）を任意に選べる。
+// 系列を明示選択したときの本数に上限は無い。未選択時のみ自動検出で上限を設ける。
 // ---------------------------------------------------------------------------
 
 // オプションのデフォルト値（config.json の optionsSchema.default と一致させる）
@@ -49,10 +51,13 @@ const DEFAULTS = {
     sharedScale: false, // true=全軸共通スケール, false=軸ごとに個別スケール（既定）
     glow: true, // ネオン風の発光エフェクト
     startAngle: -90, // 最初の軸の角度（-90=真上）
-    debug: false, // オプション/データのデバッグダンプを表示
 };
 
-const MAX_SERIES = DEFAULT_SERIES_COLORS.length;
+// 系列フィールドを 1 つも選んでいないときの自動検出（軸列以外の全列を系列にする）の
+// 上限。列数の多いサーチ（| stats ... by host が数百列になるなど）で、意図せず大量の
+// ポリゴンが重なって描画が破綻するのを防ぐための安全弁。
+// 明示選択（seriesFields）には上限を設けない（ユーザーが選んだものは全部描く）。
+const MAX_AUTO_SERIES = 12;
 
 // ---------------------------------------------------------------------------
 // カラーパレット（ライト / ダーク両モード対応）
@@ -66,7 +71,6 @@ const PALETTES = {
         gridStrong: 'rgba(255, 255, 255, 0.18)',
         spoke: 'rgba(255, 255, 255, 0.08)',
         legendLabel: '#d6d8e6',
-        debugText: '#8b90a6',
     },
     light: {
         axisLabel: '#4a5068',
@@ -76,7 +80,6 @@ const PALETTES = {
         gridStrong: 'rgba(0, 0, 0, 0.20)',
         spoke: 'rgba(0, 0, 0, 0.06)',
         legendLabel: '#3c4258',
-        debugText: '#6a7089',
     },
 };
 
@@ -208,17 +211,23 @@ function resolveFieldIndex(spec, fieldNames, sampleRows, fallbackIdx) {
 // options（useOptions の戻り値）を安全な形に補正する
 function normalizeOptions(options) {
     const o = options || {};
-    const colors = [];
-    for (let i = 0; i < MAX_SERIES; i += 1) {
-        const c = o[`seriesColor${i + 1}`];
-        colors.push(isHexColor(c) ? c.trim() : DEFAULT_SERIES_COLORS[i]);
-    }
-    // 生の列指定文字列（DOS 文字列）はそのまま保持し、buildRadarData でフィールド名/行が
-    // 揃った時点で resolveFieldIndex にかける。
-    const seriesFields = [];
-    for (let i = 0; i < MAX_SERIES; i += 1) {
-        seriesFields.push(o[`seriesField${i + 1}`] ?? '');
-    }
+    // editor.seriesColors は hex 文字列の配列を生で渡してくる。要素数はユーザーが
+    // 増減できるため、系列数より短くても長くても壊れないようにする（描画側で循環参照）。
+    // 旧オプション（seriesColor1..6）は意図的に読まない：既定値と同じ値は options に
+    // 載らないため、旧キーへフォールバックすると「既定値を選んだときだけ直らない」不具合になる。
+    const rawPalette = Array.isArray(o.seriesColors) ? o.seriesColors.filter(isHexColor) : [];
+    const colors = rawPalette.length > 0
+        ? rawPalette.map((c) => c.trim())
+        : DEFAULT_SERIES_COLORS.slice();
+    // editor.columnMultiSelectionByFieldNameEditor は「生のフィールド名の配列」を渡してくる
+    // （例: ["host_a","host_b"]）。columnSelector 系のような DOS 文字列ではないのでパース不要。
+    // ただしホストが将来 DOS 文字列を入れてきても壊れないよう、文字列は buildRadarData 側の
+    // resolveFieldIndex に通して解決する（未知名は無視）。
+    // 旧オプション（seriesField1..6）は意図的に読まない：既定値と同じ値は options に載らない
+    // ため、旧キーへフォールバックすると「既定値を選んだときだけ直らない」不具合になる。
+    const seriesFields = Array.isArray(o.seriesFields)
+        ? o.seriesFields.filter((f) => typeof f === 'string' && f.trim() !== '')
+        : [];
     return {
         colors,
         axisField: o.axisField ?? '',
@@ -233,7 +242,6 @@ function normalizeOptions(options) {
         sharedScale: asBool(o.sharedScale, DEFAULTS.sharedScale),
         glow: asBool(o.glow, DEFAULTS.glow),
         startAngle: clampNum(o.startAngle, -360, 360, DEFAULTS.startAngle),
-        debug: asBool(o.debug, DEFAULTS.debug),
     };
 }
 
@@ -250,15 +258,17 @@ function buildRadarData(rawRows, fieldNames, opts) {
     const axisIdx = resolveFieldIndex(opts.axisField, fieldNames, rows, 0);
 
     // 系列列の決定。
-    //  - seriesField* が 1 つでも明示されていれば、その順序・その列だけを系列にする。
-    //  - どれも未指定なら「軸列以外の全列」を左から順に系列とする（従来動作）。
+    //  - seriesFields（フィールド名の配列）が 1 つでも解決できれば、その順序・その列だけを
+    //    系列にする。本数の上限は無い。
+    //  - どれも未指定／解決できないなら「軸列以外の全列」を左から順に系列とする（従来動作）。
+    //    こちらだけ MAX_AUTO_SERIES で頭打ちにする。
     const explicit = [];
-    for (let i = 0; i < MAX_SERIES; i += 1) {
-        const spec = opts.seriesFields[i];
-        if (spec !== '' && spec !== null && spec !== undefined) {
-            const idx = resolveFieldIndex(spec, fieldNames, rows, -1);
-            if (idx >= 0 && idx !== axisIdx) explicit.push(idx);
-        }
+    for (const spec of Array.isArray(opts.seriesFields) ? opts.seriesFields : []) {
+        if (spec === '' || spec === null || spec === undefined) continue;
+        // 生のフィールド名が基本。DOS 文字列や配列で来ても resolveFieldIndex が吸収する。
+        // 解決できない（未知のフィールド名など）ものは -1 が返るのでスキップする。
+        const idx = resolveFieldIndex(spec, fieldNames, rows, -1);
+        if (idx >= 0 && idx !== axisIdx) explicit.push(idx);
     }
     let seriesCols;
     if (explicit.length > 0) {
@@ -266,7 +276,7 @@ function buildRadarData(rawRows, fieldNames, opts) {
         seriesCols = explicit.filter((v, i) => explicit.indexOf(v) === i);
     } else {
         seriesCols = [];
-        for (let c = 0; c < colCount && seriesCols.length < MAX_SERIES; c += 1) {
+        for (let c = 0; c < colCount && seriesCols.length < MAX_AUTO_SERIES; c += 1) {
             if (c !== axisIdx) seriesCols.push(c);
         }
     }
@@ -568,7 +578,7 @@ function RadarSvg({ model, opts, palette, width, height, hovered, setHovered }) 
 
             {/* 系列ポリゴン */}
             {series.map((ser, sIndex) => {
-                const color = opts.colors[sIndex] || DEFAULT_SERIES_COLORS[sIndex % MAX_SERIES];
+                const color = opts.colors[sIndex % opts.colors.length];
                 const isHover = hovered === sIndex;
                 const dimmed = hovered !== null && !isHover;
 
@@ -685,7 +695,7 @@ function Legend({ series, opts, palette, hovered, setHovered, small }) {
             }}
         >
             {series.map((ser, i) => {
-                const color = opts.colors[i] || DEFAULT_SERIES_COLORS[i % MAX_SERIES];
+                const color = opts.colors[i % opts.colors.length];
                 const dimmed = hovered !== null && hovered !== i;
                 return (
                     <div
@@ -732,42 +742,9 @@ function Legend({ series, opts, palette, hovered, setHovered, small }) {
 }
 
 // ---------------------------------------------------------------------------
-// デバッグダンプ（options / データ形状を確認する。dynamicColor/columnSelector が
-// 実際に何を渡してくるかの切り分けに使う）
-// ---------------------------------------------------------------------------
-function DebugPanel({ options, model, fieldNames, palette }) {
-    const info = {
-        fields: fieldNames,
-        axisIdx: model.axisIdx,
-        seriesCols: model.seriesCols,
-        axisCount: model.axisLabels.length,
-        seriesCount: model.series.length,
-        rawOptions: options,
-    };
-    return (
-        <pre
-            style={{
-                margin: 0,
-                padding: '6px 12px',
-                fontSize: 10,
-                lineHeight: 1.35,
-                color: palette.debugText,
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-all',
-                maxHeight: 120,
-                overflow: 'auto',
-                flex: '0 0 auto',
-            }}
-        >
-            {JSON.stringify(info, null, 1)}
-        </pre>
-    );
-}
-
-// ---------------------------------------------------------------------------
 // レイアウト（チャート + 凡例）。コンテナ実寸を測って SVG を描く。
 // ---------------------------------------------------------------------------
-function RadarChartLayout({ model, opts, mode, options, fieldNames }) {
+function RadarChartLayout({ model, opts, mode }) {
     const palette = PALETTES[mode] || PALETTES.dark;
     const [hovered, setHovered] = useState(null);
     const [box, setBox] = useState({ width: 0, height: 0 });
@@ -830,14 +807,6 @@ function RadarChartLayout({ model, opts, mode, options, fieldNames }) {
                     />
                 </div>
             )}
-            {opts.debug && (
-                <DebugPanel
-                    options={options}
-                    model={model}
-                    fieldNames={fieldNames}
-                    palette={palette}
-                />
-            )}
         </div>
     );
 }
@@ -858,15 +827,7 @@ function RadarChartVisualization({ mode }) {
     if (loading) return <LoadingState />;
     if (!data || rows.length === 0) return <MessageState text="データがありません。サーチ結果を確認してください。" />;
 
-    return (
-        <RadarChartLayout
-            model={model}
-            opts={opts}
-            mode={mode}
-            options={options}
-            fieldNames={fieldNames}
-        />
-    );
+    return <RadarChartLayout model={model} opts={opts} mode={mode} />;
 }
 
 // ---------------------------------------------------------------------------

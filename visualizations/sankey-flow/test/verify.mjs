@@ -242,13 +242,14 @@ console.log('\n[6] guards');
     check('columns-form data renders 2 links', paths.length === 2, `got ${paths.length}`);
 }
 
-// ---- 7. debug オーバーレイ ----------------------------------------------------
-console.log('\n[7] debug overlay');
+// ---- 7. debug オプションは廃止済み ---------------------------------------------
+console.log('\n[7] debug option removed');
 {
     state.options = { debug: true };
     fire('options', { options: state.options });
     await sleep(200);
-    check('debug dump visible', doc.body.textContent.includes('"normalized"'));
+    check('no debug overlay even with debug:true', !doc.body.textContent.includes('"normalized"'));
+    check('chart still renders', doc.querySelectorAll('svg path').length > 0);
 }
 
 console.log(`\n=== ${pass} passed, ${fail} failed ===`);

@@ -25,14 +25,13 @@
       "categoryField": { "type": "string", "default": "" },
       "labelField": { "type": "string", "default": "" },
 
-      "color1": { "type": "string", "default": "#4a90d9" },
-      "color2": { "type": "string", "default": "#38b48b" },
-      "color3": { "type": "string", "default": "#e5a13a" },
-      "color4": { "type": "string", "default": "#d9534f" },
-      "color5": { "type": "string", "default": "#9b6bd6" },
-      "color6": { "type": "string", "default": "#3fb4c4" },
-      "color7": { "type": "string", "default": "#d76aa8" },
-      "color8": { "type": "string", "default": "#8a97a5" },
+      "seriesColors": {
+        "default": ["#4c9be8", "#26c2a5", "#f2b53c", "#f2653f", "#a97bf0", "#f75d97", "#5ed4f0", "#94a3b5"],
+        "anyOf": [
+          { "type": "array", "items": { "type": "string" } },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      },
 
       "sortLanes": { "type": "string", "default": "count" },
       "maxLanes": { "type": "number", "default": 40 },
@@ -60,9 +59,7 @@
 
       "rangeStart": { "type": "string", "default": "" },
       "rangeEnd": { "type": "string", "default": "" },
-      "padRangePercent": { "type": "number", "default": 2 },
-
-      "debug": { "type": "boolean", "default": false }
+      "padRangePercent": { "type": "number", "default": 2 }
     },
     "editorConfig": [
       {
@@ -78,14 +75,7 @@
       {
         "label": "分類の色",
         "layout": [
-          [{ "label": "分類1の色", "editor": "editor.color", "option": "color1" }],
-          [{ "label": "分類2の色", "editor": "editor.color", "option": "color2" }],
-          [{ "label": "分類3の色", "editor": "editor.color", "option": "color3" }],
-          [{ "label": "分類4の色", "editor": "editor.color", "option": "color4" }],
-          [{ "label": "分類5の色", "editor": "editor.color", "option": "color5" }],
-          [{ "label": "分類6の色", "editor": "editor.color", "option": "color6" }],
-          [{ "label": "分類7の色", "editor": "editor.color", "option": "color7" }],
-          [{ "label": "分類8の色（以降は繰り返し）", "editor": "editor.color", "option": "color8" }]
+          [{ "label": "分類の色", "editor": "editor.seriesColors", "option": "seriesColors" }]
         ]
       },
       {
@@ -132,12 +122,6 @@
           [{ "label": "凡例を表示", "editor": "editor.checkbox", "option": "showLegend" }],
           [{ "label": "フェードインアニメーション", "editor": "editor.checkbox", "option": "animate" }],
           [{ "label": "ドラッグで時間範囲を絞り込む", "editor": "editor.checkbox", "option": "enableBrush" }]
-        ]
-      },
-      {
-        "label": "デバッグ",
-        "layout": [
-          [{ "label": "オプションのデバッグ表示", "editor": "editor.checkbox", "option": "debug" }]
         ]
       }
     ],

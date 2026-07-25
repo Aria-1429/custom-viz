@@ -44,13 +44,13 @@
       "highColor": { "type": "string", "default": "#ef4d4d" },
       "useMidColor": { "type": "boolean", "default": true },
       "reverse": { "type": "boolean", "default": false },
-      "color1": { "type": "string", "default": "#7B56DB" },
-      "color2": { "type": "string", "default": "#009CEB" },
-      "color3": { "type": "string", "default": "#00CDAF" },
-      "color4": { "type": "string", "default": "#DD9900" },
-      "color5": { "type": "string", "default": "#FF677B" },
-      "color6": { "type": "string", "default": "#CB2196" },
-      "debug": { "type": "boolean", "default": false }
+      "seriesColors": {
+        "default": ["#7B56DB", "#009CEB", "#00CDAF", "#DD9900", "#FF677B", "#CB2196"],
+        "anyOf": [
+          { "type": "array", "items": { "type": "string" } },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      }
     },
     "editorConfig": [
       {
@@ -89,19 +89,13 @@
           [{ "label": "ラベルサイズ（px）", "editor": "editor.number", "option": "labelSize" }],
           [{ "label": "ラベルに流量を併記", "editor": "editor.checkbox", "option": "showValues" }],
           [{ "label": "サマリーヘッダーを表示", "editor": "editor.checkbox", "option": "showHeader" }],
-          [{ "label": "ホバーで隣接をハイライト", "editor": "editor.checkbox", "option": "highlightOnHover" }],
-          [{ "label": "デバッグ表示", "editor": "editor.checkbox", "option": "debug" }]
+          [{ "label": "ホバーで隣接をハイライト", "editor": "editor.checkbox", "option": "highlightOnHover" }]
         ]
       },
       {
         "label": "ノードのパレット",
         "layout": [
-          [{ "label": "パレット 1", "editor": "editor.color", "option": "color1" }],
-          [{ "label": "パレット 2", "editor": "editor.color", "option": "color2" }],
-          [{ "label": "パレット 3", "editor": "editor.color", "option": "color3" }],
-          [{ "label": "パレット 4", "editor": "editor.color", "option": "color4" }],
-          [{ "label": "パレット 5", "editor": "editor.color", "option": "color5" }],
-          [{ "label": "パレット 6", "editor": "editor.color", "option": "color6" }]
+          [{ "label": "ノードの色", "editor": "editor.seriesColors", "option": "seriesColors" }]
         ]
       },
       {

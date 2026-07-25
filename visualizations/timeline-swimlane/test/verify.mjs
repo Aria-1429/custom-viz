@@ -184,15 +184,31 @@ console.log('\n[3] category colors and legend');
     check('3 legend items (login/query/error)', legendItems().length === 3, `got ${legendItems().length}`);
     const fills = new Set(bars().map((b) => b.getAttribute('fill')));
     check('3 distinct bar colors', fills.size === 3, Array.from(fills).join(','));
-    check('uses palette color1 for first category', fills.has('#4c9be8'), Array.from(fills).join(','));
+    check('uses 1st default palette entry for first category', fills.has('#4c9be8'), Array.from(fills).join(','));
 }
 
-// ---- 4. 色オプションの反映 ---------------------------------------------------
+// ---- 4. 色オプションの反映（editor.seriesColors） ------------------------------
 console.log('\n[4] palette options apply');
 {
-    await setOpts({ animate: false, color1: '#ff0000' });
+    await setOpts({ animate: false, seriesColors: ['#ff0000', '#00ff00'] });
     const fills = new Set(bars().map((b) => b.getAttribute('fill')));
-    check('color1 override applied', fills.has('#ff0000'), Array.from(fills).join(','));
+    check('seriesColors override applied', fills.has('#ff0000') && fills.has('#00ff00'),
+        Array.from(fills).join(','));
+    // 分類は3つあるがパレットは2色 → 循環して埋まる（既定色に落ちない）
+    check('short palette cycles instead of falling back',
+        Array.from(fills).every((c) => c === '#ff0000' || c === '#00ff00'),
+        Array.from(fills).join(','));
+    await setOpts({ animate: false });
+}
+
+// ---- 4b. 旧 color1..color8 は読まない（既定値はoptionsに載らない罠の回帰） -------
+console.log('\n[4b] legacy color keys must not leak');
+{
+    await setOpts({ animate: false, color1: '#ff0000', color2: '#00ff00' });
+    const fills = new Set(bars().map((b) => b.getAttribute('fill')));
+    check('legacy color1 ignored', !fills.has('#ff0000'), Array.from(fills).join(','));
+    check('legacy color2 ignored', !fills.has('#00ff00'), Array.from(fills).join(','));
+    check('falls back to default palette', fills.has('#4c9be8'), Array.from(fills).join(','));
     await setOpts({ animate: false });
 }
 
@@ -490,12 +506,13 @@ console.log('\n[17] guards');
     check('recovers after guard', bars().length === 6, `got ${bars().length}`);
 }
 
-// ---- 18. debug オーバーレイ ---------------------------------------------------
-console.log('\n[18] debug overlay');
+// ---- 18. debug オプションは廃止済み（残骸が復活していないこと） -----------------
+console.log('\n[18] debug option removed');
 {
     await setOpts({ animate: false, debug: true });
-    check('debug dump visible', doc.body.textContent.includes('"normalized"'));
-    check('version shown', doc.body.textContent.includes('1.2.0'));
+    check('no debug overlay rendered', !doc.body.textContent.includes('"normalized"'),
+        doc.body.textContent.slice(0, 120));
+    check('still renders normally with unknown option', bars().length === 6, `got ${bars().length}`);
     await setOpts({ animate: false });
 }
 

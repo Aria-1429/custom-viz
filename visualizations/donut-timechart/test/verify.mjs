@@ -164,13 +164,32 @@ console.log('\n[4] showSparkline off');
     check('trend svg removed (only donut svg)', svgs.length === 1, `got ${svgs.length}`);
 }
 
-// ---- 5. 色オプションが反映される -------------------------------------------
-console.log('\n[5] custom color applies to first segment');
+// ---- 5. 色パレット（editor.seriesColors）が反映される ------------------------
+console.log('\n[5] seriesColors palette applies to segments');
 {
-    setOptions({ color1: '#123456', showSparkline: true });
+    setOptions({ seriesColors: ['#123456', '#00ff00'], showSparkline: true });
     await sleep(250);
     const strokes = [...doc.querySelectorAll('svg circle')].map((c) => c.getAttribute('stroke'));
-    check('segment uses custom color1 #123456', strokes.includes('#123456'), JSON.stringify(strokes));
+    check('1st palette entry applied', strokes.includes('#123456'), JSON.stringify(strokes));
+    check('2nd palette entry applied', strokes.includes('#00ff00'), JSON.stringify(strokes));
+    // パレットが系列数より短くても循環して埋まる（既定色に落ちない）
+    // 3系列 / 2色 なので 3番目は 1色目に戻る。既定色（#ef4d6a 等）は一切出ない。
+    const segStrokes = strokes.filter((s) => s && s.startsWith('#'));
+    check(
+        'short palette cycles instead of falling back',
+        segStrokes.length > 0 && segStrokes.every((s) => s === '#123456' || s === '#00ff00'),
+        JSON.stringify(strokes)
+    );
+}
+
+// ---- 5b. 旧 color1..color8 は読まない（既定値はoptionsに載らない罠の回帰） ----
+console.log('\n[5b] legacy color keys must not leak');
+{
+    setOptions({ color1: '#123456', color2: '#00ff00', showSparkline: true });
+    await sleep(250);
+    const strokes = [...doc.querySelectorAll('svg circle')].map((c) => c.getAttribute('stroke'));
+    check('legacy color1 ignored', !strokes.includes('#123456'), JSON.stringify(strokes));
+    check('falls back to default palette', strokes.includes('#3fd66e'), JSON.stringify(strokes));
 }
 
 // ---- 6. 時刻フィールドを DOS 文字列で指定 -----------------------------------
@@ -274,14 +293,15 @@ console.log('\n[11] guards');
     check('columns-form renders', !!doc.querySelector('svg circle'));
 }
 
-// ---- 12. debug オーバーレイ -------------------------------------------------
-console.log('\n[12] debug overlay dumps normalized options');
+// ---- 12. debug オプションは廃止済み（オーバーレイが出ないこと） -------------
+console.log('\n[12] debug option removed → no overlay');
 {
     setData({ fields: TC_FIELDS, rows: TC_ROWS });
     setOptions({ debug: true });
     await sleep(250);
-    check('debug dump visible', doc.body.textContent.includes('"normalized"'));
-    check('debug shows mode timechart', doc.body.textContent.includes('timechart'));
+    check('no debug dump rendered', !doc.body.textContent.includes('"normalized"'));
+    check('no <pre> overlay element', doc.querySelectorAll('pre').length === 0);
+    check('chart still renders normally', !!doc.querySelector('svg circle'));
 }
 
 console.log(`\n=== ${pass} passed, ${fail} failed ===`);

@@ -46,8 +46,7 @@
       "labelSize": { "type": "number", "default": 0 },
       "showHeader": { "type": "boolean", "default": true },
       "highlightOnHover": { "type": "boolean", "default": true },
-      "clickToFocus": { "type": "boolean", "default": true },
-      "debug": { "type": "boolean", "default": false }
+      "clickToFocus": { "type": "boolean", "default": true }
     },
     "editorConfig": [
       {
@@ -106,12 +105,6 @@
           [{ "label": "サマリーヘッダーを表示", "editor": "editor.checkbox", "option": "showHeader" }],
           [{ "label": "ホバーで関連フローをハイライト", "editor": "editor.checkbox", "option": "highlightOnHover" }],
           [{ "label": "クリックで選択を固定", "editor": "editor.checkbox", "option": "clickToFocus" }]
-        ]
-      },
-      {
-        "label": "デバッグ",
-        "layout": [
-          [{ "label": "オプション診断オーバーレイを表示", "editor": "editor.checkbox", "option": "debug" }]
         ]
       }
     ]

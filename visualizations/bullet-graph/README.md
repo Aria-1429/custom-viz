@@ -94,6 +94,19 @@ Dashboard Studio の JSON では `"type": "custom_viz_bullet_graph.custom_viz_bu
 
 ---
 
+### [1.1.0] - 2026-07-25
+
+#### 削除
+
+- **`debug`（オプション診断オーバーレイ）を廃止**した。`config.json` の `optionsSchema` /
+  `editorConfig`（「デバッグ」セクションごと）、`visualization.jsx` の `DEFAULTS` /
+  `normalizeOptions` / オーバーレイ描画をすべて削除した。
+
+#### 成果物
+
+- `dist/custom_viz_bullet_graph-1.1.0-fcde869.spl`
+
+
 ### [1.0.1] - 2026-07-21
 
 #### 修正

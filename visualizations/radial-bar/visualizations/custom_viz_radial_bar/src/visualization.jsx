@@ -156,12 +156,13 @@ const VALID_VALUE_FORMATS = ['comma', 'compact', 'plain'];
 function normalizeOptions(raw) {
     const o = raw && typeof raw === 'object' ? raw : {};
 
-    const colors = [];
-    for (let i = 0; i < DEFAULT_COLORS.length; i += 1) {
-        let c = pickColor(o, `color${i + 1}`, null);
-        if (!c && Array.isArray(o.colors) && isHexColor(o.colors[i])) c = o.colors[i].trim();
-        colors.push(c || DEFAULT_COLORS[i]);
-    }
+    // editor.seriesColors は hex 文字列の配列を生で渡してくる。
+    // 要素数はユーザーが増減できるため、既定色より短くても長くても壊れないようにする
+    // （描画側は % length で循環させる）。
+    // ※ 旧 color1..color6 は意図的に読まない。既定値と同じ値は options に載らないため、
+    //   旧キーへフォールバックすると「既定値を選んだときだけ直らない」不具合になる。
+    const palette = Array.isArray(o.seriesColors) ? o.seriesColors.filter(isHexColor) : [];
+    const colors = palette.length > 0 ? palette.map((c) => c.trim()) : DEFAULT_COLORS.slice();
 
     const vf =
         typeof o.valueFormat === 'string' && VALID_VALUE_FORMATS.includes(o.valueFormat.trim())

@@ -19,15 +19,43 @@ import './visualization.css';
 // ---------------------------------------------------------------------------
 // 定数
 // ---------------------------------------------------------------------------
-// よく使われるSeverity名 → オプションキーとデフォルト色の対応
-// （それ以外のSeverityは登場順に extraColor1..4 が割り当てられる）
-const KNOWN_COLOR_KEYS = {
-    high: ['highColor', '#ff5a2e'],
-    medium: ['mediumColor', '#e6b93c'],
-    low: ['lowColor', '#38a6ff'],
-};
-// High/Medium/Low 以外のSeverityに登場順で割り当てる色（オプションで変更可能）
-const EXTRA_COLOR_DEFAULTS = ['#b17aff', '#2dd4bf', '#ff7ab8', '#9aa7b8'];
+// Severity の色は「1本の順序付きパレット」だけで決める（editor.seriesColors の
+// severityColors オプション）。
+//
+// なぜ threshold ではなくパレットなのか:
+//   この viz の Severity は **文字列カテゴリ**（parseThreats の toSeverity が
+//   String() で読む）であって数値ではない。editor.threshold は数値レンジ→色の
+//   マッピングなので、"high" / "worm" / "P1" のような値には原理的に適用できない。
+//   したがって「登場した Severity を安定した順序に並べ、その順にパレットを配る」
+//   方式を採る。任意の語彙（severity/priority/tier/日本語 …）でも必ず全カテゴリに
+//   別々の色が付く。
+//
+// 並び順（＝パレットの適用順）:
+//   KNOWN_SEVERITY_ORDER に載っているものを先頭（critical → high → medium → low）、
+//   残りは検索結果への登場順。よくある語彙なら「1番目=赤系」が自動的に最も深刻な
+//   Severity に当たるため、既定色は v1 の見た目（High=橙赤 / Medium=黄 / Low=青）を
+//   ほぼ再現する。
+//
+// ユーザーが色数を増減できるため、消費側は必ず `% length` で循環参照する。
+// config.json の severityColors.default と一致させること。
+const SEVERITY_COLOR_DEFAULTS = [
+    '#ff5a2e', // 1番目（既定語彙では High）
+    '#e6b93c', // 2番目（既定語彙では Medium）
+    '#38a6ff', // 3番目（既定語彙では Low）
+    '#b17aff',
+    '#2dd4bf',
+    '#ff7ab8',
+    '#9aa7b8',
+];
+
+// editor.seriesColors は hex 文字列の配列を生で渡してくる。解釈できない要素は落とし、
+// 空なら既定パレットへ倒す。旧 highColor/mediumColor/lowColor/extraColors への
+// フォールバックは意図的に行わない（既定値は options に載らないため、読み替えると
+// 「既定値を選んだときだけ直らない」不具合になる）。
+function severityPaletteOf(raw) {
+    const list = Array.isArray(raw) ? raw.filter((c) => parseColor(c) !== null) : [];
+    return list.length > 0 ? list : SEVERITY_COLOR_DEFAULTS;
+}
 // 凡例・フィルタ・ホットスポット優先度の並び順（既知のものを先頭に、他は登場順）
 const KNOWN_SEVERITY_ORDER = ['critical', 'high', 'medium', 'low'];
 
@@ -305,9 +333,12 @@ function parseThreats(fieldNames, rows, opts) {
 
 /**
  * サーチ結果に登場したSeverityの一覧（表示順）と色の割り当てを作る。
- * - 並び順: Critical, High, Medium, Low（存在するもののみ）→ その他は登場順
- * - 色: High/Medium/Low は専用オプション、その他は extraColor1..4 を登場順に
- *   割り当て（5種類以上は循環）
+ *
+ * - 並び順: Critical, High, Medium, Low（存在するもののみ）→ その他は登場順。
+ *   よく使う語彙は既知順で先頭に来るので色が安定し、独自語彙でも「検索結果の
+ *   登場順」という決定的な順序になる（同じサーチなら毎回同じ色）。
+ * - 色: 上の順に severityColors パレットを 1 色ずつ配る。カテゴリ数がパレットより
+ *   多い場合は循環する。特定の名前（high/medium/low）に紐づく専用色は持たない。
  */
 function buildSeverityModel(threats, options) {
     const seen = [];
@@ -321,19 +352,12 @@ function buildSeverityModel(threats, options) {
     const severityList = [...known, ...others];
 
     const severityColors = {};
-    let extraIdx = 0;
-    severityList.forEach((sev) => {
-        const knownEntry = KNOWN_COLOR_KEYS[sev.toLowerCase()];
-        if (knownEntry) {
-            severityColors[sev] =
-                parseColor(options?.[knownEntry[0]]) || parseColor(knownEntry[1]);
-        } else {
-            const slot = extraIdx % EXTRA_COLOR_DEFAULTS.length;
-            severityColors[sev] =
-                parseColor(options?.[`extraColor${slot + 1}`]) ||
-                parseColor(EXTRA_COLOR_DEFAULTS[slot]);
-            extraIdx += 1;
-        }
+    const palette = severityPaletteOf(options?.severityColors);
+    severityList.forEach((sev, i) => {
+        const slot = i % palette.length;
+        severityColors[sev] =
+            parseColor(palette[slot]) ||
+            parseColor(SEVERITY_COLOR_DEFAULTS[slot % SEVERITY_COLOR_DEFAULTS.length]);
     });
     return { severityList, severityColors };
 }

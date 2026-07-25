@@ -4,10 +4,11 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const BUNDLE = join(
-    dirname(fileURLToPath(import.meta.url)),
-    '..', 'dist', 'custom_viz_link_line', 'visualization.js'
-);
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const BUNDLE = join(ROOT, 'dist', 'custom_viz_link_line', 'visualization.js');
+// バージョン表記は package.json を正とする（ハードコードするとリリースのたびに壊れるため）
+const PKG_VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
+const VERSION_MARK = `v${PKG_VERSION}`;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let pass = 0;
@@ -161,7 +162,7 @@ console.log('\n[1] basic render');
     check('main line rendered', !!p);
     check('default horizontal path (M 63 280 L 837 280)', p && p.getAttribute('d') === 'M 63 280 L 837 280',
         p && p.getAttribute('d'));
-    check('value 95 >= threshold3(90) → red #dc4e41', p && lineColor() === '#dc4e41', p && lineColor());
+    check('value 95 in default band [90,100) → red #dc4e41', p && lineColor() === '#dc4e41', p && lineColor());
     check('gradient stroke by default (url(#llGrad))', p && p.getAttribute('stroke') === 'url(#llGrad)',
         p && p.getAttribute('stroke'));
     check('flat mode → no halo layers', !doc.querySelector('path[data-role="line-halo1"]'));
@@ -173,38 +174,129 @@ console.log('\n[1] basic render');
     check('value label shows 95', label && label.textContent === '95', label && label.textContent);
     check('no flow canvas by default (flowSpeed 0)', !flowCanvas());
     check('edit toggle (✎) shown in view mode', !!doc.querySelector('[data-role="edit-toggle"]'));
-    check('color toggle (🎨) shown in view mode', !!doc.querySelector('[data-role="color-toggle"]'));
+    check('self-built color panel removed (no 🎨 toggle)', !doc.querySelector('[data-role="color-toggle"]'));
     check('no edit layer until unlocked', !doc.querySelector('[data-role="edit-layer"]'));
     check('no reset button until unlocked', !doc.querySelector('[data-role="reset-line"]'));
 }
 
-// ---- 2. しきい値の色分け -------------------------------------------------------
-console.log('\n[2] threshold colors');
+// ---- 2. 線の色（editor.threshold の colorBands 配列） --------------------------
+// editor.threshold は [{from,to,value}] を生の配列で渡してくる（DOS 文字列にならない）。
+console.log('\n[2] colorBands (editor.threshold array)');
 {
+    // (a) 既定バンド：各バンド内の値がそのバンドの色になる
     await setData({ fields: FIELDS, rows: [['t1', '5'], ['t2', '10']] });
-    check('value 10 < t1(40) → base green', lineColor() === '#53a051',
-        lineColor());
-
+    check('default bands: 10 in [0,40) → green #53a051', lineColor() === '#53a051', lineColor());
     await setData({ fields: FIELDS, rows: [['t1', '5'], ['t2', '50']] });
-    check('value 50 in [40,70) → color1 yellow', lineColor() === '#f8be34',
-        lineColor());
-
+    check('default bands: 50 in [40,70) → yellow #f8be34', lineColor() === '#f8be34', lineColor());
     await setData({ fields: FIELDS, rows: [['t1', '5'], ['t2', '75']] });
-    check('value 75 in [70,90) → color2 orange', lineColor() === '#f1813f',
-        lineColor());
+    check('default bands: 75 in [70,90) → orange #f1813f', lineColor() === '#f1813f', lineColor());
+    await setData({ fields: FIELDS, rows: [['t1', '5'], ['t2', '95']] });
+    check('default bands: 95 in [90,∞) → red #dc4e41', lineColor() === '#dc4e41', lineColor());
+    // 最上位バンドは上限なし [90,∞)。100 超でも灰色に抜けず赤のままであること
+    // （旧実装の threshold3 は「90 以上すべて赤」だったので、その挙動を既定で保つ）
+    await setData({ fields: FIELDS, rows: [['t1', '5'], ['t2', '250']] });
+    check('default bands: 250 above top band → still red (open range)', lineColor() === '#dc4e41', lineColor());
+    await setData({ fields: FIELDS, rows: [['t1', '5'], ['t2', '99999']] });
+    check('default bands: very large value → still red', lineColor() === '#dc4e41', lineColor());
 
-    // しきい値カスタム（順不同でもソートされる）
-    await setOpts({ threshold1: 100, color1: '#0000ff', threshold2: 60, color2: '#00ff00', threshold3: 200 });
-    check('custom unsorted thresholds → 75 ≥ 60 → #00ff00', lineColor() === '#00ff00',
-        lineColor());
+    // 半開区間 [from, to)：境界値は下側のバンドではなく上側のバンドに入る
+    await setData({ fields: FIELDS, rows: [['t1', '5'], ['t2', '40']] });
+    check('half-open [from,to): 40 → upper band #f8be34', lineColor() === '#f8be34', lineColor());
 
-    // しきい値オフ → 常に基本色
-    await setOpts({ useThresholds: false, baseColor: '#22d3ee' });
-    check('thresholds off → fixed baseColor', lineColor() === '#22d3ee',
-        lineColor());
+    // (a2) カスタムバンド（editor から届く形そのまま）
+    await setData({ fields: FIELDS, rows: [['t1', '5'], ['t2', '55']] });
+    await setOpts({ colorBands: [{ from: 0, to: 50, value: '#111111' }, { from: 50, to: 100, value: '#222222' }] });
+    check('custom bands: 55 in [50,100) → #222222', lineColor() === '#222222', lineColor());
+
+    // 未ソートでも同じ結果
+    await setOpts({ colorBands: [{ from: 50, to: 100, value: '#222222' }, { from: 0, to: 50, value: '#111111' }] });
+    check('unsorted bands: 55 → #222222 (order-independent)', lineColor() === '#222222', lineColor());
+    await setData({ fields: FIELDS, rows: [['t1', '5'], ['t2', '20']] });
+    check('unsorted bands: 20 → #111111', lineColor() === '#111111', lineColor());
+
+    // 開区間（openRanges: true → from/to が null で届く）
+    await setData({ fields: FIELDS, rows: [['t1', '5'], ['t2', '999']] });
+    await setOpts({ colorBands: [{ from: null, to: 10, value: '#aa0000' }, { from: 10, to: null, value: '#00aa00' }] });
+    check('open upper range [10,∞) → 999 → #00aa00', lineColor() === '#00aa00', lineColor());
+    await setData({ fields: FIELDS, rows: [['t1', '5'], ['t2', '-500']] });
+    check('open lower range (-∞,10) → -500 → #aa0000', lineColor() === '#aa0000', lineColor());
+    await setData({ fields: FIELDS, rows: [['t1', '5'], ['t2', '95']] });
+
+    // 重なり：狭い方（from が大きい方）が勝つ。並び順を変えても同じ色
+    await setOpts({ colorBands: [{ from: 0, to: 200, value: '#aaaaaa' }, { from: 90, to: 200, value: '#bbbbbb' }] });
+    check('overlap: narrower (higher from) wins → #bbbbbb', lineColor() === '#bbbbbb', lineColor());
+    await setOpts({ colorBands: [{ from: 90, to: 200, value: '#bbbbbb' }, { from: 0, to: 200, value: '#aaaaaa' }] });
+    check('overlap is order-independent → #bbbbbb', lineColor() === '#bbbbbb', lineColor());
+    // 同じ from なら to が小さい方（より狭い方）が勝つ
+    await setOpts({ colorBands: [{ from: 90, to: 200, value: '#aaaaaa' }, { from: 90, to: 100, value: '#cccccc' }] });
+    check('same from → smaller to wins → #cccccc', lineColor() === '#cccccc', lineColor());
+
+    // (b) 壊れた配列でも落ちない → ニュートラル or 生き残った行
+    await setOpts({ colorBands: [] });
+    check('empty array → neutral gray, no crash', lineColor() === '#8b93a1', lineColor());
+    check('empty array → line still rendered', !!mainLine());
+
+    await setOpts({ colorBands: 'garbage' });
+    check('non-array (string) → falls back to DEFAULTS bands (red)', lineColor() === '#dc4e41', lineColor());
+    await setOpts({ colorBands: 12345 });
+    check('non-array (number) → falls back to DEFAULTS bands (red)', lineColor() === '#dc4e41', lineColor());
+    await setOpts({ colorBands: null });
+    check('null → falls back to DEFAULTS bands (red)', lineColor() === '#dc4e41', lineColor());
+
+    await setOpts({ colorBands: [null, 'x', 42, { nope: 1 }] });
+    check('garbage rows → neutral gray, no crash', lineColor() === '#8b93a1', lineColor());
+
+    await setOpts({ colorBands: [{ from: 0, to: 200, value: 'not-a-color' }] });
+    check('invalid hex → row skipped → neutral gray', lineColor() === '#8b93a1', lineColor());
+
+    // 1 行だけ壊れていても、生きている行は活かす
+    await setOpts({ colorBands: [{ from: 0, to: 200, value: 'nope' }, { from: 90, to: 200, value: '#0088ff' }] });
+    check('partially broken array → valid row still applies', lineColor() === '#0088ff', lineColor());
+
+    // 逆転した範囲（from > to）は無視
+    await setOpts({ colorBands: [{ from: 200, to: 0, value: '#ff00ff' }] });
+    check('reversed range (from > to) ignored → neutral', lineColor() === '#8b93a1', lineColor());
+
+    // 値が数値でない → ニュートラル（バンドは見ない）
+    await setData({ fields: FIELDS, rows: [['t1', 'abc'], ['t2', 'def']] });
+    await setOpts({ colorBands: [{ from: 0, to: 200, value: '#0088ff' }] });
+    check('non-numeric value → neutral gray regardless of bands', lineColor() === '#8b93a1', lineColor());
 
     await setOpts({});
     await setData({ fields: FIELDS, rows: ROWS });
+}
+
+// ---- 2b. 旧・色オプションは無視される（後方互換は意図的に実装しない） -----------
+// v1.9.0 で自作の色設定パネルを廃止し editor.threshold へ一本化した。旧ダッシュボードに
+// 残った文字列 colorBands / threshold1 / color1 / useThresholds / baseColor / colorMethod /
+// colorMatches は読み替えず、既定バンドへ倒す。
+console.log('\n[2b] legacy color options ignored (no back-compat)');
+{
+    // 95 は既定バンド [90,100) → #dc4e41 になるはず（旧値の色にはならない）
+    await setOpts({ colorBands: '[[96,"#111111"],[50,"#222222"],[null,"#333333"]]' });
+    check('legacy STRING colorBands ignored → default bands (red)', lineColor() === '#dc4e41', lineColor());
+
+    await setOpts({ threshold1: 10, color1: '#00ff00', threshold2: 20, color2: '#0000ff',
+                    threshold3: 30, color3: '#ff00ff' });
+    check('legacy threshold1-3 / color1-3 ignored → default bands (red)', lineColor() === '#dc4e41', lineColor());
+
+    await setOpts({ useThresholds: false, baseColor: '#22d3ee' });
+    check('legacy useThresholds/baseColor ignored → default bands (red)', lineColor() === '#dc4e41', lineColor());
+
+    await setData({ fields: [{ name: 'status' }], rows: [['OK']] });
+    await setOpts({ colorMethod: 'match', colorMatches: '[["OK","#11aa22"]]' });
+    check('legacy colorMethod/colorMatches ignored → non-numeric → neutral',
+        lineColor() === '#8b93a1', lineColor());
+
+    // 旧キーが全部残っていても落ちない
+    await setData({ fields: FIELDS, rows: ROWS });
+    await setOpts({ colorBands: '[[96,"#111111"]]', colorMethod: 'match', colorMatches: '[["a","#b"]]',
+                    useThresholds: true, baseColor: '#53a051', threshold1: 40, color1: '#f8be34',
+                    threshold2: 70, color2: '#f1813f', threshold3: 90, color3: '#dc4e41' });
+    check('all legacy keys present → no crash, default bands (red)', lineColor() === '#dc4e41', lineColor());
+    check('all legacy keys present → line still rendered', !!mainLine());
+
+    await setOpts({});
 }
 
 // ---- 3. フィールド選択（columnSelector DOS 文字列） ---------------------------
@@ -221,7 +313,7 @@ console.log('\n[3] field selection');
     await setOpts({ valueField: "> primary | seriesByName('errors')" });
     label = valueText();
     check('DOS-selected errors → 88', label && label.textContent === '88', label && label.textContent);
-    check('88 ≥ t2(70) → orange', lineColor() === '#f1813f', lineColor());
+    check('88 in default band [70,90) → orange', lineColor() === '#f1813f', lineColor());
 
     await setOpts({});
     await setData({ fields: FIELDS, rows: ROWS });
@@ -251,16 +343,16 @@ console.log('\n[4] linePoints option');
 // ---- 5. 質感（styleMode / 破線 / 流れ / 不透明度 / 端点・矢印・ラベル） --------
 console.log('\n[5] texture & decorations');
 {
-    await setOpts({ styleMode: 3 });
+    await setOpts({ styleMode: 'neon' });
     check('neon → halo layers', !!doc.querySelector('path[data-role="line-halo1"]')
         && !!doc.querySelector('path[data-role="line-halo2"]'));
     check('neon → bright core layer', !!doc.querySelector('path[data-role="line-core"]'));
 
-    await setOpts({ styleMode: 4 });
+    await setOpts({ styleMode: 'pipe' });
     check('pipe → dark edge layer', !!doc.querySelector('path[data-role="line-edge"]'));
     check('pipe → highlight core layer', !!doc.querySelector('path[data-role="line-core"]'));
 
-    await setOpts({ styleMode: 2 });
+    await setOpts({ styleMode: 'shadow' });
     check('soft shadow → filter on main line', mainLine().getAttribute('filter') === 'url(#llShadow)',
         mainLine().getAttribute('filter'));
 
@@ -465,134 +557,78 @@ console.log('\n[8] theme switch');
         chip2 && chip2.style.background);
 }
 
-// ---- 9. debug オーバーレイ -----------------------------------------------------
-console.log('\n[9] debug overlay');
+// ---- 9. debug オプション廃止（オーバーレイが出ないこと） ------------------------
+console.log('\n[9] debug option removed');
 {
     await setOpts({ debug: true });
-    check('debug dump visible', doc.body.textContent.includes('"normalized"'));
+    check('debug overlay no longer renders', !doc.body.textContent.includes('"normalized"'),
+        doc.body.textContent.slice(0, 160));
+    check('no [data-role="debug"] element', !doc.querySelector('[data-role="debug"]'));
+    check('line still renders with stale debug option', !!mainLine());
     await setOpts({});
 }
 
-// ---- 10. 動的色設定（範囲/一致・パネル操作） -----------------------------------
-console.log('\n[10] dynamic color (range / match)');
+// ---- 9b. 旧 styleMode 数値コードの回帰（後方互換は意図的に実装しない） -----------
+// v1.8.0 で styleMode を editor.select の文字列へ移行した。旧ダッシュボードに残った
+// 数値コードは「読み替えず」既定 'flat' へ倒す（既定値と同じ値は options に載らないため、
+// 読み替えを実装すると「既定値を選び直したときだけ直らない」不具合になる）。
+console.log('\n[9b] legacy numeric styleMode falls back to flat (no back-compat)');
 {
-    // --- オプション直指定（範囲） ---
-    await setOpts({ colorBands: '[[96,"#111111"],[50,"#222222"],[null,"#333333"]]' });
-    check('bands: 95 in [50,96) → #222222', lineColor() === '#222222', lineColor());
-    await setOpts({ colorBands: '[[96,"#111111"],[null,"#333333"]]' });
-    check('bands: 95 below all → else color', lineColor() === '#333333', lineColor());
-    await setOpts({ colorBands: '{broken' });
-    check('invalid bands → fallback to fixed thresholds (red)', lineColor() === '#dc4e41', lineColor());
+    await setOpts({ styleMode: 3 }); // 旧「ネオン発光」
+    check('legacy styleMode:3 does NOT select neon (no halo layers)',
+        !doc.querySelector('path[data-role="line-halo1"]') && !doc.querySelector('path[data-role="line-halo2"]'));
+    check('legacy styleMode:3 → flat (no core layer)', !doc.querySelector('path[data-role="line-core"]'));
 
-    // --- オプション直指定（一致・非数値の文字列値） ---
-    await setData({ fields: [{ name: 'status' }], rows: [['OK']] });
-    await setOpts({ colorMethod: 'match', colorMatches: '[["OK","#11aa22"],["NG","#aa1122"]]' });
-    check('match: value OK → #11aa22', lineColor() === '#11aa22', lineColor());
-    let label = valueText();
-    check('match: label shows raw string OK', label && label.textContent === 'OK', label && label.textContent);
-    await setData({ fields: [{ name: 'status' }], rows: [['WARN']] });
-    check('match: unmatched → neutral gray', lineColor() === '#8b93a1', lineColor());
+    await setOpts({ styleMode: 4 }); // 旧「立体パイプ」
+    check('legacy styleMode:4 does NOT select pipe (no dark edge layer)',
+        !doc.querySelector('path[data-role="line-edge"]'));
+
+    await setOpts({ styleMode: 2 }); // 旧「ソフトシャドウ」
+    check('legacy styleMode:2 does NOT apply shadow filter', !mainLine().getAttribute('filter'),
+        mainLine().getAttribute('filter'));
+
+    check('legacy value still renders a line (flat fallback)', !!mainLine());
     await setOpts({});
-    await setData({ fields: FIELDS, rows: ROWS });
+}
 
-    // --- パネル操作（表示モード・範囲タブ） ---
-    doc.querySelector('[data-role="color-toggle"]').dispatchEvent(ev('click'));
-    await sleep(250);
-    check('color editor opens', !!doc.querySelector('[data-role="color-editor"]'));
-    check('method tabs (範囲/一致) exist', !!doc.querySelector('[data-role="method-range"]')
-        && !!doc.querySelector('[data-role="method-match"]'));
-    check('palette tabs (ダーク/ライト) exist', !!doc.querySelector('[data-role="palette-dark"]')
-        && !!doc.querySelector('[data-role="palette-light"]'));
-    const bar = doc.querySelector('[data-role="palette-bar"]');
-    check('palette bar with 7 swatches', bar && bar.children.length === 7,
-        bar && `got ${bar.children.length}`);
-    check('initial 4 rows derived from fixed thresholds',
-        [...doc.querySelectorAll('[data-role="color-band-row"]')].length === 4,
-        `got ${[...doc.querySelectorAll('[data-role="color-band-row"]')].length}`);
-    check('row labels 以上 / 〜 90 / より小さい 40',
-        doc.body.textContent.includes('以上') && doc.body.textContent.includes('〜 90')
-        && doc.body.textContent.includes('より小さい 40'));
-    check('version marker shown in panel', doc.body.textContent.includes('v1.7.0'));
+// ---- 10. 色設定は編集パネル（editor.threshold）に一本化・viz 内 UI は無い ------
+console.log('\n[10] in-viz color panel fully removed');
+{
+    check('no 🎨 color toggle in view mode', !doc.querySelector('[data-role="color-toggle"]'));
+    check('no color editor panel', !doc.querySelector('[data-role="color-editor"]'));
+    check('no method tabs (範囲/一致)', !doc.querySelector('[data-role="method-range"]')
+        && !doc.querySelector('[data-role="method-match"]'));
+    check('no palette bar / tabs', !doc.querySelector('[data-role="palette-bar"]')
+        && !doc.querySelector('[data-role="palette-dark"]'));
+    check('no band rows / add / remove / invert / revert',
+        !doc.querySelector('[data-role="color-band-row"]') && !doc.querySelector('[data-role="band-add"]')
+        && !doc.querySelector('[data-role="band-remove"]') && !doc.querySelector('[data-role="band-invert"]')
+        && !doc.querySelector('[data-role="band-revert"]'));
+    check('no match rows UI', !doc.querySelector('[data-role="color-match-row"]')
+        && !doc.querySelector('[data-role="match-add"]'));
+    check('panel wording gone from DOM', !doc.body.textContent.includes('動的色設定：メジャー値')
+        && !doc.body.textContent.includes('色を設定'));
 
-    // ＋範囲の追加 → 5 行・colorBands/colorMethod が保存される
-    doc.querySelector('[data-role="band-add"]').dispatchEvent(ev('click'));
-    await sleep(250);
-    let saved = JSON.parse(state.options.colorBands || 'null');
-    check('add range → 5 bands saved', Array.isArray(saved) && saved.length === 5, state.options.colorBands);
-    check('added range from = 110 (max+20)', saved && saved[0][0] === 110, JSON.stringify(saved && saved[0]));
-    check('colorMethod saved as range', state.options.colorMethod === 'range', state.options.colorMethod);
+    // ✎ 線編集トグルは残っている（色パネルだけを消した）
+    check('✎ line edit toggle still present', !!doc.querySelector('[data-role="edit-toggle"]'));
 
-    // パレットバー適用 → ランプ両端の色が上下の行に入る（上=↑緑端, 最下=↓赤端）
-    doc.querySelector('[data-role="palette-bar"]').dispatchEvent(ev('click'));
-    await sleep(250);
-    saved = JSON.parse(state.options.colorBands || 'null');
-    check('palette applied: top = ramp high end', saved && saved[0][1] === '#4f9c45', JSON.stringify(saved && saved[0]));
-    check('palette applied: else = ramp low end', saved && saved[saved.length - 1][1] === '#d13b2e',
-        JSON.stringify(saved && saved[saved.length - 1]));
-    fire('options', { options: state.options });
-    await sleep(250);
-    {
-        const expect = saved.find((b) => b[0] !== null && 95 >= b[0]);
-        check('line follows applied palette', lineColor() === expect[1], `${lineColor()} vs ${expect[1]}`);
-    }
-
-    // ▾ メニューからパレット選択（青ランプ）→ 適用される
-    doc.querySelector('[data-role="palette-menu-toggle"]').dispatchEvent(ev('click'));
-    await sleep(200);
-    const items = [...doc.querySelectorAll('[data-role="palette-item"]')];
-    check('palette menu lists 3 ramps', items.length === 3, `got ${items.length}`);
-    items[2].dispatchEvent(ev('click'));
-    await sleep(250);
-    saved = JSON.parse(state.options.colorBands || 'null');
-    check('blue ramp applied via menu', saved && saved[0][1] === '#93cbe0', JSON.stringify(saved && saved[0]));
-
-    // ⇄ 反転
-    doc.querySelector('[data-role="band-invert"]').dispatchEvent(ev('click'));
-    await sleep(250);
-    saved = JSON.parse(state.options.colorBands || 'null');
-    check('invert → top gets former bottom color', saved && saved[0][1] === '#0e4d64',
-        JSON.stringify(saved && saved[0]));
-
-    // × 削除 → 1 行減る
-    doc.querySelector('[data-role="band-remove"]').dispatchEvent(ev('click'));
-    await sleep(250);
-    saved = JSON.parse(state.options.colorBands || 'null');
-    check('remove → 4 bands saved', Array.isArray(saved) && saved.length === 4, state.options.colorBands);
-
-    // --- 一致タブへ切替 ---
-    doc.querySelector('[data-role="method-match"]').dispatchEvent(ev('click'));
-    await sleep(250);
-    check('method switch saved (match)', state.options.colorMethod === 'match', state.options.colorMethod);
-    check('match rows UI shown (1 default row)',
-        [...doc.querySelectorAll('[data-role="color-match-row"]')].length === 1);
-    check('range-only UI hidden in match mode', !doc.querySelector('[data-role="palette-bar"]'));
-    doc.querySelector('[data-role="match-add"]').dispatchEvent(ev('click'));
-    await sleep(250);
-    const savedMatches = JSON.parse(state.options.colorMatches || 'null');
-    check('add match → 2 matches saved', Array.isArray(savedMatches) && savedMatches.length === 2,
-        state.options.colorMatches);
-
-    // --- 既定に戻す → 3 オプションともクリア・パネルが閉じる ---
-    doc.querySelector('[data-role="band-revert"]').dispatchEvent(ev('click'));
-    await sleep(250);
-    check('revert → colorBands/colorMatches cleared, method range',
-        state.options.colorBands === '' && state.options.colorMatches === ''
-        && state.options.colorMethod === 'range',
-        JSON.stringify([state.options.colorBands, state.options.colorMatches, state.options.colorMethod]));
-    check('revert closes panel', !doc.querySelector('[data-role="color-editor"]'));
-    fire('options', { options: state.options });
-    await sleep(250);
-    check('back to fixed thresholds (red)', lineColor() === '#dc4e41', lineColor());
-
-    // 編集モードでは色設定ボタンも出ない
+    // 編集モードの案内は「色は右パネル」と伝える
     state.mode = 'edit';
     fire('mode', { mode: 'edit' });
     await sleep(250);
+    check('edit mode note points to right panel for color',
+        doc.body.textContent.includes('線の色'), doc.body.textContent.slice(-200));
+    check('edit mode note includes version', doc.body.textContent.includes(VERSION_MARK), VERSION_MARK);
     check('edit mode → no color toggle', !doc.querySelector('[data-role="color-toggle"]'));
-    check('edit mode note includes version', doc.body.textContent.includes('v1.7.0'));
     state.mode = 'view';
     fire('mode', { mode: 'view' });
     await sleep(250);
+
+    // 編集パネル（右パネル）から colorBands が変われば線の色は即追従する
+    await setOpts({ colorBands: [{ from: 0, to: 1000, value: '#7b56db' }] });
+    check('editor-panel colorBands drives line color', lineColor() === '#7b56db', lineColor());
+    await setOpts({});
+    check('back to default bands (red)', lineColor() === '#dc4e41', lineColor());
 }
 
 // ---- 11. 表示モードの setOptions を取り込まないホスト → 編集モード入りで flush ----
@@ -616,15 +652,7 @@ console.log('\n[11] pending flush on entering edit mode');
     check('draft still shown (path not default)', mainLine().getAttribute('d') !== 'M 63 280 L 837 280',
         mainLine().getAttribute('d'));
 
-    // 表示モードで色を反転（⇄）→ ホスト無視でもライブプレビューで緑になる
-    doc.querySelector('[data-role="color-toggle"]').dispatchEvent(ev('click'));
-    await sleep(250);
-    doc.querySelector('[data-role="band-invert"]').dispatchEvent(ev('click'));
-    await sleep(250);
-    check('host ignored view-mode color save', !state.options.colorBands, JSON.stringify(state.options.colorBands));
-    check('live preview color (95 ≥ 90 → inverted green)', lineColor() === '#53a051', lineColor());
-
-    // 編集モードに入る → pending が一括 flush され、定義に載る
+    // 編集モードに入る → pending（linePoints のみ）が flush され、定義に載る
     const callsBefore = setOptionsLog.length;
     state.mode = 'edit';
     fire('mode', { mode: 'edit' });
@@ -635,16 +663,15 @@ console.log('\n[11] pending flush on entering edit mode');
     check('flushed linePoints ≈ (0.3, 0.2)',
         savedPts && Math.abs(savedPts[0][0] - 0.3) < 0.01 && Math.abs(savedPts[0][1] - 0.2) < 0.01,
         JSON.stringify(savedPts && savedPts[0]));
-    let savedBands = JSON.parse(state.options.colorBands || 'null');
-    check('flushed colorBands (top 90 → inverted green)',
-        savedBands && savedBands[0][0] === 90 && savedBands[0][1] === '#53a051',
-        JSON.stringify(savedBands && savedBands[0]));
-    check('flushed colorMethod', state.options.colorMethod === 'range', state.options.colorMethod);
+    check('flush patch contains ONLY linePoints (no color keys)',
+        flushCalls.length === 1 && !('colorMethod' in flushCalls[0].o) && !('colorMatches' in flushCalls[0].o)
+        && !Object.prototype.hasOwnProperty.call(state.options, 'colorMethod'),
+        JSON.stringify(Object.keys(state.options)));
     fire('options', { options: state.options });
     await sleep(250);
     check('shape kept in edit mode', mainLine().getAttribute('d') !== 'M 63 280 L 837 280',
         mainLine().getAttribute('d'));
-    check('color kept in edit mode', lineColor() === '#53a051', lineColor());
+    check('color unaffected by flush (default bands, red)', lineColor() === '#dc4e41', lineColor());
 
     // 一度 echo を受けたら、モードを往復しても再送しない（pending 消し込み確認）
     state.mode = 'view';
@@ -664,6 +691,89 @@ console.log('\n[11] pending flush on entering edit mode');
     await setOpts({});
     check('cleanup → default path', mainLine().getAttribute('d') === 'M 63 280 L 837 280',
         mainLine().getAttribute('d'));
+}
+
+// ---- 12. ✎ 線編集の回帰（色パネル削除の巻き添えが無いこと） ---------------------
+// 色パネルの pendingRef / flush を剥がしたときに linePoints の経路まで壊していないか、
+// 「色を editor.threshold で設定した状態」で線編集フローを丸ごと再走行して確認する。
+console.log('\n[12] ✎ line editor regression (with editor-panel colorBands set)');
+{
+    await setOpts({ colorBands: [{ from: 0, to: 1000, value: '#7b56db' }] });
+    check('editor-panel color applied', lineColor() === '#7b56db', lineColor());
+
+    // トグル ON → ハンドルが出る
+    doc.querySelector('[data-role="edit-toggle"]').dispatchEvent(ev('click'));
+    await sleep(250);
+    check('edit layer appears', !!doc.querySelector('[data-role="edit-layer"]'));
+    check('2 vertex handles', [...doc.querySelectorAll('[data-role="vertex"]')].length === 2);
+    check('1 midpoint (+) handle', [...doc.querySelectorAll('[data-role="midpoint"]')].length === 1);
+    check('reset button shown', !!doc.querySelector('[data-role="reset-line"]'));
+
+    // ドラッグ → linePoints が setOptions で保存される
+    const v0 = doc.querySelectorAll('[data-role="vertex"]')[0];
+    v0.dispatchEvent(ev('pointerdown', { clientX: 63, clientY: 280 }));
+    await sleep(50);
+    win.dispatchEvent(ev('pointermove', { clientX: 180, clientY: 448 })); // → (0.2, 0.8)
+    await sleep(50);
+    win.dispatchEvent(ev('pointerup'));
+    await sleep(250);
+    let saved = JSON.parse(state.options.linePoints || 'null');
+    check('drag persisted to linePoints', Array.isArray(saved) && saved.length === 2, state.options.linePoints);
+    check('dragged endpoint ≈ (0.2, 0.8)',
+        saved && Math.abs(saved[0][0] - 0.2) < 0.01 && Math.abs(saved[0][1] - 0.8) < 0.01,
+        JSON.stringify(saved && saved[0]));
+    check('colorBands untouched by line save',
+        Array.isArray(state.options.colorBands) && state.options.colorBands[0].value === '#7b56db',
+        JSON.stringify(state.options.colorBands));
+    fire('options', { options: state.options });
+    await sleep(250);
+    check('color still applied after line save', lineColor() === '#7b56db', lineColor());
+
+    // ＋で折れ点を追加
+    doc.querySelector('[data-role="midpoint"]').dispatchEvent(ev('pointerdown', { clientX: 450, clientY: 300 }));
+    await sleep(50);
+    win.dispatchEvent(ev('pointermove', { clientX: 450, clientY: 112 })); // → (0.5, 0.2)
+    await sleep(50);
+    win.dispatchEvent(ev('pointerup'));
+    await sleep(250);
+    saved = JSON.parse(state.options.linePoints || 'null');
+    check('midpoint insert → 3 points persisted', Array.isArray(saved) && saved.length === 3,
+        state.options.linePoints);
+    fire('options', { options: state.options });
+    await sleep(250);
+    check('3 vertex handles now', [...doc.querySelectorAll('[data-role="vertex"]')].length === 3);
+    check('path reflects 3 points', (mainLine().getAttribute('d').match(/[LQ]/g) || []).length >= 2,
+        mainLine().getAttribute('d'));
+
+    // ダブルクリックで削除
+    doc.querySelectorAll('[data-role="vertex"]')[1].dispatchEvent(ev('dblclick'));
+    await sleep(250);
+    saved = JSON.parse(state.options.linePoints || 'null');
+    check('dblclick removed interior point (2 left)', Array.isArray(saved) && saved.length === 2,
+        state.options.linePoints);
+    fire('options', { options: state.options });
+    await sleep(250);
+
+    // リセット
+    doc.querySelector('[data-role="reset-line"]').dispatchEvent(ev('click'));
+    await sleep(250);
+    check('reset → linePoints cleared', state.options.linePoints === '', JSON.stringify(state.options.linePoints));
+    fire('options', { options: state.options });
+    await sleep(250);
+    check('reset → default path restored', mainLine().getAttribute('d') === 'M 63 280 L 837 280',
+        mainLine().getAttribute('d'));
+
+    // トグル OFF
+    doc.querySelector('[data-role="edit-toggle"]').dispatchEvent(ev('click'));
+    await sleep(250);
+    check('handles gone after lock', !doc.querySelector('[data-role="edit-layer"]'));
+
+    // allowViewEdit は今も ✎ 線編集を制御している（色パネル専用ではない）
+    await setOpts({ allowViewEdit: false });
+    check('allowViewEdit off → ✎ toggle hidden', !doc.querySelector('[data-role="edit-toggle"]'));
+    await setOpts({ allowViewEdit: true, colorBands: [{ from: 0, to: 1000, value: '#7b56db' }] });
+    check('allowViewEdit on → ✎ toggle back', !!doc.querySelector('[data-role="edit-toggle"]'));
+    await setOpts({});
 }
 
 console.log(`\n=== ${pass} passed, ${fail} failed ===`);

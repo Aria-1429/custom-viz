@@ -149,15 +149,28 @@ console.log('\n[2] maxSegments=3 → Others aggregation');
     check('Others label with count', doc.body.textContent.includes('Others (4)'), doc.body.textContent.slice(0, 200));
 }
 
-// ---- 3. 色オプションの反映 ----------------------------------------------------
+// ---- 3. 色オプションの反映（editor.seriesColors） -----------------------------
 console.log('\n[3] custom segment colors');
+{
+    state.options = { maxSegments: 6, seriesColors: ['#ff0000', '#00ff00'] };
+    fire('options', { options: state.options });
+    await sleep(250);
+    const strokes = bodySegs().map((c) => c.getAttribute('stroke'));
+    check('1st palette entry applied to largest segment', strokes.includes('#ff0000'), JSON.stringify(strokes));
+    check('2nd palette entry applied to 2nd segment', strokes.includes('#00ff00'));
+    // パレットが要求セグメント数より短くても循環して埋まる（既定色に落ちない）
+    check('short palette cycles instead of falling back', strokes.every((s) => s === '#ff0000' || s === '#00ff00'), JSON.stringify(strokes));
+}
+
+// ---- 3b. 旧 color1..colorN は読まない（既定値はoptionsに載らない罠の回帰） ------
+console.log('\n[3b] legacy color keys must not leak');
 {
     state.options = { maxSegments: 6, color1: '#ff0000', color2: '#00ff00' };
     fire('options', { options: state.options });
     await sleep(250);
     const strokes = bodySegs().map((c) => c.getAttribute('stroke'));
-    check('color1 applied to largest segment', strokes.includes('#ff0000'), JSON.stringify(strokes));
-    check('color2 applied to 2nd segment', strokes.includes('#00ff00'));
+    check('legacy color1 ignored', !strokes.includes('#ff0000'), JSON.stringify(strokes));
+    check('falls back to default palette', strokes.includes('#5b8def'), JSON.stringify(strokes));
 }
 
 // ---- 4. フィールド選択（columnSelector DOS 文字列） ---------------------------

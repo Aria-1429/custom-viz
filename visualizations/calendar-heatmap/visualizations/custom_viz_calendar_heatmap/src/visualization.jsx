@@ -63,7 +63,6 @@ const DEFAULTS = {
     showWeekdayLabels: true, // 曜日ラベルを表示
     showLegend: true, // 凡例を表示（グラデーション=Less→More / スケール=low→high）
     glow: false, // 濃いセルに発光エフェクト
-    debug: false, // options の生値を画面に出す診断オーバーレイ
 };
 
 const WEEKDAY_LABELS_SUN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -1089,74 +1088,13 @@ function CalendarHeatmapVisualization({ mode }) {
         [rows, opts.weekStartMonday, opts.levels, dateIdx, valueIdx]
     );
 
-    // デバッグ: options の生の中身を画面に出す（config の debug=true で有効）。
-    // 動的色設定を編集したとき options のどのキーに何が入るかを実機で確認するため。
-    const debug = asBool(options?.debug, false);
-
     if (loading) return <LoadingState />;
     if (!data || rows.length === 0) return <MessageState text="データがありません。サーチ結果を確認してください。" />;
     if (!calendar.valid) {
         return <MessageState text="No valid dates found. First column must be a date/_time." />;
     }
 
-    return (
-        <>
-            {debug && (
-                <DebugOverlay
-                    options={options}
-                    opts={opts}
-                    fieldNames={fieldNames}
-                    dateIdx={dateIdx}
-                    valueIdx={valueIdx}
-                />
-            )}
-            <CalendarHeatmapLayout calendar={calendar} opts={opts} mode={mode} />
-        </>
-    );
-}
-
-// options の生値と解決後ルールを画面隅にダンプする診断用オーバーレイ
-function DebugOverlay({ options, opts, fieldNames, dateIdx, valueIdx }) {
-    let raw;
-    try {
-        raw = JSON.stringify(options, null, 1);
-    } catch (e) {
-        raw = String(options);
-    }
-    const keys = options && typeof options === 'object' ? Object.keys(options) : [];
-    return (
-        <div
-            style={{
-                position: 'fixed',
-                top: 4,
-                left: 4,
-                right: 4,
-                maxHeight: '46%',
-                overflow: 'auto',
-                zIndex: 9999,
-                background: 'rgba(0,0,0,0.9)',
-                color: '#7CFC7C',
-                font: '11px/1.4 monospace',
-                border: '1px solid #3fb950',
-                borderRadius: 6,
-                padding: 8,
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-all',
-            }}
-        >
-            <div style={{ color: '#fff', fontWeight: 700 }}>DEBUG options keys: {keys.join(', ')}</div>
-            <div style={{ color: '#79d0ff' }}>
-                fields=[{(fieldNames || []).join(', ')}] → dateIdx={String(dateIdx)} valueIdx=
-                {String(valueIdx)}
-            </div>
-            <div style={{ color: '#ffd479' }}>
-                resolved: useValueColors={String(opts.useValueColors)} low={opts.lowColor} mid=
-                {opts.useMidColor ? opts.midColor : '-'} high={opts.highColor} reverse=
-                {String(opts.reverse)}
-            </div>
-            <div style={{ marginTop: 4 }}>{raw}</div>
-        </div>
-    );
+    return <CalendarHeatmapLayout calendar={calendar} opts={opts} mode={mode} />;
 }
 
 // ---------------------------------------------------------------------------

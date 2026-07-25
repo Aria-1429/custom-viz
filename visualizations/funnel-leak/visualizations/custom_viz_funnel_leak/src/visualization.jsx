@@ -59,7 +59,6 @@ const DEFAULTS = {
 
     highlightOnHover: true, // ホバーで段をハイライト
     showHeader: true, // サマリーヘッダー
-    debug: false, // options デバッグ表示
 };
 
 // テーマ別パレット
@@ -230,7 +229,6 @@ function normalizeOptions(raw) {
 
         highlightOnHover: bool(o.highlightOnHover, DEFAULTS.highlightOnHover),
         showHeader: bool(o.showHeader, DEFAULTS.showHeader),
-        debug: bool(o.debug, DEFAULTS.debug),
     };
 }
 
@@ -1131,40 +1129,6 @@ function FunnelLeak({ mode }) {
                 </svg>
             </div>
 
-            {opts.debug && (
-                <pre
-                    style={{
-                        position: 'absolute',
-                        right: 8,
-                        bottom: 8,
-                        maxWidth: '52%',
-                        maxHeight: '46%',
-                        overflow: 'auto',
-                        margin: 0,
-                        padding: 8,
-                        fontSize: 10,
-                        lineHeight: 1.3,
-                        background: pal.panel,
-                        color: pal.text,
-                        border: `1px solid ${pal.grid}`,
-                        borderRadius: 6,
-                        zIndex: 5,
-                    }}
-                >
-                    {JSON.stringify(
-                        {
-                            fields: fieldNames,
-                            stepIdx: built.stepIdx,
-                            valIdx: built.vIdx,
-                            steps: built.steps.length,
-                            options: options,
-                            normalized: opts,
-                        },
-                        null,
-                        1
-                    )}
-                </pre>
-            )}
         </div>
     );
 }

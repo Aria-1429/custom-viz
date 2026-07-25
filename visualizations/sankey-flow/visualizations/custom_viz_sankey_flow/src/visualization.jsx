@@ -52,7 +52,6 @@ const DEFAULTS = {
     labelSize: 0, // ラベル文字サイズ px（0 = 自動）
     showHeader: true, // 上部サマリー（総流量・ノード数など）
     highlightOnHover: true, // ホバーで関連フローをハイライト
-    debug: false, // options の生値を画面に出す診断オーバーレイ
 };
 
 // ノードのカテゴリカルパレット（Splunk のデータビズ配色に寄せた 12 色。
@@ -126,7 +125,6 @@ function normalizeOptions(raw) {
         labelSize: num('labelSize', 0, 32),
         showHeader: bool('showHeader'),
         highlightOnHover: bool('highlightOnHover'),
-        debug: bool('debug'),
     };
 }
 
@@ -725,29 +723,6 @@ function SankeyFlow({ mode }) {
                 </div>
             )}
 
-            {/* 診断オーバーレイ（options の生値を確認する。dynamicColor 事件の教訓） */}
-            {opts.debug && (
-                <pre
-                    style={{
-                        position: 'absolute',
-                        right: 4,
-                        bottom: 4,
-                        maxWidth: '60%',
-                        maxHeight: '60%',
-                        overflow: 'auto',
-                        margin: 0,
-                        padding: 8,
-                        fontSize: 10,
-                        background: colors.tooltipBg,
-                        border: `1px solid ${colors.tooltipBorder}`,
-                        borderRadius: 6,
-                        color: colors.text,
-                        zIndex: 20,
-                    }}
-                >
-                    {JSON.stringify({ options, normalized: opts }, null, 2)}
-                </pre>
-            )}
         </div>
     );
 }

@@ -38,8 +38,7 @@
       "autoFitLanes": { "type": "boolean", "default": true },
       "curve": { "type": "boolean", "default": true },
 
-      "sortByPeak": { "type": "boolean", "default": false },
-      "sortByTotal": { "type": "boolean", "default": false },
+      "sortMode": { "type": "string", "default": "none" },
       "maxSeries": { "type": "number", "default": 60 },
 
       "showLabels": { "type": "boolean", "default": true },
@@ -52,9 +51,7 @@
       "animate": { "type": "boolean", "default": true },
 
       "valueDecimals": { "type": "number", "default": 0 },
-      "abbreviateValue": { "type": "boolean", "default": true },
-
-      "debug": { "type": "boolean", "default": false }
+      "abbreviateValue": { "type": "boolean", "default": true }
     },
     "editorConfig": [
       {
@@ -91,8 +88,20 @@
           [{ "label": "レーンの間隔（px）", "editor": "editor.number", "option": "laneGap" }],
           [{ "label": "曲線でなめらかに描く", "editor": "editor.checkbox", "option": "curve" }],
           [{ "label": "レーンの区切り線を表示", "editor": "editor.checkbox", "option": "showLaneSeparator" }],
-          [{ "label": "最大値の大きい順に並べ替え", "editor": "editor.checkbox", "option": "sortByPeak" }],
-          [{ "label": "合計の大きい順に並べ替え", "editor": "editor.checkbox", "option": "sortByTotal" }],
+          [
+            {
+              "label": "並び順",
+              "editor": "editor.select",
+              "option": "sortMode",
+              "editorProps": {
+                "values": [
+                  { "label": "検索結果順", "value": "none" },
+                  { "label": "最大値順", "value": "peak" },
+                  { "label": "合計順", "value": "total" }
+                ]
+              }
+            }
+          ],
           [{ "label": "最大表示系列数", "editor": "editor.number", "option": "maxSeries" }]
         ]
       },
@@ -113,12 +122,6 @@
         "layout": [
           [{ "label": "小数点以下の桁数", "editor": "editor.number", "option": "valueDecimals" }],
           [{ "label": "数値を省略表記（1.5M など）", "editor": "editor.checkbox", "option": "abbreviateValue" }]
-        ]
-      },
-      {
-        "label": "デバッグ",
-        "layout": [
-          [{ "label": "オプションのデバッグ表示", "editor": "editor.checkbox", "option": "debug" }]
         ]
       }
     ],

@@ -33,49 +33,42 @@
       "showValues": { "type": "boolean", "default": true },
       "labelSize": { "type": "number", "default": 0 },
       "showHeader": { "type": "boolean", "default": true },
-      "highlightOnHover": { "type": "boolean", "default": true },
-      "debug": { "type": "boolean", "default": false }
+      "highlightOnHover": { "type": "boolean", "default": true }
     },
     "editorConfig": [
       {
-        "label": "Links",
+        "label": "リンク",
         "layout": [
-          [{ "label": "Gradient links (source → target color)", "editor": "editor.checkbox", "option": "useGradientLinks" }],
-          [{ "label": "Link opacity (%)", "editor": "editor.number", "option": "linkOpacity" }],
-          [{ "label": "Color links by value (low → high)", "editor": "editor.checkbox", "option": "useValueColors" }],
-          [{ "label": "Low value color", "editor": "editor.color", "option": "lowColor" }],
-          [{ "label": "High value color", "editor": "editor.color", "option": "highColor" }],
-          [{ "label": "Use middle color (3-color scale)", "editor": "editor.checkbox", "option": "useMidColor" }],
-          [{ "label": "Middle color", "editor": "editor.color", "option": "midColor" }],
-          [{ "label": "Reverse (high value = low color)", "editor": "editor.checkbox", "option": "reverse" }]
+          [{ "label": "グラデーションリンク（送信元色→送信先色）", "editor": "editor.checkbox", "option": "useGradientLinks" }],
+          [{ "label": "リンクの不透明度（％）", "editor": "editor.number", "option": "linkOpacity" }],
+          [{ "label": "値でリンクを着色（低→高）", "editor": "editor.checkbox", "option": "useValueColors" }],
+          [{ "label": "低い値の色", "editor": "editor.color", "option": "lowColor" }],
+          [{ "label": "高い値の色", "editor": "editor.color", "option": "highColor" }],
+          [{ "label": "中間色を使う（3色スケール）", "editor": "editor.checkbox", "option": "useMidColor" }],
+          [{ "label": "中間色", "editor": "editor.color", "option": "midColor" }],
+          [{ "label": "高低を反転（高い値＝低い色）", "editor": "editor.checkbox", "option": "reverse" }]
         ]
       },
       {
-        "label": "Nodes",
+        "label": "ノード",
         "layout": [
-          [{ "label": "Node width (px)", "editor": "editor.number", "option": "nodeWidth" }],
-          [{ "label": "Node padding (px)", "editor": "editor.number", "option": "nodePadding" }]
+          [{ "label": "ノードの幅（px）", "editor": "editor.number", "option": "nodeWidth" }],
+          [{ "label": "ノードの間隔（px）", "editor": "editor.number", "option": "nodePadding" }]
         ]
       },
       {
-        "label": "Labels",
+        "label": "ラベル",
         "layout": [
-          [{ "label": "Show node labels", "editor": "editor.checkbox", "option": "showLabels" }],
-          [{ "label": "Show values in labels", "editor": "editor.checkbox", "option": "showValues" }],
-          [{ "label": "Label size (px, 0 = auto)", "editor": "editor.number", "option": "labelSize" }]
+          [{ "label": "ノード名を表示", "editor": "editor.checkbox", "option": "showLabels" }],
+          [{ "label": "ラベルに値を併記", "editor": "editor.checkbox", "option": "showValues" }],
+          [{ "label": "ラベル文字サイズ（px、0で自動）", "editor": "editor.number", "option": "labelSize" }]
         ]
       },
       {
-        "label": "Display",
+        "label": "表示",
         "layout": [
-          [{ "label": "Show summary header", "editor": "editor.checkbox", "option": "showHeader" }],
-          [{ "label": "Highlight flows on hover", "editor": "editor.checkbox", "option": "highlightOnHover" }]
-        ]
-      },
-      {
-        "label": "Debug",
-        "layout": [
-          [{ "label": "Show options debug overlay", "editor": "editor.checkbox", "option": "debug" }]
+          [{ "label": "サマリーヘッダーを表示", "editor": "editor.checkbox", "option": "showHeader" }],
+          [{ "label": "ホバーで関連フローをハイライト", "editor": "editor.checkbox", "option": "highlightOnHover" }]
         ]
       }
     ]

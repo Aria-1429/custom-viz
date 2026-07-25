@@ -32,7 +32,7 @@ import chartIcon from './assets/ChartColumnSquare.svg';
 //   - フィールド選択 UI（editor.columnSelector）で時刻/カテゴリ/値の列を指定可能
 //   - マルチバリューセルの救済・堅牢な数値パース（桁連結事故を防止）
 //   - コンテナ実寸に応じたオートフィット（凡例フォント・ドーナツを自動スケール）
-//   - 編集画面ラベルの日本語化・color7/8 追加・debug オーバーレイ
+//   - 編集画面ラベルの日本語化・カラーパレットの拡充
 // ---------------------------------------------------------------------------
 
 // オプションのデフォルト値（config.json の optionsSchema.default と一致させる）
@@ -67,7 +67,6 @@ const DEFAULTS = {
     sparkHeight: 110,
     sparkFill: true,
     autoFit: true,
-    debug: false,
 };
 
 // editorConfig では editor.text が未サポートのため、これらは固定値として扱う。
@@ -88,8 +87,6 @@ const PALETTES = {
         track: 'rgba(255, 255, 255, 0.05)',
         rowHover: 'rgba(255, 255, 255, 0.04)',
         sparkBaseline: 'rgba(255, 255, 255, 0.14)',
-        debugBg: 'rgba(10, 14, 26, 0.92)',
-        debugText: '#c7d0e8',
     },
     light: {
         centerValue: '#1b2a4a',
@@ -101,8 +98,6 @@ const PALETTES = {
         track: 'rgba(15, 20, 40, 0.06)',
         rowHover: 'rgba(15, 20, 40, 0.035)',
         sparkBaseline: 'rgba(15, 20, 40, 0.16)',
-        debugBg: 'rgba(245, 247, 252, 0.94)',
-        debugText: '#2c3350',
     },
 };
 
@@ -153,11 +148,12 @@ function pickFieldSpec(raw, key) {
 function normalizeOptions(raw) {
     const o = raw && typeof raw === 'object' ? raw : {};
 
-    const colors = [];
-    for (let i = 0; i < DEFAULT_COLORS.length; i += 1) {
-        const c = pickColor(o, `color${i + 1}`, null);
-        colors.push(c || DEFAULT_COLORS[i]);
-    }
+    // editor.seriesColors は hex 文字列の配列を生で渡してくる。
+    // 要素数はユーザーが増減できるため、既定色より短くても長くても壊れないようにする。
+    // 旧オプション（color1..color8）は意図的に読まない：既定値と同じ値は options に
+    // 載らないため、旧キーへフォールバックすると「既定値を選んだときだけ直らない」不具合になる。
+    const palette = Array.isArray(o.seriesColors) ? o.seriesColors.filter(isHexColor) : [];
+    const colors = palette.length > 0 ? palette.map((c) => c.trim()) : DEFAULT_COLORS.slice();
 
     return {
         colors,
@@ -182,7 +178,6 @@ function normalizeOptions(raw) {
         sparkHeight: clampNumber(o.sparkHeight, 40, 300, DEFAULTS.sparkHeight),
         sparkFill: pickBool(o, 'sparkFill', DEFAULTS.sparkFill),
         autoFit: pickBool(o, 'autoFit', DEFAULTS.autoFit),
-        debug: pickBool(o, 'debug', DEFAULTS.debug),
         valueFormat: VALUE_FORMAT,
     };
 }
@@ -918,47 +913,9 @@ function TrendChart({ trend, trendTimes, palette, opts, mounted, uid, height }) 
 }
 
 // ---------------------------------------------------------------------------
-// debug オーバーレイ（options が反映されない事故の切り分け用）
-// ---------------------------------------------------------------------------
-function DebugOverlay({ opts, model, rawOptions, palette }) {
-    const dump = {
-        mode: model.mode,
-        meta: model.meta,
-        itemCount: model.items.length,
-        trendLen: model.trend.length,
-        normalized: opts,
-        rawOptions,
-    };
-    return (
-        <pre
-            style={{
-                position: 'absolute',
-                top: 8,
-                right: 8,
-                maxWidth: '58%',
-                maxHeight: '92%',
-                overflow: 'auto',
-                margin: 0,
-                padding: '8px 10px',
-                fontSize: 10,
-                lineHeight: 1.4,
-                background: palette.debugBg,
-                color: palette.debugText,
-                border: `1px solid ${palette.divider}`,
-                borderRadius: 6,
-                zIndex: 5,
-                pointerEvents: 'auto',
-            }}
-        >
-            {JSON.stringify(dump, null, 2)}
-        </pre>
-    );
-}
-
-// ---------------------------------------------------------------------------
 // 全体レイアウト（上段: ドーナツ + 凡例 / 下段: トレンドチャート）
 // ---------------------------------------------------------------------------
-function DonutTimechart({ model, mode, opts, rawOptions }) {
+function DonutTimechart({ model, mode, opts }) {
     const palette = PALETTES[mode] || PALETTES.dark;
     const othersColor = OTHERS_COLOR[mode] || OTHERS_COLOR.dark;
     const circumference = 2 * Math.PI * RADIUS;
@@ -1011,9 +968,6 @@ function DonutTimechart({ model, mode, opts, rawOptions }) {
         return (
             <div ref={containerRef} className="viz-container" style={{ position: 'relative' }}>
                 <NoDataState />
-                {opts.debug && (
-                    <DebugOverlay opts={opts} model={model} rawOptions={rawOptions} palette={palette} />
-                )}
             </div>
         );
     }
@@ -1155,10 +1109,6 @@ function DonutTimechart({ model, mode, opts, rawOptions }) {
                     height={trendHeight}
                 />
             )}
-
-            {opts.debug && (
-                <DebugOverlay opts={opts} model={model} rawOptions={rawOptions} palette={palette} />
-            )}
         </div>
     );
 }
@@ -1182,7 +1132,7 @@ function DonutTimechartVisualization({ mode }) {
     if (loading) return <LoadingState />;
     if (!data || rows.length === 0 || model.items.length === 0) return <NoDataState />;
 
-    return <DonutTimechart model={model} mode={mode} opts={opts} rawOptions={options} />;
+    return <DonutTimechart model={model} mode={mode} opts={opts} />;
 }
 
 // ---------------------------------------------------------------------------

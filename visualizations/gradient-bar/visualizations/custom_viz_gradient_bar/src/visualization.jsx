@@ -61,8 +61,7 @@ const DEFAULTS = {
     // 単色グラデーション（useValueColors=false のとき）
     barColor: '#9333ea', // グラデーションの基準色
     // 並び替え・件数
-    sortByValue: true, // 値で並べ替える（OFF=サーチ結果の順序を維持）
-    sortAscending: false, // 昇順（OFF=降順）
+    sortMode: 'desc', // 並び順（none=検索結果順 / desc=値の大きい順 / asc=値の小さい順）
     topN: 0, // 上位 N 件のみ表示（0=全件）
     // 表示要素
     showTitle: true,
@@ -75,8 +74,10 @@ const DEFAULTS = {
     // レイアウト
     fillHeight: true, // 高さいっぱいに行を広げる
     barThickness: 0, // バーの太さ（px、0=自動）
-    debug: false, // options の生値を画面に出す診断オーバーレイ
 };
+
+// 並び順の取りうる値（未知値・旧オプションの残骸は既定 'desc' へ丸める）
+const SORT_MODES = ['none', 'desc', 'asc'];
 
 // ---------------------------------------------------------------------------
 // データ整形ユーティリティ
@@ -158,13 +159,14 @@ function buildChartData(rows, opts, labelIdx, valueIdx) {
     // 合計・最小・最大は「並べ替え・件数制限の前」の全件で算出する
     const total = items.reduce((sum, item) => sum + item.value, 0);
 
-    if (opts.sortByValue) {
-        items = items
-            .slice()
-            .sort((a, b) => (opts.sortAscending ? a.value - b.value : b.value - a.value));
+    // 並び順（'none' は検索結果の順序をそのまま維持）
+    if (opts.sortMode === 'desc') {
+        items = items.slice().sort((a, b) => b.value - a.value);
+    } else if (opts.sortMode === 'asc') {
+        items = items.slice().sort((a, b) => a.value - b.value);
     }
     if (opts.topN > 0 && items.length > opts.topN) {
-        // 上位 N は常に「値が大きい順の上位」。表示順は sortAscending に従う
+        // 上位 N は常に「値が大きい順の上位」。表示順は sortMode に従う
         const byDesc = items.slice().sort((a, b) => b.value - a.value).slice(0, opts.topN);
         const keep = new Set(byDesc);
         items = items.filter((it) => keep.has(it));
@@ -260,8 +262,7 @@ function normalizeOptions(options) {
         scaleMin: toNumberOrNull(o.scaleMin),
         scaleMax: toNumberOrNull(o.scaleMax),
         barColor: isHexColor(o.barColor) ? o.barColor.trim() : DEFAULTS.barColor,
-        sortByValue: asBool(o.sortByValue, DEFAULTS.sortByValue),
-        sortAscending: asBool(o.sortAscending, DEFAULTS.sortAscending),
+        sortMode: SORT_MODES.includes(o.sortMode) ? o.sortMode : DEFAULTS.sortMode,
         topN: clampInt(o.topN, 0, 1000, DEFAULTS.topN),
         showTitle: asBool(o.showTitle, DEFAULTS.showTitle),
         showAxis: asBool(o.showAxis, DEFAULTS.showAxis),
@@ -272,7 +273,6 @@ function normalizeOptions(options) {
         animate: asBool(o.animate, DEFAULTS.animate),
         fillHeight: asBool(o.fillHeight, DEFAULTS.fillHeight),
         barThickness: clampInt(o.barThickness, 0, 80, DEFAULTS.barThickness),
-        debug: asBool(o.debug, DEFAULTS.debug),
     };
 }
 
@@ -553,35 +553,7 @@ function ScaleLegend({ opts, scaleLo, scaleHi, palette }) {
     );
 }
 
-function DebugOverlay({ rawOptions }) {
-    return (
-        <pre
-            style={{
-                position: 'absolute',
-                top: 4,
-                right: 4,
-                maxWidth: '60%',
-                maxHeight: '60%',
-                overflow: 'auto',
-                margin: 0,
-                padding: '6px 8px',
-                fontSize: 10,
-                lineHeight: 1.35,
-                background: 'rgba(0,0,0,0.8)',
-                color: '#7CFC7C',
-                border: '1px solid rgba(255,255,255,0.25)',
-                borderRadius: 4,
-                zIndex: 10,
-                pointerEvents: 'none',
-                whiteSpace: 'pre-wrap',
-            }}
-        >
-            {JSON.stringify(rawOptions ?? {}, null, 2)}
-        </pre>
-    );
-}
-
-function BarChart({ fieldNames, rows, mode, opts, rawOptions, height }) {
+function BarChart({ fieldNames, rows, mode, opts, height }) {
     const palette = PALETTES[mode] || PALETTES.dark;
     // フィールド選択（未指定/解決不能ならラベル=第1列, 値=第2列にフォールバック）
     const labelIdx = useMemo(
@@ -641,7 +613,6 @@ function BarChart({ fieldNames, rows, mode, opts, rawOptions, height }) {
                 boxSizing: 'border-box',
             }}
         >
-            {opts.debug && <DebugOverlay rawOptions={rawOptions} />}
             {title && (
                 <div
                     style={{
@@ -735,7 +706,6 @@ function BarChartVisualization({ mode }) {
                 rows={rows}
                 mode={mode}
                 opts={opts}
-                rawOptions={options}
                 height={height}
             />
         );

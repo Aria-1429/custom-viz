@@ -33,8 +33,6 @@ import './visualization.css';
 // 編集→保存でダッシュボード定義に永続化できる。
 // ---------------------------------------------------------------------------
 
-const VIZ_VERSION = '1.2.0';
-
 // オプションのデフォルト（config.json の optionsSchema.default と一致させる）
 const DEFAULTS = {
     laneField: '', // レーン（縦軸）フィールド（'' = 自動）
@@ -42,17 +40,6 @@ const DEFAULTS = {
     endField: '', // 終了時刻フィールド（'' = 自動。無ければ点イベント）
     categoryField: '', // 分類（色分け）フィールド（'' = 自動）
     labelField: '', // ラベルフィールド（ツールチップ用）
-
-    // 分類パレット。色覚特性（第2色覚）でも隣接色が潰れないよう色相を広く取り、
-    // 明度も単調に振ってある（緑と青緑を並べない、赤と橙を隣に置かない）。
-    color1: '#4c9be8', // 青
-    color2: '#26c2a5', // 青緑
-    color3: '#f2b53c', // 黄
-    color4: '#f2653f', // 橙赤
-    color5: '#a97bf0', // 紫
-    color6: '#f75d97', // 桃
-    color7: '#5ed4f0', // 空
-    color8: '#94a3b5', // 灰
 
     sortLanes: 'count', // レーンの並び順（count = 件数の多い順）
     maxLanes: 40, // レーンの最大数
@@ -81,17 +68,28 @@ const DEFAULTS = {
     rangeStart: '', // 表示開始時刻（空欄 = データ最小）
     rangeEnd: '', // 表示終了時刻（空欄 = データ最大）
     padRangePercent: 2, // 時間軸の余白（％）
-
-    debug: false, // options デバッグ表示
 };
+
+// 既定の分類パレット。色覚特性（第2色覚）でも隣接色が潰れないよう色相を広く取り、
+// 明度も単調に振ってある（緑と青緑を並べない、赤と橙を隣に置かない）。
+// editor.seriesColors が未設定・空・不正なときのフォールバック。
+// config.json の optionsSchema.seriesColors.default と一致させること。
+const DEFAULT_COLORS = [
+    '#4c9be8', // 青
+    '#26c2a5', // 青緑
+    '#f2b53c', // 黄
+    '#f2653f', // 橙赤
+    '#a97bf0', // 紫
+    '#f75d97', // 桃
+    '#5ed4f0', // 空
+    '#94a3b5', // 灰
+];
 
 // 描画上限
 const MAX_LANES_HARD = 200;
 const MAX_EVENTS = 20000;
 // アニメーションを行うイベント数の上限（超過時は即時表示）
 const MAX_ANIMATED_EVENTS = 3000;
-
-const PALETTE_KEYS = ['color1', 'color2', 'color3', 'color4', 'color5', 'color6', 'color7', 'color8'];
 
 // ---------------------------------------------------------------------------
 // 汎用ユーティリティ
@@ -325,7 +323,7 @@ function normalizeOptions(raw) {
         const n = parseNum(v);
         return Number.isFinite(n) ? n : null;
     };
-    const colorOr = (v, d) => (hexToRgb(v) ? v : d);
+    const isHexColor = (v) => typeof v === 'string' && Boolean(hexToRgb(v.trim()));
     const fieldOr = (v) => (typeof v === 'string' || Array.isArray(v) ? v : '');
     const strOr = (v, d) => (typeof v === 'string' ? v : d);
 
@@ -363,11 +361,16 @@ function normalizeOptions(raw) {
         rangeStart: strOr(o.rangeStart, ''),
         rangeEnd: strOr(o.rangeEnd, ''),
         padRangePercent: clamp(numOr(o.padRangePercent, DEFAULTS.padRangePercent), 0, 25),
-
-        debug: bool(o.debug, DEFAULTS.debug),
     };
 
-    out.palette = PALETTE_KEYS.map((k) => colorOr(o[k], DEFAULTS[k]));
+    // editor.seriesColors は hex 文字列の配列を生で渡してくる。要素数はユーザーが
+    // 増減できるため、既定より短くても長くても壊れないようにする（消費側は % length）。
+    // ⚠ 旧 color1..color8 は意図的に読まない（既定値は options に載らないホスト挙動のため、
+    //    旧キーへフォールバックすると「既定値を選んだときだけ直らない」不具合になる）。
+    const palette = Array.isArray(o.seriesColors)
+        ? o.seriesColors.filter(isHexColor).map((c) => c.trim())
+        : [];
+    out.palette = palette.length > 0 ? palette : DEFAULT_COLORS.slice();
 
     // ブラシ範囲は逆転していたら入れ替え、幅ゼロなら無効化
     if (out.brushStart !== null && out.brushEnd !== null) {
@@ -1389,50 +1392,6 @@ function TimelineSwimlane({ mode }) {
                 >
                     {notes.join('　')}
                 </div>
-            )}
-
-            {/* デバッグ */}
-            {opts.debug && (
-                <pre
-                    style={{
-                        position: 'absolute',
-                        right: 8,
-                        bottom: 8,
-                        maxWidth: '60%',
-                        maxHeight: '60%',
-                        overflow: 'auto',
-                        margin: 0,
-                        padding: 8,
-                        fontSize: 10,
-                        lineHeight: 1.3,
-                        background: pal.panelBg,
-                        color: pal.subText,
-                        border: `1px solid ${pal.panelBorder}`,
-                        borderRadius: 6,
-                        zIndex: 20,
-                    }}
-                >
-                    {JSON.stringify(
-                        {
-                            version: VIZ_VERSION,
-                            fields: fieldNames,
-                            usedIdx: model.usedIdx,
-                            lanes: model.lanes.map((l) => `${l.name}:${l.count}`),
-                            categories: model.categories,
-                            events: model.events.length,
-                            visible: visible.length,
-                            skipped: model.skipped,
-                            tMin: fmtFullTime(model.tMin),
-                            tMax: fmtFullTime(model.tMax),
-                            viewLo: fmtFullTime(viewLo),
-                            viewHi: fmtFullTime(viewHi),
-                            options,
-                            normalized: opts,
-                        },
-                        null,
-                        1
-                    )}
-                </pre>
             )}
         </div>
     );

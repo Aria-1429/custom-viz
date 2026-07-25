@@ -226,15 +226,16 @@ console.log('\n[9] guards');
     check('columns-form data renders 2 rows', rows().length === 2, `got ${rows().length}`);
 }
 
-// ---- 10. debug オーバーレイ --------------------------------------------------
-console.log('\n[10] debug overlay');
+// ---- 10. debug オプションは廃止済み ------------------------------------------
+console.log('\n[10] debug option removed');
 {
     state.data = { fields: FIELDS, rows: ROWS };
     state.options = { debug: true };
     fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
     fire('options', { options: state.options });
     await sleep(200);
-    check('debug dump visible', doc.body.textContent.includes('"colorMode"'), doc.body.textContent.slice(0, 80));
+    check('no debug overlay even with debug:true', !doc.body.textContent.includes('"colorMode"'), doc.body.textContent.slice(0, 80));
+    check('chart still renders', doc.querySelectorAll('.cg-bar').length > 0);
 }
 
 console.log(`\n=== ${pass} passed, ${fail} failed ===`);

@@ -39,8 +39,7 @@
       "showHeader": { "type": "boolean", "default": true },
       "compact": { "type": "boolean", "default": false },
       "glow": { "type": "boolean", "default": true },
-      "animate": { "type": "boolean", "default": true },
-      "debug": { "type": "boolean", "default": false }
+      "animate": { "type": "boolean", "default": true }
     },
     "editorConfig": [
       {
@@ -87,12 +86,6 @@
         "layout": [
           [{ "label": "バーを発光", "editor": "editor.checkbox", "option": "glow" }],
           [{ "label": "初期アニメーション", "editor": "editor.checkbox", "option": "animate" }]
-        ]
-      },
-      {
-        "label": "デバッグ",
-        "layout": [
-          [{ "label": "デバッグ表示", "editor": "editor.checkbox", "option": "debug" }]
         ]
       }
     ]

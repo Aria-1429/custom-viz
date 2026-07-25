@@ -89,11 +89,12 @@ const ROWS = [
     ['55.75', '37.61', '35.68', '139.69', 'HIGH', '50', 'Moscow', 'Tokyo'],   // 大文字違い → high に合流
     ['-23.5', '-46.6', '35.68', '139.69', 'medium', '80', 'Sao Paulo', 'Tokyo'],
     ['40.7', '-74.0', '35.68', '139.69', '', '10', 'New York', 'Tokyo'],      // 空severity → low
-    ['48.85', '2.35', '35.68', '139.69', 'worm', '40', 'Paris', 'Tokyo'],     // 未知severity → extraColor1
+    ['48.85', '2.35', '35.68', '139.69', 'worm', '40', 'Paris', 'Tokyo'],     // 未知severity → パレット4番目
     ['99.9', '10', '35.68', '139.69', 'high', '5', 'BadLat', 'Tokyo'],        // 緯度>90 → 除去
     ['abc', '10', '35.68', '139.69', 'low', '5', 'NaN', 'Tokyo'],             // 非数値 → 除去
 ];
 // 有効な脅威 = 6 行
+const ROWS_VALID = ROWS.slice(0, 6);
 
 let state = {
     data: { fields: FIELDS, rows: ROWS },
@@ -146,7 +147,8 @@ console.log('\n[1] initial render (dark, auto field detection)');
     check('land path drawn', !!doc.querySelector('svg path[fill="#0d2b52"]'));
     check('6 streak paths (2 invalid rows dropped)', streaks().length === 6, `got ${streaks().length}`);
     check('high uses default color', strokes().includes('rgb(255, 90, 46)'), JSON.stringify(strokes()));
-    check('unknown severity uses extraColor1', strokes().includes('rgb(177, 122, 255)'));
+    // 既定パレット: 1st=high(#ff5a2e) 2nd=medium 3rd=low 4th=worm(#b17aff)
+    check('4th palette default → unknown severity (worm)', strokes().includes('rgb(177, 122, 255)'), JSON.stringify(strokes()));
     const body = doc.body.textContent;
     check('title shown', body.includes('GLOBAL THREAT MAP'));
     check('legend/filter include worm severity', body.includes('worm'));
@@ -159,14 +161,87 @@ console.log('\n[1] initial render (dark, auto field detection)');
     check('comets drawn on canvas (animated)', canvasStub.fills > 0, `got ${canvasStub.fills}`);
 }
 
-// ---- 2. 色オプションの反映 ---------------------------------------------------
-console.log('\n[2] color option change');
+// ---- 2. 深刻度パレット（editor.seriesColors・単一コントロール） ----------------
+// v1.x で highColor/mediumColor/lowColor/extraColors の4オプションを廃止し、
+// severityColors パレット1本に統合した。凡例の並び順（既知順→登場順）に
+// 上から1色ずつ配る。
+console.log('\n[2] severity palette drives all colors');
 {
-    state.options = { highColor: '#00ff00' };
+    // 並び順は high(1) → medium(2) → low(3) → worm(4)
+    state.options = { severityColors: ['#00ff00', '#0000ff', '#ffff00', '#ff00ff'] };
     fire('options', { options: state.options });
     await sleep(250);
-    check('high arcs turn green', strokes().includes('rgb(0, 255, 0)'), JSON.stringify(strokes()));
-    check('old high color gone', !strokes().includes('rgb(255, 90, 46)'));
+    const st = strokes();
+    check('1st palette entry → high', st.includes('rgb(0, 255, 0)'), JSON.stringify(st));
+    check('2nd palette entry → medium', st.includes('rgb(0, 0, 255)'), JSON.stringify(st));
+    check('3rd palette entry → low', st.includes('rgb(255, 255, 0)'), JSON.stringify(st));
+    check('4th palette entry → unknown severity (worm)', st.includes('rgb(255, 0, 255)'), JSON.stringify(st));
+    check('old defaults gone', !st.includes('rgb(255, 90, 46)'), JSON.stringify(st));
+}
+
+// ---- 2b. パレットが足りないときは循環する -------------------------------------
+console.log('\n[2b] palette shorter than severity count cycles');
+{
+    state.options = { severityColors: ['#00ff00', '#0000ff'] };
+    fire('options', { options: state.options });
+    await sleep(250);
+    const st = strokes();
+    check('only the 2 given colors are used', st.every((c) => c === 'rgb(0, 255, 0)' || c === 'rgb(0, 0, 255)'), JSON.stringify(st));
+    check('4 severities still all rendered', streaks().length === 6, `got ${streaks().length}`);
+}
+
+// ---- 2c. 任意の語彙（独自 severity 値）でも別々の色が付く ----------------------
+// 「固定 high/medium/low + あふれた分は無名パレット」という制約を外した本体の検証。
+console.log('\n[2c] arbitrary custom severity vocabulary gets distinct colors');
+{
+    const CUSTOM = ROWS_VALID.map((r, i) => {
+        const row = [...r];
+        row[4] = ['P1', 'P2', 'P3', 'sev-red', '緊急', 'アラート'][i];
+        return row;
+    });
+    state.data = { fields: FIELDS, rows: CUSTOM };
+    state.options = { severityColors: ['#111111', '#222222', '#333333', '#444444', '#555555', '#666666'] };
+    fire('options', { options: state.options });
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(300);
+    const st = strokes();
+    check('6 arcs rendered with custom vocabulary', st.length === 6, `got ${st.length}`);
+    check('6 distinct colors assigned (no collisions)', new Set(st).size === 6, JSON.stringify(st));
+    const body = doc.body.textContent;
+    check('legend lists custom values', body.includes('P1') && body.includes('緊急'), body.slice(0, 300));
+    check('did not crash on non-ascii severity', !!doc.querySelector('svg'));
+
+    // フィルタで独自値を選んでも動く（弧が絞り込まれる）
+    state.data = { fields: FIELDS, rows: ROWS };
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(250);
+}
+
+// ---- 2d. 旧キー（highColor / extraColors 等）は無視する ------------------------
+// 既定値と同じ値は options に載らないため、旧キーへのフォールバックは実装しない。
+console.log('\n[2d] legacy removed keys must not leak');
+{
+    state.options = { highColor: '#ff00ff', mediumColor: '#00ffff', lowColor: '#ffff00', extraColors: ['#123456'], extraColor1: '#abcdef' };
+    fire('options', { options: state.options });
+    await sleep(250);
+    const st = strokes();
+    check('legacy highColor ignored', !st.includes('rgb(255, 0, 255)'), JSON.stringify(st));
+    check('legacy extraColors ignored', !st.includes('rgb(18, 52, 86)'), JSON.stringify(st));
+    check('falls back to default palette (1st = high)', st.includes('rgb(255, 90, 46)'), JSON.stringify(st));
+}
+
+// ---- 2e. 壊れたパレット入力でも既定へ倒れる -----------------------------------
+console.log('\n[2e] malformed palette degrades to defaults');
+{
+    for (const bad of [[], ['nope', 42, null], 'not-an-array', { a: 1 }, null]) {
+        state.options = { severityColors: bad };
+        fire('options', { options: state.options });
+        await sleep(180);
+        check(`malformed ${JSON.stringify(bad)} → default palette`, strokes().includes('rgb(255, 90, 46)'), JSON.stringify(strokes()));
+    }
+    state.options = {};
+    fire('options', { options: state.options });
+    await sleep(200);
 }
 
 // ---- 3. 表示トグルとアニメーション停止 ---------------------------------------

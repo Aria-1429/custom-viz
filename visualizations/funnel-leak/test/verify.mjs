@@ -270,15 +270,16 @@ console.log('\n[6] guards');
     check('columns-form renders 3 steps', rects.length === 3, `got ${rects.length}`);
 }
 
-// ---- 7. debug オーバーレイ ----------------------------------------------------
-console.log('\n[7] debug overlay');
+// ---- 7. debug オプションは廃止済み ---------------------------------------------
+console.log('\n[7] debug option removed');
 {
     state.data = { fields: FIELDS, rows: ROWS };
     state.options = { debug: true };
     fire('options', { options: state.options });
     fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
     await sleep(250);
-    check('debug dump visible', doc.body.textContent.includes('"normalized"'));
+    check('no debug overlay even with debug:true', !doc.body.textContent.includes('"normalized"'));
+    check('chart still renders', doc.querySelectorAll('svg path').length > 0);
 }
 
 console.log(`\n=== ${pass} passed, ${fail} failed ===`);

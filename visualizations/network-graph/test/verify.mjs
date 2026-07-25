@@ -293,13 +293,32 @@ console.log('\n[7] guards');
     check('2-col total = 3', doc.body.textContent.includes('total 3'));
 }
 
-// ---- 8. debug オーバーレイ ----------------------------------------------------
-console.log('\n[8] debug overlay');
+// ---- 8. ノードのパレット（editor.seriesColors） --------------------------------
+console.log('\n[8] node palette via editor.seriesColors');
 {
-    state.options = { debug: true };
+    // 3列データに戻してからパレットを差し替える
+    state.data = { fields: FIELDS3, rows: ROWS3 };
+    state.options = { seriesColors: ['#ff0000', '#00ff00'] };
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
     fire('options', { options: state.options });
-    await sleep(250);
-    check('debug dump visible', doc.body.textContent.includes('"normalized"'));
+    await sleep(300);
+    const fills = [...doc.querySelectorAll('circle.ng-node')].map((c) => c.getAttribute('fill'));
+    check('1st palette entry applied', fills.includes('#ff0000'), JSON.stringify(fills));
+    check('2nd palette entry applied', fills.includes('#00ff00'), JSON.stringify(fills));
+    // パレットがノード数より短くても循環して埋まる（既定色に落ちない）
+    check('short palette cycles instead of falling back',
+        fills.length > 0 && fills.every((f) => f === '#ff0000' || f === '#00ff00'), JSON.stringify(fills));
+}
+
+// ---- 8b. 旧 color1..color6 は読まない（既定値はoptionsに載らない罠の回帰） ------
+console.log('\n[8b] legacy color keys must not leak');
+{
+    state.options = { color1: '#ff0000', color2: '#00ff00' };
+    fire('options', { options: state.options });
+    await sleep(300);
+    const fills = [...doc.querySelectorAll('circle.ng-node')].map((c) => c.getAttribute('fill'));
+    check('legacy color1 ignored', !fills.includes('#ff0000'), JSON.stringify(fills));
+    check('falls back to default palette', fills.includes('#7B56DB'), JSON.stringify(fills));
 }
 
 // ---- 9. 自動フィットカメラ ----------------------------------------------------

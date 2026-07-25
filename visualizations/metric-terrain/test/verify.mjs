@@ -262,14 +262,15 @@ console.log('\n[8] style toggles');
     check('faces still present', doc.querySelectorAll('polygon.mt-face').length === 9);
 }
 
-// ---- 9. debug オーバーレイ --------------------------------------------------
-console.log('\n[9] debug overlay');
+// ---- 9. debug オプションは廃止済み ------------------------------------------
+console.log('\n[9] debug option removed');
 {
     state.options = { autoRotate: false, debug: true };
     fire('options', { options: state.options });
     await sleep(250);
-    check('debug dump visible', doc.body.textContent.includes('rawOptions'));
-    check('debug shows grid', doc.body.textContent.includes('"count"'));
+    check('no debug overlay even with debug:true', !doc.body.textContent.includes('rawOptions'));
+    check('no debug grid dump', !doc.body.textContent.includes('"count"'));
+    check('chart still renders', doc.querySelectorAll('polygon.mt-face').length > 0);
 }
 
 console.log(`\n=== ${pass} passed, ${fail} failed ===`);
