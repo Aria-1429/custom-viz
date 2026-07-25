@@ -665,6 +665,33 @@ UI は**「+ 閾値の追加」で行を動的に増減**でき、各行に数�
 （標準 viz の MarkerGauge「ゲージ範囲」と同じ見た目）。`editorProps.openRanges: true` にすると
 上限なしの範囲も作れる。
 
+#### ⚠ `openRanges: true` を使うなら optionsSchema を null 許容にする（2026-07-25）
+
+**上の schema 例は `openRanges: false` 用。`true` にするなら下記に変えること。**
+開いた範囲は `from`／`to` が **`null`** で保存されるため、`"type": "number"` かつ
+`required` に入れたままだと**ダッシュボード保存時の検証で落ちる**（症状は
+`must be number` / `must match "then" schema`）:
+
+```json
+"colorBands": {
+  "default": [ { "from": 0, "to": 40, "value": "#53a051" },
+               { "from": 40, "to": null, "value": "#dc4e41" } ],   ← 上限なし
+  "anyOf": [
+    { "type": "array", "items": { "type": "object",
+      "properties": { "from": { "type": ["number", "null"] },      ← null を許す
+                      "to":   { "type": ["number", "null"] },
+                      "value": { "type": "string" } },
+      "required": ["value"], "additionalProperties": false } },     ← from/to は必須にしない
+    { "type": "string", "pattern": "^>.*" }
+  ]
+}
+```
+
+viz 側は `from == null → -Infinity` / `to == null → +Infinity` に正規化して判定する。
+
+**既定バンドの上端は開けておく**のが安全。`{from:90, to:100}` のように閉じると
+**100 を超える値がどのバンドにも入らず**「色が付かない」症状になる（link-line v1.9.1 で実際に混入し修正）。
+
 **したがって以下の旧・代替案はもう不要**（既存 viz を触るときは threshold への置き換えを検討する）:
 
 - ~~固定 N 組の `editor.number(from) + editor.color` バンド~~
