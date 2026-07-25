@@ -2,6 +2,10 @@
 
 ![表示例](examples/example.png)
 
+
+https://github.com/user-attachments/assets/05f4d56c-2ff7-45a2-883e-b86c72a8ad6a
+
+
 Splunk **Dashboard Studio** 向けのカスタムビジュアライゼーション（React/JSX）。
 
 階層構造を**同心円の輪**で表す放射状チャートです。中心が根、外側へ向かうほど下の階層になり、
