@@ -1,5 +1,4 @@
-# custom-viz-donut-graph
-
+# Custom Viz Donut Graph
 ![表示例](examples/example.png)
 
 Splunk Dashboard Studio 向けのカスタムビジュアライゼーション（ドーナツグラフ）。

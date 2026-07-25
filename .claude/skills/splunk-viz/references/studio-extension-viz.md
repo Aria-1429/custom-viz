@@ -3,7 +3,9 @@
 `/splunk-viz` スキルで作る **Dashboard Studio カスタムビジュアライゼーション拡張**の実装知見。
 SKILL.md 本体から参照される。新規作成・改修の前に関連章を読むこと。
 
-- リポジトリ：モノレポ `Aria-1429/custom-viz`（private / `main`）。各 viz は `custom-viz-<name>/`。
+- リポジトリ：モノレポ `Aria-1429/custom-viz`（private / `main`）。各 viz は `visualizations/<name>/`。
+  （2026-07-25 に直下の `custom-viz-*/` から移設。フォルダ名からは `custom-viz-` プレフィックスを外し、
+  　Splunk のアプリ ID は従来どおり `custom_viz_<name>`。）
 - push はユーザーが手動で行う（Claude は push しない）。
 - 別系統（`@splunk/create` の独立アプリ＝Dashboard Framework）は [dashboard-framework.md](dashboard-framework.md) を参照。
 
@@ -41,14 +43,14 @@ Splunk UI（splunkui.splunk.com / Splunk Design System）が提供する npm パ
 
 ## 1. プロジェクト構成とスキャフォールド
 
-各 viz は独立フォルダ `custom-viz-<name>/`。CLI でベースを作れる:
+各 viz は独立フォルダ `visualizations/<name>/`。CLI でベースを作れる:
 
 ```bash
 npx @splunk/create@latest --mode=dashboard-studio-extension
 ```
 
 CLI が生成する JavaScript テンプレートはそのまま使わず、実績のある **React + useOptions
-スケルトン**（既存 viz、例 `custom-viz-donut-graph`）を複製して流用する。CLI を非対話実行する
+スケルトン**（既存 viz、例 `visualizations/donut-graph`）を複製して流用する。CLI を非対話実行する
 場合は inquirer が改行を取りこぼすので遅延付きで流し込む:
 
 ```bash
@@ -59,15 +61,15 @@ CLI が生成する JavaScript テンプレートはそのまま使わず、実�
 ### スケルトン複製の手順（cp を使う）
 
 ```bash
-cd <リポジトリルート>
-mkdir -p custom-viz-<new>
-cd custom-viz-<base>   # 例: custom-viz-donut-graph（React+useOptions版）
+cd <リポジトリルート>/visualizations
+mkdir -p <new>
+cd <base>   # 例: donut-graph（React+useOptions版）
 cp -r build-plugins build.mjs package.mjs package.json yarn.lock .gitignore README.md package \
-      ../custom-viz-<new>/
-mkdir -p ../custom-viz-<new>/visualizations/custom_viz_<new>/src/assets
-cp visualizations/custom_viz_<base>/src/assets/*.svg ../custom-viz-<new>/visualizations/custom_viz_<new>/src/assets/
-cp visualizations/custom_viz_<base>/src/visualization.css ../custom-viz-<new>/visualizations/custom_viz_<new>/src/
-mv ../custom-viz-<new>/visualizations/custom_viz_<base> ../custom-viz-<new>/visualizations/custom_viz_<new>
+      ../<new>/
+mkdir -p ../<new>/visualizations/custom_viz_<new>/src/assets
+cp visualizations/custom_viz_<base>/src/assets/*.svg ../<new>/visualizations/custom_viz_<new>/src/assets/
+cp visualizations/custom_viz_<base>/src/visualization.css ../<new>/visualizations/custom_viz_<new>/src/
+mv ../<new>/visualizations/custom_viz_<base> ../<new>/visualizations/custom_viz_<new>
 ```
 
 ### 複製後に必ず置換する識別子
@@ -80,7 +82,7 @@ mv ../custom-viz-<new>/visualizations/custom_viz_<base> ../custom-viz-<new>/visu
 
 ディレクトリ構成（重要ファイル）:
 ```
-custom-viz-<name>/
+visualizations/<name>/
 ├── build.mjs / package.mjs / build-plugins/css-and-size.mjs   # esbuild ビルド & .spl パッケージ
 ├── package/app/app.conf                                        # Splunkアプリ定義（id, version, label…）
 ├── package/metadata/default.meta                               # _vizName_ プレースホルダのまま流用可
@@ -235,7 +237,7 @@ function normalizeData(data) {
   スケールし、中心重力は弱く（0.01x）。画面いっぱいの利用は「カメラ自動フィット」（ノード bbox へ
   view transform を easing 追従、手動ズーム/パンで解除・dblclick で復帰）が担う。ラベル高さを
   衝突半径に足すとラベル同士の重なりも減る。
-- ソースに生の NUL 文字（`\x00`）を入れない（grep がバイナリ扱いする）。`' '` エスケープで書く。
+- ソースに生の NUL 文字（`\x00`）を入れない（grep がバイナリ扱いする）。`'\u0000'` エスケープで書く。
 - **rAF ループが管理する要素グループを掴む callback ref は必ず `useCallback([])` で安定化する**。
   インライン関数だと再レンダーのたびに ref を detach(null)→attach し直し、プールをリセットすると
   古い要素が DOM に孤児として残る（症状: オプション変更後も古い色/位置のパーティクルが凍結表示）。
@@ -362,14 +364,14 @@ function scaleColorFor(t, opts){
 }
 // cellFill: t = (value - scaleLo)/(scaleHi - scaleLo)
 ```
-参照実装: `custom-viz-calendar-heatmap/.../visualization.jsx` の
+参照実装: `visualizations/calendar-heatmap/.../visualization.jsx` の
 `normalizeOptions` / `lerpColor` / `scaleColorFor` / `cellFill`。
 
 ### 「動的に範囲を+追加」したい場合の代替
 
 - 固定 N 組の `editor.number(from) + editor.color` バンド（動的追加は不可だが確実に反映）。
 - SPL 側で行に `color` フィールドを持たせる。
-- **viz 内に「動的色設定」風パネルを自前実装**（参照実装: `custom-viz-link-line/.../visualization.jsx`
+- **viz 内に「動的色設定」風パネルを自前実装**（参照実装: `visualizations/link-line/.../visualization.jsx`
   の `parseColorBands`/色設定パネル）。範囲リスト（＋追加/×削除/プリセット/⇅反転）を
   `<input type="color">`+`<input type="number">` で組み、JSON 文字列オプション（例 `colorBands`）へ
   `setOptions` 保存。**編集モードは iframe への入力遮断があるため、パネルは表示モードに置く**。
@@ -413,7 +415,7 @@ globalThis.DashboardExtensionAPI = {
   「options に値が渡ったときに viz が正しく適用するか」まで。エディタが実機で出るかは実機確認。
 - `globalThis.navigator` は直接代入不可。`Object.defineProperty` で configurable 設定する。
 
-雛形は `custom-viz-sankey-flow/test/verify.mjs`（`yarn verify` で実行、happy-dom は devDependency）を
+雛形は `visualizations/sankey-flow/test/verify.mjs`（`yarn verify` で実行、happy-dom は devDependency）を
 流用する。モック一式・リスナー発火・オプション/データ/テーマ変更・ガード検証のパターンを網羅している。
 
 ### 「オプションは出るのに反映されない」症状の切り分け

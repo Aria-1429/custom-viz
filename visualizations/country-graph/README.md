@@ -1,5 +1,4 @@
-# custom-viz-country-graph
-
+# Custom Viz Country Graph
 ![表示例](examples/example.png)
 
 Splunk Dashboard Studio 向けのカスタムビジュアライゼーション（国別ランキング＋国旗）。

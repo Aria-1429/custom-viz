@@ -1,5 +1,4 @@
-# custom-viz-radar-chart
-
+# Custom Viz Radar Chart
 ![表示例](examples/example.png)
 
 Splunk Dashboard Studio 向けのカスタムビジュアライゼーション（レーダー / スパイダーチャート）。

@@ -1,5 +1,4 @@
-# custom-viz-severity-table
-
+# Custom Viz Severity Table
 ![表示例](examples/example.png)
 
 Splunk Dashboard Studio 向けのカスタムビジュアライゼーション（重要度色分けテーブル）。

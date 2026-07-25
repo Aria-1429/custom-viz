@@ -1,11 +1,10 @@
-# custom-viz-japan-map
-
+# Custom Viz Japan Map
 ![表示例](examples/example.png)
 
 https://github.com/user-attachments/assets/bbf2dd36-f586-446c-9b78-c86fb98f57d0
 
 Splunk Dashboard Studio 向けのカスタムビジュアライゼーション（日本地図＋アタックマップ）。
-[custom-viz-world-map](../custom-viz-world-map/) の**日本地図版**で、仕様は World Map と共通です。
+[world-map](../world-map/) の**日本地図版**で、仕様は World Map と共通です。
 
 **都道府県境あり**の日本列島上に「起点（src）→ 終点（dst）」を弧で描き、弧に沿って光の筋が流れる
 アニメーションで攻撃・脅威の流れを可視化する。Severity（High / Medium / Low）ごとに色分けし、
@@ -162,7 +161,7 @@ Node/npm 用）。
 
 ### [1.0.0] - 2026-07-24
 
-[custom-viz-world-map](../custom-viz-world-map/) v1.1.1 をベースにした日本地図版アタックマップ。
+[world-map](../world-map/) v1.1.1 をベースにした日本地図版アタックマップ。
 仕様は World Map と共通で、地図の下地を都道府県境ありの日本列島に差し替えた新規 viz。
 
 #### 追加

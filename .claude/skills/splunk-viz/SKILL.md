@@ -30,7 +30,7 @@ Dashboard Studio 拡張 viz の実装ナレッジを集約している:
 方式の取り違えは「一覧に出ない」で詰まるので、迷ったら [references/custom-viz-methods.md](references/custom-viz-methods.md) を先に読む:
 - **classic**（`SplunkVisualizationBase` + `formatter.html`、`visualizations.conf` に `framework_type` なし）
   … **Simple XML と Dashboard Studio の両方で表示できる**唯一の方式。
-- **Studio 拡張**（このリポジトリの `custom-viz-*/`。`framework_type = studio_visualization` + `config.json`）… Studio 専用。
+- **Studio 拡張**（このリポジトリの `visualizations/<name>/`。`framework_type = studio_visualization` + `config.json`）… Studio 専用。
 
 ## 開発方針
 
@@ -51,7 +51,8 @@ Dashboard Studio 拡張 viz の実装ナレッジを集約している:
 - **リリースノートの追記とバージョン更新は成果物の一部として Claude が自動で実施する**（ファイルを書くところまで）。
 - **ただし git のコミット／プッシュは Claude が行わない**。`git add` / `git commit` / `git push` はユーザーが手動で行う。作業後は「どのファイルを更新したか」を伝えるにとどめ、勝手にプッシュしないこと（ユーザーが明示的に依頼した場合を除く）。
 
-- **リポジトリ**：モノレポ `Aria-1429/custom-viz`（private / `main`）に各 viz を `custom-viz-<name>/` として収録する。1 viz = 1 repo は廃止済み。
+- **リポジトリ**：モノレポ `Aria-1429/custom-viz`（private / `main`）に各 viz を `visualizations/<name>/` として収録する。1 viz = 1 repo は廃止済み。
+  （フォルダ名は `<name>`＝プレフィックスなし、Splunk のアプリ ID は `custom_viz_<name>`。）
 - **バージョン更新**：`package.json` の `version` を SemVer で上げる（新規=`1.0.0`、機能追加=minor、修正=patch）。`config.json` 等のバージョンも整合させる。
 - **`.spl` はリポジトリに含める（旧版も残す）**：
   - パッケージ成果物 `dist/<app>-<ver>-<hash>.spl` はコミット対象。ファイル名にコミットハッシュが入るため複数併存するが、**旧バージョンの `.spl` も削除せず残す**方針（更新履歴を追えるようにするため）。

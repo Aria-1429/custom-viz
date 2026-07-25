@@ -1,5 +1,4 @@
-# custom-viz-network-graph
-
+# Custom Viz Network Graph
 ![表示例](examples/example.png)
 
 Splunk Dashboard Studio 向けのカスタムビジュアライゼーション

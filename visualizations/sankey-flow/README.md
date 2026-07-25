@@ -1,5 +1,4 @@
-# custom-viz-sankey-flow
-
+# Custom Viz Sankey Flow
 ![表示例](examples/example.png)
 
 Splunk Dashboard Studio 向けのカスタムビジュアライゼーション（Sankey フロー図・多段対応）。

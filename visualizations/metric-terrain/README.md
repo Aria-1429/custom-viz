@@ -1,5 +1,4 @@
-# custom-viz-metric-terrain
-
+# Custom Viz Metric Terrain
 ![表示例](examples/example.png)
 
 Splunk Dashboard Studio 向けのカスタムビジュアライゼーション（**等角投影の疑似3Dメトリック地形**）。

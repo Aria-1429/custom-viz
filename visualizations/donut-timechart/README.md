@@ -1,4 +1,4 @@
-# custom_viz_donut_timechart
+# Custom Viz Donut Timechart
 
 ![表示例](examples/example.png)
 
@@ -92,7 +92,7 @@ yarn package   # dist/ に .spl を生成
 ## プロジェクト構成
 
 ```
-custom-viz-donut-timechart/
+donut-timechart/
 ├── package.json                     # Node/npm スクリプトと依存関係
 ├── build.mjs / package.mjs          # ビルド・パッケージスクリプト
 ├── package/app/app.conf             # Splunk アプリメタデータ

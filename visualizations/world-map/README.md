@@ -1,5 +1,4 @@
-# custom-viz-world-map
-
+# Custom Viz World Map
 ![表示例](examples/example.png)
 
 https://github.com/user-attachments/assets/49882133-1079-4b8b-86a9-5a6bdacba007

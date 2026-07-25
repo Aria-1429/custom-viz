@@ -11,7 +11,7 @@ Splunk でカスタムビジュアライゼーション（＝ダッシュボー�
 | **Simple XML で使える** | **○** | ✕ |
 | **Dashboard Studio で使える** | **○（後方互換）** | ○（ネイティブ） |
 | 既存ダッシュボードにパネル追加 | ○ | ○ |
-| このリポジトリ | （未作成） | `custom-viz-*/` ← 現行の主力 |
+| このリポジトリ | （未作成） | `visualizations/<name>/` ← 現行の主力 |
 | 詳細ナレッジ | 本ファイル §2 | [studio-extension-viz.md](studio-extension-viz.md) |
 
 ### 一目の選び方
@@ -55,7 +55,7 @@ Splunk でカスタムビジュアライゼーション（＝ダッシュボー�
 
 ### 実務含意
 
-- 既存 `custom-viz-*`（拡張）で困っていた **`editor.dynamicColor` 不可**・**大量データの扱い**は、
+- 既存 `visualizations/*`（拡張）で困っていた **`editor.dynamicColor` 不可**・**大量データの扱い**は、
   実装の問題ではなく**拡張が classic から削った構造的制約**。裏返すと、これらが要件なら **classic が適合**
   （かつ Simple XML/Studio 両対応のおまけ付き）。
 - 逆に、Studio だけでよく React で宣言的に書きたい・テーマ連携をフック1つで済ませたいなら拡張が楽。
@@ -128,7 +128,7 @@ Web Components で組む。`{{VIZ_NAMESPACE}}` が option 名の接頭辞にな�
 ### classic の位置づけ（このリポジトリでの判断）
 
 - **1つ作れば Simple XML と Studio の両方で表示できる**唯一の方式。両対応が要件なら classic。
-- ただし Splunk の推奨は「新規は Studio 拡張」。React 資産（既存 `custom-viz-*`）を活かすなら Studio 拡張のまま。
+- ただし Splunk の推奨は「新規は Studio 拡張」。React 資産（既存 `visualizations/*`）を活かすなら Studio 拡張のまま。
 - Splunkbase の既製「Custom Visualizations アプリ集（11種）」は 2024-12-21 EOL。ただし**自作の仕組み
   （`SplunkVisualizationBase` + `visualizations.conf`）は 9.x/10.x で現役サポート**（別物なので混同しない）。
 

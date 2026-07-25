@@ -1,5 +1,4 @@
-# custom-viz-calendar-heatmap
-
+# Custom Viz Calendar Heatmap
 ![表示例](examples/example.png)
 
 Splunk Dashboard Studio 向けのカスタムビジュアライゼーション（カレンダーヒートマップ）。

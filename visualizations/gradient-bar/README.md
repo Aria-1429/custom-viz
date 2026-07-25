@@ -1,5 +1,4 @@
-# custom-viz-gradient-bar
-
+# Custom Viz Gradient Bar
 ![表示例](examples/example.png)
 
 Splunk Dashboard Studio 向けのカスタムビジュアライゼーション（グラデーション横棒バーチャート）。
@@ -61,7 +60,7 @@ node test/verify.mjs # happy-dom によるローカル検証（実機なし。25
 本番向け（minify・ソースマップ無し）は `yarn build:prod` の後に `yarn package` を実行する。
 アプリのメタデータは `package/app/app.conf` に格納されている（`package.json` は Node/npm 用）。
 
-> `test/verify.mjs` は happy-dom を `custom-viz-sankey-flow/node_modules` から借用するため、
+> `test/verify.mjs` は happy-dom を `sankey-flow/node_modules` から借用するため、
 > gradient-bar 側に happy-dom を追加インストールする必要はない。
 
 ## デプロイ（再インストール・再起動なし）
