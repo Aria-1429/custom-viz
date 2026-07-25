@@ -1,0 +1,378 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": true,
+  "canSetTokens": [
+    "dynamic",
+    "static"
+  ],
+  "hasEventHandlers": true,
+  "config": {
+    "name": "Drilldown Table Probe",
+    "description": "クリック以外のトリガー（ホバー／範囲選択）でもインタラクションを発火できるか検証する",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": [
+        "primary"
+      ],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 600,
+      "initialHeight": 520
+    },
+    "optionsSchema": {
+      "p_radioBar": {
+        "default": "",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "p_toggle": {
+        "default": false,
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "p_text": {
+        "default": "",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "p_slider": {
+        "default": 0,
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "p_percent": {
+        "default": 0,
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "p_image": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "p_markdown": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "p_threshold": {
+        "default": [
+          {
+            "from": 0,
+            "to": 50,
+            "value": "#118832"
+          },
+          {
+            "from": 50,
+            "to": 100,
+            "value": "#D41F1F"
+          }
+        ],
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "number"
+                },
+                "to": {
+                  "type": "number"
+                },
+                "value": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "from",
+                "to",
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "p_arrayOfStrings": {
+        "default": [],
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "p_marks": {
+        "default": [],
+        "anyOf": [
+          {
+            "type": "array"
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "p_seriesColors": {
+        "default": [
+          "#7B56DB",
+          "#009CEB",
+          "#00CDAF"
+        ],
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "p_presetSelector": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "p_columnMultiSelector": {
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": [
+                "string",
+                "number"
+              ]
+            }
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "p_trellisSplitBy": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "p_colMultiByName": {
+        "default": [],
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "p_seriesColorsByField": {
+        "type": "object"
+      },
+      "p_seriesLineTypes": {
+        "default": [],
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "p_seriesLineTypesByField": {
+        "type": "object"
+      },
+      "p_tableBackgroundColor": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "p_tableFormat": {
+        "type": "object"
+      },
+      "p_networkNodeColors": {
+        "anyOf": [
+          {
+            "type": [
+              "string",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "p_dynColorPrecedence": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array"
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      }
+    },
+    "editorConfig": [
+      {
+        "label": "0_基準",
+        "layout": [
+          [
+            {
+              "label": "基準（checkbox。ここが見えればパネルは生きている）",
+              "editor": "editor.checkbox",
+              "option": "p_toggle"
+            }
+          ]
+        ]
+      },
+      {
+        "label": "検証済み_tableBackgroundColor",
+        "layout": [
+          [
+            {
+              "label": "tableBackgroundColor（key 指定）",
+              "key": "p_tableBackgroundColor",
+              "editor": "editor.tableBackgroundColor",
+              "editorProps": {
+                "themes": {},
+                "labelPosition": "top",
+                "palette": [
+                  "transparent",
+                  "#000000",
+                  "#ffffff",
+                  "#dc4e41",
+                  "#f1813f",
+                  "#f8be34",
+                  "#53a051",
+                  "#0877a6"
+                ]
+              }
+            }
+          ]
+        ]
+      }
+    ],
+    "defaultContext": {},
+    "events": {
+      "cell.click": {
+        "description": "triggered when user clicks a table cell"
+      },
+      "point.mouseover": {
+        "description": "triggered when user hovers over a table row"
+      },
+      "point.mouseout": {
+        "description": "triggered when user moves out of a table row"
+      },
+      "range.select": {
+        "description": "triggered when user selects a range of rows"
+      }
+    },
+    "supports": [
+      "events"
+    ]
+  }
+}
