@@ -1,0 +1,133 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz Sunburst",
+    "description": "A radial hierarchy chart with click-to-zoom navigation and a center KPI",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 560,
+      "initialHeight": 460
+    },
+    "optionsSchema": {
+      "valueField": { "type": "string", "default": "" },
+      "level1Field": { "type": "string", "default": "" },
+      "level2Field": { "type": "string", "default": "" },
+      "level3Field": { "type": "string", "default": "" },
+      "level4Field": { "type": "string", "default": "" },
+
+      "color1": { "type": "string", "default": "#4c9be8" },
+      "color2": { "type": "string", "default": "#26c2a5" },
+      "color3": { "type": "string", "default": "#f2b53c" },
+      "color4": { "type": "string", "default": "#f2653f" },
+      "color5": { "type": "string", "default": "#a97bf0" },
+      "color6": { "type": "string", "default": "#f75d97" },
+      "color7": { "type": "string", "default": "#5ed4f0" },
+      "color8": { "type": "string", "default": "#94a3b5" },
+      "fadeChildren": { "type": "boolean", "default": true },
+
+      "maxDepth": { "type": "number", "default": 3 },
+      "maxSlices": { "type": "number", "default": 400 },
+      "minAnglePercent": { "type": "number", "default": 0.3 },
+      "innerRadiusPercent": { "type": "number", "default": 22 },
+      "ringGap": { "type": "number", "default": 1 },
+      "sliceGap": { "type": "number", "default": 0.4 },
+      "cornerRadius": { "type": "number", "default": 2 },
+
+      "dimOthers": { "type": "boolean", "default": true },
+      "showLabels": { "type": "boolean", "default": true },
+      "showCenter": { "type": "boolean", "default": true },
+      "centerTitle": { "type": "string", "default": "" },
+      "showBreadcrumb": { "type": "boolean", "default": true },
+      "showLegend": { "type": "boolean", "default": false },
+      "enableDrilldown": { "type": "boolean", "default": true },
+      "animate": { "type": "boolean", "default": true },
+
+      "valueDecimals": { "type": "number", "default": 0 },
+      "abbreviateValue": { "type": "boolean", "default": true },
+
+      "drillPath": { "type": "string", "default": "" },
+
+      "debug": { "type": "boolean", "default": false }
+    },
+    "editorConfig": [
+      {
+        "label": "データフィールド",
+        "layout": [
+          [{ "label": "値（角度）フィールド", "editor": "editor.columnSelector", "option": "valueField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "第1階層フィールド（内側の輪）", "editor": "editor.columnSelector", "option": "level1Field", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "第2階層フィールド", "editor": "editor.columnSelector", "option": "level2Field", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "第3階層フィールド", "editor": "editor.columnSelector", "option": "level3Field", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "第4階層フィールド（外側の輪）", "editor": "editor.columnSelector", "option": "level4Field", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }]
+        ]
+      },
+      {
+        "label": "配色",
+        "layout": [
+          [{ "label": "色1", "editor": "editor.color", "option": "color1" }],
+          [{ "label": "色2", "editor": "editor.color", "option": "color2" }],
+          [{ "label": "色3", "editor": "editor.color", "option": "color3" }],
+          [{ "label": "色4", "editor": "editor.color", "option": "color4" }],
+          [{ "label": "色5", "editor": "editor.color", "option": "color5" }],
+          [{ "label": "色6", "editor": "editor.color", "option": "color6" }],
+          [{ "label": "色7", "editor": "editor.color", "option": "color7" }],
+          [{ "label": "色8（以降は繰り返し）", "editor": "editor.color", "option": "color8" }],
+          [{ "label": "外側の輪ほど淡くする", "editor": "editor.checkbox", "option": "fadeChildren" }]
+        ]
+      },
+      {
+        "label": "輪と扇形",
+        "layout": [
+          [{ "label": "一度に表示する輪の数（掘り下げれば更に深く辿れます）", "editor": "editor.number", "option": "maxDepth" }],
+          [{ "label": "扇形の最大数（超過分は「その他」に集約）", "editor": "editor.number", "option": "maxSlices" }],
+          [{ "label": "表示する最小の角度（％、これ未満は集約）", "editor": "editor.number", "option": "minAnglePercent" }],
+          [{ "label": "中心の空き半径（％）", "editor": "editor.number", "option": "innerRadiusPercent" }],
+          [{ "label": "輪どうしの間隔（px）", "editor": "editor.number", "option": "ringGap" }],
+          [{ "label": "扇形どうしの間隔（度）", "editor": "editor.number", "option": "sliceGap" }],
+          [{ "label": "扇形の角丸（px）", "editor": "editor.number", "option": "cornerRadius" }]
+        ]
+      },
+      {
+        "label": "表示",
+        "layout": [
+          [{ "label": "扇形にラベルを表示", "editor": "editor.checkbox", "option": "showLabels" }],
+          [{ "label": "ホバー中、その系統以外を暗くする", "editor": "editor.checkbox", "option": "dimOthers" }],
+          [{ "label": "中央に合計を表示", "editor": "editor.checkbox", "option": "showCenter" }],
+          [{ "label": "パンくずリストを表示", "editor": "editor.checkbox", "option": "showBreadcrumb" }],
+          [{ "label": "凡例を表示", "editor": "editor.checkbox", "option": "showLegend" }],
+          [{ "label": "クリックで下の階層へ掘り下げる", "editor": "editor.checkbox", "option": "enableDrilldown" }],
+          [{ "label": "アニメーション", "editor": "editor.checkbox", "option": "animate" }]
+        ]
+      },
+      {
+        "label": "中央の見出し（任意）",
+        "layout": [
+          [{ "label": "中央の見出し（空欄=階層名を自動表示）", "editor": "editor.text", "option": "centerTitle" }]
+        ]
+      },
+      {
+        "label": "数値",
+        "layout": [
+          [{ "label": "小数点以下の桁数", "editor": "editor.number", "option": "valueDecimals" }],
+          [{ "label": "数値を省略表記（1.5M など）", "editor": "editor.checkbox", "option": "abbreviateValue" }]
+        ]
+      },
+      {
+        "label": "デバッグ",
+        "layout": [
+          [{ "label": "オプションのデバッグ表示", "editor": "editor.checkbox", "option": "debug" }]
+        ]
+      }
+    ],
+    "defaultContext": {}
+  }
+}
