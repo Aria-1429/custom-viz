@@ -277,16 +277,94 @@ count→件数、source/destination→送信元/宛先。
 
 ### 使える editor 型
 
-- **確実に動く（実機確認済み）**: `editor.color` / `editor.checkbox` / `editor.number` /
-  `editor.columnSelector`。
-- **実在するがカスタム viz での可否は要実機確認**: `editor.text`, `editor.select`, `editor.radioBar`,
-  `editor.slider`, `editor.dynamicColor`, `editor.threshold`, `editor.seriesColors` ほか多数。
-- **調べ方**: `@splunk/visualizations`（npm）を入れて grep すると全 editor 型が出る:
+`@splunk/visualizations` の全 `*.config.js` を require して walk した結果、**実在する editor 型は
+25 種**（2026-07-25 調査）。標準 viz での採用数が多いものほど素性が確か。
+
+| editor 型 | 採用 viz 数 | editorProps の要点 | カスタム viz での評価 |
+|---|---|---|---|
+| `editor.color` | 26 | `{labelPosition, themes:{}}` | **確実（実機確認済み）** |
+| `editor.number` | 23 | `{min, max}` | **確実（実機確認済み）** |
+| `editor.select` | 20 | `{values:[{label,value},…]}` | 有力（プルダウン） |
+| `editor.columnSelector` | 19 | `{dataSourceKey:'primary', supportsDSL, expectedDataPrimitive}` | **確実**（ただし DOS 文字列で届く→§3 後述） |
+| `editor.toggle` | 18 | `{help, helpFormat}` | 有力（checkbox の代替） |
+| `editor.radioBar` | 18 | `{values:[{label,value},…]}` | 有力（3〜4択に最適） |
+| `editor.checkbox` | 16 | なし | **確実（実機確認済み）** |
+| `editor.text` | 15 | `{tooltip}` | 有力（自由入力） |
+| `editor.slider` | 6 | `{min, max, step}` | 有力（0〜1 の比率など） |
+| `editor.percent` | 4 | `{min}` | 有力 |
+| `editor.image` | 2 | `{validMediaTypes:['svg'], svgRenderAsDom}` | 要実機確認 |
+| `editor.markdown` / `editor.threshold` / `editor.arrayOfStrings` / `editor.marks` / `editor.operations` / `editor.children` / `editor.isInline` / `editor.onChange` / `editor.insertText` | 1前後 | — | 要実機確認（用途が特殊） |
+| `editor.dynamicColor` / `editor.dynamicColorWithPrecedence` / `editor.networkGraphDynamicColor` / `editor.tableDynamicColor` / `editor.seriesColors` / `editor.seriesColorsByField` / `editor.tableColumnFormatter` / `editor.tableBackgroundColor` / `editor.presetSelector` / `editor.trellisSplitBy` / `editor.columnMultiSelector` / `editor.columnMultiSelectionByFieldNameEditor` | 3〜11 | `context` + DOS 前提 | **× 使えない見込み**。`context`／DOS 評価に依存する型は §4 と同じ理由（拡張 iframe は DOS を評価しない）で値が届かない |
+
+**選定の原則**：`option` に**素の値（数値/真偽/文字列/色）が直接入る型は届く**。
+`context` に別データを保存して `option` には DOS 文字列だけ入れる型（dynamicColor 系・seriesColors 系）は
+**届かない**（§4 で `editor.dynamicColor` について実証済み。同じ構造の型は全部同じ穴に落ちる）。
+
+- **調べ方**（再現手順）:
   ```bash
   npm install @splunk/visualizations   # スクラッチ領域で。プロジェクトには入れない
-  grep -rhoE "editor\.[a-zA-Z]+" node_modules/@splunk | sort | uniq -c | sort -rn
-  # 各 editor の完全な定義は SingleValue.config.js 等の .config.js を require() して walk
+  grep -rhoE "editor\.[a-zA-Z0-9]+" node_modules/@splunk | sort | uniq -c | sort -rn
+  # 完全な定義は各 .config.js を require() して editorConfig を再帰 walk し、
+  # node.editor が 'editor.' 始まりのノードから label/option/context/editorProps を集める
   ```
+
+### 選択肢は `editor.select` / `editor.radioBar` を使う（数値コード化しない）
+
+**このリポジトリの全 viz は checkbox / color / number / columnSelector の4種だけで組まれており、
+`editor.select` を1つも使っていない**（2026-07-25 時点）。そのため列挙型のオプションが
+「数値コード」や「チェックボックス複数」で代用され、UI が分かりにくくなっている箇所がある。
+新規・改修では下記に従う。
+
+```json
+// editorConfig：3つ以上の選択肢はドロップダウン
+[{ "label": "判定モード", "editor": "editor.select", "option": "matchMode",
+   "editorProps": { "values": [
+     { "label": "自動",         "value": "auto" },
+     { "label": "数値しきい値", "value": "numeric" },
+     { "label": "文字列一致",   "value": "string" }
+   ] } }]
+
+// 2〜4択で常時見せたいなら radioBar（同じ editorProps.values 形状）
+[{ "label": "並び順", "editor": "editor.radioBar", "option": "sortMode",
+   "editorProps": { "values": [
+     { "label": "検索結果順", "value": "none" },
+     { "label": "最大値順",   "value": "peak" },
+     { "label": "合計順",     "value": "total" }
+   ] } }]
+```
+```json
+// optionsSchema は文字列型にする（数値コードにしない）
+"matchMode": { "type": "string", "default": "auto" }
+```
+```js
+// viz 側：未知値は既定へ丸める（旧バージョンの数値が残っていても壊れないように）
+const MATCH_MODES = ['auto', 'numeric', 'string'];
+const matchMode = MATCH_MODES.includes(o.matchMode) ? o.matchMode : 'auto';
+```
+
+**アンチパターン**（実在した例）:
+
+| 悪い例 | 何が問題か | 直し方 |
+|---|---|---|
+| `「判定モード（0=自動 / 1=数値 / 2=文字列）」` を `editor.number` | ユーザーが数字の意味を覚える必要がある。範囲外の値も入力できる | `editor.select` + 文字列 value |
+| `sortByPeak` + `sortByTotal` の checkbox 2つ | **両方ONが未定義動作**（コードは `if/else if` で片方が黙って勝つ）。UI 上は両方チェックできてしまう | 1つの `editor.select`（`none`/`peak`/`total`） |
+| `sortByValue` + `sortAscending` の checkbox 2つ | 「並べ替える」OFF時に「昇順」が無意味に残る（依存関係が UI に出ない） | `editor.select`（`none`/`asc`/`desc`）に統合 |
+
+**checkbox のままでよいもの**: `sortRowsByTotal` と `sortColsByTotal` のように**独立して ON/OFF
+できる**もの。排他かどうかで判断する。
+
+**「0＝特別値」の数値は数値のままでよい**（`maxCellSize`（0=無制限）、`labelWidth`（0=自動）など）。
+選択肢ではなく連続量なので `editor.number` が正しい。
+
+> `editor.select` / `editor.radioBar` は標準 viz で 20 / 18 種に採用されており、`option` に素の値が
+> 入る型なので拡張 viz でも届く見込みが高い。ただし**このリポジトリでは実機未検証**。初採用時は
+> §3「無効な editor を混ぜたときの症状」に従い**独立セクションに隔離**して `_bump`＋ハードリロードで
+> 確認し、通ったら本採用する。結果はこの章に追記すること。
+
+### ドリルダウン用の editor 型は存在しない
+
+`editor.drilldown` のような型は 25 種のどこにも無く、標準 viz の editorConfig にも drilldown 項目は無い。
+ドリルダウン（＝「インタラクション」）は editorConfig とは**別レイヤー**の仕組み → §5 を参照。
 
 ### 無効な editor を混ぜたときの症状
 
@@ -378,7 +456,106 @@ function scaleColorFor(t, opts){
 
 ---
 
-## 5. ローカル検証（happy-dom で実機なしにバンドルを叩く）
+## 5. ドリルダウン（設定UIの「インタラクション」）
+
+### 結論
+
+**使える。** デフォルト viz と同様、ダッシュボード編集画面の**「インタラクション」パネルで
+ユーザーが動作を設定できる**（「+ インタラクションを追加」）。Studio では drilldown が
+「インタラクション（Interactions）」に名称変更されているだけで、カスタム viz も同じ UI に乗る。
+
+ただし**デフォルトで無効**。`config.json` の 2 フラグを立て、かつ **viz 側でクリック発火を実装**
+しないと、パネルに出てこない／出ても何も起きない。この repo の既存 viz はすべて
+`showDrilldown: false` なので、必要な viz で個別に有効化する。
+
+### 有効化の 3 ステップ
+
+**① `config.json` のトップレベル 2 フラグ**（`config` の中ではなく外側。既定はどちらも `false`）:
+
+```json
+{
+  "showDrilldown": true,
+  "hasEventHandlers": true,
+  ...
+}
+```
+
+- `showDrilldown` … 編集画面の「インタラクション」パネルにこの viz を出す
+- `hasEventHandlers` … viz が発火したイベントをホスト側のハンドラへ流す
+
+**② トークンを設定させるなら `canSetTokens`**（`"dynamic"` / `"static"`）。
+「トークンを設定」インタラクションを使わないなら `[]` のままでよい。
+
+**③ viz 側でクリックを発火**（どちらか一方）:
+
+```jsx
+// 方式A: DOM ノードを登録してホストに click を任せる
+import { addDrilldownListener } from '@splunk/dashboard-studio-extension/visualization';
+
+addDrilldownListener({
+  node: barEl,                       // HTMLElement（SVG 要素も可）
+  action: 'custom.click',
+  payloadCallback: () => ({ name: 'host', value: 'host-1', data: { ...row } }),
+});
+```
+
+```jsx
+// 方式B: 自前の onClick から明示的に発火（React ではこちらが素直）
+import { triggerDrilldown } from '@splunk/dashboard-studio-extension/visualization';
+
+<rect onClick={(e) => triggerDrilldown({
+  action: 'custom.click',
+  payload: { name: 'host', value: row.host, data: row },
+  originalEvent: e.nativeEvent,      // click 以外の起点なら指定
+})} />
+```
+
+### API の所在（重要）
+
+**`/react` サブパスに drilldown フックは無い。** `useDataSources` 等と違い、
+`useDrilldown` のようなフックは存在しないので、**コアの
+`@splunk/dashboard-studio-extension/visualization` から関数を直接 import** する
+（`.d.mts` の export 一覧で確認済み）。
+
+**公式ドキュメントの `addDrilldownListener` シグネチャは誤り。**
+docs は位置引数 `(node, action, payloadCallback)` と書いているが、**実際の型定義は
+単一オブジェクト引数** `({ node, action, payloadCallback })`。型定義（node_modules の
+`visualization-*.d.mts`）が正。docs のコード例をそのままコピペすると動かない。
+
+### 型
+
+```ts
+interface DrilldownPayloadState {
+  earliest?: string | number;  latest?: string | number;
+  data?: Record<string, unknown>;
+  bounds?: string[];  name?: string;  value?: unknown;  action?: string;
+  [key: string]: unknown;      // 任意キー可
+}
+interface DrilldownArgs {
+  action: string;                    // 例 'custom.click'
+  payload: DrilldownPayloadState;
+  originalEvent?: Event;             // click 以外の起点で使う
+}
+declare const addDrilldownListener: (a: {
+  node: HTMLElement; action: string; payloadCallback: () => DrilldownPayloadState;
+}) => void;
+declare const triggerDrilldown: (a: DrilldownArgs) => void;
+```
+
+`payload` の `name` / `value` が、インタラクション設定 UI 側でトークン
+（`$name$` / `$value$` 相当）やリンク先 URL のパラメータに渡る値になる。
+行全体を `data` に入れておくと、フィールド指定のインタラクションで参照できる。
+
+### 注意
+
+- **編集モードでは viz 内のマウス操作が iframe ごと遮断される**（§3 の既知事項）。
+  クリックの動作確認は表示モードで行う。
+- ローカル検証（§6）では `DashboardExtensionAPI` モックに
+  `addDrilldownListener` / `triggerDrilldown` を生やしておくと、発火の有無を検査できる。
+
+---
+
+## 6. ローカル検証（happy-dom で実機なしにバンドルを叩く）
 
 ビルド済み `dist/<viz>/visualization.js` を Node + happy-dom で実行し、描画・オプション反映・ガードを
 検証する。回帰の早期発見に有効。
@@ -425,7 +602,7 @@ config.json と JS バンドルは別経路で配信される。§6 の `_bump` 
 
 ---
 
-## 6. デプロイ（アンインストール・再起動なし）
+## 7. デプロイ（アンインストール・再起動なし）
 
 1. `npm version <patch|minor> --no-git-tag-version` でバージョンを上げ、`app.conf` の version も同期。
    `yarn build && yarn package` で新 `.spl` 生成。
@@ -437,7 +614,7 @@ config.json と JS バンドルは別経路で配信される。§6 の `_bump` 
 
 ---
 
-## 7. GitHub（ユーザーが手動 push）
+## 8. GitHub（ユーザーが手動 push）
 
 - モノレポ `Aria-1429/custom-viz`（private / `main`）。Claude は commit / push しない。
 - push 前リークチェック: `git status --short | grep -E 'node_modules|dist/|stage/'`
@@ -448,7 +625,7 @@ config.json と JS バンドルは別経路で配信される。§6 の `_bump` 
 
 ---
 
-## 8. データモデルの型
+## 9. データモデルの型
 
 第1列をカテゴリ/軸/日付、第2列以降を数値とするのが基本。代表例:
 - bar / donut … 第1列=カテゴリ, 第2列=数値
@@ -476,7 +653,7 @@ mv フィールドが1行のセルに**配列**（環境により改行区切り
 
 ---
 
-## 9. 同梱データ・素材のライセンス（著作権フリーのみ）
+## 10. 同梱データ・素材のライセンス（著作権フリーのみ）
 
 viz にバンドルする**データ・素材**（地図データ、GeoJSON/TopoJSON、アイコン、フォント、画像、辞書・
 参照データ等）は、**著作権フリー＝パブリックドメイン、またはそれ相当のものだけを使う**。

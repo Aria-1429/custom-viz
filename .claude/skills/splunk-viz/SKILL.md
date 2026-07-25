@@ -16,7 +16,7 @@ Dashboard Studio 拡張 viz の実装ナレッジを集約している:
 
 1. プロジェクト構成 / スケルトン複製 / ビルド・パッケージ手順
 2. 実装の定番パターン（テーマガード・データ正規化・オートフィット・堅牢性チェックリスト）
-3. editorConfig と editor 型（確実な3種＋実在する型の調べ方、無効型の症状）
+3. editorConfig と editor 型（実在する25種の一覧と可否判定、選択肢は `editor.select`、無効型の症状）
 4. **値→色マッピング**：`editor.dynamicColor` はカスタムvizで使えない（配列がoptionsに来ない）。値ベースのカラースケールを自前実装する
 5. ローカル検証（happy-dom で実機なしにバンドルを叩く）
 6. デプロイ（アンインストール・再起動なし。`_bump`）
@@ -41,6 +41,29 @@ Dashboard Studio 拡張 viz の実装ナレッジを集約している:
 - サーチ結果(SPLの実行結果)に応じて表示内容が変わるように実装する。デフォルトのSplunkビジュアライゼーションと同様、データドリブンな描画にすること。
 - デフォルトのビジュアライゼーションと同様に、ダッシュボードの編集画面でグラフの色などのオプションを設定できるようにする。ユーザーが設定したオプションは `useOptions` で取得する。
 - **編集画面のオプションラベルは日本語で書く**（`config.json > editorConfig` のセクション `label`・各項目の `label` とも。例:「表示」「タイトルを表示」「アニメーション周期（秒、0で停止）」）。オプションのキー名(`option` / `optionsSchema`)は英語のまま。既存 viz を改修するときも英語ラベルが残っていれば日本語化する。
+- **オプションの性質に合った editor 型を選ぶ**（数値やチェックボックスで代用しない）。
+  設定項目を追加するときは、まず「この値は何型か」を考えてから editor を決める:
+
+  | 値の性質 | 使う editor | 例 |
+  |---|---|---|
+  | 3つ以上の選択肢から1つ | **`editor.select`**（ドロップダウン） | 判定モード、質感、レイアウト |
+  | 2〜4択で常時見せたい | **`editor.radioBar`** | 配置（左/中/右）、並び順 |
+  | ON/OFF | `editor.checkbox` / `editor.toggle` | 〜を表示 |
+  | 連続量 | `editor.number` | サイズ(px)、上限件数 |
+  | 範囲が決まった連続量 | `editor.slider`（`{min,max,step}`） | 不透明度 0〜1 |
+  | 自由入力の文字列 | `editor.text` | 単位ラベル |
+  | 色 | `editor.color` | 背景色 |
+  | フィールド選択 | `editor.columnSelector` | ラベル列、値列 |
+
+  **禁止パターン**（過去の viz に実在する。見つけたら直す）:
+  - ❌ **選択肢を数値コードにする**：`「判定モード（0=自動 / 1=数値 / 2=文字列）」` を `editor.number` で作る。
+    → `editor.select` にして `editorProps.values` にラベルを持たせる。ユーザーに数字の意味を覚えさせない。
+  - ❌ **排他的な選択をチェックボックス複数で作る**：`sortByPeak` + `sortByTotal` のように
+    「両方ON」が未定義動作になる組み合わせ。→ 1つの `editor.select`（`none`/`peak`/`total`）にまとめる。
+  - ✅ 独立してON/OFFできるもの（`sortRowsByTotal` と `sortColsByTotal` など）は checkbox のままでよい。
+
+  `editor.select` / `editor.radioBar` の書き方と、使える editor 型 25 種の全一覧・可否判定は
+  [references/studio-extension-viz.md](references/studio-extension-viz.md) の「editorConfig と editor 型」章を参照。
 - 参考資料の公式ドキュメントを参照し、Splunkのベストプラクティスに従うこと。
 - パッケージ化する際はバージョンを更新すること．（詳細は「デプロイ／リリース運用」を参照）
 
