@@ -249,7 +249,7 @@ state.data = { fields: FIELDS, rows: [] };
 fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
 await sleep(150);
 {
-    check('shows No data message', doc.body.textContent.includes('No data available'));
+    check('shows データなしメッセージ', doc.body.textContent.includes('データがありません'));
     check('no bars rendered', bars().length === 0, `got ${bars().length}`);
 }
 
@@ -279,7 +279,7 @@ console.log('\n[12] field selection (columnSelector)');
     await sleep(150);
 
     // 既定（value=第2列=region）は非数値なので全行除外 → No data
-    check('default value col (region, non-numeric) → No data', doc.body.textContent.includes('No data available'));
+    check('default value col (region, non-numeric) → データなしメッセージ', doc.body.textContent.includes('データがありません'));
 
     // 値フィールドを DOS 文字列で bytes に、ラベルを生名 host に指定
     setOptions({
@@ -302,7 +302,7 @@ console.log('\n[12] field selection (columnSelector)');
     setOptions({ labelField: 'does_not_exist', valueField: 'also_missing' });
     await sleep(150);
     // value=第2列(region=非数値) にフォールバック → No data（壊れず安全に退避）
-    check('unknown fields fall back safely (No data, not crash)', doc.body.textContent.includes('No data available'));
+    check('unknown fields fall back safely (No data, not crash)', doc.body.textContent.includes('データがありません'));
 }
 
 // ---- 集計 -----------------------------------------------------------------

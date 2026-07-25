@@ -846,7 +846,12 @@ function FunnelLeak({ mode }) {
         return (
             <div ref={setContainer} className="viz-container viz-container--empty">
                 <div className="viz-message">
-                    <Paragraph>データがありません。1行=1ステップ、行順が上→下の段順になるサーチ結果を指定してください。</Paragraph>
+                    <Paragraph>
+                        データがありません。サーチ結果を確認してください。<br />
+                        <span style={{ opacity: 0.7, fontSize: 12 }}>
+                            1行=1ステップ、行順が上→下の段順になるサーチ結果を指定してください。
+                        </span>
+                    </Paragraph>
                 </div>
             </div>
         );

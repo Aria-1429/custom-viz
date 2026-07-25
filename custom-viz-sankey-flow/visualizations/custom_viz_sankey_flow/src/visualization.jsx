@@ -490,7 +490,7 @@ function SankeyFlow({ mode }) {
 
     if (loading && rows.length === 0) return centerBox(<WaitSpinner size="medium" />);
     if (!data || rows.length === 0) {
-        return centerBox(<Paragraph>No data. Run a search that returns results.</Paragraph>);
+        return centerBox(<Paragraph>データがありません。サーチ結果を確認してください。</Paragraph>);
     }
     if (graph.error === 'columns') {
         return centerBox(

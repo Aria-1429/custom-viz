@@ -1094,7 +1094,7 @@ function CalendarHeatmapVisualization({ mode }) {
     const debug = asBool(options?.debug, false);
 
     if (loading) return <LoadingState />;
-    if (!data || rows.length === 0) return <MessageState text="No data available" />;
+    if (!data || rows.length === 0) return <MessageState text="データがありません。サーチ結果を確認してください。" />;
     if (!calendar.valid) {
         return <MessageState text="No valid dates found. First column must be a date/_time." />;
     }

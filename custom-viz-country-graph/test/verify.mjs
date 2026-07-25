@@ -218,7 +218,7 @@ console.log('\n[9] guards');
     state.data = { fields: FIELDS, rows: [] };
     fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
     await sleep(200);
-    check('empty data → No data message', doc.body.textContent.includes('No data'));
+    check('empty data → データなしメッセージ', doc.body.textContent.includes('データがありません'));
 
     state.data = { fields: FIELDS, columns: [['US', 'JP'], ['10', '20']] };
     fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });

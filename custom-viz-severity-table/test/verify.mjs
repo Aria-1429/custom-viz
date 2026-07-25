@@ -232,7 +232,7 @@ console.log('\n[8] guards');
     state.data = { fields: FIELDS, rows: [] };
     fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
     await sleep(180);
-    check('empty data → No data message', doc.body.textContent.includes('No data'));
+    check('empty data → データなしメッセージ', doc.body.textContent.includes('データがありません'));
 
     // columns 形式でも動く
     state.data = {

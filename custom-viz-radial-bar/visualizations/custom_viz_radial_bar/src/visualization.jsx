@@ -487,7 +487,7 @@ function NoDataState() {
         <div className="viz-container viz-container--empty">
             <div className="viz-message">
                 <img src={chartIcon} className="viz-message-icon" alt="" />
-                <Paragraph>No data available</Paragraph>
+                <Paragraph>データがありません。サーチ結果を確認してください。</Paragraph>
             </div>
         </div>
     );

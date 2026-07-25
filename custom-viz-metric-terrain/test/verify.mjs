@@ -229,13 +229,13 @@ console.log('\n[7] guards');
     state.data = { fields: TIDY_FIELDS, rows: [] };
     fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
     await sleep(250);
-    check('empty data message', doc.body.textContent.includes('表示できるデータがありません'));
+    check('empty data message', doc.body.textContent.includes('データがありません'));
 
     // 全行非数値 → 空グリッド → メッセージ
     state.data = { fields: TIDY_FIELDS, rows: [['a', 'b', 'xyz'], ['c', 'd', 'zzz']] };
     fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
     await sleep(250);
-    check('all-invalid message', doc.body.textContent.includes('表示できるデータがありません'));
+    check('all-invalid message', doc.body.textContent.includes('データがありません'));
 
     // columns 形式でも動く（tidy 3列）
     state.data = {

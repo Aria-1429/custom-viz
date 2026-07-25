@@ -348,7 +348,7 @@ function buildGridFromTidy(rows, fieldNames, xi, yi, opts) {
     const yOrder = [];
     const xIndex = new Map();
     const yIndex = new Map();
-    const cellMap = new Map(); // "xi yi" -> value
+    const cellMap = new Map(); // "xi\u0000yi" -> value
 
     for (const r of rows) {
         if (!Array.isArray(r)) continue;
@@ -364,12 +364,12 @@ function buildGridFromTidy(rows, fieldNames, xi, yi, opts) {
             yIndex.set(yl, yOrder.length);
             yOrder.push(yl);
         }
-        const key = xIndex.get(xl) + ' ' + yIndex.get(yl);
+        const key = xIndex.get(xl) + '\u0000' + yIndex.get(yl);
         cellMap.set(key, (cellMap.get(key) || 0) + v);
     }
 
     const values = yOrder.map((_, y) =>
-        xOrder.map((__, x) => cellMap.get(x + ' ' + y) || 0)
+        xOrder.map((__, x) => cellMap.get(x + '\u0000' + y) || 0)
     );
     return finalizeGrid(xOrder, yOrder, values);
 }
@@ -987,7 +987,7 @@ function MetricTerrain({ mode }) {
             <div className="viz-container viz-container--empty" ref={attachContainer}>
                 <div className="viz-message">
                     <Paragraph>
-                        表示できるデータがありません。<br />
+                        データがありません。サーチ結果を確認してください。<br />
                         <span style={{ opacity: 0.7, fontSize: 12 }}>
                             tidy 形式 [X, Y, 値] または 行列形式 [行, 数値列…] を返してください。
                         </span>

@@ -1,6 +1,6 @@
 {
   "name": "custom_viz_gradient_bar",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A custom visualization for Splunk Dashboard Studio",
   "author": "Yuto Ishitsuki",
   "type": "module",
@@ -8,7 +8,8 @@
     "build": "node build.mjs --entry=visualization.jsx",
     "build:prod": "NODE_ENV=production node build.mjs --entry=visualization.jsx",
     "dev": "node build.mjs --entry=visualization.jsx --watch",
-    "package": "node package.mjs"
+    "package": "node package.mjs",
+    "verify": "node test/verify.mjs"
   },
   "devDependencies": {
     "@splunk/dashboard-studio-extension": "^1.0.0",

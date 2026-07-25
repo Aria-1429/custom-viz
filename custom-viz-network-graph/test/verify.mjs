@@ -266,7 +266,7 @@ console.log('\n[7] guards');
     state.data = { fields: FIELDS3, rows: [] };
     fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
     await sleep(250);
-    check('empty data message', doc.body.textContent.includes('No data'));
+    check('empty data message', doc.body.textContent.includes('データがありません'));
 
     state.data = { fields: FIELDS3, rows: [['a', 'a', '5'], ['', 'b', '5'], ['a', 'b', 'xyz']] };
     fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });

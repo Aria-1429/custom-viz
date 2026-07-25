@@ -237,7 +237,7 @@ console.log('\n[6] guards + columns format');
     fire('options', { options: state.options });
     fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
     await sleep(200);
-    check('empty data message', doc.body.textContent.includes('No data available'));
+    check('empty data message', doc.body.textContent.includes('データがありません'));
 
     state.data = { fields: [{ name: 'a' }, { name: 'b' }], rows: [['1', '2']] };
     fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });

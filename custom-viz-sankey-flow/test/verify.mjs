@@ -223,7 +223,7 @@ console.log('\n[6] guards');
     state.data = { fields: FIELDS3, rows: [] };
     fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
     await sleep(200);
-    check('empty data message', doc.body.textContent.includes('No data'));
+    check('empty data message', doc.body.textContent.includes('データがありません'));
 
     // 全行不正 → nolinks メッセージ
     state.data = { fields: FIELDS3, rows: [['a', 'b', 'xyz'], ['', 'b', '5']] };

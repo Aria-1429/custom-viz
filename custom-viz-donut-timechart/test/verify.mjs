@@ -261,12 +261,12 @@ console.log('\n[11] guards');
     fire('theme', { theme: 'dark' });
     setData({ fields: TC_FIELDS, rows: [] });
     await sleep(250);
-    check('empty data → No data message', doc.body.textContent.includes('No data'));
+    check('empty data → データなしメッセージ', doc.body.textContent.includes('データがありません'));
 
     // 全行非数値 → items 0 → No data
     setData({ fields: [{ name: 'status' }, { name: 'cnt' }], rows: [['A', 'xyz'], ['B', 'nope']] });
     await sleep(250);
-    check('all non-numeric → No data', doc.body.textContent.includes('No data'));
+    check('all non-numeric → データなしメッセージ', doc.body.textContent.includes('データがありません'));
 
     // columns 形式でも動く
     setData({ fields: [{ name: 'status' }, { name: 'cnt' }], columns: [['A', 'B'], ['30', '10']] });

@@ -522,11 +522,11 @@ function NetworkGraph({ mode }) {
         const byId = new Map(nodes.map((n) => [n.id, n]));
         // 双方向エッジ（A→B と B→A）を検出。edgeGeometry 側で走査方向により
         // 自動的に反対側へ膨らむので、ここでは biDir フラグ（膨らみ量を強める）だけ持たせる。
-        const present = new Set(graph.links.map((l) => `${l.sId} ${l.tId}`));
+        const present = new Set(graph.links.map((l) => `${l.sId}\u0000${l.tId}`));
         const links = graph.links
             .map((l, i) => ({
                 ...l, idx: i, source: byId.get(l.sId), target: byId.get(l.tId),
-                biDir: present.has(`${l.tId} ${l.sId}`),
+                biDir: present.has(`${l.tId}\u0000${l.sId}`),
             }))
             .filter((l) => l.source && l.target);
 
@@ -933,7 +933,7 @@ function NetworkGraph({ mode }) {
         return empty(<WaitSpinner size="medium" />);
     }
     if (!data || rows.length === 0) {
-        return empty(<Paragraph>No data to display. Run a search that returns results.</Paragraph>);
+        return empty(<Paragraph>データがありません。サーチ結果を確認してください。</Paragraph>);
     }
     if (fieldCount < 2) {
         return empty(
@@ -1084,7 +1084,7 @@ function NetworkGraph({ mode }) {
                             <g fill="none" style={{ pointerEvents: 'none' }}>
                                 {graph.links.map((l, i) => (
                                     <path
-                                        key={`f${l.sId} ${l.tId}`}
+                                        key={`f${l.sId}\u0000${l.tId}`}
                                         ref={(el) => {
                                             if (el) flowEls.current.set(i, el);
                                             else flowEls.current.delete(i);

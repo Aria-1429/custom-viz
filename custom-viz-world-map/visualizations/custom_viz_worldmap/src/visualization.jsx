@@ -1094,7 +1094,7 @@ function ThreatMapVisualization({ mode }) {
     );
 
     if (loading) return <LoadingState />;
-    if (!data || rows.length === 0) return <MessageState message="No data available" />;
+    if (!data || rows.length === 0) return <MessageState message="データがありません。サーチ結果を確認してください。" />;
     if (missingFields) {
         return (
             <MessageState message="Required fields not found: src_lat, src_lon, dst_lat, dst_lon (or select fields in the editor; optional: severity, count, src_name, dst_name)" />

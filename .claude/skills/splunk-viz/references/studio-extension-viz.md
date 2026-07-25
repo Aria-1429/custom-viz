@@ -208,7 +208,11 @@ function normalizeData(data) {
 
 ### 堅牢性チェックリスト
 
-- `loading` 中はスピナー、`!data || rows.length===0` は「No data」メッセージ。
+- `loading` 中はスピナー、`!data || rows.length===0` はデータなしメッセージ。
+  **文言は全 viz 共通で「データがありません。サーチ結果を確認してください。」に統一する**
+  （ダッシュボードに複数 viz を並べたとき、サーチ未設定の空パネルが揃った見た目になる）。
+  データ形式の案内が要る場合は、この文言を本文に置き、副文（`opacity:0.7` / `fontSize:12` 程度）で添える。
+  例外は link-line のみ（データが無くても線をニュートラル色で描き続ける仕様）。
 - 数値は `Number(String(v).replace(/,/g,'').trim())` で正規化し `Number.isFinite` ガード。
 - オプションは必ず `normalizeOptions(options)` で型・範囲を安全側に補正（未設定/型不一致に耐える）。
 - 幅・高さは ResizeObserver でコンテナ実寸を測って自動フィット。非対応環境では初回計測にフォールバック。

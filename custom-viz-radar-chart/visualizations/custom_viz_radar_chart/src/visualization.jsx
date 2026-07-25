@@ -785,7 +785,7 @@ function RadarChartLayout({ model, opts, mode, options, fieldNames }) {
     }, [node]);
 
     if (model.axisLabels.length === 0 || model.series.length === 0) {
-        return <MessageState text="No data available" />;
+        return <MessageState text="データがありません。サーチ結果を確認してください。" />;
     }
     if (model.axisLabels.length < 3) {
         return <MessageState text="Radar chart needs at least 3 axes (rows)." />;
@@ -856,7 +856,7 @@ function RadarChartVisualization({ mode }) {
     const model = useMemo(() => buildRadarData(rows, fieldNames, opts), [rows, fieldNames, opts]);
 
     if (loading) return <LoadingState />;
-    if (!data || rows.length === 0) return <MessageState text="No data available" />;
+    if (!data || rows.length === 0) return <MessageState text="データがありません。サーチ結果を確認してください。" />;
 
     return (
         <RadarChartLayout

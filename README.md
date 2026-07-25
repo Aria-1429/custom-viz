@@ -15,10 +15,10 @@ Splunk **Dashboard Studio** 向けのカスタムビジュアライゼーショ�
 
 | プレビュー | 名前 / バージョン | 概要 |
 | --- | --- | --- |
-| <img src="custom-viz-funnel-leak/examples/example.png" width="240"> | **[Funnel Leak](custom-viz-funnel-leak/)**<br>v1.0.1 | アニメ付きファネル×リーク図。各段の通過を下へ流し、離脱分を左右にこぼれ落ちる粒子で可視化。コンバージョン／攻撃チェーンの生存分析に。 |
-| <img src="custom-viz-sankey-flow/examples/example.png" width="240"> | **[Sankey Flow](custom-viz-sankey-flow/)**<br>v1.0.1 | 多段サンキー図。グラデーションのリンク、ホバー強調、値ベースのリンク色スケール。 |
-| <img src="custom-viz-chord-flow/examples/example.png" width="240"> | **[Chord Flow](custom-viz-chord-flow/)**<br>v1.0.1 | アニメ付きコード図。リング上のエンティティ間の相互フローをグラデーションリボンで結び、方向付き発光粒子が流れる。 |
-| <img src="custom-viz-network-graph/examples/example.png" width="240"> | **[Network Graph](custom-viz-network-graph/)**<br>v1.0.1 | 力学ベースのフォースダイレクテッド・ネットワーク図。流れる破線エッジ、線幅連動の矢印、ドラッグ／ズーム／パン対応。 |
+| <img src="custom-viz-funnel-leak/examples/example.png" width="240"> | **[Funnel Leak](custom-viz-funnel-leak/)**<br>v1.0.2 | アニメ付きファネル×リーク図。各段の通過を下へ流し、離脱分を左右にこぼれ落ちる粒子で可視化。コンバージョン／攻撃チェーンの生存分析に。 |
+| <img src="custom-viz-sankey-flow/examples/example.png" width="240"> | **[Sankey Flow](custom-viz-sankey-flow/)**<br>v1.0.2 | 多段サンキー図。グラデーションのリンク、ホバー強調、値ベースのリンク色スケール。 |
+| <img src="custom-viz-chord-flow/examples/example.png" width="240"> | **[Chord Flow](custom-viz-chord-flow/)**<br>v1.0.2 | アニメ付きコード図。リング上のエンティティ間の相互フローをグラデーションリボンで結び、方向付き発光粒子が流れる。 |
+| <img src="custom-viz-network-graph/examples/example.png" width="240"> | **[Network Graph](custom-viz-network-graph/)**<br>v1.0.2 | 力学ベースのフォースダイレクテッド・ネットワーク図。流れる破線エッジ、線幅連動の矢印、ドラッグ／ズーム／パン対応。 |
 | <img src="custom-viz-link-line/examples/example.png" width="240"> | **[Link Line](custom-viz-link-line/)**<br>v1.7.0 | サーバ間コネクタ線。表示画面の「✎ 線を編集」でキャンバス上の線を直接編集（ドラッグ移動・折れ点追加・削除）、「🎨 色を設定」で標準の動的色設定を再現したパネル（範囲/一致・プリセットパレット・反転・＋追加）から値→色を設定し、ダッシュボードの編集→保存で確定。質感4種（フラット／ソフトシャドウ／ネオン／立体パイプ）・破線・流れる光の帯（Canvas）・パルス対応。 |
 | <img src="custom-viz-spotlight-frame/examples/example.png" width="240"> | **[Spotlight Frame](custom-viz-spotlight-frame/)**<br>v1.0.0 | データ駆動のステータス枠。サーチ結果を OK／WARNING／CRITICAL に分類し、パネル外周の枠色・発光・状態バッジ・点滅で表現。複数行は最悪ケースに丸め、件数内訳と Critical 対象名を併記。判定は自動／数値しきい値／文字列一致の3モード。枠だけ表示（frameOnly）で他パネルへ重ね置きでき、単体では控えめだがダッシュボード全体の状態把握を強化する脇役。 |
 
@@ -26,10 +26,10 @@ Splunk **Dashboard Studio** 向けのカスタムビジュアライゼーショ�
 
 | プレビュー | 名前 / バージョン | 概要 |
 | --- | --- | --- |
-| <img src="custom-viz-radar-chart/examples/example.png" width="240"> | **[Radar Chart](custom-viz-radar-chart/)**<br>v1.0.1 | レーダー（スパイダー）チャート。共通軸上に複数系列を重ねて比較。 |
-| <img src="custom-viz-radial-bar/examples/example.png" width="240"> | **[Radial Bar](custom-viz-radial-bar/)**<br>v1.0.2 | 放射状カラムチャート。各カテゴリを等角のくさびで描き、値をバーの外側への伸びで表現。中央に合計 KPI、値ベースのカラースケール、フィールド選択、ホバー連動（背景トラックにも反応）、ライト／ダーク両対応。 |
-| <img src="custom-viz-metric-terrain/examples/example.png" width="240"> | **[Metric Terrain](custom-viz-metric-terrain/)**<br>v1.0.1 | 等角投影の疑似3D地形。値の起伏を地形として描き、リアルタイムの陰影・落ち影・回転に対応。 |
-| <img src="custom-viz-calendar-heatmap/examples/example.png" width="240"> | **[Calendar Heatmap](custom-viz-calendar-heatmap/)**<br>v1.0.1 | GitHub 風カレンダーヒートマップ。オートフィットと、編集可能な低／高値カラースケール。 |
+| <img src="custom-viz-radar-chart/examples/example.png" width="240"> | **[Radar Chart](custom-viz-radar-chart/)**<br>v1.0.2 | レーダー（スパイダー）チャート。共通軸上に複数系列を重ねて比較。 |
+| <img src="custom-viz-radial-bar/examples/example.png" width="240"> | **[Radial Bar](custom-viz-radial-bar/)**<br>v1.0.3 | 放射状カラムチャート。各カテゴリを等角のくさびで描き、値をバーの外側への伸びで表現。中央に合計 KPI、値ベースのカラースケール、フィールド選択、ホバー連動（背景トラックにも反応）、ライト／ダーク両対応。 |
+| <img src="custom-viz-metric-terrain/examples/example.png" width="240"> | **[Metric Terrain](custom-viz-metric-terrain/)**<br>v1.0.2 | 等角投影の疑似3D地形。値の起伏を地形として描き、リアルタイムの陰影・落ち影・回転に対応。 |
+| <img src="custom-viz-calendar-heatmap/examples/example.png" width="240"> | **[Calendar Heatmap](custom-viz-calendar-heatmap/)**<br>v1.0.2 | GitHub 風カレンダーヒートマップ。オートフィットと、編集可能な低／高値カラースケール。 |
 | <img src="custom-viz-heat-matrix/examples/example.png" width="240"> | **[Heat Matrix](custom-viz-heat-matrix/)**<br>v1.0.1 | 汎用ヒートマップ・マトリクス。任意の2軸クロス集計を連続カラースケールの色行列で表示。縦持ち（`stats by A B`）／クロス集計（`chart`・`timechart by`）の自動判別、行／列ごとの色正規化、合計マージン、合計順ソート、時刻ラベル自動整形に対応。 |
 
 ### 階層の可視化
@@ -46,18 +46,18 @@ Splunk **Dashboard Studio** 向けのカスタムビジュアライゼーショ�
 | <img src="custom-viz-kpi-tile/examples/example.png" width="240"> | **[KPI Tile](custom-viz-kpi-tile/)**<br>v1.2.1 | SOC 風 KPI 統計タイル。大数値＋前日比＋スパークライン＋選択式アイコンバッジをアクセントカラーで統一したネオン調カード。編集モード中はタイル上のアイコンをクリックして変更可能。カード背景の不透明度調整・スパークラインの線グラフ切替（グラデ面塗り＋最新点ドット）対応。 |
 | <img src="custom-viz-bullet-graph/examples/example.png" width="240"> | **[Bullet Graph](custom-viz-bullet-graph/)**<br>v1.0.1 | ブレットグラフ KPI リスト。実績バー＋目標ティック＋良／可／不可の質的バンドを 1 行に重畳し、多数の指標を目標比つきで高密度に一覧。達成度の自動色分け・達成率表示・目標／比較列の名前自動検出・range 列の絶対バンド指定に対応。 |
 | <img src="custom-viz-waterfall-chart/examples/example.png" width="240"> | **[Waterfall Chart](custom-viz-waterfall-chart/)**<br>v1.0.1 | ウォーターフォール（滝／ブリッジ）チャート。増減の積み上げが合計へ届く過程を階段状バーで可視化。種別列（start/total）の自動検出、累計値モード、合計バー自動追加、破線コネクタ付き。 |
-| <img src="custom-viz-donut-graph/examples/example.png" width="240"> | **[Donut Graph](custom-viz-donut-graph/)**<br>v1.0.1 | ドーナツチャート。中央に合計、詳細な凡例付き。 |
-| <img src="custom-viz-donut-timechart/examples/example.png" width="240"> | **[Donut Timechart](custom-viz-donut-timechart/)**<br>v1.0.1 | ドーナツ＋詳細凡例＋トレンド・スパークラインを組み合わせたステータスカード。 |
-| <img src="custom-viz-gradient-bar/examples/example.png" width="240"> | **[Gradient Bar](custom-viz-gradient-bar/)**<br>v1.0.1 | グラデーションの縦棒グラフ。 |
-| <img src="custom-viz-severity-table/examples/example.png" width="240"> | **[Severity Table](custom-viz-severity-table/)**<br>v1.0.2 | 重要度を色分けするテーブル。深刻度ソート・件数サマリ・表示スタイル・色をカスタマイズ可能。 |
+| <img src="custom-viz-donut-graph/examples/example.png" width="240"> | **[Donut Graph](custom-viz-donut-graph/)**<br>v1.0.2 | ドーナツチャート。中央に合計、詳細な凡例付き。 |
+| <img src="custom-viz-donut-timechart/examples/example.png" width="240"> | **[Donut Timechart](custom-viz-donut-timechart/)**<br>v1.0.2 | ドーナツ＋詳細凡例＋トレンド・スパークラインを組み合わせたステータスカード。 |
+| <img src="custom-viz-gradient-bar/examples/example.png" width="240"> | **[Gradient Bar](custom-viz-gradient-bar/)**<br>v1.0.2 | グラデーションの縦棒グラフ。 |
+| <img src="custom-viz-severity-table/examples/example.png" width="240"> | **[Severity Table](custom-viz-severity-table/)**<br>v1.0.3 | 重要度を色分けするテーブル。深刻度ソート・件数サマリ・表示スタイル・色をカスタマイズ可能。 |
 
 ### 地理の可視化
 
 | プレビュー | 名前 / バージョン | 概要 |
 | --- | --- | --- |
-| <img src="custom-viz-world-map/examples/example.png" width="240"> | **[World Map](custom-viz-world-map/)**<br>v1.1.1 | 世界地図上に起点→終点の弧を描くアタックマップ。弧に沿って光の帯が流れ、着弾点をホットスポット表示。Severity で色分け。 |
-| <img src="custom-viz-japan-map/examples/example.png" width="240"> | **[Japan Map](custom-viz-japan-map/)**<br>v1.0.0 | World Map の日本地図版。都道府県境あり（県名ツールチップ付き）の日本列島に、国内の起点→終点の弧＋流れる光の帯＋ホットスポットを描く。仕様は World Map と共通。 |
-| <img src="custom-viz-country-graph/examples/example.png" width="240"> | **[Country Graph](custom-viz-country-graph/)**<br>v1.0.1 | 国旗付きの国別ランキング棒グラフ。上位 N 制限・ソート・低／高値カラースケール。 |
+| <img src="custom-viz-world-map/examples/example.png" width="240"> | **[World Map](custom-viz-world-map/)**<br>v1.1.2 | 世界地図上に起点→終点の弧を描くアタックマップ。弧に沿って光の帯が流れ、着弾点をホットスポット表示。Severity で色分け。 |
+| <img src="custom-viz-japan-map/examples/example.png" width="240"> | **[Japan Map](custom-viz-japan-map/)**<br>v1.0.1 | World Map の日本地図版。都道府県境あり（県名ツールチップ付き）の日本列島に、国内の起点→終点の弧＋流れる光の帯＋ホットスポットを描く。仕様は World Map と共通。 |
+| <img src="custom-viz-country-graph/examples/example.png" width="240"> | **[Country Graph](custom-viz-country-graph/)**<br>v1.0.2 | 国旗付きの国別ランキング棒グラフ。上位 N 制限・ソート・低／高値カラースケール。 |
 
 > 各ビジュアライゼーションの詳細（データ仕様・編集オプション・サンプル SPL）は、
 > それぞれのディレクトリ内 `README.md` を参照してください。
@@ -125,3 +125,10 @@ yarn package      # dist/*.spl を生成
 - **オートフィット**：`ResizeObserver` でコンテナ実寸を測り、領域いっぱいに描画。
 - **値→色**：`editor.dynamicColor` はカスタム viz で使えないため、値ベースのカラースケールを自前実装。
 - 編集画面のオプションラベルはすべて日本語（キー名は英語）。
+- **データ未取得時のメッセージ**：全 viz 共通で
+  「データがありません。サーチ結果を確認してください。」をパネル中央に表示する。
+  データ形式の案内が要る場合は、この文言を本文として残したうえで副文（小さめ・薄め）で添える。
+  ※ Link Line だけは例外で、データが無くても線をニュートラル色で描き続ける仕様。
+- **ソースに生の制御文字を書かない**：マップのキー区切り等で NUL を使う場合も
+  `'\u0000'` のようにエスケープで書く。生のバイトが入ると grep がファイルを
+  バイナリ扱いし、検索・レビューができなくなる。
