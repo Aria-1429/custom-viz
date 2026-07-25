@@ -32,6 +32,12 @@ Splunk **Dashboard Studio** 向けのカスタムビジュアライゼーショ�
 | <img src="custom-viz-calendar-heatmap/examples/example.png" width="240"> | **[Calendar Heatmap](custom-viz-calendar-heatmap/)**<br>v1.0.1 | GitHub 風カレンダーヒートマップ。オートフィットと、編集可能な低／高値カラースケール。 |
 | <img src="custom-viz-heat-matrix/examples/example.png" width="240"> | **[Heat Matrix](custom-viz-heat-matrix/)**<br>v1.0.1 | 汎用ヒートマップ・マトリクス。任意の2軸クロス集計を連続カラースケールの色行列で表示。縦持ち（`stats by A B`）／クロス集計（`chart`・`timechart by`）の自動判別、行／列ごとの色正規化、合計マージン、合計順ソート、時刻ラベル自動整形に対応。 |
 
+### 階層の可視化
+
+| プレビュー | 名前 / バージョン | 概要 |
+| --- | --- | --- |
+| <img src="custom-viz-treemap/examples/example.png" width="240"> | **[Treemap](custom-viz-treemap/)**<br>v1.1.0 | 階層構造を面積で表すツリーマップ。`index > sourcetype > host` のような 1〜3 階層の入れ子を一画面に収め、どこが容量・件数を食っているかを示す。squarified レイアウト（Bruls et al.）でタイルの縦横比を 1 に近づけ、細長い短冊による面積比較の破綻を避ける。グループをクリックして掘り下げ、パンくずで復帰。ホバーで階層のパス・値・全体比をツールチップ表示。第1階層で色を決めて子は濃淡で表現するため、掘り下げても枝を見失わない。 |
+
 ### 時系列・集計の可視化
 
 | プレビュー | 名前 / バージョン | 概要 |
