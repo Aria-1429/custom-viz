@@ -194,6 +194,10 @@ function mountApp() {
 
 ### データ正規化（rows / columns 両形式に対応・落とさない）
 
+> **`data.rows` だけ見る実装は必ず壊れる。** 実機では `columns` 形式で届くことがあり、
+> その場合 rows は空なので**「サーチを紐づけているのに 0 行」**という症状になる
+> （2026-07-25 に検証用 viz でやらかした）。下記の `normalizeData()` を必ず通すこと。
+
 ```jsx
 function normalizeData(data) {
   try {
@@ -284,29 +288,158 @@ count→件数、source/destination→送信元/宛先。
 |---|---|---|---|
 | `editor.color` | 26 | `{labelPosition, themes:{}}` | **確実（実機確認済み）** |
 | `editor.number` | 23 | `{min, max}` | **確実（実機確認済み）** |
-| `editor.select` | 20 | `{values:[{label,value},…]}` | 有力（プルダウン） |
+| `editor.select` | 20 | `{values:[{label,value},…]}` | **確実（実機確認済み）** |
 | `editor.columnSelector` | 19 | `{dataSourceKey:'primary', supportsDSL, expectedDataPrimitive}` | **確実**（ただし DOS 文字列で届く→§3 後述） |
-| `editor.toggle` | 18 | `{help, helpFormat}` | 有力（checkbox の代替） |
-| `editor.radioBar` | 18 | `{values:[{label,value},…]}` | 有力（3〜4択に最適） |
+| `editor.toggle` | 18 | `{help, helpFormat}` | **確実（実機確認済み）** |
+| `editor.radioBar` | 18 | `{values:[{label,value},…]}` | **確実（実機確認済み）** |
 | `editor.checkbox` | 16 | なし | **確実（実機確認済み）** |
-| `editor.text` | 15 | `{tooltip}` | 有力（自由入力） |
-| `editor.slider` | 6 | `{min, max, step}` | 有力（0〜1 の比率など） |
-| `editor.percent` | 4 | `{min}` | 有力 |
-| `editor.image` | 2 | `{validMediaTypes:['svg'], svgRenderAsDom}` | 要実機確認 |
-| `editor.markdown` / `editor.threshold` / `editor.arrayOfStrings` / `editor.marks` / `editor.operations` / `editor.children` / `editor.isInline` / `editor.onChange` / `editor.insertText` | 1前後 | — | 要実機確認（用途が特殊） |
-| `editor.dynamicColor` / `editor.dynamicColorWithPrecedence` / `editor.networkGraphDynamicColor` / `editor.tableDynamicColor` / `editor.seriesColors` / `editor.seriesColorsByField` / `editor.tableColumnFormatter` / `editor.tableBackgroundColor` / `editor.presetSelector` / `editor.trellisSplitBy` / `editor.columnMultiSelector` / `editor.columnMultiSelectionByFieldNameEditor` | 3〜11 | `context` + DOS 前提 | **× 使えない見込み**。`context`／DOS 評価に依存する型は §4 と同じ理由（拡張 iframe は DOS を評価しない）で値が届かない |
+| `editor.text` | 15 | `{tooltip}` | **確実（実機確認済み）** |
+| `editor.slider` | 6 | `{min, max, step}` | **確実（実機確認済み）**。UI 値がそのまま届く |
+| `editor.percent` | 4 | `{min}` | **確実（実機確認済み）**。⚠ **UI 値の 1/100 が届く**（下記） |
+| `editor.threshold` | 1 | `{openRanges, isTogglable}` | **確実（実機確認済み）**。⭐ **`[{from,to,value}]` の配列が生で届く**（→ §4） |
+| `editor.arrayOfStrings` | 0（コメントのみ） | `{themes, labelPosition}` | **確実（実機確認済み）**。チップ形式の文字列リスト。`["a","b"]` が届く |
+| `editor.markdown` | 1 | なし | **確実（実機確認済み）**。ツールバー付きエディタ。**Markdown 原文の文字列**が届く（描画は viz 側） |
+| `editor.image` | 2 | `{validMediaTypes:['svg'], svgRenderAsDom}` | **△ 動くが実用不可**。届くのは `splunk-enterprise-kvstore://<id>` という**URI で画像本体ではない**。拡張 iframe から解決できないため、同梱アセットか `editor.text` で data URI を貼る方が現実的 |
+| `editor.columnMultiSelectionByFieldNameEditor` | 8 | なし | **確実（実機確認済み）**。⭐ **生のフィールド名配列**（`["_time","category"]`）が届く。複数フィールド選択はこれ一択 |
+| `editor.seriesColorsByField` | 6 | なし | **確実（実機確認済み）**。`{"_time":"#7B56DB",…}` のオブジェクトが届く |
+| `editor.tableBackgroundColor` | 1 | `{themes, palette:[…]}` | **△ 使えるが要注意**。`option` ではなく **`key`** が必要。書き込み先は**固定キー `backgroundColor`**（`key` の値は使われない） |
+| `editor.marks` / `editor.seriesLineTypes` / `editor.seriesLineTypesByField` | — | — | **× 使用不可（実機確認済み）**。`Invalid editor type` で editorConfig 全体が消える。`seriesColors` は動くのに LineTypes 系は動かない＝**系統名で判断できない** |
+| `editor.tableDynamicColor` | 1 | — | **× 使用不可（実機確認済み）**。`option` 名を無視して固定キー `tableFormat` に DOS 式を書き、**編集パネルが操作不能になる**。Table 専用 |
+| `editor.tableColumnFormatter` | 1 | — | **× 採用しない**（未検証）。`option`/`key` を持たない Table 専用型。`tableDynamicColor` と同様に危険 |
+| `editor.operations` / `editor.children` / `editor.isInline` / `editor.onChange` / `editor.insertText` | — | — | **実在しない**（Slate.js 由来の grep 誤検出。クォート付き grep では出てこない） |
+| `editor.seriesColors` | 10 | なし | **確実（実機確認済み）**。プリセット選択＋色スウォッチ列。`["#7B56DB",…]` が生で届く |
+| `editor.presetSelector` | 6 | `{presets:[{label,name,value:{context,options}}]}` | **確実（実機確認済み）**。`option` を持たず、選んだ preset の `value.options` が options に流れる（複数オプションの一括切替に使える） |
+| `editor.trellisSplitBy` | 11 | `{dataSourceKey:'primary'}` | **確実（実機確認済み）**。生のフィールド名（`"count"`）が届く |
+| `editor.columnMultiSelector` | 5 | `{dataSourceKey, filterByTypes}` | **△ DOS 文字列で届く**（`> primary \| frameBySeriesNames('a','b')`）。パースすれば使える |
+| `editor.dynamicColor` / `editor.dynamicColorWithPrecedence` / `editor.networkGraphDynamicColor` / `editor.tableDynamicColor` / `editor.seriesColorsByField` / `editor.tableColumnFormatter` / `editor.tableBackgroundColor` / `editor.columnMultiSelectionByFieldNameEditor` | 3〜8 | `context` + DOS 前提 | **× 使えない見込み**（`dynamicColor` のみ実証済み）。`option` の中身が DOS 式（`> value \| rangeValue(...)`）になる型は届かない → §4 |
 
-**選定の原則**：`option` に**素の値（数値/真偽/文字列/色）が直接入る型は届く**。
-`context` に別データを保存して `option` には DOS 文字列だけ入れる型（dynamicColor 系・seriesColors 系）は
-**届かない**（§4 で `editor.dynamicColor` について実証済み。同じ構造の型は全部同じ穴に落ちる）。
+**選定の原則**（2026-07-25 に**実在候補 28 種を全数実機検証**して確定。20種が使える）:
+
+> - **ほとんどの型は素の値／配列／オブジェクトがそのまま options に届く**
+> - **DOS 文字列になるのは 2 系統だけ**：
+>   ① データソースの列を指す型（`columnSelector` / `columnMultiSelector`）… パースすれば使える
+>   ② `dynamicColor` 系（`option` の中身が `> value | rangeValue(...)` になる）… 使えない（→ §4）
+> - **Table 専用型は `option` を無視して固定キーに書く**。
+>   `tableBackgroundColor` は `key` 指定で使えるが書き込み先は `backgroundColor` 固定。
+>   **`tableDynamicColor` / `tableColumnFormatter` は編集パネルを操作不能にするので入れない**
+> - **系統名で可否を判断しない**。`seriesColors` は動くが `seriesLineTypes` は使用不可。
+>   `arrayOfStrings` は標準 viz が使っていない（コメントアウトのみ）が動く。
+
+**旧記述の誤り（訂正）**：以前は「`context` を使う型は全部届かない」と書いていたが**誤り**。
+`editor.seriesColors` は `context` を使う型だが**配列が生で届く**（実機確認済み）。
+`dynamicColor` が届かないのは `context` のせいではなく、`option` に DOS 式が入るため。
+
+#### `context` は viz から読めない（2026-07-25 実機確認済み）
+
+`dynamicColor` 系はダッシュボード定義の `context` に**範囲配列を生で保存している**:
+```json
+"context": { "<option名>EditorConfig": [{ "from": 20, "to": 40, "value": "#D94E17" }, …] }
+```
+「これを viz から読めれば dynamicColor 系も使えるのでは」を実機で検証したが、**読めない**。
+拡張 API がホストから受け取れるのは以下 **19 個だけ**で、`context` を取る手段は存在しない
+（API オブジェクトをプロトタイプチェーンごと総なめして確認済み）:
+
+```
+getDataSources / getOptions / getTheme / getDimensions / getMode / getTokens / getError
+addDataSourcesListener / addOptionsListener / addThemeListener / addDimensionsListener /
+addModeListener / addTokensListener / addErrorListener / addDrilldownListener
+setOptions / setError / clearError / triggerDrilldown
+```
+
+→ **`option` に DOS 式が入り、実データが `context` にしか無い型は原理的に使えない。**
+範囲→色をやりたいなら `editor.threshold`（`option` に配列が直接入る）を使う。
+
+#### ⚠ `editor.percent` は UI 値の 1/100 が届く（2026-07-25 実機確認）
+
+編集パネルに `5` と入力すると、viz には **`0.05`** が来る（`editor.slider` は `0.42` がそのまま来る）。
+
+```
+editor.percent : UI「5」   → options: 0.05   ← 比率。viz 側で ×100 しない
+editor.slider  : UI「0.42」→ options: 0.42   ← そのまま
+```
+
+- 「%」で見せたいが**内部は比率**として扱う設計。`opacity` などにはそのまま渡せて都合がよい。
+- **既存の「%で持つ」オプション（例 `bgOpacity: 0〜100`）を `editor.percent` に移行すると値が
+  1/100 になる**ので、viz 側の計算を必ず見直すこと。移行しないなら `editor.number` のままでよい。
+
+#### `editor.seriesColors`（色パレット）と `editor.presetSelector`（一括切替）
+
+どちらも実機確認済み。標準 viz と同じ UI がそのまま使える。
+
+```json
+// 系列色パレット。プリセット選択＋色スウォッチ列の UI が出る
+[{ "label": "系列の色", "editor": "editor.seriesColors", "option": "seriesColors" }]
+// → viz には ["#7B56DB", "#009CEB", "#00CDAF"] が生で届く
+```
+```json
+// 複数オプションを一括で切り替えるプリセット。option は持たない
+[{ "label": "配色プリセット", "editor": "editor.presetSelector",
+   "editorProps": { "presets": [
+     { "label": "標準", "name": "p.default", "value": { "context": {}, "options": { "accentColor": "#22d3ee", "useGlow": true } } },
+     { "label": "警告", "name": "p.alert",   "value": { "context": {}, "options": { "accentColor": "#f85149", "useGlow": false } } }
+   ] } }]
+// → 選ぶと value.options のキーがまとめて options に反映される
+```
+
+`editor.trellisSplitBy` も**生のフィールド名**（`"count"`）が届くので、
+「1フィールドを選ばせたい」用途では `columnSelector`（DOS 文字列でパースが要る）より扱いやすい。
+
+#### optionsSchema は `anyOf` ＋ DOS 文字列パターンで書く（2026-07-25 実機で判明）
+
+**標準 viz の optionsSchema は素の `"type"` を使っていない。** 必ず次の形をとる:
+
+```json
+"seriesColors": {
+  "default": ["#7B56DB", "#009CEB"],
+  "anyOf": [
+    { "type": "array", "items": { "type": "string" } },
+    { "type": "string", "pattern": "^>.*" }        ← DOS 文字列も許容する
+  ]
+}
+```
+
+理由は、**どのオプションにも DOS 文字列（`> primary | ...`）が入りうる**ため。`"type": "string"` と
+書き切ると、ユーザーが値を設定した瞬間にダッシュボードの保存時検証で落ちる:
+
+```
+/visualizations/viz_XXXX/options/p_arrayOfStrings: must be string
+/visualizations/viz_XXXX: must match "then" schema
+```
+
+これは**editor 型が無効なのではなく、こちらの型宣言と実際の値の不一致**。エラーメッセージに
+option 名が出るので、その option の `optionsSchema` を疑う。
+
+- 単純な型（`editor.checkbox` の boolean 等）は素の `"type"` でも実用上は動いている（既存 viz が実績）。
+- ただし**配列やオブジェクトを返す editor 型**（`threshold`・`seriesColors`・`columnMultiSelector` 等）は
+  必ず `anyOf` で正確に書く。`"type": "string"` のままだと確実に落ちる。
+- 迷ったら標準 viz の同じ editor 型の定義をコピーする（`<Viz>.config.js` の `optionsSchema`）。
+
+#### options には optionsSchema に無いキーも来る
+
+ホストが `backgroundColor: "transparent"` などを勝手に載せてくる（実機で確認）。
+**viz 側は未知のキーを無視する作り**にしておく（`normalizeOptions` で必要なキーだけ拾う既存パターンでOK）。
 
 - **調べ方**（再現手順）:
   ```bash
   npm install @splunk/visualizations   # スクラッチ領域で。プロジェクトには入れない
+  # ざっと候補を洗う（誤検出込み。Slate.js の editor.marks なども混じる）
   grep -rhoE "editor\.[a-zA-Z0-9]+" node_modules/@splunk | sort | uniq -c | sort -rn
-  # 完全な定義は各 .config.js を require() して editorConfig を再帰 walk し、
-  # node.editor が 'editor.' 始まりのノードから label/option/context/editorProps を集める
+  # 実際に標準 viz で使われている型と editorProps / optionsSchema の正しい書き方を見る
+  # → 各 .config.js を require() して editorConfig を再帰 walk し、
+  #   node.editor が 'editor.' 始まりのノードから label/option/context/editorProps を集める
   ```
+
+  **【重要】この静的解析で分かるのは「標準 viz が使っているか」だけ。「型が実在するか」は分からない。**
+  `@splunk/visualizations` は**標準 viz の定義集**であって、**editor 実装のレジストリではない**
+  （editor 本体はダッシュボード編集画面側のバンドルにあり、このパッケージには入っていない）。
+
+  実例（2026-07-25 にやらかした誤判定）:
+  - `editor.arrayOfStrings` は `LinkGraph.config.js` に**コメントアウトでしか出てこない**ため
+    「実在しない」と判断した。→ **誤り。実機では UI が出て配列も届いた**。
+  - 一方 `editor.marks` は実機で `Invalid editor type` になった（本当に無い）。
+  - **静的解析だけでは両者を区別できない。可否は実機で確かめるしかない。**
+
+  → 採用数 0 の型を「使えない」と決めつけない。**使えるかどうかは実機検証がすべて**。
 
 ### 選択肢は `editor.select` / `editor.radioBar` を使う（数値コード化しない）
 
@@ -356,22 +489,68 @@ const matchMode = MATCH_MODES.includes(o.matchMode) ? o.matchMode : 'auto';
 **「0＝特別値」の数値は数値のままでよい**（`maxCellSize`（0=無制限）、`labelWidth`（0=自動）など）。
 選択肢ではなく連続量なので `editor.number` が正しい。
 
-> `editor.select` / `editor.radioBar` は標準 viz で 20 / 18 種に採用されており、`option` に素の値が
-> 入る型なので拡張 viz でも届く見込みが高い。ただし**このリポジトリでは実機未検証**。初採用時は
-> §3「無効な editor を混ぜたときの症状」に従い**独立セクションに隔離**して `_bump`＋ハードリロードで
-> 確認し、通ったら本採用する。結果はこの章に追記すること。
+> **`editor.select` は実機確認済み**（2026-07-25、kpi-tile v1.3.0）。編集画面にドロップダウンとして
+> 正しく表示され、選択値も `useOptions()` に届く。セクションが消える症状も出ない。
+> `editor.radioBar` は同じ `editorProps.values` 形状なので通る見込みだが未検証。
+
+### 【重要】既定値と同じ値は options に載らない（旧オプション読み替えの罠）
+
+**ホストは `optionsSchema` の `default` と同じ値を options に載せないことがある。**
+ユーザーが既定値を選ぶと、その option は options から**消える**（未設定と区別できない）。
+
+このため、**旧オプションへフォールバックする「後方互換」実装を書いてはいけない**:
+
+```js
+// ❌ やってはいけない
+function resolveIconName(raw) {
+    if (isValid(raw.iconName)) return raw.iconName;
+    if (Number.isFinite(raw.iconIndex)) return ICONS[raw.iconIndex - 1].name; // ← 旧値が復活する
+    return DEFAULTS.iconName;
+}
+// ✅ 正しい：新オプションだけ見て、無ければ既定値へ倒す
+function resolveIconName(raw) {
+    return isValid(raw.iconName) ? raw.iconName : DEFAULTS.iconName;
+}
+```
+
+症状は**「既定値を選んだときだけ直らない」**という分かりにくい形で出る。実例（kpi-tile v1.3.0 開発中）:
+旧 `iconIndex:3`(警告) が残ったダッシュボードでドロップダウンから既定値の「シールド」を選ぶと、
+`iconName` が options に載らず → 旧 `iconIndex` が読まれて**警告アイコンのまま**になった。
+既定値以外（稲妻など）を選んだときは正常に動くため、テストでも見落としやすい。
+
+→ **オプションのキー名を変えるときは読み替えを諦め、既定値に戻す**。README に「この設定は既定値に
+戻るので選び直してください」と書くのが正しい。ローカル検証では「旧キーだけがある options」を
+食わせて、**旧値が漏れてこないこと**を回帰テストにする。
 
 ### ドリルダウン用の editor 型は存在しない
 
 `editor.drilldown` のような型は 25 種のどこにも無く、標準 viz の editorConfig にも drilldown 項目は無い。
 ドリルダウン（＝「インタラクション」）は editorConfig とは**別レイヤー**の仕組み → §5 を参照。
 
-### 無効な editor を混ぜたときの症状
+### 無効な editor を混ぜたときの症状（2026-07-25 実機で確定）
 
-editorConfig のあるセクションに未対応 editor を1つでも入れると、**そのセクションごと編集画面に
-出なくなる**（General/Title は出るのに独自セクションだけ消える）。config.json 更新後は editor 型を
-機械チェックし、`_bump` + ハードリロードで検証する。未確認の editor 型を試すときは独立セクションに
-隔離するのが定石。
+**未対応の editor 型を1つでも入れると、editorConfig 全体が出なくなる。**
+セクション単位ではなく**全滅**する（他のセクションも、確実に動く `editor.checkbox` だけの
+セクションも、まとめて消える）。標準の「全般 / データソース / 可視性 / 位置とサイズ」だけが残る。
+
+**ただし原因の型名は表示される。** 設定パネル下部に赤い警告アイコンとともに
+
+```
+⚠ Invalid editor type: editor.marks
+```
+
+と**最初に見つかった無効な型の名前が1つだけ**出る。これが唯一の手がかり。
+
+→ **「独立セクションに隔離すれば1つずつ切り分けられる」は誤り**（この前提でプローブを作って
+失敗した）。全滅するので隔離しても無意味。正しい切り分け方は次のどちらか:
+
+1. **エラーメッセージを読んで1つずつ消す**。表示されるのは1つだけなので、消して再デプロイ →
+   次の型名が出る → また消す、の反復。確実だが `_bump`＋リロードを型の数だけ繰り返す。
+2. **二分探索**。候補を半分ずつ入れて、パネルが出るか出ないかで絞る。デプロイ回数は
+   log2 で済むが、どの型が原因かはエラーメッセージの方が速い。
+
+**実務上の結論**：未検証の editor 型は**1つずつ追加して確認する**。まとめて入れると
+全滅したうえに、エラーは最初の1つしか出ないため何個ダメなのか分からない。
 
 ### フィールド選択 UI（editor.columnSelector）
 
@@ -406,9 +585,19 @@ Studio 編集モードのイベント設計:
 
 ---
 
-## 4. 値→色マッピング（editor.dynamicColor はカスタム viz で使えない）
+## 4. 値→色マッピング（`dynamicColor` は不可 → **`threshold` を使う**）
 
-### 結論
+### 結論（2026-07-25 更新）
+
+やりたいことに応じて2択:
+
+| やりたいこと | 使うもの |
+|---|---|
+| **範囲→色を editor で設定させたい**（動的に増減） | **`editor.threshold`**（後述。配列が生で届く） |
+| 値の大小を連続グラデーションで塗りたい | 自前のカラースケール（`editor.color` × 2〜3 ＋ 補間） |
+
+**`editor.dynamicColor` は使えない**（下記）。ただし**代わりに `editor.threshold` が使える**ことが
+実機で判明したので、「範囲を+で追加」系の UI はそちらで実現する。
 
 標準 viz の「動的色設定：範囲を+で追加」パネルは `editor.dynamicColor` だが、**カスタム viz 拡張では
 使えない**。editorConfig に書くと編集 UI は右パネルに出るが、**編集した範囲/一致の配列は options に
@@ -445,28 +634,235 @@ function scaleColorFor(t, opts){
 参照実装: `visualizations/calendar-heatmap/.../visualization.jsx` の
 `normalizeOptions` / `lerpColor` / `scaleColorFor` / `cellFill`。
 
-### 「動的に範囲を+追加」したい場合の代替
+### 「動的に範囲を+追加」したい場合 → **`editor.threshold` を使う**（2026-07-25 実機確認）
 
-- 固定 N 組の `editor.number(from) + editor.color` バンド（動的追加は不可だが確実に反映）。
-- SPL 側で行に `color` フィールドを持たせる。
-- **viz 内に「動的色設定」風パネルを自前実装**（参照実装: `visualizations/link-line/.../visualization.jsx`
-  の `parseColorBands`/色設定パネル）。範囲リスト（＋追加/×削除/プリセット/⇅反転）を
-  `<input type="color">`+`<input type="number">` で組み、JSON 文字列オプション（例 `colorBands`）へ
-  `setOptions` 保存。**編集モードは iframe への入力遮断があるため、パネルは表示モードに置く**。
+**`editor.dynamicColor` の代わりに `editor.threshold` を使えば、やりたいことがそのまま実現できる。**
+`dynamicColor` と違い **`context`／DOS を経由せず、範囲＋色の配列が生で options に届く**。
+
+```json
+// editorConfig
+[{ "label": "しきい値の色", "editor": "editor.threshold", "option": "colorBands",
+   "editorProps": { "openRanges": false, "isTogglable": false } }]
+```
+```json
+// optionsSchema（anyOf で正確に書く。素の "type" だと保存時に落ちる）
+"colorBands": {
+  "default": [{ "from": 0, "to": 50, "value": "#118832" }, { "from": 50, "to": 100, "value": "#D41F1F" }],
+  "anyOf": [
+    { "type": "array", "items": { "type": "object",
+      "properties": { "from": { "type": "number" }, "to": { "type": "number" }, "value": { "type": "string" } },
+      "required": ["from", "to", "value"], "additionalProperties": false } },
+    { "type": "string", "pattern": "^>.*" }
+  ]
+}
+```
+```js
+// viz 側に届く生の値（そのまま使える）
+[{ from: 40, to: 100, value: '#f8be34' }, { from: 22, to: 40, value: '#dc4e41' }, …]
+```
+
+UI は**「+ 閾値の追加」で行を動的に増減**でき、各行に数値2つ＋色ピッカーが並ぶ
+（標準 viz の MarkerGauge「ゲージ範囲」と同じ見た目）。`editorProps.openRanges: true` にすると
+上限なしの範囲も作れる。
+
+**したがって以下の旧・代替案はもう不要**（既存 viz を触るときは threshold への置き換えを検討する）:
+
+- ~~固定 N 組の `editor.number(from) + editor.color` バンド~~
+- ~~viz 内に「動的色設定」風パネルを自前実装~~（参照実装だった link-line の `parseColorBands`／
+  色設定パネルは、**編集モードでの iframe 入力遮断を回避するための苦肉の策**だった。
+  threshold なら右パネルで完結するのでその問題も起きない）
+- SPL 側で行に `color` フィールドを持たせる方式は、データ駆動で色を決めたい場合には引き続き有効。
 
 ---
 
-## 5. ドリルダウン（設定UIの「インタラクション」）
+## 5. ドリルダウン（設定UIの「インタラクション」）とトークン
 
 ### 結論
 
-**使える。** デフォルト viz と同様、ダッシュボード編集画面の**「インタラクション」パネルで
-ユーザーが動作を設定できる**（「+ インタラクションを追加」）。Studio では drilldown が
-「インタラクション（Interactions）」に名称変更されているだけで、カスタム viz も同じ UI に乗る。
+**使える（2026-07-25 実機確認済み）。** `config.json` で `showDrilldown: true` と
+`hasEventHandlers: true` を立てると、**編集画面に「インタラクション」タブが実際に出る**。
+Studio では drilldown が「インタラクション（Interactions）」に名称変更されているだけで、
+カスタム viz も同じ UI に乗る。`triggerDrilldown` / `addDrilldownListener` も例外なく呼べる。
+
+### `useTokens` で読めるもの（実機確認済み）
+
+**トークンはフラットではなく入れ子で届く。** `tokens.foo` ではなく下記の3階層:
+
+```json
+{
+  "env":       { "app": "…", "locale": "ja-JP", "user": "admin",
+                 "user_realname": "Administrator", "user_email": "…", "user_timezone": "…",
+                 "product": "enterprise", "version": "10.4.1", "is_enterprise": true },
+  "default":   { "global_time.earliest": "-24h@h", "global_time.latest": "now" },
+  "submitted": { "global_time.earliest": "-24h@h", "global_time.latest": "now" }
+}
+```
+
+- `env` … ログインユーザー名・表示名・メール・タイムゾーン・アプリ名・ロケール・Splunk 版数
+- `default` / `submitted` … **選択中の時間レンジ**（`global_time.earliest` / `latest`）
+
+→ **ドリルダウンを使わなくても、viz 内に「対象期間」や「ユーザー名」を出せる**。
+ダッシュボードの入力（input）で設定したトークンも同様にここへ入る。
+**任意のトークン名を探すときは階層を再帰的に走査すること**（どの階層に入るかは名前次第）。
 
 ただし**デフォルトで無効**。`config.json` の 2 フラグを立て、かつ **viz 側でクリック発火を実装**
 しないと、パネルに出てこない／出ても何も起きない。この repo の既存 viz はすべて
 `showDrilldown: false` なので、必要な viz で個別に有効化する。
+
+### ✅ トークン設定は**できる**（2026-07-25 実機確認済み・Splunk 10.4.1）
+
+> **【訂正】** 当初この節は「トークン設定は不可」と結論づけていたが**誤りだった**。
+> 原因は `config.json` に **`events` 宣言が無かった**こと（下記①）。
+
+**成立の条件は3つ。1つでも欠けると「例外は出ないが何も起きない」。**
+
+**① `config.json` に `events` / `supports` を宣言する（これが抜けていて失敗した）**
+
+```json
+{
+  "showDrilldown": true,
+  "hasEventHandlers": true,
+  "canSetTokens": ["dynamic", "static"],
+  "config": {
+    "events": { "cell.click": { "description": "triggered when user clicks a table cell" } },
+    "supports": ["events"]
+  }
+}
+```
+標準 viz（`Table.js` 等）と同じ形。**ホストはここに宣言されたイベント名しか認識しない**ので、
+宣言が無いと編集画面のインタラクションに紐づける対象が存在せず、発火しても無視される。
+イベント名は標準 viz に倣う（`cell.click` / `point.click` / `legend.click` / `node.click` など）。
+
+**② 各要素を `addDrilldownListener` で登録し、「命令」ではなく「事実」を渡す**
+
+`action: 'setToken'` という**命令を送るのは誤り**（公式ドキュメントの例は効かない）。
+渡すのは**クリックされたという事実だけ**。`payloadCallback` が返す payload がそれにあたる:
+
+```js
+addDrilldownListener({
+  node,                               // ← クリックさせたい DOM 要素（セル・バー等）
+  action: 'cell.click',               // ← config の events に宣言した名前
+  payloadCallback: () => ({
+    'row.host.value': 'host-2',       // ← 行の各フィールドを row.<フィールド名>.value で載せる
+    'row.status.value': 'OK',
+    name: 'status', value: 'OK',      // クリックされた要素自身
+  }),
+});
+```
+
+**`triggerDrilldown()` を自前の `onClick` から呼んでも効かない**（下記）。
+
+**③ ユーザーが編集画面「インタラクション」で「トークンを設定」を追加する**
+
+**何をするか（トークン設定・リンク遷移）を決めるのはホスト側のインタラクション定義**であって
+viz ではない。viz は発火するだけ。
+
+→ これで**viz のクリックでダッシュボード全体を絞り込める**（実機確認済み）。
+
+#### ⚠ カスタム viz で発火できるのは **click だけ**（2026-07-25 実機確認済み）
+
+標準 viz は `events` にホバー・ドラッグ・範囲選択も宣言している:
+
+| 分類 | イベント名 |
+|---|---|
+| クリック | `cell.click` `point.click` `legend.click` `node.click` `link.click` `lane.click` `event.click` `parent.click` `tag.click` `time.click` `value.click` |
+| ホバー | `point.mouseover` `point.mouseout` `node.mouseOver` `node.mouseOut` |
+| ドラッグ | `node.drag` |
+| 範囲選択 | `range.select` `range.selectBeforeZoom` |
+| 描画完了 | `viz.renderedWithData` |
+
+**しかしカスタム viz（拡張）で使えるのは click のみ。**
+`config.json` の `events` に `point.mouseover` / `range.select` を宣言し、
+ホバー／ドラッグのタイミングで `triggerDrilldown` を呼んでも**発火しない**（実機で確認）。
+
+理由は明快で、**`addDrilldownListener` が click しか見ないから**
+（型定義に "listens to 'click' events" と明記）。そして
+**`triggerDrilldown` は効かない**（前述）。つまり
+**「click 以外を発火する手段が存在しない」**。
+
+→ カスタム viz のインタラクションは**クリック前提で設計する**。
+ホバーでツールチップを出すなどは viz 内で完結させ、
+ダッシュボード連携（トークン設定・リンク遷移）はクリックに割り当てる。
+
+#### ⭐ 発火するのは `addDrilldownListener` だけ（`triggerDrilldown` は効かない）
+
+**2026-07-25 実機で確定した最重要事項。**
+
+`triggerDrilldown()` を各要素の `onClick` から呼んでも**トークンは更新されない**
+（例外も出ないので気づきにくい）。**実際にインタラクションを発火させるのは
+`addDrilldownListener` で登録した DOM ノードのクリック**である。
+
+→ **クリック可能にしたい要素（セル・バー・ノード等）を1つずつ
+`addDrilldownListener` に登録する**のが正解。`payloadCallback` はその要素専用に
+行/列を閉じ込めておけばよい（固定で問題ない）。
+
+```jsx
+// 各セルの ref を集める
+const cellRefs = useRef(new Map());
+
+useEffect(() => {
+    cellRefs.current.forEach((node, key) => {
+        const [r, c] = key.split(':').map(Number);
+        addDrilldownListener({
+            node,
+            action: 'cell.click',
+            payloadCallback: () => buildPayload(r, c),   // ← この要素専用なので固定でよい
+        });
+    });
+}, [rows.length, fields.join(','), JSON.stringify(rows)]);
+
+// JSX 側
+<td ref={(el) => { if (el) cellRefs.current.set(`${ri}:${ci}`, el); }} …>
+```
+
+これで**要素を押した瞬間にトークンが入る**（デフォルト viz と同じ挙動。実機確認済み）。
+
+**⚠ ノードを1つだけ登録して `payloadCallback` を使い回さない。**
+`payloadCallback` に `buildPayload(0, …)` のような**固定の行番号**を書くと、
+**どこを押しても1行目の値が飛ぶ**（「2行目の OK を押したのに1行目の NG になる」症状。実際にやらかした）。
+
+#### テーブル以外（SVG 図形など）にも同じ手法が使える
+
+登録するのは**任意の DOM ノード**なので、テーブルのセルに限らない。
+world-map のアタックライン（`<path>`）、network-graph のノード（`<circle>`）、
+treemap の矩形（`<rect>`）なども**要素ごとに ref を集めて登録すれば**クリックできる。
+
+```jsx
+// 例：world-map のアタックライン（データ1本 = 1 path）
+const arcRefs = useRef(new Map());
+
+useEffect(() => {
+    arcRefs.current.forEach((node, id) => {
+        const t = threats.find((x) => x.id === id);
+        if (!t) return;
+        addDrilldownListener({
+            node,
+            action: 'link.click',                    // config の events に宣言した名前
+            payloadCallback: () => ({
+                'row.src.value': t.srcName,
+                'row.dst.value': t.dstName,
+                'row.severity.value': t.severity,
+                name: 'src', value: t.srcName,
+            }),
+        });
+    });
+}, [threats]);
+
+<path ref={(el) => { if (el) arcRefs.current.set(t.id, el); }} d={d} … />
+```
+
+**⚠ 型定義は `node: HTMLElement` だが SVG 要素は `SVGElement`**（`HTMLElement` の派生ではない）。
+実際に受け付けるかは**未検証**。動かない場合は、SVG 図形を透明な `<div>` でオーバーレイして
+その div を登録する、`<foreignObject>` を使う、などの回避策を検討する。
+
+- **当たり判定は太めに**：線や小さい点は押しにくいので、
+  透明で太い `stroke`（`strokeWidth` 大 + `stroke="transparent"`）のパスを重ねて
+  そちらを登録すると押しやすい（既存 viz のツールチップ用ヒット領域と同じ考え方）。
+- **要素が再生成されると登録が外れる**：データ更新やアニメーションで要素を作り直す実装なら、
+  `useEffect` の依存配列にデータを入れて**再登録**する。
+
+**注意**：`triggerDrilldown` は**どの形でも例外を投げない**。サイレントに無視されるだけなので、
+**「例外が出ない＝動いている」と判断してはいけない**。必ずトークンの値が変わったかを確認する。
 
 ### 有効化の 3 ステップ
 
@@ -483,8 +879,8 @@ function scaleColorFor(t, opts){
 - `showDrilldown` … 編集画面の「インタラクション」パネルにこの viz を出す
 - `hasEventHandlers` … viz が発火したイベントをホスト側のハンドラへ流す
 
-**② トークンを設定させるなら `canSetTokens`**（`"dynamic"` / `"static"`）。
-「トークンを設定」インタラクションを使わないなら `[]` のままでよい。
+**② トークンを設定させるなら `canSetTokens`**（`["dynamic","static"]`）**＋ `events` 宣言**。
+`events` が無いとトークン設定は動かない（上記参照）。
 
 **③ viz 側でクリックを発火**（どちらか一方）:
 
