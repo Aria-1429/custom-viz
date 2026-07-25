@@ -29,17 +29,15 @@
       "showGlow": { "type": "boolean", "default": true },
       "bgOpacity": { "type": "number", "default": 100 },
 
-      "iconIndex": { "type": "number", "default": 1 },
+      "iconName": { "type": "string", "default": "shield" },
       "showIcon": { "type": "boolean", "default": true },
 
       "showTitle": { "type": "boolean", "default": true },
       "showDelta": { "type": "boolean", "default": true },
       "deltaAsPercent": { "type": "boolean", "default": false },
-      "semanticDeltaColor": { "type": "boolean", "default": false },
-      "invertDeltaColor": { "type": "boolean", "default": false },
+      "deltaColorMode": { "type": "string", "default": "none" },
 
-      "showSparkline": { "type": "boolean", "default": true },
-      "sparkAsLine": { "type": "boolean", "default": false },
+      "sparkMode": { "type": "string", "default": "bars" },
       "sparkBars": { "type": "number", "default": 0 },
 
       "valueDecimals": { "type": "number", "default": 0 },
@@ -60,7 +58,41 @@
         "label": "アイコン",
         "layout": [
           [{ "label": "アイコンを表示", "editor": "editor.checkbox", "option": "showIcon" }],
-          [{ "label": "アイコン番号（1〜12）", "editor": "editor.number", "option": "iconIndex" }]
+          [
+            {
+              "label": "アイコン",
+              "editor": "editor.select",
+              "option": "iconName",
+              "editorProps": {
+                "values": [
+                  { "label": "シールド", "value": "shield" },
+                  { "label": "家", "value": "home" },
+                  { "label": "警告", "value": "alert" },
+                  { "label": "稲妻", "value": "bolt" },
+                  { "label": "ユーザー", "value": "users" },
+                  { "label": "監視", "value": "eye" },
+                  { "label": "地球", "value": "globe" },
+                  { "label": "錠前", "value": "lock" },
+                  { "label": "バグ", "value": "bug" },
+                  { "label": "サーバー", "value": "server" },
+                  { "label": "ベル", "value": "bell" },
+                  { "label": "波形", "value": "pulse" },
+                  { "label": "チェック", "value": "check" },
+                  { "label": "バツ", "value": "cross" },
+                  { "label": "時計", "value": "clock" },
+                  { "label": "データベース", "value": "database" },
+                  { "label": "クラウド", "value": "cloud" },
+                  { "label": "CPU", "value": "cpu" },
+                  { "label": "通信", "value": "wifi" },
+                  { "label": "鍵", "value": "key" },
+                  { "label": "炎", "value": "fire" },
+                  { "label": "旗", "value": "flag" },
+                  { "label": "グラフ", "value": "chart" },
+                  { "label": "星", "value": "star" }
+                ]
+              }
+            }
+          ]
         ]
       },
       {
@@ -77,10 +109,34 @@
           [{ "label": "タイトルを表示", "editor": "editor.checkbox", "option": "showTitle" }],
           [{ "label": "増減（前日比）を表示", "editor": "editor.checkbox", "option": "showDelta" }],
           [{ "label": "増減を％で表示", "editor": "editor.checkbox", "option": "deltaAsPercent" }],
-          [{ "label": "増減で色分け", "editor": "editor.checkbox", "option": "semanticDeltaColor" }],
-          [{ "label": "増減の色を反転", "editor": "editor.checkbox", "option": "invertDeltaColor" }],
-          [{ "label": "スパークラインを表示", "editor": "editor.checkbox", "option": "showSparkline" }],
-          [{ "label": "線グラフで表示", "editor": "editor.checkbox", "option": "sparkAsLine" }],
+          [
+            {
+              "label": "増減の色分け",
+              "editor": "editor.select",
+              "option": "deltaColorMode",
+              "editorProps": {
+                "values": [
+                  { "label": "色分けしない", "value": "none" },
+                  { "label": "増=緑 / 減=赤", "value": "positiveGood" },
+                  { "label": "増=赤 / 減=緑", "value": "positiveBad" }
+                ]
+              }
+            }
+          ],
+          [
+            {
+              "label": "スパークライン",
+              "editor": "editor.select",
+              "option": "sparkMode",
+              "editorProps": {
+                "values": [
+                  { "label": "表示しない", "value": "none" },
+                  { "label": "棒グラフ", "value": "bars" },
+                  { "label": "線グラフ", "value": "line" }
+                ]
+              }
+            }
+          ],
           [{ "label": "ポイント数（0で全て）", "editor": "editor.number", "option": "sparkBars" }]
         ]
       },

@@ -47,17 +47,15 @@ const DEFAULTS = {
     showGlow: true, // 発光（グロー）
     bgOpacity: 100, // カード背景の不透明度（%、0で完全透過）
 
-    iconIndex: 1, // アイコン番号（1〜ICONS.length）
+    iconName: 'shield', // アイコン名（ICONS[].name のいずれか）
     showIcon: true, // アイコンバッジを表示
 
     showTitle: true, // タイトルを表示
     showDelta: true, // 増減（前日比）を表示
     deltaAsPercent: false, // 増減を％で表示
-    semanticDeltaColor: false, // 増減で色分け（増=緑/減=赤）
-    invertDeltaColor: false, // 色分けを反転（増=赤/減=緑。アラート系向け）
+    deltaColorMode: 'none', // 増減の色分け（none / positiveGood=増緑減赤 / positiveBad=増赤減緑）
 
-    showSparkline: true, // スパークラインを表示
-    sparkAsLine: false, // スパークラインを線グラフで表示（false = 棒）
+    sparkMode: 'bars', // スパークライン（none / bars / line）
     sparkBars: 0, // 表示する棒の本数（0 = 全ポイント）
 
     valueDecimals: 0, // 小数点以下の桁数
@@ -116,6 +114,45 @@ const ICONS = [
         paths: ['M12 4a5.5 5.5 0 015.5 5.5c0 3.9 1.3 5.3 2 6.3H4.5c0.7-1 2-2.4 2-6.3A5.5 5.5 0 0112 4z', 'M10 19.5a2 2 0 004 0'],
     },
     { name: 'pulse', label: '波形', paths: ['M3 12h4l2.5-5.5 4 10.5 2.5-5h5'] },
+    // --- v1.3.0 追加分 ---
+    { name: 'check', label: 'チェック', paths: ['M4.5 12.5l5 5 10-11'] },
+    { name: 'cross', label: 'バツ', paths: ['M6 6l12 12', 'M18 6L6 18'] },
+    {
+        name: 'clock',
+        label: '時計',
+        paths: ['M12 7v5.2l3.4 2'],
+        circles: [{ cx: 12, cy: 12, r: 8.5 }],
+    },
+    {
+        name: 'database',
+        label: 'データベース',
+        paths: [
+            'M4.5 6.5v11c0 1.5 3.4 2.7 7.5 2.7s7.5-1.2 7.5-2.7v-11',
+            'M4.5 12c0 1.5 3.4 2.7 7.5 2.7s7.5-1.2 7.5-2.7',
+            'M19.5 6.5c0 1.5-3.4 2.7-7.5 2.7S4.5 8 4.5 6.5S7.9 3.8 12 3.8s7.5 1.2 7.5 2.7z',
+        ],
+    },
+    { name: 'cloud', label: 'クラウド', paths: ['M7.5 18.5A4 4 0 017 10.6a5.5 5.5 0 0110.6-1.4A3.8 3.8 0 0117 18.5z'] },
+    {
+        name: 'cpu',
+        label: 'CPU',
+        paths: ['M8 8h8v8H8z', 'M5.5 5.5h13v13h-13z', 'M9.5 5.5V3', 'M14.5 5.5V3', 'M9.5 21v-2.5', 'M14.5 21v-2.5', 'M5.5 9.5H3', 'M5.5 14.5H3', 'M21 9.5h-2.5', 'M21 14.5h-2.5'],
+    },
+    {
+        name: 'wifi',
+        label: '通信',
+        paths: ['M3.5 9.5a13 13 0 0117 0', 'M6.5 13a8.5 8.5 0 0111 0', 'M9.5 16.4a4 4 0 015 0'],
+        circles: [{ cx: 12, cy: 19.6, r: 0.6 }],
+    },
+    { name: 'key', label: '鍵', paths: ['M14.5 10.5L20.5 4.5', 'M17.5 7.5l2 2', 'M15.5 9.5l2 2'], circles: [{ cx: 9, cy: 15, r: 4.5 }] },
+    { name: 'fire', label: '炎', paths: ['M12 21c3.6 0 6-2.4 6-5.6 0-4.2-4-5.6-3.4-10.4-2.2 1-3.6 3-3.6 5 0 1.6-1 2.2-1.8 1.4-0.6-0.6-0.7-1.6-0.7-2.2C6.9 10.6 6 12.7 6 15.4 6 18.6 8.4 21 12 21z'] },
+    { name: 'flag', label: '旗', paths: ['M6 21V4', 'M6 5h11.5l-2.2 3.7 2.2 3.8H6'] },
+    {
+        name: 'chart',
+        label: 'グラフ',
+        paths: ['M4 20h16', 'M7 20v-6', 'M11.7 20V8', 'M16.3 20v-9'],
+    },
+    { name: 'star', label: '星', paths: ['M12 3.5l2.6 5.6 6 0.8-4.4 4.2 1.1 6.1-5.3-3-5.3 3 1.1-6.1L3.4 9.9l6-0.8z'] },
 ];
 
 // ---------------------------------------------------------------------------
@@ -216,11 +253,54 @@ function estimateTextWidth(text, fontSize) {
 }
 
 // ---------------------------------------------------------------------------
+// 選択式オプションの解決（旧オプションからの後方互換つき）
+//
+// v1.3.0 で下記を editor.select へ移行した。旧オプションが残ったダッシュボードでも
+// 見た目が変わらないよう、新オプションが未設定のときだけ旧オプションを読む。
+//   iconIndex(number)                    -> iconName(string)
+//   semanticDeltaColor + invertDeltaColor -> deltaColorMode(string)
+//   showSparkline + sparkAsLine           -> sparkMode(string)
+// ---------------------------------------------------------------------------
+
+const DELTA_COLOR_MODES = ['none', 'positiveGood', 'positiveBad'];
+const SPARK_MODES = ['none', 'bars', 'line'];
+
+// iconName（ICONS[].name）のみを見る。
+//
+// 【重要】旧 iconIndex へのフォールバックは実装してはいけない。
+// ホストは optionsSchema の default と同じ値を options に載せないことがあるため、
+// ユーザーが既定値（shield）を選ぶと iconName がオプションから消える。ここで
+// iconIndex を読むと「シールドを選んだのに旧 iconIndex のアイコンが出る」
+// （既定値を選んだときだけ直らない）という不具合になる。既定値へ倒すのが正しい。
+function resolveIconName(raw) {
+    const name = raw && raw.iconName;
+    if (typeof name === 'string' && ICONS.some((ic) => ic.name === name)) return name;
+    return DEFAULTS.iconName;
+}
+
+// 上記と同じ理由で、旧 semanticDeltaColor / invertDeltaColor は読まない。
+// （既定値 'none' を選ぶと deltaColorMode が options から消えるため）
+function resolveDeltaColorMode(raw) {
+    const m = raw && raw.deltaColorMode;
+    if (typeof m === 'string' && DELTA_COLOR_MODES.includes(m)) return m;
+    return DEFAULTS.deltaColorMode;
+}
+
+// 上記と同じ理由で、旧 showSparkline / sparkAsLine は読まない。
+// （既定値 'bars' を選ぶと sparkMode が options から消えるため）
+function resolveSparkMode(raw) {
+    const m = raw && raw.sparkMode;
+    if (typeof m === 'string' && SPARK_MODES.includes(m)) return m;
+    return DEFAULTS.sparkMode;
+}
+
+// ---------------------------------------------------------------------------
 // オプション正規化（型・範囲を安全側へ）
 // ---------------------------------------------------------------------------
 
 function normalizeOptions(raw) {
-    const o = { ...DEFAULTS, ...(raw && typeof raw === 'object' ? raw : {}) };
+    const src = raw && typeof raw === 'object' ? raw : {};
+    const o = { ...DEFAULTS, ...src };
     const bool = (v, d) => (typeof v === 'boolean' ? v : v === 'true' ? true : v === 'false' ? false : d);
     const numOr = (v, d) => {
         const n = parseNum(v);
@@ -240,17 +320,15 @@ function normalizeOptions(raw) {
         showGlow: bool(o.showGlow, DEFAULTS.showGlow),
         bgOpacity: clamp(Math.round(numOr(o.bgOpacity, DEFAULTS.bgOpacity)), 0, 100),
 
-        iconIndex: clamp(Math.round(numOr(o.iconIndex, DEFAULTS.iconIndex)), 1, ICONS.length),
+        iconName: resolveIconName(src),
         showIcon: bool(o.showIcon, DEFAULTS.showIcon),
 
         showTitle: bool(o.showTitle, DEFAULTS.showTitle),
         showDelta: bool(o.showDelta, DEFAULTS.showDelta),
         deltaAsPercent: bool(o.deltaAsPercent, DEFAULTS.deltaAsPercent),
-        semanticDeltaColor: bool(o.semanticDeltaColor, DEFAULTS.semanticDeltaColor),
-        invertDeltaColor: bool(o.invertDeltaColor, DEFAULTS.invertDeltaColor),
+        deltaColorMode: resolveDeltaColorMode(src),
 
-        showSparkline: bool(o.showSparkline, DEFAULTS.showSparkline),
-        sparkAsLine: bool(o.sparkAsLine, DEFAULTS.sparkAsLine),
+        sparkMode: resolveSparkMode(src),
         sparkBars: clamp(Math.round(numOr(o.sparkBars, DEFAULTS.sparkBars)), 0, 500),
 
         valueDecimals: clamp(Math.round(numOr(o.valueDecimals, DEFAULTS.valueDecimals)), 0, 6),
@@ -617,7 +695,7 @@ function KpiTile({ mode }) {
     const titleVisible = opts.showTitle && h >= 64;
     const iconVisible = opts.showIcon && h >= 64 && w >= 120;
     const deltaVisible = opts.showDelta && series.prev !== null && h >= 96;
-    const sparkVisible = opts.showSparkline && series.points.length >= 2 && h >= 140;
+    const sparkVisible = opts.sparkMode !== 'none' && series.points.length >= 2 && h >= 140;
     const sparkH = Math.round(clamp(h * 0.28, 22, 96));
 
     // 大数値：まず基準サイズ、収まらなければ幅に合わせて縮小
@@ -643,8 +721,8 @@ function KpiTile({ mode }) {
         }
         const suffix = opts.deltaLabel ? ` (${opts.deltaLabel})` : '';
         deltaText = `${arrow} ${mag}${suffix}`;
-        if (opts.semanticDeltaColor && delta !== 0) {
-            const upIsGood = !opts.invertDeltaColor;
+        if (opts.deltaColorMode !== 'none' && delta !== 0) {
+            const upIsGood = opts.deltaColorMode !== 'positiveBad';
             const good = delta > 0 ? upIsGood : !upIsGood;
             deltaColor = good ? pal.up : pal.down;
         } else if (delta === 0) {
@@ -664,12 +742,15 @@ function KpiTile({ mode }) {
     const vMin = Math.min(...vals, 0);
     const range = vMax - vMin || 1;
 
-    const iconIdx = opts.iconIndex - 1;
-    const icon = ICONS[clamp(iconIdx, 0, ICONS.length - 1)];
+    const iconIdx = Math.max(0, ICONS.findIndex((ic) => ic.name === opts.iconName));
+    const icon = ICONS[iconIdx];
 
+    // viz 内ピッカーからの選択。旧 iconIndex は残さず iconName に一本化する
     const pickIcon = (idx) => {
         if (typeof setOptions === 'function') {
-            setOptions({ ...(options && typeof options === 'object' ? options : {}), iconIndex: idx + 1 });
+            const base = { ...(options && typeof options === 'object' ? options : {}) };
+            delete base.iconIndex;
+            setOptions({ ...base, iconName: ICONS[clamp(idx, 0, ICONS.length - 1)].name });
         }
         setPickerOpen(false);
     };
@@ -790,12 +871,12 @@ function KpiTile({ mode }) {
             {sparkVisible && (
                 <svg
                     data-role="spark"
-                    data-spark-style={opts.sparkAsLine ? 'line' : 'bars'}
+                    data-spark-style={opts.sparkMode === 'line' ? 'line' : 'bars'}
                     width={sparkW}
                     height={sparkH}
                     style={{ display: 'block', flex: 'none' }}
                 >
-                    {opts.sparkAsLine
+                    {opts.sparkMode === 'line'
                         ? (() => {
                               const n = barPoints.length;
                               const pitch = sparkW / n;
@@ -896,8 +977,11 @@ function KpiTile({ mode }) {
                             borderRadius: 10,
                             padding: 8,
                             display: 'grid',
-                            gridTemplateColumns: 'repeat(4, auto)',
+                            // 24種あるので6列。タイルが低いときはピッカー内スクロールに逃がす
+                            gridTemplateColumns: 'repeat(6, auto)',
                             gap: 6,
+                            maxHeight: Math.max(96, h - (pad + badge + 6) - pad),
+                            overflowY: 'auto',
                             boxShadow: '0 6px 24px rgba(0,0,0,0.35)',
                         }}
                     >

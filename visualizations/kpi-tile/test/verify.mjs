@@ -132,26 +132,87 @@ console.log('\n[2] deltaAsPercent');
     check('delta as percent 188%', body.includes('↑ 188% (前日比)'), body.slice(0, 200));
 }
 
-// ---- 3. 増減の色分け ---------------------------------------------------------
-console.log('\n[3] semanticDeltaColor');
+// ---- 3. 増減の色分け（deltaColorMode） ----------------------------------------
+console.log('\n[3] deltaColorMode');
 {
-    await setOpts({ animate: false, semanticDeltaColor: true });
+    await setOpts({ animate: false, deltaColorMode: 'positiveGood' });
     let deltaEl = [...doc.querySelectorAll('div')].find((d) => d.textContent.startsWith('↑ 15'));
-    check('up delta is green', deltaEl && deltaEl.style.color === '#3fb950', deltaEl && deltaEl.style.color);
+    check('positiveGood → up delta is green', deltaEl && deltaEl.style.color === '#3fb950', deltaEl && deltaEl.style.color);
 
-    await setOpts({ animate: false, semanticDeltaColor: true, invertDeltaColor: true });
+    await setOpts({ animate: false, deltaColorMode: 'positiveBad' });
     deltaEl = [...doc.querySelectorAll('div')].find((d) => d.textContent.startsWith('↑ 15'));
-    check('inverted up delta is red', deltaEl && deltaEl.style.color === '#f85149', deltaEl && deltaEl.style.color);
+    check('positiveBad → up delta is red', deltaEl && deltaEl.style.color === '#f85149', deltaEl && deltaEl.style.color);
+
+    await setOpts({ animate: false, deltaColorMode: 'none' });
+    deltaEl = [...doc.querySelectorAll('div')].find((d) => d.textContent.startsWith('↑ 15'));
+    check('none → up delta is neutral (not green/red)',
+        deltaEl && deltaEl.style.color !== '#3fb950' && deltaEl.style.color !== '#f85149',
+        deltaEl && deltaEl.style.color);
 
     // 減少ケース（最後を 3 に）
     state.data = { fields: FIELDS, rows: [...ROWS.slice(0, 19), ['2026-07-20', '3']] };
     fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
-    await setOpts({ animate: false, semanticDeltaColor: true });
+    await setOpts({ animate: false, deltaColorMode: 'positiveGood' });
     deltaEl = [...doc.querySelectorAll('div')].find((d) => d.textContent.startsWith('↓ 5'));
     check('down delta is red', deltaEl && deltaEl.style.color === '#f85149', deltaEl && deltaEl.style.color);
     state.data = { fields: FIELDS, rows: ROWS };
     fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
     await sleep(200);
+}
+
+// ---- 3b. 旧オプションが残っていても引きずられない（実機不具合の回帰テスト） -------
+//
+// ホストは optionsSchema の default と同じ値を options に載せないことがある。
+// 旧 iconIndex 等を読むフォールバックを実装すると、ユーザーが既定値を選んだとき
+// だけ旧設定のアイコンが出てしまう（実機で「シールドを選んでも警告が出る」）。
+// 旧オプションは一切参照せず、既定値へ倒すのが正しい。
+console.log('\n[3b] legacy options must NOT leak through');
+{
+    // 旧 iconIndex=3(警告) が残った状態で iconName が無い＝既定値(shield)を選んだ状況
+    await setOpts({ animate: false, iconIndex: 3 });
+    check('legacy iconIndex=3 is ignored → shield (not alert)',
+        !!doc.querySelector('[data-role="icon-badge"] svg path[d^="M12 3l7 3"]'));
+    check('alert icon is NOT shown',
+        !doc.querySelector('[data-role="icon-badge"] svg path[d^="M12 4L21.5 20"]'));
+
+    // 明示的に選んだ場合は当然そちらが出る
+    await setOpts({ animate: false, iconIndex: 3, iconName: 'bolt' });
+    check('explicit iconName wins over stale iconIndex',
+        !!doc.querySelector('[data-role="icon-badge"] svg path[d^="M13 3L5.5"]'));
+
+    // 旧 semanticDeltaColor が残っていても deltaColorMode の既定(none)に倒れる
+    await setOpts({ animate: false, semanticDeltaColor: true });
+    const deltaEl = [...doc.querySelectorAll('div')].find((d) => d.textContent.startsWith('↑ 15'));
+    check('legacy semanticDeltaColor ignored → neutral color',
+        deltaEl && deltaEl.style.color !== '#3fb950' && deltaEl.style.color !== '#f85149',
+        deltaEl && deltaEl.style.color);
+
+    // 旧 showSparkline=false が残っていても sparkMode の既定(bars)に倒れる
+    await setOpts({ animate: false, showSparkline: false });
+    check('legacy showSparkline=false ignored → bars shown',
+        doc.querySelector('svg[data-role="spark"]')?.getAttribute('data-spark-style') === 'bars');
+
+    await setOpts({ animate: false });
+}
+
+// ---- 3c. アイコン全24種が描画できる ---------------------------------------------
+console.log('\n[3c] all 24 icons render');
+{
+    const NAMES = ['shield', 'home', 'alert', 'bolt', 'users', 'eye', 'globe', 'lock', 'bug', 'server',
+        'bell', 'pulse', 'check', 'cross', 'clock', 'database', 'cloud', 'cpu', 'wifi', 'key',
+        'fire', 'flag', 'chart', 'star'];
+    let ok = 0;
+    const seen = new Set();
+    for (const n of NAMES) {
+        await setOpts({ animate: false, iconName: n });
+        const svg = doc.querySelector('[data-role="icon-badge"] svg');
+        const shape = svg ? [...svg.querySelectorAll('path, circle')]
+            .map((e) => e.getAttribute('d') || `c${e.getAttribute('cx')},${e.getAttribute('cy')}`).join('|') : '';
+        if (svg && shape) { ok += 1; seen.add(shape); }
+    }
+    check('all 24 icons render a glyph', ok === 24, `got ${ok}`);
+    check('all 24 glyphs are visually distinct', seen.size === 24, `distinct ${seen.size}`);
+    await setOpts({ animate: false });
 }
 
 // ---- 4. フィールド選択（columnSelector DOS 文字列） --------------------------
@@ -204,8 +265,20 @@ console.log('\n[6] sparkBars / visibility toggles');
     const rects = [...doc.querySelectorAll('svg[data-role="spark"] rect')];
     check('sparkBars=5 → 5 bars', rects.length === 5, `got ${rects.length}`);
 
-    await setOpts({ animate: false, showSparkline: false });
-    check('sparkline hidden', !doc.querySelector('svg[data-role="spark"]'));
+    await setOpts({ animate: false, sparkMode: 'none' });
+    check('sparkMode=none → sparkline hidden', !doc.querySelector('svg[data-role="spark"]'));
+
+    await setOpts({ animate: false, sparkMode: 'line' });
+    check('sparkMode=line → line style',
+        doc.querySelector('svg[data-role="spark"]')?.getAttribute('data-spark-style') === 'line');
+    // 線モードでも tooltip 用の透明 hit rect は出る。棒(hit以外の rect)が無いことを見る
+    check('sparkMode=line → no bar rects',
+        [...doc.querySelectorAll('svg[data-role="spark"] rect')]
+            .filter((r) => r.getAttribute('data-role') !== 'spark-hit').length === 0);
+
+    await setOpts({ animate: false, sparkMode: 'bars' });
+    check('sparkMode=bars → bars style',
+        doc.querySelector('svg[data-role="spark"]')?.getAttribute('data-spark-style') === 'bars');
 
     await setOpts({ animate: false, showTitle: false });
     check('title hidden', !doc.body.textContent.includes('重大アラート'));
@@ -217,13 +290,16 @@ console.log('\n[6] sparkBars / visibility toggles');
     check('delta hidden', !doc.body.textContent.includes('前日比'));
 }
 
-// ---- 7. アイコン番号での選択 --------------------------------------------------
-console.log('\n[7] iconIndex option');
+// ---- 7. アイコン選択（iconName） ----------------------------------------------
+console.log('\n[7] iconName option');
 {
-    await setOpts({ animate: false, iconIndex: 4 });
-    check('iconIndex=4 → bolt path', !!doc.querySelector('[data-role="icon-badge"] svg path[d^="M13 3L5.5"]'));
-    await setOpts({ animate: false, iconIndex: 999 });
-    check('out-of-range clamped to last (pulse)', !!doc.querySelector('[data-role="icon-badge"] svg path[d^="M3 12h4"]'));
+    await setOpts({ animate: false, iconName: 'bolt' });
+    check('iconName=bolt → bolt path', !!doc.querySelector('[data-role="icon-badge"] svg path[d^="M13 3L5.5"]'));
+    await setOpts({ animate: false, iconName: 'globe' });
+    check('iconName=globe → globe path', !!doc.querySelector('[data-role="icon-badge"] svg path[d^="M3.5 12h17"]'));
+    await setOpts({ animate: false, iconName: 'no-such-icon' });
+    check('unknown iconName falls back to default (shield)',
+        !!doc.querySelector('[data-role="icon-badge"] svg path[d^="M12 3l7 3"]'));
 }
 
 // ---- 8. 編集モードのアイコンピッカー -------------------------------------------
@@ -240,11 +316,12 @@ console.log('\n[8] edit-mode icon picker');
     const picker = doc.querySelector('[data-role="icon-picker"]');
     check('picker opens on badge click', !!picker);
     const choices = [...doc.querySelectorAll('[data-role="icon-choice"]')];
-    check('12 icon choices', choices.length === 12, `got ${choices.length}`);
-    // 7番目（globe）を選択 → setOptions で iconIndex=7 が保存される
+    check('24 icon choices', choices.length === 24, `got ${choices.length}`);
+    // 7番目（globe）を選択 → setOptions で iconName='globe' が保存される
     click(choices[6]);
     await sleep(150);
-    check('setOptions saved iconIndex=7', state.options.iconIndex === 7, JSON.stringify(state.options));
+    check("setOptions saved iconName='globe'", state.options.iconName === 'globe', JSON.stringify(state.options));
+    check('legacy iconIndex is not written back', !('iconIndex' in state.options), JSON.stringify(state.options));
     fire('options', { options: state.options });
     await sleep(250);
     check('picker closed after choice', !doc.querySelector('[data-role="icon-picker"]'));
@@ -370,17 +447,17 @@ console.log('\n[13] bgOpacity');
     await sleep(250);
 }
 
-// ---- 14. スパークラインの線グラフ切替（sparkAsLine） ----------------------------
-console.log('\n[14] sparkAsLine');
+// ---- 14. スパークラインの線グラフ切替（sparkMode=line） ------------------------
+console.log('\n[14] sparkMode=line');
 {
     await setOpts({ animate: false });
     let svg = doc.querySelector('svg[data-role="spark"]');
     check('default is bars style', svg && svg.getAttribute('data-spark-style') === 'bars',
         svg && svg.getAttribute('data-spark-style'));
 
-    await setOpts({ animate: false, sparkAsLine: true });
+    await setOpts({ animate: false, sparkMode: 'line' });
     svg = doc.querySelector('svg[data-role="spark"]');
-    check('sparkAsLine=true → line style', svg && svg.getAttribute('data-spark-style') === 'line',
+    check("sparkMode='line' → line style", svg && svg.getAttribute('data-spark-style') === 'line',
         svg && svg.getAttribute('data-spark-style'));
 
     const paths = [...doc.querySelectorAll('svg[data-role="spark"] path')];
@@ -407,11 +484,11 @@ console.log('\n[14] sparkAsLine');
     check('20 tooltip hit rects', hits.length === 20, `got ${hits.length}`);
     check('hit rect has tooltip title', hits[0] && !!hits[0].querySelector('title'));
 
-    await setOpts({ animate: false, sparkAsLine: true, sparkBars: 5 });
+    await setOpts({ animate: false, sparkMode: 'line', sparkBars: 5 });
     const hits5 = [...doc.querySelectorAll('svg[data-role="spark"] rect[data-role="spark-hit"]')];
     check('sparkBars=5 → 5 points in line mode', hits5.length === 5, `got ${hits5.length}`);
 
-    await setOpts({ animate: false, sparkAsLine: false });
+    await setOpts({ animate: false, sparkMode: 'bars' });
     svg = doc.querySelector('svg[data-role="spark"]');
     check('back to bars style', svg && svg.getAttribute('data-spark-style') === 'bars');
     check('bars restored (20 rects)', [...doc.querySelectorAll('svg[data-role="spark"] rect')].length === 20);
