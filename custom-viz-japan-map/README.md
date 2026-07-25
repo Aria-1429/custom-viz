@@ -2,6 +2,8 @@
 
 ![表示例](examples/example.png)
 
+https://github.com/user-attachments/assets/bbf2dd36-f586-446c-9b78-c86fb98f57d0
+
 Splunk Dashboard Studio 向けのカスタムビジュアライゼーション（日本地図＋アタックマップ）。
 [custom-viz-world-map](../custom-viz-world-map/) の**日本地図版**で、仕様は World Map と共通です。
 
