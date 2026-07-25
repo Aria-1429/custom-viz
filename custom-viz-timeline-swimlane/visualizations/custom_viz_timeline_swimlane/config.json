@@ -1,0 +1,146 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz Timeline Swimlane",
+    "description": "An event timeline with per-entity swimlanes, duration bars and brush-based time range selection",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 720,
+      "initialHeight": 400
+    },
+    "optionsSchema": {
+      "laneField": { "type": "string", "default": "" },
+      "startField": { "type": "string", "default": "" },
+      "endField": { "type": "string", "default": "" },
+      "categoryField": { "type": "string", "default": "" },
+      "labelField": { "type": "string", "default": "" },
+
+      "color1": { "type": "string", "default": "#4a90d9" },
+      "color2": { "type": "string", "default": "#38b48b" },
+      "color3": { "type": "string", "default": "#e5a13a" },
+      "color4": { "type": "string", "default": "#d9534f" },
+      "color5": { "type": "string", "default": "#9b6bd6" },
+      "color6": { "type": "string", "default": "#3fb4c4" },
+      "color7": { "type": "string", "default": "#d76aa8" },
+      "color8": { "type": "string", "default": "#8a97a5" },
+
+      "sortLanes": { "type": "string", "default": "count" },
+      "maxLanes": { "type": "number", "default": 40 },
+      "autoLaneHeight": { "type": "boolean", "default": true },
+      "laneMaxHeight": { "type": "number", "default": 60 },
+      "laneHeight": { "type": "number", "default": 26 },
+      "minBarWidth": { "type": "number", "default": 3 },
+      "barRadius": { "type": "number", "default": 3 },
+      "barOpacity": { "type": "number", "default": 0.9 },
+
+      "showLaneLabels": { "type": "boolean", "default": true },
+      "showLaneCount": { "type": "boolean", "default": true },
+      "showAxis": { "type": "boolean", "default": true },
+      "showGrid": { "type": "boolean", "default": true },
+      "showLegend": { "type": "boolean", "default": true },
+      "showBarLabels": { "type": "boolean", "default": false },
+      "stripeLanes": { "type": "boolean", "default": false },
+      "showCrosshair": { "type": "boolean", "default": true },
+      "showNowLine": { "type": "boolean", "default": false },
+      "animate": { "type": "boolean", "default": true },
+
+      "enableBrush": { "type": "boolean", "default": true },
+      "brushStart": { "type": "number" },
+      "brushEnd": { "type": "number" },
+
+      "rangeStart": { "type": "string", "default": "" },
+      "rangeEnd": { "type": "string", "default": "" },
+      "padRangePercent": { "type": "number", "default": 2 },
+
+      "debug": { "type": "boolean", "default": false }
+    },
+    "editorConfig": [
+      {
+        "label": "データフィールド",
+        "layout": [
+          [{ "label": "レーン（縦軸）フィールド", "editor": "editor.columnSelector", "option": "laneField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "開始時刻フィールド", "editor": "editor.columnSelector", "option": "startField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "終了時刻フィールド（省略時は点イベント）", "editor": "editor.columnSelector", "option": "endField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "分類（色分け）フィールド", "editor": "editor.columnSelector", "option": "categoryField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "ラベルフィールド（ツールチップ用）", "editor": "editor.columnSelector", "option": "labelField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }]
+        ]
+      },
+      {
+        "label": "分類の色",
+        "layout": [
+          [{ "label": "分類1の色", "editor": "editor.color", "option": "color1" }],
+          [{ "label": "分類2の色", "editor": "editor.color", "option": "color2" }],
+          [{ "label": "分類3の色", "editor": "editor.color", "option": "color3" }],
+          [{ "label": "分類4の色", "editor": "editor.color", "option": "color4" }],
+          [{ "label": "分類5の色", "editor": "editor.color", "option": "color5" }],
+          [{ "label": "分類6の色", "editor": "editor.color", "option": "color6" }],
+          [{ "label": "分類7の色", "editor": "editor.color", "option": "color7" }],
+          [{ "label": "分類8の色（以降は繰り返し）", "editor": "editor.color", "option": "color8" }]
+        ]
+      },
+      {
+        "label": "レーン",
+        "layout": [
+          [{ "label": "レーンの高さを自動調整（パネルの高さいっぱいに広げる）", "editor": "editor.checkbox", "option": "autoLaneHeight" }],
+          [{ "label": "レーンの高さ上限（px、自動調整オン時）", "editor": "editor.number", "option": "laneMaxHeight" }],
+          [{ "label": "レーンの高さ（px、自動調整オフ時）", "editor": "editor.number", "option": "laneHeight" }],
+          [{ "label": "レーンの最大数（超過分は省略）", "editor": "editor.number", "option": "maxLanes" }],
+          [{ "label": "レーンを縞模様で塗り分け", "editor": "editor.checkbox", "option": "stripeLanes" }],
+          [{ "label": "レーン名を表示", "editor": "editor.checkbox", "option": "showLaneLabels" }],
+          [{ "label": "レーン名の横に件数を表示", "editor": "editor.checkbox", "option": "showLaneCount" }]
+        ]
+      },
+      {
+        "label": "イベントバー",
+        "layout": [
+          [{ "label": "バーの最小幅（px）", "editor": "editor.number", "option": "minBarWidth" }],
+          [{ "label": "バーの角丸（px）", "editor": "editor.number", "option": "barRadius" }],
+          [{ "label": "バーの不透明度（0〜1）", "editor": "editor.number", "option": "barOpacity" }],
+          [{ "label": "バーにラベルを表示", "editor": "editor.checkbox", "option": "showBarLabels" }]
+        ]
+      },
+      {
+        "label": "時間軸",
+        "layout": [
+          [{ "label": "時間軸を表示", "editor": "editor.checkbox", "option": "showAxis" }],
+          [{ "label": "グリッド線を表示", "editor": "editor.checkbox", "option": "showGrid" }],
+          [{ "label": "カーソル位置に時刻の縦線を表示", "editor": "editor.checkbox", "option": "showCrosshair" }],
+          [{ "label": "現在時刻の線を表示", "editor": "editor.checkbox", "option": "showNowLine" }],
+          [{ "label": "時間軸の余白（％）", "editor": "editor.number", "option": "padRangePercent" }]
+        ]
+      },
+      {
+        "label": "表示範囲の固定（任意）",
+        "layout": [
+          [{ "label": "表示開始時刻（空欄=データ最小。例 2026-07-25 09:00）", "editor": "editor.text", "option": "rangeStart" }],
+          [{ "label": "表示終了時刻（空欄=データ最大）", "editor": "editor.text", "option": "rangeEnd" }]
+        ]
+      },
+      {
+        "label": "表示",
+        "layout": [
+          [{ "label": "凡例を表示", "editor": "editor.checkbox", "option": "showLegend" }],
+          [{ "label": "フェードインアニメーション", "editor": "editor.checkbox", "option": "animate" }],
+          [{ "label": "ドラッグで時間範囲を絞り込む", "editor": "editor.checkbox", "option": "enableBrush" }]
+        ]
+      },
+      {
+        "label": "デバッグ",
+        "layout": [
+          [{ "label": "オプションのデバッグ表示", "editor": "editor.checkbox", "option": "debug" }]
+        ]
+      }
+    ],
+    "defaultContext": {}
+  }
+}

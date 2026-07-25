@@ -36,6 +36,7 @@ Splunk **Dashboard Studio** 向けのカスタムビジュアライゼーショ�
 
 | プレビュー | 名前 / バージョン | 概要 |
 | --- | --- | --- |
+| <img src="custom-viz-timeline-swimlane/examples/example.png" width="240"> | **[Timeline Swimlane](custom-viz-timeline-swimlane/)**<br>v1.2.0 | エンティティ（host/user/process）ごとのレーンにイベントを時刻順で並べるタイムライン。期間イベントは帯、瞬間イベントは点で描画。カーソルを乗せると時刻の縦線が出て、その瞬間に重なるイベントだけが浮かび上がる（スクラブ用クロスヘア）。分類フィールドによる色分け（色覚特性に配慮したパレット）、横ドラッグでの時間範囲の絞り込み、レーン高さのオートフィットに対応。標準の timechart（集計されて個々のイベントが消える）や Events テーブル（レーン分割できない）では再現できないインシデント調査向けの図。 |
 | <img src="custom-viz-kpi-tile/examples/example.png" width="240"> | **[KPI Tile](custom-viz-kpi-tile/)**<br>v1.2.1 | SOC 風 KPI 統計タイル。大数値＋前日比＋スパークライン＋選択式アイコンバッジをアクセントカラーで統一したネオン調カード。編集モード中はタイル上のアイコンをクリックして変更可能。カード背景の不透明度調整・スパークラインの線グラフ切替（グラデ面塗り＋最新点ドット）対応。 |
 | <img src="custom-viz-bullet-graph/examples/example.png" width="240"> | **[Bullet Graph](custom-viz-bullet-graph/)**<br>v1.0.1 | ブレットグラフ KPI リスト。実績バー＋目標ティック＋良／可／不可の質的バンドを 1 行に重畳し、多数の指標を目標比つきで高密度に一覧。達成度の自動色分け・達成率表示・目標／比較列の名前自動検出・range 列の絶対バンド指定に対応。 |
 | <img src="custom-viz-waterfall-chart/examples/example.png" width="240"> | **[Waterfall Chart](custom-viz-waterfall-chart/)**<br>v1.0.1 | ウォーターフォール（滝／ブリッジ）チャート。増減の積み上げが合計へ届く過程を階段状バーで可視化。種別列（start/total）の自動検出、累計値モード、合計バー自動追加、破線コネクタ付き。 |
