@@ -1,0 +1,127 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz Horizon Chart",
+    "description": "A horizon chart that folds many time series into compact color bands",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 640,
+      "initialHeight": 400
+    },
+    "optionsSchema": {
+      "timeField": { "type": "string", "default": "" },
+      "seriesField": { "type": "string", "default": "" },
+      "valueField": { "type": "string", "default": "" },
+
+      "bands": { "type": "number", "default": 3 },
+      "bandBase": { "type": "number" },
+      "bandStep": { "type": "number" },
+      "perSeriesScale": { "type": "boolean", "default": false },
+      "showNegative": { "type": "boolean", "default": true },
+
+      "positiveColor": { "type": "string", "default": "#1f78b4" },
+      "negativeColor": { "type": "string", "default": "#d73027" },
+      "bandOpacityFloor": { "type": "number", "default": 0.28 },
+
+      "laneHeight": { "type": "number", "default": 34 },
+      "laneGap": { "type": "number", "default": 2 },
+      "autoFitLanes": { "type": "boolean", "default": true },
+      "curve": { "type": "boolean", "default": true },
+
+      "sortByPeak": { "type": "boolean", "default": false },
+      "sortByTotal": { "type": "boolean", "default": false },
+      "maxSeries": { "type": "number", "default": 60 },
+
+      "showLabels": { "type": "boolean", "default": true },
+      "labelWidth": { "type": "number", "default": 0 },
+      "showPeakValue": { "type": "boolean", "default": true },
+      "showTimeAxis": { "type": "boolean", "default": true },
+      "showLegend": { "type": "boolean", "default": true },
+      "showCrosshair": { "type": "boolean", "default": true },
+      "showLaneSeparator": { "type": "boolean", "default": true },
+      "animate": { "type": "boolean", "default": true },
+
+      "valueDecimals": { "type": "number", "default": 0 },
+      "abbreviateValue": { "type": "boolean", "default": true },
+
+      "debug": { "type": "boolean", "default": false }
+    },
+    "editorConfig": [
+      {
+        "label": "データフィールド",
+        "layout": [
+          [{ "label": "時刻フィールド", "editor": "editor.columnSelector", "option": "timeField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "系列フィールド（縦持ちデータ時）", "editor": "editor.columnSelector", "option": "seriesField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "値フィールド", "editor": "editor.columnSelector", "option": "valueField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }]
+        ]
+      },
+      {
+        "label": "バンド（折り返し）",
+        "layout": [
+          [{ "label": "バンド数（1〜6、多いほど高圧縮）", "editor": "editor.number", "option": "bands" }],
+          [{ "label": "基準値（空欄=0）", "editor": "editor.number", "option": "bandBase" }],
+          [{ "label": "1バンドの幅（空欄=自動）", "editor": "editor.number", "option": "bandStep" }],
+          [{ "label": "系列ごとに高さを正規化", "editor": "editor.checkbox", "option": "perSeriesScale" }],
+          [{ "label": "基準値より下を反対色で表示", "editor": "editor.checkbox", "option": "showNegative" }]
+        ]
+      },
+      {
+        "label": "色",
+        "layout": [
+          [{ "label": "基準より上の色", "editor": "editor.color", "option": "positiveColor" }],
+          [{ "label": "基準より下の色", "editor": "editor.color", "option": "negativeColor" }],
+          [{ "label": "最下バンドの濃さ（0.05〜1）", "editor": "editor.number", "option": "bandOpacityFloor" }]
+        ]
+      },
+      {
+        "label": "レーン",
+        "layout": [
+          [{ "label": "パネル高さに自動フィット", "editor": "editor.checkbox", "option": "autoFitLanes" }],
+          [{ "label": "レーンの高さ（px、自動フィット時は上限）", "editor": "editor.number", "option": "laneHeight" }],
+          [{ "label": "レーンの間隔（px）", "editor": "editor.number", "option": "laneGap" }],
+          [{ "label": "曲線でなめらかに描く", "editor": "editor.checkbox", "option": "curve" }],
+          [{ "label": "レーンの区切り線を表示", "editor": "editor.checkbox", "option": "showLaneSeparator" }],
+          [{ "label": "最大値の大きい順に並べ替え", "editor": "editor.checkbox", "option": "sortByPeak" }],
+          [{ "label": "合計の大きい順に並べ替え", "editor": "editor.checkbox", "option": "sortByTotal" }],
+          [{ "label": "最大表示系列数", "editor": "editor.number", "option": "maxSeries" }]
+        ]
+      },
+      {
+        "label": "表示",
+        "layout": [
+          [{ "label": "系列名を表示", "editor": "editor.checkbox", "option": "showLabels" }],
+          [{ "label": "系列名の幅（px、0=自動）", "editor": "editor.number", "option": "labelWidth" }],
+          [{ "label": "各レーンの最大値を表示", "editor": "editor.checkbox", "option": "showPeakValue" }],
+          [{ "label": "時刻軸を表示", "editor": "editor.checkbox", "option": "showTimeAxis" }],
+          [{ "label": "凡例を表示", "editor": "editor.checkbox", "option": "showLegend" }],
+          [{ "label": "カーソルの縦線（クロスヘア）を表示", "editor": "editor.checkbox", "option": "showCrosshair" }],
+          [{ "label": "描画アニメーション", "editor": "editor.checkbox", "option": "animate" }]
+        ]
+      },
+      {
+        "label": "数値",
+        "layout": [
+          [{ "label": "小数点以下の桁数", "editor": "editor.number", "option": "valueDecimals" }],
+          [{ "label": "数値を省略表記（1.5M など）", "editor": "editor.checkbox", "option": "abbreviateValue" }]
+        ]
+      },
+      {
+        "label": "デバッグ",
+        "layout": [
+          [{ "label": "オプションのデバッグ表示", "editor": "editor.checkbox", "option": "debug" }]
+        ]
+      }
+    ],
+    "defaultContext": {}
+  }
+}

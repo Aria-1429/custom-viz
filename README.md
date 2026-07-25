@@ -43,6 +43,7 @@ Splunk **Dashboard Studio** 向けのカスタムビジュアライゼーショ�
 
 | プレビュー | 名前 / バージョン | 概要 |
 | --- | --- | --- |
+| <img src="custom-viz-horizon-chart/examples/example.png" width="240"> | **[Horizon Chart](custom-viz-horizon-chart/)**<br>v1.0.1 | 多数の時系列を「畳んで色帯にする」ホライズンチャート。値域を等幅バンドに切り、上のバンドを下へ折り返して重ね、上のバンドほど濃く塗ることで「高さ」の情報を「色の濃さ」に置き換える。これによりレーン高さを 1/バンド数に圧縮でき、1系列 20〜30px で数十系列を同時に比較できる。標準の timechart が系列5本で読めなくなる領域（100台のホストの CPU を縦に積み、どこが同時に跳ねたか見る）を担う。基準値より下は反対色で折り返すので増減の符号も分かる。`timechart` 出力と縦持ちの自動判別、クロスヘア連動の値表示、系列ごとの正規化に対応。 |
 | <img src="custom-viz-timeline-swimlane/examples/example.png" width="240"> | **[Timeline Swimlane](custom-viz-timeline-swimlane/)**<br>v1.2.0 | エンティティ（host/user/process）ごとのレーンにイベントを時刻順で並べるタイムライン。期間イベントは帯、瞬間イベントは点で描画。カーソルを乗せると時刻の縦線が出て、その瞬間に重なるイベントだけが浮かび上がる（スクラブ用クロスヘア）。分類フィールドによる色分け（色覚特性に配慮したパレット）、横ドラッグでの時間範囲の絞り込み、レーン高さのオートフィットに対応。標準の timechart（集計されて個々のイベントが消える）や Events テーブル（レーン分割できない）では再現できないインシデント調査向けの図。 |
 | <img src="custom-viz-kpi-tile/examples/example.png" width="240"> | **[KPI Tile](custom-viz-kpi-tile/)**<br>v1.2.1 | SOC 風 KPI 統計タイル。大数値＋前日比＋スパークライン＋選択式アイコンバッジをアクセントカラーで統一したネオン調カード。編集モード中はタイル上のアイコンをクリックして変更可能。カード背景の不透明度調整・スパークラインの線グラフ切替（グラデ面塗り＋最新点ドット）対応。 |
 | <img src="custom-viz-bullet-graph/examples/example.png" width="240"> | **[Bullet Graph](custom-viz-bullet-graph/)**<br>v1.0.1 | ブレットグラフ KPI リスト。実績バー＋目標ティック＋良／可／不可の質的バンドを 1 行に重畳し、多数の指標を目標比つきで高密度に一覧。達成度の自動色分け・達成率表示・目標／比較列の名前自動検出・range 列の絶対バンド指定に対応。 |
