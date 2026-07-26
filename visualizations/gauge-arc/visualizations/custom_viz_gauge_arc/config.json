@@ -1,0 +1,427 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz Gauge Arc",
+    "description": "A single-value arc gauge (continuous, segmented or tachometer) with threshold color bands, boundary value labels, delta-vs-previous comparison and a configurable side info panel.",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 520,
+      "initialHeight": 300
+    },
+    "optionsSchema": {
+      "valueField": { "type": "string", "default": "" },
+      "labelField": { "type": "string", "default": "" },
+
+      "aggMode": { "type": "string", "default": "last" },
+      "minValue": { "type": "number", "default": 0 },
+      "maxValue": { "type": "number", "default": 100 },
+      "autoScale": { "type": "boolean", "default": false },
+
+      "gaugeStyle": { "type": "string", "default": "continuous" },
+      "sweepAngle": { "type": "number", "default": 240 },
+      "arcThickness": { "type": "number", "default": 18 },
+      "segmentCount": { "type": "number", "default": 28 },
+      "segmentGap": { "type": "number", "default": 30 },
+      "litMode": { "type": "string", "default": "band" },
+      "showTrack": { "type": "boolean", "default": true },
+      "showGlow": { "type": "boolean", "default": true },
+      "glowStrength": { "type": "number", "default": 55 },
+      "showTicks": { "type": "boolean", "default": true },
+      "showRangeLabels": { "type": "boolean", "default": true },
+      "showBoundaryValues": { "type": "boolean", "default": true },
+      "showNeedle": { "type": "boolean", "default": false },
+      "animate": { "type": "boolean", "default": true },
+      "animateDuration": { "type": "number", "default": 0.9 },
+
+      "colorBands": {
+        "default": [
+          { "from": null, "to": 60, "value": "#22c55e" },
+          { "from": 60, "to": 85, "value": "#f59e0b" },
+          { "from": 85, "to": null, "value": "#ef4444" }
+        ],
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": { "type": ["number", "null"] },
+                "to": { "type": ["number", "null"] },
+                "value": { "type": "string" }
+              },
+              "required": ["value"],
+              "additionalProperties": false
+            }
+          },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      },
+      "colorMode": { "type": "string", "default": "band" },
+      "fixedColor": { "type": "string", "default": "#22d3ee" },
+
+      "titleText": { "type": "string", "default": "" },
+      "unitText": { "type": "string", "default": "" },
+      "decimals": { "type": "number", "default": 0 },
+      "compactNumbers": { "type": "boolean", "default": false },
+      "showTitle": { "type": "boolean", "default": true },
+      "showBandLabel": { "type": "boolean", "default": false },
+      "valueColorMode": { "type": "string", "default": "band" },
+      "valueFixedColor": { "type": "string", "default": "#22d3ee" },
+
+      "compareMode": { "type": "string", "default": "prev" },
+      "compareValue": { "type": "number", "default": 0 },
+      "compareField": { "type": "string", "default": "" },
+      "deltaFormat": { "type": "string", "default": "both" },
+      "deltaLabel": { "type": "string", "default": "前回比" },
+      "goodDirection": { "type": "string", "default": "up" },
+      "upColor": { "type": "string", "default": "#22c55e" },
+      "downColor": { "type": "string", "default": "#ef4444" },
+      "showDelta": { "type": "boolean", "default": true },
+
+      "panelPosition": { "type": "string", "default": "right" },
+      "panelWidth": { "type": "number", "default": 0.4 },
+      "slot1": { "type": "string", "default": "delta" },
+      "slot2": { "type": "string", "default": "stats" },
+      "slot3": { "type": "string", "default": "sparkline" },
+      "slot4": { "type": "string", "default": "none" },
+      "statList": {
+        "default": ["max", "min", "avg"],
+        "anyOf": [
+          { "type": "array", "items": { "type": "string" } },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      },
+      "rankCount": { "type": "number", "default": 4 },
+      "noteText": { "type": "string", "default": "" },
+      "targetValue": { "type": "number", "default": 0 },
+      "showTarget": { "type": "boolean", "default": false }
+    },
+    "editorConfig": [
+      {
+        "label": "データフィールド",
+        "layout": [
+          [{ "label": "値フィールド", "editor": "editor.columnSelector", "option": "valueField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "ラベルフィールド（任意。ランキング／推移の名前に使用）", "editor": "editor.columnSelector", "option": "labelField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [
+            {
+              "label": "ゲージの値の決め方",
+              "editor": "editor.select",
+              "option": "aggMode",
+              "editorProps": {
+                "values": [
+                  { "label": "最終行の値", "value": "last" },
+                  { "label": "先頭行の値", "value": "first" },
+                  { "label": "合計", "value": "sum" },
+                  { "label": "平均", "value": "avg" },
+                  { "label": "最大", "value": "max" },
+                  { "label": "最小", "value": "min" },
+                  { "label": "件数", "value": "count" }
+                ]
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "label": "ゲージの範囲",
+        "layout": [
+          [{ "label": "最小値", "editor": "editor.number", "option": "minValue" }],
+          [{ "label": "最大値", "editor": "editor.number", "option": "maxValue" }],
+          [{ "label": "データから自動で範囲を決める（最小/最大を無視）", "editor": "editor.checkbox", "option": "autoScale" }]
+        ]
+      },
+      {
+        "label": "ゲージの形",
+        "layout": [
+          [
+            {
+              "label": "ゲージの種類",
+              "editor": "editor.radioBar",
+              "option": "gaugeStyle",
+              "editorProps": {
+                "values": [
+                  { "label": "連続", "value": "continuous" },
+                  { "label": "セグメント", "value": "segmented" },
+                  { "label": "タコメーター", "value": "tachometer" }
+                ]
+              }
+            }
+          ],
+          [
+            {
+              "label": "開き角（円弧の角度）",
+              "editor": "editor.select",
+              "option": "sweepAngle",
+              "editorProps": {
+                "values": [
+                  { "label": "半円（180°）", "value": 180 },
+                  { "label": "標準（240°）", "value": 240 },
+                  { "label": "広め（280°）", "value": 280 },
+                  { "label": "ほぼ全周（320°）", "value": 320 }
+                ]
+              }
+            }
+          ],
+          [{ "label": "円弧の太さ（px）", "editor": "editor.number", "option": "arcThickness" }],
+          [{ "label": "セグメントの数（セグメント時）", "editor": "editor.number", "option": "segmentCount" }],
+          [{ "label": "セグメントの隙間（%、セグメント時）", "editor": "editor.number", "option": "segmentGap" }],
+          [
+            {
+              "label": "点灯セグメントの色（セグメント時）",
+              "editor": "editor.select",
+              "option": "litMode",
+              "editorProps": {
+                "values": [
+                  { "label": "各セグメントが自分の位置の帯色", "value": "band" },
+                  { "label": "全点灯セグメントを現在値の色で統一", "value": "current" }
+                ]
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "label": "色",
+        "layout": [
+          [
+            {
+              "label": "色の決め方",
+              "editor": "editor.radioBar",
+              "option": "colorMode",
+              "editorProps": {
+                "values": [
+                  { "label": "値の範囲で色分け", "value": "band" },
+                  { "label": "単色", "value": "fixed" }
+                ]
+              }
+            }
+          ],
+          [{ "label": "値の範囲と色（＋で段を追加。上限/下限なしの範囲も作れます）", "editor": "editor.threshold", "option": "colorBands", "editorProps": { "openRanges": true, "isTogglable": false } }],
+          [{ "label": "単色のときの色", "editor": "editor.color", "option": "fixedColor" }]
+        ]
+      },
+      {
+        "label": "中央の表示",
+        "layout": [
+          [{ "label": "タイトル（空欄でフィールド名）", "editor": "editor.text", "option": "titleText" }],
+          [{ "label": "タイトルを表示", "editor": "editor.checkbox", "option": "showTitle" }],
+          [{ "label": "単位（例: %, GB, 件）", "editor": "editor.text", "option": "unitText" }],
+          [{ "label": "小数点以下の桁数", "editor": "editor.number", "option": "decimals" }],
+          [{ "label": "大きな数を省略表記（1.5M など）", "editor": "editor.checkbox", "option": "compactNumbers" }],
+          [{ "label": "該当する帯の範囲をバッジ表示（例: 80 +）", "editor": "editor.checkbox", "option": "showBandLabel" }],
+          [
+            {
+              "label": "数値の色",
+              "editor": "editor.select",
+              "option": "valueColorMode",
+              "editorProps": {
+                "values": [
+                  { "label": "ゲージと同じ色（値の範囲で変わる）", "value": "band" },
+                  { "label": "固定色", "value": "fixed" },
+                  { "label": "自動（テーマの文字色）", "value": "auto" }
+                ]
+              }
+            }
+          ],
+          [{ "label": "数値の固定色（「固定色」のとき）", "editor": "editor.color", "option": "valueFixedColor" }]
+        ]
+      },
+      {
+        "label": "前回との比較",
+        "layout": [
+          [{ "label": "比較を表示", "editor": "editor.checkbox", "option": "showDelta" }],
+          [
+            {
+              "label": "比較の相手",
+              "editor": "editor.select",
+              "option": "compareMode",
+              "editorProps": {
+                "values": [
+                  { "label": "直前の行（前回値）", "value": "prev" },
+                  { "label": "最初の行（期間の開始時点）", "value": "first" },
+                  { "label": "現在を除く平均", "value": "avg" },
+                  { "label": "指定したフィールドの値", "value": "field" },
+                  { "label": "固定値", "value": "fixed" },
+                  { "label": "比較しない", "value": "none" }
+                ]
+              }
+            }
+          ],
+          [{ "label": "比較フィールド（「指定したフィールド」のとき）", "editor": "editor.columnSelector", "option": "compareField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "固定値（「固定値」のとき）", "editor": "editor.number", "option": "compareValue" }],
+          [
+            {
+              "label": "差分の表し方",
+              "editor": "editor.select",
+              "option": "deltaFormat",
+              "editorProps": {
+                "values": [
+                  { "label": "差の値と割合の両方", "value": "both" },
+                  { "label": "差の値のみ", "value": "absolute" },
+                  { "label": "割合（%）のみ", "value": "percent" }
+                ]
+              }
+            }
+          ],
+          [{ "label": "比較のラベル（例: 前日比）", "editor": "editor.text", "option": "deltaLabel" }],
+          [
+            {
+              "label": "望ましい変化の向き（色分けに使用）",
+              "editor": "editor.radioBar",
+              "option": "goodDirection",
+              "editorProps": {
+                "values": [
+                  { "label": "増加が良い", "value": "up" },
+                  { "label": "減少が良い", "value": "down" },
+                  { "label": "色分けしない", "value": "none" }
+                ]
+              }
+            }
+          ],
+          [{ "label": "良い変化の色", "editor": "editor.color", "option": "upColor" }],
+          [{ "label": "悪い変化の色", "editor": "editor.color", "option": "downColor" }]
+        ]
+      },
+      {
+        "label": "サブ情報パネル",
+        "layout": [
+          [
+            {
+              "label": "パネルの位置",
+              "editor": "editor.select",
+              "option": "panelPosition",
+              "editorProps": {
+                "values": [
+                  { "label": "右", "value": "right" },
+                  { "label": "左", "value": "left" },
+                  { "label": "下", "value": "bottom" },
+                  { "label": "表示しない（ゲージのみ）", "value": "none" }
+                ]
+              }
+            }
+          ],
+          [{ "label": "パネルの幅（全体に対する比率）", "editor": "editor.slider", "option": "panelWidth", "editorProps": { "min": 0.2, "max": 0.6, "step": 0.05 } }],
+          [
+            {
+              "label": "1段目",
+              "editor": "editor.select",
+              "option": "slot1",
+              "editorProps": {
+                "values": [
+                  { "label": "なし", "value": "none" },
+                  { "label": "前回比（差分）", "value": "delta" },
+                  { "label": "サブ指標（合計・平均・最大…）", "value": "stats" },
+                  { "label": "帯ごとの件数内訳", "value": "breakdown" },
+                  { "label": "上位ランキング", "value": "ranking" },
+                  { "label": "推移（スパークライン）", "value": "sparkline" },
+                  { "label": "目標との比較", "value": "target" },
+                  { "label": "帯の凡例", "value": "legend" },
+                  { "label": "対象期間・更新時刻", "value": "period" },
+                  { "label": "自由テキスト", "value": "note" }
+                ]
+              }
+            }
+          ],
+          [
+            {
+              "label": "2段目",
+              "editor": "editor.select",
+              "option": "slot2",
+              "editorProps": {
+                "values": [
+                  { "label": "なし", "value": "none" },
+                  { "label": "前回比（差分）", "value": "delta" },
+                  { "label": "サブ指標（合計・平均・最大…）", "value": "stats" },
+                  { "label": "帯ごとの件数内訳", "value": "breakdown" },
+                  { "label": "上位ランキング", "value": "ranking" },
+                  { "label": "推移（スパークライン）", "value": "sparkline" },
+                  { "label": "目標との比較", "value": "target" },
+                  { "label": "帯の凡例", "value": "legend" },
+                  { "label": "対象期間・更新時刻", "value": "period" },
+                  { "label": "自由テキスト", "value": "note" }
+                ]
+              }
+            }
+          ],
+          [
+            {
+              "label": "3段目",
+              "editor": "editor.select",
+              "option": "slot3",
+              "editorProps": {
+                "values": [
+                  { "label": "なし", "value": "none" },
+                  { "label": "前回比（差分）", "value": "delta" },
+                  { "label": "サブ指標（合計・平均・最大…）", "value": "stats" },
+                  { "label": "帯ごとの件数内訳", "value": "breakdown" },
+                  { "label": "上位ランキング", "value": "ranking" },
+                  { "label": "推移（スパークライン）", "value": "sparkline" },
+                  { "label": "目標との比較", "value": "target" },
+                  { "label": "帯の凡例", "value": "legend" },
+                  { "label": "対象期間・更新時刻", "value": "period" },
+                  { "label": "自由テキスト", "value": "note" }
+                ]
+              }
+            }
+          ],
+          [
+            {
+              "label": "4段目",
+              "editor": "editor.select",
+              "option": "slot4",
+              "editorProps": {
+                "values": [
+                  { "label": "なし", "value": "none" },
+                  { "label": "前回比（差分）", "value": "delta" },
+                  { "label": "サブ指標（合計・平均・最大…）", "value": "stats" },
+                  { "label": "帯ごとの件数内訳", "value": "breakdown" },
+                  { "label": "上位ランキング", "value": "ranking" },
+                  { "label": "推移（スパークライン）", "value": "sparkline" },
+                  { "label": "目標との比較", "value": "target" },
+                  { "label": "帯の凡例", "value": "legend" },
+                  { "label": "対象期間・更新時刻", "value": "period" },
+                  { "label": "自由テキスト", "value": "note" }
+                ]
+              }
+            }
+          ],
+          [{ "label": "サブ指標に出す統計（sum / avg / max / min / count / last / first）", "editor": "editor.arrayOfStrings", "option": "statList" }],
+          [{ "label": "ランキングの表示件数", "editor": "editor.number", "option": "rankCount" }],
+          [{ "label": "自由テキストの内容", "editor": "editor.text", "option": "noteText" }]
+        ]
+      },
+      {
+        "label": "目標",
+        "layout": [
+          [{ "label": "目標線をゲージ上に表示", "editor": "editor.checkbox", "option": "showTarget" }],
+          [{ "label": "目標値", "editor": "editor.number", "option": "targetValue" }]
+        ]
+      },
+      {
+        "label": "目盛り・装飾",
+        "layout": [
+          [{ "label": "下地（トラック）を表示", "editor": "editor.checkbox", "option": "showTrack" }],
+          [{ "label": "目盛りを表示", "editor": "editor.checkbox", "option": "showTicks" }],
+          [{ "label": "最小値・最大値のラベルを表示", "editor": "editor.checkbox", "option": "showRangeLabels" }],
+          [{ "label": "色が切り替わる位置に数値を表示", "editor": "editor.checkbox", "option": "showBoundaryValues" }],
+          [{ "label": "針を表示（タコメーターでは常に表示）", "editor": "editor.checkbox", "option": "showNeedle" }],
+          [{ "label": "発光（グロー）を表示", "editor": "editor.checkbox", "option": "showGlow" }],
+          [{ "label": "発光の強さ（0〜100）", "editor": "editor.number", "option": "glowStrength" }],
+          [{ "label": "アニメーションする", "editor": "editor.checkbox", "option": "animate" }],
+          [{ "label": "アニメーションの長さ（秒、0で即時）", "editor": "editor.number", "option": "animateDuration" }]
+        ]
+      }
+    ],
+    "defaultContext": {}
+  }
+}

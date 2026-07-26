@@ -286,6 +286,71 @@ SVG 要素での動作は未検証。
 
 ---
 
+## ROUND 12（任意の選択肢で「複数チェックボックス」を出せるか）← 未検証
+
+**知りたいこと**：`editor.columnMultiSelectionByFieldNameEditor`（radar-chart が使っている
+チェックボックス式の複数選択 UI）で、**サーチ結果のフィールド名ではなく、こちらが決めた
+固定の選択肢**（合計 / 平均 / 最大 …）を出せるか。
+
+**背景**：gauge-arc の「サブ指標に出す統計」を `editor.arrayOfStrings`（チップに `sum` などを
+手入力）で作ったが、ユーザーから「複数チェックボックスのやつでよくない？」と指摘があった。
+チェックボックス式の複数選択 UI は `columnMultiSelectionByFieldNameEditor` として実在する
+（ROUND で検証済み・生の配列が届く）が、**この型は `editorProps` を取らず、
+選択肢はホストがデータソースのフィールド名から作る**（radar-chart の定義で確認）。
+そのため任意の選択肢を出せるかは**未検証**。
+
+**「無い」と断定しない**：`arrayOfStrings` が「標準 viz に無いから実在しない」と誤判定した前例が
+あるため、`editorProps` を渡せば効くか／別名の型が受け付けられるかを実機で確かめる。
+
+**手順**：下を `editorConfig` に入れ、1つずつ（**まとめて入れない**。全滅すると切り分け不能）:
+
+```json
+      {
+        "label": "ROUND12a_固定選択肢を渡せるか",
+        "layout": [
+          [
+            {
+              "label": "columnMulti + values",
+              "editor": "editor.columnMultiSelectionByFieldNameEditor",
+              "option": "p_multiFixed",
+              "editorProps": {
+                "values": [
+                  { "label": "合計", "value": "sum" },
+                  { "label": "平均", "value": "avg" },
+                  { "label": "最大", "value": "max" }
+                ]
+              }
+            }
+          ]
+        ]
+      }
+```
+
+`optionsSchema`:
+```json
+      "p_multiFixed": {
+        "default": [],
+        "anyOf": [
+          { "type": "array", "items": { "type": "string" } },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      }
+```
+
+**判定**:
+
+| 結果 | 意味 | gauge-arc での対応 |
+|---|---|---|
+| 「合計 / 平均 / 最大」がチェックボックスで出る | **任意の選択肢を渡せる** | `statList` をこの型へ移行 |
+| サーチのフィールド名（`_time` `cpu`…）が出る | `editorProps` は無視され、**列名専用** | `editor.checkbox` × 7 に変更 |
+| パネルが全部消える（`Invalid editor type`） | この使い方は不可 | 同上 |
+
+**ROUND12b（保険）**：`editorProps` を `{ "values": [...] }` ではなく
+`{ "options": [...] }` / `{ "items": [...] }` にした場合も一応試す
+（プロパティ名が違うだけで通る可能性があるため）。
+
+---
+
 ## ROUND 11（click 以外のトリガー）← 完了
 
 `config.json` の `events` に4種を宣言し、それぞれのトリガーで発火する:
