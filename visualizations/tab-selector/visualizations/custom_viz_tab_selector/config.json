@@ -1,0 +1,306 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": true,
+  "canSetTokens": [
+    "dynamic",
+    "static"
+  ],
+  "hasEventHandlers": true,
+  "config": {
+    "name": "Tab Selector",
+    "description": "クリックでトークンを切り替えるタブバー。タブは編集UIで自由に増減・命名できる",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": [],
+      "optionalDataSources": [],
+      "initialRequestParams": {}
+    },
+    "size": {
+      "initialWidth": 600,
+      "initialHeight": 80
+    },
+    "optionsSchema": {
+      "tabs": {
+        "default": [],
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "defaultTabIndex": {
+        "default": 1,
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "tabStyle": {
+        "default": "underline",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "align": {
+        "default": "left",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "stretch": {
+        "default": false,
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "fontSize": {
+        "default": 14,
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "accentColor": {
+        "default": "#00A4FD",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "activeTextColor": {
+        "default": "",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "inactiveTextColor": {
+        "default": "",
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      },
+      "showTokenHint": {
+        "default": false,
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "string",
+            "pattern": "^>.*"
+          }
+        ]
+      }
+    },
+    "editorConfig": [
+      {
+        "label": "タブ",
+        "layout": [
+          [
+            {
+              "label": "タブ一覧（1行1タブ。「表示名|トークン値」または「表示名」だけ）",
+              "editor": "editor.arrayOfStrings",
+              "option": "tabs",
+              "editorProps": {
+                "labelPosition": "top",
+                "themes": {}
+              }
+            }
+          ],
+          [
+            {
+              "label": "初期選択タブ（1 = 左端）",
+              "editor": "editor.number",
+              "option": "defaultTabIndex",
+              "editorProps": {
+                "min": 1
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "label": "表示",
+        "layout": [
+          [
+            {
+              "label": "タブの形",
+              "editor": "editor.select",
+              "option": "tabStyle",
+              "editorProps": {
+                "values": [
+                  {
+                    "label": "下線",
+                    "value": "underline"
+                  },
+                  {
+                    "label": "塗りつぶし",
+                    "value": "filled"
+                  },
+                  {
+                    "label": "ピル（角丸）",
+                    "value": "pill"
+                  },
+                  {
+                    "label": "枠線",
+                    "value": "outline"
+                  }
+                ]
+              }
+            }
+          ],
+          [
+            {
+              "label": "配置",
+              "editor": "editor.radioBar",
+              "option": "align",
+              "editorProps": {
+                "values": [
+                  {
+                    "label": "左",
+                    "value": "left"
+                  },
+                  {
+                    "label": "中央",
+                    "value": "center"
+                  },
+                  {
+                    "label": "右",
+                    "value": "right"
+                  }
+                ]
+              }
+            }
+          ],
+          [
+            {
+              "label": "幅いっぱいに引き伸ばす",
+              "editor": "editor.checkbox",
+              "option": "stretch"
+            }
+          ],
+          [
+            {
+              "label": "文字サイズ（px）",
+              "editor": "editor.number",
+              "option": "fontSize",
+              "editorProps": {
+                "min": 8,
+                "max": 48
+              }
+            }
+          ],
+          [
+            {
+              "label": "トークン値を併記する",
+              "editor": "editor.checkbox",
+              "option": "showTokenHint"
+            }
+          ]
+        ]
+      },
+      {
+        "label": "色",
+        "layout": [
+          [
+            {
+              "label": "選択中の色",
+              "editor": "editor.color",
+              "option": "accentColor",
+              "editorProps": {
+                "labelPosition": "top",
+                "themes": {}
+              }
+            }
+          ],
+          [
+            {
+              "label": "選択中の文字色（未設定=自動）",
+              "editor": "editor.color",
+              "option": "activeTextColor",
+              "editorProps": {
+                "labelPosition": "top",
+                "themes": {}
+              }
+            }
+          ],
+          [
+            {
+              "label": "未選択の文字色（未設定=自動）",
+              "editor": "editor.color",
+              "option": "inactiveTextColor",
+              "editorProps": {
+                "labelPosition": "top",
+                "themes": {}
+              }
+            }
+          ]
+        ]
+      }
+    ],
+    "defaultContext": {},
+    "events": {
+      "tab.click": {
+        "description": "triggered when user clicks a tab"
+      }
+    },
+    "supports": [
+      "events"
+    ]
+  }
+}
