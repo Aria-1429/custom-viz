@@ -1,0 +1,233 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Custom Viz Icon Status",
+    "description": "A single-value status tile with layered 3D-style SOC icons that recolor by threshold",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 300,
+      "initialHeight": 260
+    },
+    "optionsSchema": {
+      "labelField": { "type": "string", "default": "" },
+      "valueField": { "type": "string", "default": "" },
+
+      "iconName": { "type": "string", "default": "server" },
+      "iconStyle": { "type": "string", "default": "solid" },
+
+      "colorMode": { "type": "string", "default": "threshold" },
+      "baseColor": { "type": "string", "default": "#22d3ee" },
+      "colorBands": {
+        "default": [
+          { "from": null, "to": 50, "value": "#3fb950" },
+          { "from": 50, "to": 80, "value": "#d29922" },
+          { "from": 80, "to": null, "value": "#f85149" }
+        ],
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": { "type": ["number", "null"] },
+                "to": { "type": ["number", "null"] },
+                "value": { "type": "string" }
+              },
+              "required": ["value"],
+              "additionalProperties": false
+            }
+          },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      },
+
+      "showGlow": { "type": "boolean", "default": true },
+      "showShadow": { "type": "boolean", "default": true },
+      "pulseMode": { "type": "string", "default": "none" },
+
+      "showValue": { "type": "boolean", "default": true },
+      "showLabel": { "type": "boolean", "default": true },
+      "labelText": { "type": "string", "default": "" },
+      "unitText": { "type": "string", "default": "" },
+      "valueDecimals": { "type": "number", "default": 0 },
+      "abbreviateValue": { "type": "boolean", "default": false },
+
+      "aggregation": { "type": "string", "default": "last" },
+      "iconScale": { "type": "number", "default": 1 },
+      "showCard": { "type": "boolean", "default": true }
+    },
+    "editorConfig": [
+      {
+        "label": "データフィールド",
+        "layout": [
+          [
+            {
+              "label": "ラベルフィールド",
+              "editor": "editor.columnSelector",
+              "option": "labelField",
+              "context": "valuesContext",
+              "editorProps": { "dataSourceKey": "primary" }
+            }
+          ],
+          [
+            {
+              "label": "値フィールド",
+              "editor": "editor.columnSelector",
+              "option": "valueField",
+              "context": "valuesContext",
+              "editorProps": { "dataSourceKey": "primary" }
+            }
+          ],
+          [
+            {
+              "label": "集計方法",
+              "editor": "editor.select",
+              "option": "aggregation",
+              "editorProps": {
+                "values": [
+                  { "label": "最終行の値", "value": "last" },
+                  { "label": "合計", "value": "sum" },
+                  { "label": "平均", "value": "avg" },
+                  { "label": "最大", "value": "max" },
+                  { "label": "最小", "value": "min" },
+                  { "label": "件数", "value": "count" }
+                ]
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "label": "アイコン",
+        "layout": [
+          [
+            {
+              "label": "アイコン",
+              "editor": "editor.select",
+              "option": "iconName",
+              "editorProps": {
+                "values": [
+                  { "label": "サーバー", "value": "server" },
+                  { "label": "データベース", "value": "database" },
+                  { "label": "シールド（防御）", "value": "shield" },
+                  { "label": "警告", "value": "alert" },
+                  { "label": "錠前", "value": "lock" },
+                  { "label": "ネットワーク機器", "value": "router" },
+                  { "label": "ユーザー", "value": "user" },
+                  { "label": "監視（目）", "value": "eye" },
+                  { "label": "クラウド", "value": "cloud" },
+                  { "label": "ファイアウォール", "value": "firewall" },
+                  { "label": "エンドポイントPC", "value": "endpoint" },
+                  { "label": "バグ（マルウェア）", "value": "bug" }
+                ]
+              }
+            }
+          ],
+          [
+            {
+              "label": "質感",
+              "editor": "editor.radioBar",
+              "option": "iconStyle",
+              "editorProps": {
+                "values": [
+                  { "label": "立体", "value": "solid" },
+                  { "label": "線画", "value": "outline" }
+                ]
+              }
+            }
+          ],
+          [
+            {
+              "label": "アイコンの大きさ（1.0で領域いっぱい）",
+              "editor": "editor.slider",
+              "option": "iconScale",
+              "editorProps": { "min": 0.3, "max": 1, "step": 0.05 }
+            }
+          ]
+        ]
+      },
+      {
+        "label": "色",
+        "layout": [
+          [
+            {
+              "label": "色の決め方",
+              "editor": "editor.radioBar",
+              "option": "colorMode",
+              "editorProps": {
+                "values": [
+                  { "label": "しきい値", "value": "threshold" },
+                  { "label": "単色", "value": "fixed" }
+                ]
+              }
+            }
+          ],
+          [
+            {
+              "label": "基準色（単色のとき）",
+              "editor": "editor.color",
+              "option": "baseColor"
+            }
+          ],
+          [
+            {
+              "label": "しきい値の色",
+              "editor": "editor.threshold",
+              "option": "colorBands",
+              "editorProps": { "openRanges": true, "isTogglable": false }
+            }
+          ]
+        ]
+      },
+      {
+        "label": "表示",
+        "layout": [
+          [{ "label": "カード背景を表示", "editor": "editor.checkbox", "option": "showCard" }],
+          [{ "label": "発光（グロー）", "editor": "editor.checkbox", "option": "showGlow" }],
+          [{ "label": "接地シャドウ", "editor": "editor.checkbox", "option": "showShadow" }],
+          [
+            {
+              "label": "アニメーション",
+              "editor": "editor.radioBar",
+              "option": "pulseMode",
+              "editorProps": {
+                "values": [
+                  { "label": "なし", "value": "none" },
+                  { "label": "パルスリング", "value": "ring" }
+                ]
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "label": "数値とラベル",
+        "layout": [
+          [{ "label": "数値を表示", "editor": "editor.checkbox", "option": "showValue" }],
+          [{ "label": "ラベルを表示", "editor": "editor.checkbox", "option": "showLabel" }],
+          [{ "label": "ラベル文字列（空欄でフィールド名）", "editor": "editor.text", "option": "labelText" }],
+          [{ "label": "単位", "editor": "editor.text", "option": "unitText" }],
+          [
+            {
+              "label": "小数点以下の桁数",
+              "editor": "editor.number",
+              "option": "valueDecimals",
+              "editorProps": { "min": 0, "max": 6 }
+            }
+          ],
+          [{ "label": "省略表記（1.5K など）", "editor": "editor.checkbox", "option": "abbreviateValue" }]
+        ]
+      }
+    ]
+  }
+}
