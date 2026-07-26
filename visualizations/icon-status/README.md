@@ -8,10 +8,13 @@ Splunk Dashboard Studio 用のカスタムビジュアライゼーション。
 
 ![表示例](examples/example.png)
 
+> 上の画像は「数値」「ラベル」「カード背景」を非表示にし、アイコンだけを見せた状態です。
+> 既定では数値とラベルもアイコンの下に表示されます。
+
 ## アイコン一覧
 
 編集画面の「アイコン」で選べる 12 種です。**質感**は `立体`／`線画` を切り替えられ、
-どのアイコンも**値に応じて色が変わります**（下の画像は既定の赤系バンドでの表示例）。
+どのアイコンも**値に応じて色が変わります**（下の画像は既定バンドの緑＝正常時の表示例）。
 
 | | アイコン | 設定値 | 立体 | 線画 | 主な用途 |
 | --- | --- | --- | --- | --- | --- |
@@ -28,9 +31,9 @@ Splunk Dashboard Studio 用のカスタムビジュアライゼーション。
 | 11 | エンドポイントPC | `endpoint` | <img src="examples/icons/endpoint-solid.png" width="72"> | <img src="examples/icons/endpoint-outline.png" width="72"> | 端末数、EDR 未導入台数、パッチ未適用数 |
 | 12 | バグ（マルウェア） | `bug` | <img src="examples/icons/bug-solid.png" width="72"> | <img src="examples/icons/bug-outline.png" width="72"> | マルウェア検出数、脆弱性件数 |
 
-> **画像の置き場所**：`examples/icons/<設定値>-solid.png` と `examples/icons/<設定値>-outline.png`。
-> 上の表はこのパスを参照しているので、同じ名前で画像を置けばそのまま表示されます。
-> 全体の表示例は `examples/example.png` です。
+> 画像は `examples/icons/<設定値>-solid.png` ／ `-outline.png` に置いています。
+> アイコンを追加・差し替えるときは同じ命名規則に従ってください
+> （詳細は [examples/icons/README.md](examples/icons/README.md)）。
 
 ## 特徴
 
