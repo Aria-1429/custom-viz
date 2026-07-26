@@ -201,12 +201,13 @@
               "editorProps": {
                 "values": [
                   { "label": "値の範囲で色分け", "value": "band" },
+                  { "label": "グラデーション", "value": "gradient" },
                   { "label": "単色", "value": "fixed" }
                 ]
               }
             }
           ],
-          [{ "label": "値の範囲と色（＋で段を追加。上限/下限なしの範囲も作れます）", "editor": "editor.threshold", "option": "colorBands", "editorProps": { "openRanges": true, "isTogglable": false } }],
+          [{ "label": "値の範囲と色（＋で段を追加。グラデーション時は各段の色を滑らかにつなぎます）", "editor": "editor.threshold", "option": "colorBands", "editorProps": { "openRanges": true, "isTogglable": false } }],
           [{ "label": "単色のときの色", "editor": "editor.color", "option": "fixedColor" }]
         ]
       },

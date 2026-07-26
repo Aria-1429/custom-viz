@@ -46,7 +46,8 @@ const VIZ_VERSION = '1.0.0';
 const AGG_MODES = ['last', 'first', 'sum', 'avg', 'max', 'min', 'count'];
 const GAUGE_STYLES = ['continuous', 'segmented', 'tachometer'];
 const LIT_MODES = ['band', 'current'];
-const COLOR_MODES = ['band', 'fixed'];
+// band=帯ごとに階段状 / gradient=帯の色を滑らかに補間 / fixed=単色
+const COLOR_MODES = ['band', 'gradient', 'fixed'];
 // 中央の数値の色: band=ゲージと同じ（帯／単色）の色 / fixed=指定した固定色 / auto=テーマの文字色
 const VALUE_COLOR_MODES = ['band', 'fixed', 'auto'];
 const COMPARE_MODES = ['prev', 'first', 'avg', 'field', 'fixed', 'none'];
@@ -296,10 +297,93 @@ function bandLabel(b) {
 }
 
 // 値 → 色（colorMode に従う）
-function colorForValue(n, opts) {
+/**
+ * 値 → 色。colorMode に従う。
+ * gradient のときは帯の色を滑らかに補間する（開いた帯のアンカーに使う範囲は
+ * lo/hi で渡す。省略時は帯の有限な端から推定する）。
+ */
+function colorForValue(n, opts, lo, hi) {
     if (opts.colorMode === 'fixed') return opts.fixedColor;
+    if (opts.colorMode === 'gradient') {
+        const r = resolveBandRange(opts.colorBands, lo, hi);
+        return gradientColorForValue(n, opts, r.lo, r.hi);
+    }
     const b = bandFor(n, opts.colorBands);
     return b ? b.value : opts.fixedColor;
+}
+
+// 開いた帯（±Infinity）のアンカー算出に使う範囲を決める。
+// 明示的な lo/hi があればそれを使い、無ければ帯の有限な端から推定する。
+function resolveBandRange(bands, lo, hi) {
+    if (Number.isFinite(lo) && Number.isFinite(hi) && hi > lo) return { lo, hi };
+    const fin = [];
+    bands.forEach((b) => {
+        if (Number.isFinite(b.from)) fin.push(b.from);
+        if (Number.isFinite(b.to)) fin.push(b.to);
+    });
+    if (fin.length === 0) return { lo: 0, hi: 1 };
+    const mn = Math.min(...fin);
+    const mx = Math.max(...fin);
+    // 有限な端が1点しかない場合は、その周辺に幅を持たせる
+    if (mn === mx) return { lo: mn - 1, hi: mx + 1 };
+    return { lo: mn, hi: mx };
+}
+
+/**
+ * 帯の色を「滑らかに補間した」色を返す（グラデーション用）。
+ *
+ * 帯は範囲（from〜to）に対して1色を持つので、そのままでは境界で色が階段状に変わる。
+ * ここでは **各帯の中央を「その色のアンカー点」** とみなし、隣り合うアンカーの間を
+ * 線形補間する。こうすると「帯のど真ん中の値＝その帯の色ちょうど」になり、
+ * 境界付近では隣の帯の色へ half-half で寄った色になる。
+ *
+ * - アンカーは帯の中央。ただし開いた端（±Infinity）は範囲の端（lo / hi）で代用する
+ * - 最初のアンカーより手前／最後のアンカーより先はクランプ（端の色のまま）
+ * - 帯が1つしかない場合はその色を返す
+ *
+ * @param {number} n     値
+ * @param {object} opts  正規化済みオプション
+ * @param {number} lo    ゲージ範囲の下限（開いた帯のアンカー算出に使う）
+ * @param {number} hi    ゲージ範囲の上限
+ */
+function gradientColorForValue(n, opts, lo, hi) {
+    if (opts.colorMode === 'fixed') return opts.fixedColor;
+    const bands = opts.colorBands;
+    if (bands.length === 0) return opts.fixedColor;
+    if (bands.length === 1) return bands[0].value;
+
+    // 各帯の代表点（中央）を求める。開いた端は範囲の端で閉じて扱う
+    const anchors = bands.map((b) => {
+        const f = Number.isFinite(b.from) ? b.from : lo;
+        const tt = Number.isFinite(b.to) ? b.to : hi;
+        return { at: (f + tt) / 2, color: b.value };
+    });
+    anchors.sort((a, b) => a.at - b.at);
+
+    if (!Number.isFinite(n) || n <= anchors[0].at) return anchors[0].color;
+    if (n >= anchors[anchors.length - 1].at) return anchors[anchors.length - 1].color;
+
+    for (let i = 0; i < anchors.length - 1; i += 1) {
+        const a = anchors[i];
+        const b = anchors[i + 1];
+        if (n >= a.at && n <= b.at) {
+            const span = b.at - a.at;
+            const u = span <= 0 ? 0 : (n - a.at) / span;
+            return lerpColor(a.color, b.color, u);
+        }
+    }
+    return anchors[anchors.length - 1].color;
+}
+
+// 2色を線形補間して 'rgb(r,g,b)' を返す
+function lerpColor(hexA, hexB, u) {
+    const a = hexToRgb(hexA) || parseRgb(hexA);
+    const b = hexToRgb(hexB) || parseRgb(hexB);
+    if (!a || !b) return hexA;
+    const k = clamp01(u);
+    return `rgb(${Math.round(a.r + (b.r - a.r) * k)},${Math.round(a.g + (b.g - a.g) * k)},${Math.round(
+        a.b + (b.b - a.b) * k
+    )})`;
 }
 
 // ---------------------------------------------------------------------------
@@ -869,7 +953,7 @@ function GaugeArc({ w, h, value, shownValue, opts, pal, model, boundaryFont }) {
     // 中心 = 上余白 + 塊の中で「中心」が占める位置
     const cy = (h - blockH) / 2 - blockTop;
 
-    const curColor = colorForValue(value, opts);
+    const curColor = colorForValue(value, opts, lo, hi);
     const glow = opts.showGlow && opts.glowStrength > 0 ? (opts.glowStrength / 100) * 0.9 : 0;
 
     // --- トラック（下地）---
@@ -893,8 +977,10 @@ function GaugeArc({ w, h, value, shownValue, opts, pal, model, boundaryFont }) {
             const mid = (t0 + t1) / 2;
             const lit = mid <= t;
             // 各セグメントの色：位置の帯色（band）か、現在値の色で統一（current）
+            // gradient のときは colorForValue が補間色を返すので、セグメントも
+            // 自然に「隣の小片へ色が少しずつ移る」表現になる
             const segValue = lo + mid * (hi - lo);
-            const litColor = opts.litMode === 'current' ? curColor : colorForValue(segValue, opts);
+            const litColor = opts.litMode === 'current' ? curColor : colorForValue(segValue, opts, lo, hi);
             segments.push({
                 key: `seg${i}`,
                 d: arcPath(cx, cy, rOuter, rInner, a0, a1),
@@ -904,76 +990,72 @@ function GaugeArc({ w, h, value, shownValue, opts, pal, model, boundaryFont }) {
         }
     }
 
-    // 連続モードで帯ごとに色を変える場合、値までの弧を帯の境界で分割して塗る。
+    // グラデーションは「弧に沿って色が変わる」ため SVG の linearGradient では表現
+    // できない（直線方向にしか効かない）。細かい小片に分割し、各片を補間色で塗る。
+    // 分割数は弧長に比例させ、1片あたり約 2° 以下になるようにする（継ぎ目が見えない）。
+    const gradSteps = clamp(Math.ceil(sweep / 2), 24, 180);
+
+    // 0..tEnd の弧を、帯の境界（band）または細かい等分（gradient）で塗り分ける。
     // 単色（fixed）なら 1 本で済む。
-    const fillParts = [];
-    if (opts.gaugeStyle === 'continuous' && t > 0) {
+    const buildParts = (tEnd, keyPrefix) => {
+        const parts = [];
+        if (tEnd <= 0) return parts;
         if (opts.colorMode === 'fixed') {
-            fillParts.push({
-                key: 'fill',
-                d: arcPath(cx, cy, rOuter, rInner, angleAt(0, sweep), angleAt(t, sweep)),
+            parts.push({
+                key: keyPrefix,
+                d: arcPath(cx, cy, rOuter, rInner, angleAt(0, sweep), angleAt(tEnd, sweep)),
                 color: opts.fixedColor,
             });
-        } else {
-            // 帯の境界を 0..t の範囲で拾い、区間ごとにその帯の色で塗る
-            const edges = [0];
-            opts.colorBands.forEach((b) => {
-                [b.from, b.to].forEach((e) => {
-                    if (!Number.isFinite(e)) return;
-                    const te = (e - lo) / (hi - lo);
-                    if (te > 0 && te < t) edges.push(te);
-                });
-            });
-            edges.push(t);
-            const uniq = [...new Set(edges.map((x) => Math.round(x * 1e6) / 1e6))].sort((a, b) => a - b);
-            for (let i = 0; i < uniq.length - 1; i += 1) {
-                const t0 = uniq[i];
-                const t1 = uniq[i + 1];
-                if (t1 - t0 <= 0) continue;
+            return parts;
+        }
+        if (opts.colorMode === 'gradient') {
+            // 等分した小片ごとに、その中央の値の補間色を塗る。
+            // 隣接片が僅かに重なるよう半ステップ伸ばし、アンチエイリアスの隙間を防ぐ。
+            const n = Math.max(1, Math.round(gradSteps * tEnd));
+            const step = tEnd / n;
+            for (let i = 0; i < n; i += 1) {
+                const t0 = i * step;
+                const t1 = (i + 1) * step;
+                const overlap = i < n - 1 ? step * 0.5 : 0;
                 const midV = lo + ((t0 + t1) / 2) * (hi - lo);
-                fillParts.push({
-                    key: `fill${i}`,
-                    d: arcPath(cx, cy, rOuter, rInner, angleAt(t0, sweep), angleAt(t1, sweep)),
-                    color: colorForValue(midV, opts),
+                parts.push({
+                    key: `${keyPrefix}${i}`,
+                    d: arcPath(cx, cy, rOuter, rInner, angleAt(t0, sweep), angleAt(t1 + overlap, sweep)),
+                    color: gradientColorForValue(midV, opts, lo, hi),
                 });
             }
+            return parts;
         }
-    }
+        // band: 帯の境界を 0..tEnd の範囲で拾い、区間ごとにその帯の色で塗る
+        const edges = [0];
+        opts.colorBands.forEach((b) => {
+            [b.from, b.to].forEach((e) => {
+                if (!Number.isFinite(e)) return;
+                const te = (e - lo) / (hi - lo);
+                if (te > 0 && te < tEnd) edges.push(te);
+            });
+        });
+        edges.push(tEnd);
+        const uniq = [...new Set(edges.map((x) => Math.round(x * 1e6) / 1e6))].sort((a, b) => a - b);
+        for (let i = 0; i < uniq.length - 1; i += 1) {
+            const t0 = uniq[i];
+            const t1 = uniq[i + 1];
+            if (t1 - t0 <= 0) continue;
+            const midV = lo + ((t0 + t1) / 2) * (hi - lo);
+            parts.push({
+                key: `${keyPrefix}${i}`,
+                d: arcPath(cx, cy, rOuter, rInner, angleAt(t0, sweep), angleAt(t1, sweep)),
+                color: colorForValue(midV, opts, lo, hi),
+            });
+        }
+        return parts;
+    };
+
+    const fillParts = opts.gaugeStyle === 'continuous' ? buildParts(t, 'fill') : [];
 
     // --- タコメーター：帯を全周ぶん塗る（現在値は針が指す）---
-    const tachoParts = [];
-    if (isTacho) {
-        if (opts.colorMode === 'fixed') {
-            tachoParts.push({
-                key: 'tacho',
-                d: arcPath(cx, cy, rOuter, rInner, angleAt(0, sweep), angleAt(1, sweep)),
-                color: opts.fixedColor,
-            });
-        } else {
-            // 帯の境界で区切り、レンジ全体を帯色で塗り分ける
-            const edges = [0];
-            opts.colorBands.forEach((b) => {
-                [b.from, b.to].forEach((e) => {
-                    if (!Number.isFinite(e)) return;
-                    const te = (e - lo) / (hi - lo);
-                    if (te > 0 && te < 1) edges.push(te);
-                });
-            });
-            edges.push(1);
-            const uniq = [...new Set(edges.map((x) => Math.round(x * 1e6) / 1e6))].sort((a, b) => a - b);
-            for (let i = 0; i < uniq.length - 1; i += 1) {
-                const t0 = uniq[i];
-                const t1 = uniq[i + 1];
-                if (t1 - t0 <= 0) continue;
-                const midV = lo + ((t0 + t1) / 2) * (hi - lo);
-                tachoParts.push({
-                    key: `tacho${i}`,
-                    d: arcPath(cx, cy, rOuter, rInner, angleAt(t0, sweep), angleAt(t1, sweep)),
-                    color: colorForValue(midV, opts),
-                });
-            }
-        }
-    }
+    // 連続と同じ塗り分けロジックを、値までではなくレンジ全体（t=1）に適用する。
+    const tachoParts = isTacho ? buildParts(1, 'tacho') : [];
 
     // --- 目盛り ---
     const ticks = [];
@@ -1810,7 +1892,8 @@ function GaugeArcViz({ mode }) {
     const { w, h } = dims;
     const pal = palette(mode);
     const value = model.value;
-    const curColor = colorForValue(value, opts);
+    // ゲージと同じ範囲を渡す（gradient のとき弧と中央数値の色を一致させるため）
+    const curColor = colorForValue(value, opts, model.lo, model.hi);
     const curBand = opts.colorMode === 'band' ? bandFor(value, opts.colorBands) : null;
 
     // --- 中央の数値の色 ---

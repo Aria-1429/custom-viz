@@ -589,6 +589,75 @@ check('未知のモード／不正な色でも描画を継続する（既定へ�
 check('不正なモードは band（既定）へ丸められる',
     q('[data-role="value"]')?.getAttribute('data-value-color-mode') === 'band');
 
+console.log('\n=== 16. グラデーション（colorMode=gradient）===');
+await resize(900, 400);
+await setOpts({ panelPosition: 'none', colorMode: 'gradient' });
+
+const fills16 = qa('[data-role="fill"]');
+check('グラデーションでも塗りが描かれる', fills16.length > 0, `n=${fills16.length}`);
+// 帯の境界数（2）より遥かに多い小片に分割されているはず
+check('帯の境界数より多く分割される（滑らかにするため）', fills16.length > 10, `n=${fills16.length}`);
+const gcolors = fills16.map((p) => p.getAttribute('fill'));
+check('補間色は rgb() 形式で出る', gcolors.some((c) => /^rgb\(/.test(c)), gcolors.slice(0, 3).join(' '));
+check('すべて異なる色ではなく連続的に変化する（隣接色が近い）', (() => {
+    const rgb = (s) => (String(s).match(/\d+/g) || []).map(Number);
+    for (let i = 1; i < gcolors.length; i += 1) {
+        const a = rgb(gcolors[i - 1]);
+        const b = rgb(gcolors[i]);
+        if (a.length !== 3 || b.length !== 3) continue;
+        const d = Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
+        if (d > 60) return false; // 階段状なら隣接で大きく飛ぶ
+    }
+    return true;
+})(), '隣接する小片の色差が大きい（階段状になっている）');
+check('グラデーションでも NaN が出ない',
+    qa('path').every((p) => !/NaN/.test(p.getAttribute('d') || '')));
+
+// band（階段状）と比べて中間色が生まれていること
+await setOpts({ panelPosition: 'none', colorMode: 'band' });
+const bandColors = new Set(qa('[data-role="fill"]').map((p) => p.getAttribute('fill')));
+await setOpts({ panelPosition: 'none', colorMode: 'gradient' });
+const gradColors = new Set(qa('[data-role="fill"]').map((p) => p.getAttribute('fill')));
+check('band より gradient の方が色数が多い（中間色が生まれる）',
+    gradColors.size > bandColors.size, `band=${bandColors.size} gradient=${gradColors.size}`);
+
+// 帯の中央では、その帯の色そのものになる（アンカー点）
+// 既定帯: 〜60=#22c55e(緑) / 60〜85=#f59e0b(橙) / 85〜=#ef4444(赤)
+// 緑帯の中央は (0+60)/2 = 30
+await setData({ fields: FIELDS, rows: [['a', '10'], ['b', '30']] });
+const at30 = (q('[data-role="value"]')?.getAttribute('style') || '');
+check('帯の中央の値では中央数値がその帯の色に近い（緑系）', (() => {
+    const m = at30.match(/color:\s*([^;]+)/);
+    const c = (String(m ? m[1] : '').match(/\d+/g) || []).map(Number);
+    return c.length === 3 && c[1] > c[0] && c[1] > c[2];
+})(), at30);
+await setData({ fields: FIELDS, rows: ROWS });
+
+// タコメーター・セグメントでもグラデーションが効く
+await setOpts({ panelPosition: 'none', colorMode: 'gradient', gaugeStyle: 'tachometer' });
+const tach = qa('[data-role="tacho-band"]');
+check('タコメーターでもグラデーションで分割される', tach.length > 10, `n=${tach.length}`);
+check('タコメーターのグラデーションで NaN が出ない',
+    qa('path,polygon').every((p) => !/NaN/.test(p.getAttribute('d') || '') && !/NaN/.test(p.getAttribute('points') || '')));
+
+await setOpts({ panelPosition: 'none', colorMode: 'gradient', gaugeStyle: 'segmented', segmentCount: 20 });
+const segLit = qa('[data-role="segment"]').filter((s) => s.getAttribute('data-lit') === '1');
+check('セグメントでもグラデーション色になる（rgb 形式）',
+    segLit.some((s) => /^rgb\(/.test(s.getAttribute('fill') || '')),
+    segLit.slice(0, 2).map((s) => s.getAttribute('fill')).join(' '));
+
+// 単色モードは従来どおり（グラデーションの影響を受けない）
+await setOpts({ panelPosition: 'none', colorMode: 'fixed', fixedColor: '#ff00ff' });
+check('単色モードは1本の塗りのまま', qa('[data-role="fill"]').length === 1,
+    `n=${qa('[data-role="fill"]').length}`);
+
+// 帯が1つでも落ちない
+await setOpts({ panelPosition: 'none', colorMode: 'gradient', colorBands: [{ from: null, to: null, value: '#00ccff' }] });
+check('帯が1つのグラデーションでも落ちない',
+    qa('[data-role="fill"]').length > 0 && qa('path').every((p) => !/NaN/.test(p.getAttribute('d') || '')));
+await setOpts({ panelPosition: 'none', colorMode: 'gradient', colorBands: 'broken' });
+check('壊れた帯でもグラデーションが落ちない', qa('svg').length > 0 && valueText().includes('87'), valueText());
+
 console.log('\n=== 12. テーマ切り替え ===');
 state.theme = 'light';
 fire('theme', { theme: 'light' });
