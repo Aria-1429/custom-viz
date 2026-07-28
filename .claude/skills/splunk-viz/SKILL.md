@@ -98,7 +98,37 @@ Dashboard Studio 拡張 viz の実装ナレッジを集約している:
   - 変更種別の見出し（`####`）で整理：`追加` / `変更` / `修正` / `削除` / `非推奨` / `セキュリティ`
   - 生成した `.spl` のパス（`dist/....spl`）も記載する
   - まだリリースノートセクションが無い viz を作るときは README 末尾に新設し、`1.0.0` に「新規作成（初回リリース）」を書く
+- **ルート `README.md`（リポジトリ直下）の一覧も必ず更新する（必須）**：
+  各 viz の README とは**別物**。リポジトリ直下の `README.md` にはジャンル別の viz 一覧表があり、
+  各行が `プレビュー画像 | 名前 / バージョン | 概要` になっている。ここを更新し忘れると
+  **一覧のバージョンと概要が実物と食い違う**（2026-07-28 に world-map で実際に発生。
+  v1.7.0 まで上げたのに一覧は v1.3.0 のまま、説明も「Severity で色分け」と旧仕様のままだった）。
+  - **バージョン更新時**：該当行の `<br>vX.Y.Z` を新しい版に直す。
+  - **機能を足した／仕様を変えたとき**：同じ行の「概要」も実物に合わせて直す。
+    特に**破壊的変更**（オプション名の変更・挙動の一般化など）は概要に反映する。
+  - **新規 viz を作ったとき**：適切なジャンルの表に行を追加する
+    （プレビュー画像のパスは `visualizations/<name>/examples/example.png`）。
+  - 確認コマンド（README の版と `package.json` の版がずれていないか）:
+    ```bash
+    for d in visualizations/*/; do n=$(basename "$d"); [ -f "$d/package.json" ] || continue
+      a=$(node -p "require('./$d/package.json').version" 2>/dev/null)
+      r=$(grep -A0 "visualizations/$n/)" README.md | grep -oP '<br>v\K[0-9.]+' | head -1)
+      [ "$a" != "$r" ] && echo "差異 $n: README=v${r:-なし} 実際=v$a"; done
+    ```
+    （`editor-probe` は検証用でリポジトリ一覧に載せないため、`README=vなし` と出るのが正常）
 - **実機デプロイ**：アンインストール・再起動は不要。`version` を上げ、Splunk の Upgrade チェックを通し、`_bump` ＋ハードリロードで反映する（詳細は [references/studio-extension-viz.md](references/studio-extension-viz.md) の「デプロイ」章）。
+
+### コミット／プッシュを依頼されたときのチェックリスト
+
+**ユーザーが明示的に依頼した場合のみ**実行する（既定は「Claude は push しない」）。
+依頼されたら、コミット前に以下を確認する:
+
+1. **ルート `README.md` の該当行**（バージョン・概要）が最新か ← **忘れやすい**
+2. 各 viz の `README.md` にリリースノートを追記したか
+3. `package.json` と `package/app/app.conf` のバージョンが一致しているか
+4. `yarn build && yarn package` 済みで、`.spl` が最新コードと一致しているか
+5. `yarn verify` が全件成功しているか
+6. 混入チェック：`git diff --cached --name-only | grep -E 'node_modules|/stage/|\.map$'` が空
 
 ## 依存パッケージ
 

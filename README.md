@@ -69,7 +69,7 @@ Splunk **Dashboard Studio** 向けのカスタムビジュアライゼーショ�
 
 | プレビュー | 名前 / バージョン | 概要 |
 | --- | --- | --- |
-| <img src="visualizations/world-map/examples/example.png" width="240"> | **[World Map](visualizations/world-map/)**<br>v1.3.0 | 世界地図上に起点→終点の弧を描くアタックマップ。弧に沿って光の帯が流れ、着弾点をホットスポット表示。Severity で色分け。 |
+| <img src="visualizations/world-map/examples/example.png" width="240"> | **[World Map](visualizations/world-map/)**<br>v1.7.0 | 世界地図上に起点→終点の弧を描くフローマップ。弧に沿って光の帯が流れ、着弾点をホットスポット表示。**地図アプリのようにホイールでズーム／ドラッグで移動**でき、拡大に応じて国名→都市名の地名ラベルが現れる（Natural Earth 約7,340都市を同梱）。色分けは深刻度専用ではなく**任意の列**（ログ種別・ステータス等）で行い、色は「カテゴリ名\|色」でユーザーが明示指定する（viz は語彙を推測しない）。凡例クリックで絞り込み、弧・地点のクリックでドリルダウン（トークン設定）も可能。 |
 | <img src="visualizations/japan-map/examples/example.png" width="240"> | **[Japan Map](visualizations/japan-map/)**<br>v1.2.0 | World Map の日本地図版。都道府県境あり（県名ツールチップ付き）の日本列島に、国内の起点→終点の弧＋流れる光の帯＋ホットスポットを描く。仕様は World Map と共通。 |
 | <img src="visualizations/country-graph/examples/example.png" width="240"> | **[Country Graph](visualizations/country-graph/)**<br>v1.1.0 | 国旗付きの国別ランキング棒グラフ。上位 N 制限・ソート・低／高値カラースケール。 |
 
