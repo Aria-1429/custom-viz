@@ -4,59 +4,72 @@ import {
     useOptions,
     useTheme,
 } from '@splunk/dashboard-studio-extension/react';
+// ドリルダウン API は /react ではなくコア側にある（公式 docs の記載は誤り。
+// 型定義 visualization.d.mts の export 一覧で確認済み）。
+import { addDrilldownListener } from '@splunk/dashboard-studio-extension/visualization';
 import Paragraph from '@splunk/react-ui/Paragraph';
 import Select from '@splunk/react-ui/Select';
 import WaitSpinner from '@splunk/react-ui/WaitSpinner';
 import { SplunkThemeProvider } from '@splunk/themes';
 import { geoNaturalEarth1, geoPath } from 'd3-geo';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { feature } from 'topojson-client';
 import worldTopo from 'world-atlas/countries-110m.json';
+import CITY_DATA from './data/cities.json';
 import './visualization.css';
 
 // ---------------------------------------------------------------------------
 // 定数
 // ---------------------------------------------------------------------------
-// Severity の色は「1本の順序付きパレット」だけで決める（editor.seriesColors の
-// severityColors オプション）。
+// 色分けの基準となる列（categoryField）は **何でもよい**。
+// severity（深刻度）とは限らず、ログ種別・プロトコル・部署・ステータス等、
+// ユーザーが選んだ任意の文字列カテゴリを色分けに使える。
 //
-// なぜ threshold ではなくパレットなのか:
-//   この viz の Severity は **文字列カテゴリ**（parseThreats の toSeverity が
-//   String() で読む）であって数値ではない。editor.threshold は数値レンジ→色の
-//   マッピングなので、"high" / "worm" / "P1" のような値には原理的に適用できない。
-//   したがって「登場した Severity を安定した順序に並べ、その順にパレットを配る」
-//   方式を採る。任意の語彙（severity/priority/tier/日本語 …）でも必ず全カテゴリに
-//   別々の色が付く。
+// 【設計方針】色の決定は「ユーザーが明示したものだけ」に依存する
+//   この viz は以前 KNOWN_SEVERITY_ORDER（critical→high→medium→low）で
+//   カテゴリを勝手に並べ替え、その順にパレットを配っていた。これは
+//   「色分けの基準は深刻度である」という前提を viz が押し付けるもので、
+//   ログ種別（`auth` / `firewall` / `dns` …）のような語彙では
+//   **並び順に意味が無いのに色だけ勝手に決まる**という問題があった。
 //
-// 並び順（＝パレットの適用順）:
-//   KNOWN_SEVERITY_ORDER に載っているものを先頭（critical → high → medium → low）、
-//   残りは検索結果への登場順。よくある語彙なら「1番目=赤系」が自動的に最も深刻な
-//   Severity に当たるため、既定色は v1 の見た目（High=橙赤 / Medium=黄 / Low=青）を
-//   ほぼ再現する。
+//   現在は「カテゴリ名 → 色」をユーザーが editor.arrayOfStrings で
+//   1行ずつ明示する。viz 側の語彙推測・自動解釈は一切行わない。
+//   マッピングに無いカテゴリは fallbackColor（既定色）で描く。
 //
-// ユーザーが色数を増減できるため、消費側は必ず `% length` で循環参照する。
-// config.json の severityColors.default と一致させること。
-const SEVERITY_COLOR_DEFAULTS = [
-    '#ff5a2e', // 1番目（既定語彙では High）
-    '#e6b93c', // 2番目（既定語彙では Medium）
-    '#38a6ff', // 3番目（既定語彙では Low）
-    '#b17aff',
-    '#2dd4bf',
-    '#ff7ab8',
-    '#9aa7b8',
-];
+// 明示マッピングが1件も無いときだけ、見た目が壊れないよう最低限の
+// 既定色として使う（ユーザーが色を決めていない状態のプレースホルダ）。
+const DEFAULT_CATEGORY_COLOR = '#38a6ff';
 
-// editor.seriesColors は hex 文字列の配列を生で渡してくる。解釈できない要素は落とし、
-// 空なら既定パレットへ倒す。旧 highColor/mediumColor/lowColor/extraColors への
-// フォールバックは意図的に行わない（既定値は options に載らないため、読み替えると
-// 「既定値を選んだときだけ直らない」不具合になる）。
-function severityPaletteOf(raw) {
-    const list = Array.isArray(raw) ? raw.filter((c) => parseColor(c) !== null) : [];
-    return list.length > 0 ? list : SEVERITY_COLOR_DEFAULTS;
+/**
+ * 「カテゴリ名|色」形式の行（editor.arrayOfStrings）を解釈して
+ * Map<カテゴリ名(小文字), 色文字列> を返す。
+ *
+ * 受け付ける書式（tab-selector の「表示名|トークン値」と同じ区切り文字）:
+ *   "high|#ff0000"      → high を赤
+ *   "auth | #00ff00"    → 空白は無視
+ *   "firewall|red"      → CSS 色名も可（parseColor が解釈できるものはそのまま使う）
+ *
+ * 色が解釈できない行・区切りが無い行は**黙って捨てる**（描画を壊さない）。
+ * 大文字小文字は同一視する（`High` と `high` を別カテゴリにしない）。
+ */
+function parseCategoryColorMap(raw) {
+    const map = new Map();
+    if (!Array.isArray(raw)) return map;
+    raw.forEach((line) => {
+        if (typeof line !== 'string') return;
+        const sep = line.indexOf('|');
+        if (sep < 0) return;
+        const name = line.slice(0, sep).trim();
+        const color = line.slice(sep + 1).trim();
+        if (name === '' || color === '') return;
+        // parseColor で解釈できる色だけ採用（不正値で描画が壊れるのを防ぐ）
+        if (parseColor(color) === null) return;
+        const key = name.toLowerCase();
+        if (!map.has(key)) map.set(key, color);
+    });
+    return map;
 }
-// 凡例・フィルタ・ホットスポット優先度の並び順（既知のものを先頭に、他は登場順）
-const KNOWN_SEVERITY_ORDER = ['critical', 'high', 'medium', 'low'];
 
 // ライト/ダークモード別の地図配色
 const MAP_PALETTES = {
@@ -79,6 +92,11 @@ const MAP_PALETTES = {
         legendBg: 'rgba(10, 24, 46, 0.75)',
         legendBorder: '1px solid rgba(90, 140, 200, 0.25)',
         legendText: '#e8eef6',
+        // 地名ラベル（地図由来）と始点/終点ラベル（データ由来）。
+        // labelHalo は文字の縁取り色（背景に溶けず読めるようにする）
+        placeLabel: '#cfe0f5',
+        endpointLabel: '#ffffff',
+        labelHalo: 'rgba(3, 8, 15, 0.9)',
     },
     light: {
         containerBg: '#dde7f2',
@@ -99,6 +117,9 @@ const MAP_PALETTES = {
         legendBg: 'rgba(255, 255, 255, 0.82)',
         legendBorder: '1px solid rgba(90, 140, 200, 0.35)',
         legendText: '#24354a',
+        placeLabel: '#31445c',
+        endpointLabel: '#0e1a29',
+        labelHalo: 'rgba(255, 255, 255, 0.92)',
     },
 };
 
@@ -110,11 +131,24 @@ const MAP_PALETTES = {
 // ---------------------------------------------------------------------------
 const HEX_RE = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 
+// 手入力（editor.arrayOfStrings の「カテゴリ名|色」）で使われやすい色名。
+// tint/shade でトーンを導出する都合上 {r,g,b} が必要なため、
+// ブラウザ任せにせず自前で hex に解決する。ここに無い色名は hex 指定を促す。
+const NAMED_COLORS = {
+    red: '#ff0000', crimson: '#dc143c', orange: '#ffa500', gold: '#ffd700',
+    yellow: '#ffff00', lime: '#00ff00', green: '#008000', teal: '#008080',
+    cyan: '#00ffff', aqua: '#00ffff', blue: '#0000ff', navy: '#000080',
+    purple: '#800080', magenta: '#ff00ff', fuchsia: '#ff00ff', pink: '#ffc0cb',
+    brown: '#a52a2a', white: '#ffffff', black: '#000000', gray: '#808080',
+    grey: '#808080', silver: '#c0c0c0',
+};
+
 // 色文字列を {r, g, b, a} へ変換。解釈できない値は null
 function parseColor(value) {
     if (typeof value !== 'string') return null;
-    const v = value.trim().toLowerCase();
+    let v = value.trim().toLowerCase();
     if (v === 'transparent') return { r: 0, g: 0, b: 0, a: 0 };
+    if (NAMED_COLORS[v]) v = NAMED_COLORS[v];
     if (!HEX_RE.test(v)) return null;
     let h = v.slice(1);
     if (h.length <= 4) h = h.split('').map((c) => c + c).join('');
@@ -155,6 +189,127 @@ const WORLD = (() => {
     }
 })();
 
+// 国名ラベルの表示位置（各国ポリゴンの重心を経緯度で保持）。
+// 投影は毎フレーム変わるので、ここでは地理座標のままにしておき描画時に投影する。
+// 面積の小さい国は低ズームで潰れるため、面積順でしきい値を持たせる。
+const COUNTRY_LABELS = (() => {
+    if (!WORLD) return [];
+    try {
+        const path = geoPath(geoNaturalEarth1());
+        return WORLD.features
+            .map((f) => {
+                const name = f?.properties?.name;
+                if (!name) return null;
+                const c = path.centroid(f);
+                if (!c || !Number.isFinite(c[0]) || !Number.isFinite(c[1])) return null;
+                // 投影平面上の面積を「表示に値する大きさ」の代理指標にする
+                const area = Math.abs(path.area(f)) || 0;
+                // 重心を経緯度へ戻す（描画時に現在の投影で投影し直すため）
+                const inv = geoNaturalEarth1().invert ? geoNaturalEarth1().invert(c) : null;
+                if (!inv || !Number.isFinite(inv[0]) || !Number.isFinite(inv[1])) return null;
+                return { name, lon: inv[0], lat: inv[1], area };
+            })
+            .filter(Boolean)
+            .sort((a, b) => b.area - a.area);
+    } catch (e) {
+        return [];
+    }
+})();
+
+// 都市ラベル（Natural Earth ne_50m_populated_places / パブリックドメイン）。
+// [name, lon, lat, scalerank, isCapital] のタプル配列。scalerank は小さいほど主要。
+// 重要度順にソート済みなので、ズームに応じて先頭から N 件を採用すればよい。
+const CITY_LABELS = (() => {
+    try {
+        if (!Array.isArray(CITY_DATA)) return [];
+        return CITY_DATA.map((c) => {
+            if (!Array.isArray(c) || c.length < 4) return null;
+            const [name, lon, lat, rank, cap] = c;
+            if (typeof name !== 'string' || !Number.isFinite(lon) || !Number.isFinite(lat)) {
+                return null;
+            }
+            return { name, lon, lat, rank: Number(rank) || 0, capital: cap === 1 };
+        }).filter(Boolean);
+    } catch (e) {
+        return [];
+    }
+})();
+
+// ---------------------------------------------------------------------------
+// カメラ（ズーム / 中心座標）
+// ---------------------------------------------------------------------------
+// zoom=1 が「世界全体がパネルに収まる」状態。地図アプリと同じくホイールで
+// 拡大縮小し、ドラッグでパンする。上限は都市名が読める程度まで。
+const ZOOM_MIN = 1;
+const ZOOM_MAX = 40;
+// ホイール1ノッチあたりの倍率（トラックパッドの細かい delta でも滑らかに効く）
+const ZOOM_WHEEL_SENSITIVITY = 0.0015;
+
+const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+
+// 経度は -180..180 に正規化（入力が 190 や -400 でも破綻させない）
+function wrapLon(lon) {
+    let v = ((lon + 180) % 360 + 360) % 360 - 180;
+    if (!Number.isFinite(v)) v = 0;
+    return v;
+}
+
+/**
+ * ズーム段階に応じて表示するラベルを決める。
+ *
+ * 低ズームでは主要国のみ、拡大するほど小さい国 → 主要都市 → 地方都市の順に
+ * 現れる（地図アプリの挙動）。件数を絞ることで文字の洪水と描画負荷を防ぐ。
+ */
+/**
+ * カメラ（中心経緯度＋ズーム）から投影を作る。
+ *
+ * 描画とズーム計算の両方がこの関数を通ることで、「画面上のどこが
+ * どの地理座標か」の解釈が必ず一致する（食い違うとホイールズームが
+ * カーソル位置からずれる）。
+ *
+ *   - 経度方向は rotate で回す（東西の継ぎ目が出ない）
+ *   - 緯度方向は投影後の translate で寄せる（rotate すると図法が歪むため）
+ */
+function makeProjection(size, camera) {
+    if (!WORLD || !size) return null;
+    try {
+        const { w, h } = size;
+        // 世界全体がちょうど収まる基準スケール（zoom=1 の定義）
+        const baseScale = geoNaturalEarth1().fitSize([w, h], WORLD).scale();
+        const projection = geoNaturalEarth1()
+            .rotate([-camera.lon, 0])
+            .scale(baseScale * camera.zoom)
+            .translate([w / 2, h / 2]);
+        const centerPt = projection([camera.lon, camera.lat]);
+        if (centerPt && centerPt.every(Number.isFinite)) {
+            projection.translate([
+                w / 2 - (centerPt[0] - w / 2),
+                h / 2 - (centerPt[1] - h / 2),
+            ]);
+        }
+        return projection;
+    } catch (e) {
+        return null;
+    }
+}
+
+function labelBudget(zoom, density) {
+    // density: 地名の表示量の倍率（ユーザー設定。1 = 標準）
+    const k = Number.isFinite(density) && density > 0 ? density : 1;
+    // 国: zoom1 で 14 件、zoom8 以上でほぼ全件
+    const countries = Math.round(
+        clamp((10 + (zoom - 1) * 14) * k, 10, COUNTRY_LABELS.length || 10)
+    );
+    // 都市: zoom<2 では出さない（世界表示では国名だけの方が読みやすい）。
+    // 上限はデータ件数そのもの（画面内に絞ってから採るので、
+    // 実際に描かれる数は重なり判定で自然に頭打ちになる）。
+    let cities = 0;
+    if (zoom >= 2) {
+        cities = Math.round(clamp((zoom - 2) * 40 * k + 20 * k, 0, CITY_LABELS.length || 0));
+    }
+    return { countries, cities };
+}
+
 // ---------------------------------------------------------------------------
 // オプション正規化（未設定・型不一致でも安全側に倒す）
 // ---------------------------------------------------------------------------
@@ -167,20 +322,56 @@ function normalizeOptions(options) {
     };
     return {
         showTitle: bool(o.showTitle, true),
+        // タイトル文字列。編集画面のテキスト欄で自由に変更できる。
+        // 空文字は「タイトル無し」として尊重する（既定値へ戻さない）。
+        // ホストは未設定のキーを options に載せないため、
+        // 「キーが無い＝未設定」だけを既定値に倒す。
         titleText:
-            typeof o.titleText === 'string' && o.titleText.trim() !== ''
-                ? o.titleText
-                : 'GLOBAL THREAT MAP',
+            typeof o.titleText === 'string' ? o.titleText : 'GLOBAL THREAT MAP',
         showLegend: bool(o.showLegend, true),
         showFilter: bool(o.showFilter, true),
         // 光の筋がパスを走り切る秒数。0 でアニメーション停止（静的表示）
         animDuration: Math.min(Math.max(num(o.animDuration, 2.8), 0), 60),
+        // --- カメラ（地図の中心とズーム） ---
+        // 中心経度・中心緯度。ここを変えると地図の中心が動く（例: 経度135=日本中心）
+        centerLon: wrapLon(num(o.centerLon, 0)),
+        centerLat: clamp(num(o.centerLat, 0), -85, 85),
+        // 初期ズーム倍率。1=世界全体
+        initialZoom: clamp(num(o.initialZoom, 1), ZOOM_MIN, ZOOM_MAX),
+        // ホイールズーム / ドラッグパンを許可するか
+        enableZoom: bool(o.enableZoom, true),
+        // --- 弧の見た目・件数 ---
+        // count に応じた太さの強調度。0 で一律の細線、大きいほど差が出る
+        widthScale: clamp(num(o.widthScale, 1), 0, 10),
+        // 描画する弧の上限（count の多い順）。0 で無制限
+        maxArcs: Math.max(0, Math.round(num(o.maxArcs, 0))),
+        // 地点にマウスを乗せたとき、その地点に繋がる弧だけを強調する
+        highlightOnHover: bool(o.highlightOnHover, true),
+        // --- 地名ラベル ---
+        showPlaceLabels: bool(o.showPlaceLabels, true),
+        showEndpointLabels: bool(o.showEndpointLabels, true),
+        placeLabelSize: clamp(num(o.placeLabelSize, 11), 6, 24),
+        // 地名の表示量の倍率。大きいほど多くの地名が出る（重なると自動で間引かれる）
+        labelDensity: clamp(num(o.labelDensity, 1), 0.2, 5),
+        // --- 色分け（カテゴリ） ---
+        // 「カテゴリ名|色」の明示マッピング。ここに書かれたものだけが色の根拠になる
+        categoryColors: Array.isArray(o.categoryColors) ? o.categoryColors : [],
+        // マッピングに無いカテゴリの色（未分類をどう見せるか）
+        fallbackColor:
+            parseColor(o.fallbackColor) !== null ? o.fallbackColor : DEFAULT_CATEGORY_COLOR,
+        // 凡例・フィルタに出すカテゴリの並び順（明示指定が最優先）
+        categoryOrder: Array.isArray(o.categoryOrder) ? o.categoryOrder : [],
+        // 色分けの基準列を何と呼ぶか（凡例やフィルタの見出しに使う表示上のラベル）
+        categoryLabel:
+            typeof o.categoryLabel === 'string' && o.categoryLabel.trim() !== ''
+                ? o.categoryLabel.trim()
+                : '',
         // フィールド選択（editor.columnSelector）。未設定は名前ベースの自動判定
         srcLatField: o.srcLatField,
         srcLonField: o.srcLonField,
         dstLatField: o.dstLatField,
         dstLonField: o.dstLonField,
-        severityField: o.severityField,
+        categoryField: o.categoryField,
         countField: o.countField,
         srcNameField: o.srcNameField,
         dstNameField: o.dstNameField,
@@ -249,13 +440,18 @@ function resolveFieldIndex(spec, fieldNames, sampleRows, fallbackIdx) {
     return idx >= 0 ? idx : fallbackIdx;
 }
 
+// 色分けカテゴリが空だった行に使う表示名。
+// 「未分類」という事実を示すだけで、深刻度のような意味は持たせない。
+const UNCATEGORIZED = '(未分類)';
+
 /**
- * サーチ結果を脅威レコードの配列へ変換する。
+ * サーチ結果をレコードの配列へ変換する。
  * 列の決定: editor.columnSelector の選択が最優先。未設定の列は
  * フィールド名の候補リスト（src_lat 等）で自動判定する。
- * 必須: 起点/終点の緯度経度4列。任意: severity, count, 表示名2列。
- * Severityはサーチ結果の値をそのまま使う（大文字小文字は同一視し、
- * 最初に登場した表記を代表とする）。値が無い行は "Low" 扱い。
+ * 必須: 起点/終点の緯度経度4列。任意: 色分けカテゴリ, count, 表示名2列。
+ *
+ * カテゴリ値はサーチ結果の文字列を**そのまま**使う（大文字小文字だけ同一視し、
+ * 最初に登場した表記を代表とする）。viz 側で意味の解釈・並べ替えは行わない。
  */
 function parseThreats(fieldNames, rows, opts) {
     const lower = fieldNames.map((f) => String(f).toLowerCase());
@@ -264,7 +460,13 @@ function parseThreats(fieldNames, rows, opts) {
         srcLon: findFieldIndex(lower, ['src_lon', 'src_lng', 'source_lon', 'slon']),
         dstLat: findFieldIndex(lower, ['dst_lat', 'dest_lat', 'target_lat', 'dlat']),
         dstLon: findFieldIndex(lower, ['dst_lon', 'dst_lng', 'dest_lon', 'target_lon', 'dlon']),
-        sev: findFieldIndex(lower, ['severity', 'threat_level', 'level']),
+        // 色分け列の自動判定は「よくある列名」の便宜的な当て推量にすぎない。
+        // severity 以外（category/type/status…）も同列に扱い、深刻度を特別視しない。
+        // 明示指定（categoryField）があれば常にそちらが優先される。
+        category: findFieldIndex(lower, [
+            'category', 'type', 'log_type', 'event_type', 'status', 'protocol',
+            'severity', 'threat_level', 'level',
+        ]),
         count: findFieldIndex(lower, ['count', 'events', 'total']),
         srcName: findFieldIndex(lower, ['src_name', 'src', 'source']),
         dstName: findFieldIndex(lower, ['dst_name', 'dst', 'dest', 'target']),
@@ -273,7 +475,7 @@ function parseThreats(fieldNames, rows, opts) {
     const iSrcLon = resolveFieldIndex(opts.srcLonField, fieldNames, rows, auto.srcLon);
     const iDstLat = resolveFieldIndex(opts.dstLatField, fieldNames, rows, auto.dstLat);
     const iDstLon = resolveFieldIndex(opts.dstLonField, fieldNames, rows, auto.dstLon);
-    const iSev = resolveFieldIndex(opts.severityField, fieldNames, rows, auto.sev);
+    const iCat = resolveFieldIndex(opts.categoryField, fieldNames, rows, auto.category);
     const iCount = resolveFieldIndex(opts.countField, fieldNames, rows, auto.count);
     const iSrcName = resolveFieldIndex(opts.srcNameField, fieldNames, rows, auto.srcName);
     const iDstName = resolveFieldIndex(opts.dstNameField, fieldNames, rows, auto.dstName);
@@ -282,13 +484,15 @@ function parseThreats(fieldNames, rows, opts) {
         return { threats: [], missingFields: true };
     }
 
-    // 大文字小文字違い（high / High / HIGH）を同一Severityに束ねる
-    const sevCanon = new Map();
-    const toSeverity = (raw) => {
-        const s = String(raw ?? '').trim() || 'Low';
+    // 表記ゆれ（high / High / HIGH）を同一カテゴリに束ねる。
+    // 代表表記は「最初に登場したもの」＝データ側の表記を尊重する。
+    const catCanon = new Map();
+    const toCategory = (raw) => {
+        const s = String(raw ?? '').trim();
+        if (s === '') return UNCATEGORIZED;
         const key = s.toLowerCase();
-        if (!sevCanon.has(key)) sevCanon.set(key, s);
-        return sevCanon.get(key);
+        if (!catCanon.has(key)) catCanon.set(key, s);
+        return catCanon.get(key);
     };
 
     const threats = [];
@@ -305,7 +509,7 @@ function parseThreats(fieldNames, rows, opts) {
             srcLon,
             dstLat,
             dstLon,
-            severity: toSeverity(iSev >= 0 ? row[iSev] : 'Low'),
+            category: toCategory(iCat >= 0 ? row[iCat] : ''),
             count: iCount >= 0 ? parseFloat(row[iCount]) || 1 : 1,
             srcName: iSrcName >= 0 ? String(row[iSrcName] ?? '') : '',
             dstName: iDstName >= 0 ? String(row[iDstName] ?? '') : '',
@@ -315,34 +519,47 @@ function parseThreats(fieldNames, rows, opts) {
 }
 
 /**
- * サーチ結果に登場したSeverityの一覧（表示順）と色の割り当てを作る。
+ * サーチ結果に登場したカテゴリの一覧（表示順）と色の割り当てを作る。
  *
- * - 並び順: Critical, High, Medium, Low（存在するもののみ）→ その他は登場順。
- *   よく使う語彙は既知順で先頭に来るので色が安定し、独自語彙でも「検索結果の
- *   登場順」という決定的な順序になる（同じサーチなら毎回同じ色）。
- * - 色: 上の順に severityColors パレットを 1 色ずつ配る。カテゴリ数がパレットより
- *   多い場合は循環する。特定の名前（high/medium/low）に紐づく専用色は持たない。
+ * 【重要】色も並び順も、viz は一切推測しない。
+ *
+ * - **色**: `categoryColors`（「カテゴリ名|色」の明示マッピング）に書かれた色だけを使う。
+ *   マッピングに無いカテゴリは `fallbackColor` で描く（勝手にパレットを配らない）。
+ *   これにより「深刻度だと思って赤が振られる」ような意図しない色付けが起きない。
+ * - **並び順**: `categoryOrder` に書かれた順を最優先。書かれていないカテゴリは
+ *   その後ろに**検索結果への登場順**で続く（同じサーチなら毎回同じ順序＝決定的）。
+ *   語彙の意味（critical が high より重い等）による並べ替えはしない。
  */
-function buildSeverityModel(threats, options) {
+function buildCategoryModel(threats, opts) {
+    // 検索結果に実際に登場したカテゴリ（登場順）
     const seen = [];
     threats.forEach((t) => {
-        if (!seen.includes(t.severity)) seen.push(t.severity);
+        if (!seen.includes(t.category)) seen.push(t.category);
     });
-    const known = KNOWN_SEVERITY_ORDER
-        .map((k) => seen.find((s) => s.toLowerCase() === k))
-        .filter((s) => s !== undefined);
-    const others = seen.filter((s) => !known.includes(s));
-    const severityList = [...known, ...others];
 
-    const severityColors = {};
-    const palette = severityPaletteOf(options?.severityColors);
-    severityList.forEach((sev, i) => {
-        const slot = i % palette.length;
-        severityColors[sev] =
-            parseColor(palette[slot]) ||
-            parseColor(SEVERITY_COLOR_DEFAULTS[slot % SEVERITY_COLOR_DEFAULTS.length]);
+    // 並び順: ユーザー指定を先頭に（指定されたが実データに無いものは出さない）
+    const orderSpec = opts.categoryOrder
+        .map((s) => (typeof s === 'string' ? s.trim().toLowerCase() : ''))
+        .filter((s) => s !== '');
+    const ordered = [];
+    orderSpec.forEach((key) => {
+        const hit = seen.find((s) => s.toLowerCase() === key);
+        if (hit !== undefined && !ordered.includes(hit)) ordered.push(hit);
     });
-    return { severityList, severityColors };
+    const categoryList = [...ordered, ...seen.filter((s) => !ordered.includes(s))];
+
+    // 色: 明示マッピングのみ。無ければ fallbackColor
+    const colorMap = parseCategoryColorMap(opts.categoryColors);
+    const fallback = parseColor(opts.fallbackColor) || parseColor(DEFAULT_CATEGORY_COLOR);
+    const categoryColors = {};
+    // どのカテゴリがユーザー指定の色を持つか（凡例で「未設定」を示すのに使う）
+    const explicit = {};
+    categoryList.forEach((cat) => {
+        const hit = colorMap.get(cat.toLowerCase());
+        explicit[cat] = hit !== undefined;
+        categoryColors[cat] = (hit !== undefined ? parseColor(hit) : null) || fallback;
+    });
+    return { categoryList, categoryColors, explicit };
 }
 
 // 弧（2次ベジェ曲線）の制御点を求める。
@@ -383,6 +600,13 @@ function pointLabel(name, lat, lon) {
     return name || `${lat.toFixed(1)}, ${lon.toFixed(1)}`;
 }
 
+// ツールチップ用のカテゴリ表記。末尾に区切りを含めて返す（呼び出し側は
+// `(${describeCategory(c)}count N)` の形で使う）。
+// 色分け列が無い／値が空のときは「(未分類)」を出さず、カテゴリごと省略する。
+function describeCategory(category) {
+    return !category || category === UNCATEGORIZED ? '' : `${category}, `;
+}
+
 // ---------------------------------------------------------------------------
 // コンテナの実サイズを監視するフック
 // （地図をパネル全体にフィットさせるため）
@@ -417,10 +641,10 @@ function useContainerSize() {
 // ---------------------------------------------------------------------------
 // 弧を流れる「光の帯」キャンバス
 //   流れる筋だけを Canvas に描く（地図・陸地・ホットスポット・弧のベース軌道は
-//   SVG のまま）。元の意図どおり「Severity 色の短いセグメントが弧に沿って
+//   SVG のまま）。元の意図どおり「カテゴリ色の短いセグメントが弧に沿って
 //   飛んでいく」表現。
 //   ※加算合成(lighter)での発光は廃止：弧が終点に収束する場所で重なった光の
-//     RGB が飽和して真っ白に見えたため。通常合成＋純粋な Severity 色のみで
+//     RGB が飽和して真っ白に見えたため。通常合成＋純粋なカテゴリ色のみで
 //     描くことで、何本重なっても色相が保たれる（白くならない）。
 //   チープな単色ベタ棒に見せないため:
 //     - 帯は「両端が滑らかに窄まるテーパー形状」のポリゴンを 1 回塗りで描く
@@ -437,12 +661,12 @@ const FLOW_LEN = 0.22;
 // 帯を構成するサンプル点の数（多いほど滑らか。数十本×この数でも 60fps 余裕）
 const FLOW_SAMPLES = 16;
 
-function ArcFlowCanvas({ arcs, width, height, duration }) {
+function ArcFlowCanvas({ arcs, width, height, duration, hoverKey }) {
     const canvasRef = useRef(null);
     // 最新の arcs / サイズを rAF ループから参照するための ref（再購読でループを
     // 張り直さず、値だけ差し替える）
-    const stateRef = useRef({ arcs, width, height, duration });
-    stateRef.current = { arcs, width, height, duration };
+    const stateRef = useRef({ arcs, width, height, duration, hoverKey });
+    stateRef.current = { arcs, width, height, duration, hoverKey };
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -460,7 +684,7 @@ function ArcFlowCanvas({ arcs, width, height, duration }) {
         // 光の帯1本を描く。head は帯の先頭位置(0..1)。帯は head から後方へ
         // FLOW_LEN ぶんの区間を占め、幅・不透明度とも sin エンベロープで
         // 前後両端に向かって 0 に窄まる（テーパー形状）。
-        const drawFlow = (a, head) => {
+        const drawFlow = (a, head, dim) => {
             const { sx, sy, cx, cy, tx, ty, color, w } = a;
             // 帯の中心線サンプル（座標＋法線＋エンベロープ）を先に集める
             const pts = [];
@@ -484,7 +708,7 @@ function ArcFlowCanvas({ arcs, width, height, duration }) {
             if (pts.length < 2) return;
             // 中心線の左右に halfWidth ぶん張り出したテーパーポリゴンを 1 回で
             // 塗る。重ね塗りしないのでアルファが累積せず、色は fillStyle の
-            // Severity 色を超えない（＝白飛びしない）。
+            // カテゴリ色を超えない（＝白飛びしない）。
             const fillBand = (scale, alpha) => {
                 ctx.beginPath();
                 pts.forEach((p, i) => {
@@ -503,8 +727,10 @@ function ArcFlowCanvas({ arcs, width, height, duration }) {
             };
             ctx.save();
             ctx.fillStyle = color;
-            fillBand(2.4, 0.18); // 太く淡い同色グロー（柔らかい輪郭）
-            fillBand(1.0, 0.9); // 締まった芯
+            // ホバー強調中、関係しない弧は薄く描く（0.18 倍）
+            const k = dim ? 0.18 : 1;
+            fillBand(2.4, 0.18 * k); // 太く淡い同色グロー（柔らかい輪郭）
+            fillBand(1.0, 0.9 * k); // 締まった芯
             ctx.restore();
         };
 
@@ -519,7 +745,9 @@ function ArcFlowCanvas({ arcs, width, height, duration }) {
                 // 動かして「到達 → 一瞬消える → 再出発」を途切れなくループさせる。
                 const phase = ((now - start) / (st.duration * 1000)) % 1;
                 const head = phase * (1 + FLOW_LEN);
-                st.arcs.forEach((a) => drawFlow(a, head));
+                st.arcs.forEach((a) =>
+                    drawFlow(a, head, st.hoverKey ? a.srcKey !== st.hoverKey && a.dstKey !== st.hoverKey : false)
+                );
             }
             raf = requestAnimationFrame(frame);
         };
@@ -568,24 +796,44 @@ function MessageState({ message }) {
 // ---------------------------------------------------------------------------
 // マップ本体
 // ---------------------------------------------------------------------------
-function ThreatMap({ threats, mode, severityList, severityColors, customBg, customLand, opts }) {
-    const [severityFilter, setSeverityFilter] = useState('all');
+function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, customBg, customLand, opts }) {
+    const [categoryFilter, setCategoryFilter] = useState('all');
+    // ホバー中の地点キー（"x,y"）。その地点に繋がる弧だけを強調する
+    const [hoverKey, setHoverKey] = useState(null);
     const [containerRef, size] = useContainerSize();
     const palette = MAP_PALETTES[mode] || MAP_PALETTES.dark;
+
+    // --- カメラ状態 -------------------------------------------------------
+    // オプションで与えられた中心・ズームを初期値とし、以降はユーザーの
+    // ホイール / ドラッグ操作で上書きする（地図アプリと同じ挙動）。
+    // オプション側が変わったらカメラをそれに追従させる（編集画面で経度を
+    // 入力した結果が即座に地図へ反映されるように）。
+    const [camera, setCamera] = useState(() => ({
+        lon: opts.centerLon,
+        lat: opts.centerLat,
+        zoom: opts.initialZoom,
+    }));
+
+    // 編集画面でオプションを変えたときはカメラをリセットする。
+    // 手動操作した後でもオプション変更が確実に効くよう、オプション値の
+    // 変化だけを依存にする（camera 自体を依存に入れるとループする）。
+    useEffect(() => {
+        setCamera({ lon: opts.centerLon, lat: opts.centerLat, zoom: opts.initialZoom });
+    }, [opts.centerLon, opts.centerLat, opts.initialZoom]);
 
     // アニメーション: animDuration=0 で停止（静的表示）
     const animOn = opts.animDuration > 0;
 
-    // サーチ結果が変わってフィルタ中のSeverityが消えた場合は全件表示に戻す
+    // サーチ結果が変わってフィルタ中のカテゴリが消えた場合は全件表示に戻す
     const effectiveFilter =
-        severityFilter === 'all' || severityList.includes(severityFilter)
-            ? severityFilter
+        categoryFilter === 'all' || categoryList.includes(categoryFilter)
+            ? categoryFilter
             : 'all';
 
-    // Severity → 表示順index（グラデーションIDとホットスポットの優先度に使う）
-    const sevIndex = useMemo(
-        () => Object.fromEntries(severityList.map((s, i) => [s, i])),
-        [severityList]
+    // カテゴリ → 表示順index（グラデーションIDとホットスポットの代表色選びに使う）
+    const catIndex = useMemo(
+        () => Object.fromEntries(categoryList.map((s, i) => [s, i])),
+        [categoryList]
     );
 
     // 背景: カスタム背景色が有効なら、その色からグラデーションを生成して
@@ -638,8 +886,8 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
     // 線の色から導出する派生色（ホットスポットの中心点・グロー・コメット先端）
     const derived = useMemo(() => {
         const out = {};
-        severityList.forEach((sev) => {
-            const base = severityColors[sev];
+        categoryList.forEach((sev) => {
+            const base = categoryColors[sev];
             out[sev] = {
                 css: toCss(base),
                 core: toCss(tint(base, 0.72)),
@@ -648,25 +896,185 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
             };
         });
         return out;
-    }, [severityList, severityColors]);
+    }, [categoryList, categoryColors]);
 
-    // パネルの実サイズに合わせて投影を計算（全面に描画）
+    // パネルの実サイズとカメラに合わせて投影を計算。
+    //
+    // 従来は fitExtent + preserveAspectRatio="none" で「引き伸ばして全面に敷く」
+    // 実装だったが、それではズームしても地理的に正しい拡大にならない。
+    // ここでは:
+    //   1. 一度 fitSize で「世界全体がちょうど収まる」基準スケールを求める
+    //   2. そのスケールに zoom を掛け、rotate で中心経度、translate で中心緯度を寄せる
+    // これで地図アプリと同じ「中心を保ったまま拡大縮小」が成立する。
     const geo = useMemo(() => {
-        if (!WORLD || !size) return null;
+        const projection = makeProjection(size, camera);
+        if (!projection) return null;
         try {
-            const projection = geoNaturalEarth1().fitExtent(
-                [[8, 8], [size.w - 8, size.h - 8]],
-                WORLD
-            );
             const path = geoPath(projection);
             return {
                 projection,
+                path,
                 landPath: WORLD.features.map((f) => path(f)).join(' '),
             };
         } catch (e) {
             return null;
         }
-    }, [size]);
+    }, [size, camera]);
+
+    // --- ホイールズーム / ドラッグパン -------------------------------------
+    // カーソル位置を固定点として拡大する（地図アプリの標準挙動）。
+    // wheel は passive:false でないと preventDefault できないため、
+    // React の onWheel ではなくネイティブリスナーで張る。
+    const cameraRef = useRef(camera);
+    cameraRef.current = camera;
+    const geoRef = useRef(geo);
+    geoRef.current = geo;
+    const sizeRef = useRef(size);
+    sizeRef.current = size;
+    const zoomEnabledRef = useRef(opts.enableZoom);
+    zoomEnabledRef.current = opts.enableZoom;
+
+    // ズーム後も「カーソルが指していた地点」がカーソル位置に留まるように中心を補正する。
+    //   1. 拡大前にカーソルが指していた地理座標 anchor を得る
+    //   2. 新ズームの投影を作り、そこで anchor がどこに来るかを見る
+    //   3. ズレたぶんだけ中心をずらす（＝ずらした後の中心が指す地理座標を新しい中心にする）
+    const recenterFrom = useCallback((screenX, screenY, nextZoom) => {
+        const g = geoRef.current;
+        const s = sizeRef.current;
+        if (!g || !s || !g.projection.invert) return;
+        const anchor = g.projection.invert([screenX, screenY]);
+        if (!anchor || !anchor.every(Number.isFinite)) return;
+
+        const cur = cameraRef.current;
+        const zoom = clamp(nextZoom, ZOOM_MIN, ZOOM_MAX);
+        // 中心は据え置きのままズームだけ変えた投影を作る
+        const probe = makeProjection(s, { lon: cur.lon, lat: cur.lat, zoom });
+        if (!probe || !probe.invert) {
+            setCamera((c) => ({ ...c, zoom }));
+            return;
+        }
+        const after = probe(anchor);
+        if (!after || !after.every(Number.isFinite)) {
+            setCamera((c) => ({ ...c, zoom }));
+            return;
+        }
+        // anchor がカーソルからズレた量だけ、画面中心を逆向きに動かす
+        const target = probe.invert([
+            s.w / 2 + (after[0] - screenX),
+            s.h / 2 + (after[1] - screenY),
+        ]);
+        if (target && target.every(Number.isFinite)) {
+            setCamera({ lon: wrapLon(target[0]), lat: clamp(target[1], -85, 85), zoom });
+        } else {
+            setCamera((c) => ({ ...c, zoom }));
+        }
+    }, []);
+
+    // wheel はネイティブリスナー（passive:false）で登録し、ページスクロールを止める
+    const wheelElRef = useRef(null);
+    const attachWheel = useCallback((el) => {
+        wheelElRef.current = el;
+    }, []);
+
+    useEffect(() => {
+        const el = wheelElRef.current;
+        if (!el || !opts.enableZoom) return undefined;
+        const onWheel = (e) => {
+            if (!zoomEnabledRef.current) return;
+            // オーバーレイUI（ドロップダウンの選択肢リスト等）の上でのホイールは
+            // 地図のズームにしない。リストのスクロールを妨げないため。
+            if (e.target && typeof e.target.closest === 'function' && e.target.closest('[data-viz-ui="1"]')) {
+                return;
+            }
+            e.preventDefault();
+            const rect = el.getBoundingClientRect();
+            const s = sizeRef.current;
+            // カーソル位置を固定点にする。座標が取れない環境ではパネル中心を使う
+            // （NaN のまま計算すると投影が壊れてズームが黙って効かなくなる）
+            let x = e.clientX - rect.left;
+            let y = e.clientY - rect.top;
+            if (!Number.isFinite(x) || !Number.isFinite(y)) {
+                if (!s) return;
+                x = s.w / 2;
+                y = s.h / 2;
+            }
+            const cur = cameraRef.current;
+            const delta = Number.isFinite(e.deltaY) ? e.deltaY : 0;
+            if (delta === 0) return;
+            // deltaY>0（手前に回す）で縮小。指数変換で倍率が滑らかに変わる
+            const factor = Math.exp(-delta * ZOOM_WHEEL_SENSITIVITY);
+            recenterFrom(x, y, cur.zoom * factor);
+        };
+        el.addEventListener('wheel', onWheel, { passive: false });
+        return () => el.removeEventListener('wheel', onWheel);
+    }, [opts.enableZoom, recenterFrom, geo !== null, size !== null]);
+
+    // ドラッグでパン（ポインタイベントでマウス/タッチ両対応）
+    const dragRef = useRef(null);
+    const onPointerDown = useCallback((e) => {
+        if (!zoomEnabledRef.current) return;
+        // 【重要】オーバーレイUI（フィルタのドロップダウン等）の上で押した場合は
+        // パンを開始しない。ここで setPointerCapture すると以降のポインタイベントが
+        // すべてコンテナへ横取りされ、Select が自身の pointerup / click を
+        // 受け取れなくなる（＝クリックしてもドロップダウンが開かない）。
+        // data-viz-ui="1" を付けた要素の内側からの操作は viz 側では扱わない。
+        if (e.target && typeof e.target.closest === 'function' && e.target.closest('[data-viz-ui="1"]')) {
+            return;
+        }
+        const g = geoRef.current;
+        if (!g || !g.projection.invert) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+        if (!Number.isFinite(px) || !Number.isFinite(py)) return;
+        const origin = g.projection.invert([px, py]);
+        if (!origin || !origin.every(Number.isFinite)) return;
+        dragRef.current = { origin, rect, camera: cameraRef.current, moved: false };
+        // ポインタ捕捉は「実際に動き始めてから」行う（onPointerMove 側）。
+        // 押した瞬間に捕捉すると、単なるクリックでも下の要素がイベントを失う。
+    }, []);
+
+    const onPointerMove = useCallback((e) => {
+        const drag = dragRef.current;
+        const g = geoRef.current;
+        if (!drag || !g || !g.projection.invert) return;
+        const here = g.projection.invert([
+            e.clientX - drag.rect.left,
+            e.clientY - drag.rect.top,
+        ]);
+        if (!here || !here.every(Number.isFinite)) return;
+        // 実際に動き始めた最初の1回だけポインタを捕捉する。
+        // こうするとクリック（押して離すだけ）では捕捉が起きないため、
+        // オーバーレイUIや将来のドリルダウンのクリックを妨げない。
+        if (!drag.moved) {
+            drag.moved = true;
+            try {
+                e.currentTarget.setPointerCapture(e.pointerId);
+            } catch (err) { /* 未対応環境では捕捉なしでも概ね動く */ }
+        }
+        // 掴んだ地点がカーソルに追従するよう中心をずらす
+        const cur = cameraRef.current;
+        setCamera({
+            lon: wrapLon(cur.lon - (here[0] - drag.origin[0])),
+            lat: clamp(cur.lat - (here[1] - drag.origin[1]), -85, 85),
+            zoom: cur.zoom,
+        });
+    }, []);
+
+    const endDrag = useCallback((e) => {
+        const drag = dragRef.current;
+        if (!drag) return;
+        dragRef.current = null;
+        if (!drag.moved) return; // 捕捉していないので解放も不要
+        try {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+        } catch (err) { /* noop */ }
+    }, []);
+
+    // ダブルクリックで初期表示（オプションの中心・ズーム）へ戻す
+    const onDoubleClick = useCallback(() => {
+        setCamera({ lon: opts.centerLon, lat: opts.centerLat, zoom: opts.initialZoom });
+    }, [opts.centerLon, opts.centerLat, opts.initialZoom]);
 
     // 座標を投影し、フィルタを適用
     const projected = useMemo(() => {
@@ -681,12 +1089,64 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
             .filter(Boolean);
     }, [geo, threats]);
 
-    const visible = useMemo(
-        () =>
+    const visible = useMemo(() => {
+        const filtered =
             effectiveFilter === 'all'
                 ? projected
-                : projected.filter((t) => t.severity === effectiveFilter),
-        [projected, effectiveFilter]
+                : projected.filter((t) => t.category === effectiveFilter);
+        // 上限が設定されていれば count の多い順に絞る（0 = 無制限）。
+        // 元の並び順は維持したいので、残す id の集合を作ってから filter する。
+        if (opts.maxArcs > 0 && filtered.length > opts.maxArcs) {
+            const keep = new Set(
+                [...filtered]
+                    .sort((a, b) => b.count - a.count)
+                    .slice(0, opts.maxArcs)
+                    .map((t) => t.id)
+            );
+            return filtered.filter((t) => keep.has(t.id));
+        }
+        return filtered;
+    }, [projected, effectiveFilter, opts.maxArcs]);
+
+    // 表示中の弧における count の範囲。太さの正規化に使う。
+    // 固定式（sqrt(count)）だと count が 10 でも 10000 でも太さがほぼ変わらないため、
+    // 「実データの最小〜最大」を基準に相対的な太さを決める。
+    const countRange = useMemo(() => {
+        let lo = Infinity;
+        let hi = -Infinity;
+        visible.forEach((t) => {
+            if (t.count < lo) lo = t.count;
+            if (t.count > hi) hi = t.count;
+        });
+        return Number.isFinite(lo) && Number.isFinite(hi) ? { lo, hi } : { lo: 0, hi: 0 };
+    }, [visible]);
+
+    // ホバー強調が有効なときだけ実際に適用する
+    const activeHoverKey = opts.highlightOnHover ? hoverKey : null;
+
+    // --- ドリルダウン（インタラクション） ---------------------------------
+    // 発火するのは addDrilldownListener に登録した DOM ノードのクリックだけ。
+    // triggerDrilldown() を自前の onClick から呼んでも効かない（サイレントに無視される）。
+    // そのため「要素1つずつ」に、その要素専用の payload を閉じ込めて登録する。
+    // payloadCallback を使い回して行番号を固定すると、どこを押しても同じ行が飛ぶ。
+    const arcRefs = useRef(new Map());
+    const spotRefs = useRef(new Map());
+
+    // count → 線幅。widthScale=0 なら一律。データが全て同値なら中庸の太さ。
+    const arcWidth = useCallback(
+        (count) => {
+            const BASE = 0.9;
+            if (opts.widthScale <= 0) return BASE;
+            const { lo, hi } = countRange;
+            // sqrt で圧縮してから 0..1 に正規化（極端な外れ値に引っ張られにくい）
+            const norm =
+                hi > lo
+                    ? (Math.sqrt(Math.max(count, 0)) - Math.sqrt(Math.max(lo, 0))) /
+                      (Math.sqrt(Math.max(hi, 0)) - Math.sqrt(Math.max(lo, 0)))
+                    : 0.5;
+            return BASE + clamp(norm, 0, 1) * 3.2 * opts.widthScale;
+        },
+        [countRange, opts.widthScale]
     );
 
     // Canvas の光の帯用の弧データ（制御点・色・線幅を事前計算して rAF から使う）
@@ -694,7 +1154,6 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
         () =>
             visible.map((t) => {
                 const { cx, cy } = arcControl(t.sx, t.sy, t.tx, t.ty);
-                const width = Math.min(1 + Math.sqrt(t.count) * 0.12, 2.2);
                 return {
                     sx: t.sx,
                     sy: t.sy,
@@ -702,34 +1161,169 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
                     cy,
                     tx: t.tx,
                     ty: t.ty,
-                    color: derived[t.severity]?.css || 'rgb(56, 166, 255)',
-                    w: width,
+                    color: derived[t.category]?.css || 'rgb(56, 166, 255)',
+                    w: arcWidth(t.count),
+                    // ホバー強調時に「関係ない弧」を薄くするための識別子
+                    id: t.id,
+                    srcKey: `${t.sx.toFixed(1)},${t.sy.toFixed(1)}`,
+                    dstKey: `${t.tx.toFixed(1)},${t.ty.toFixed(1)}`,
                 };
             }),
-        [visible, derived]
+        [visible, derived, arcWidth]
     );
 
-    // 攻撃元・攻撃先のホットスポット
-    // 重複除去 + 同一地点に複数Severityの線がある場合は最も緊急度の高い
-    // （表示順が先の）色を採用。表示名は最初に見つかった非空のものを使う
+    // --- 地名ラベル（ズーム段階で国名 → 都市名が現れる） -------------------
+    // 画面外は捨て、重なるものは重要度の高い方を残す（地図アプリの間引きと同じ）。
+    // 始点/終点の都市ラベルを優先したいので、そちらが先に場所を確保する。
+    const placeLabels = useMemo(() => {
+        if (!geo || !size || !opts.showPlaceLabels) return [];
+        const { w, h } = size;
+        const fs = opts.placeLabelSize;
+        const budget = labelBudget(camera.zoom, opts.labelDensity);
+        // 占有済み矩形。ラベル同士が重ならないかの判定に使う
+        const taken = [];
+        // 表示量に応じてラベル同士の間隔を変える（＝重なり判定の厳しさを変える）。
+        // 件数の上限だけ動かしても、判定が固定だと実際の表示数はほとんど変わらないため、
+        // 「候補数」と「間隔」の両方を連動させる。
+        //   density>1 … 間隔を詰めて多く出す（下限 0.45）
+        //   density<1 … 間隔を広げて厳選する（上限 2.0）
+        const pad = clamp(1 / (opts.labelDensity || 1), 0.45, 2);
+        const fits = (x, y, text) => {
+            // SVG に measureText は無いため推定幅（CJK は全角、他は約0.6em）
+            let wEst = 0;
+            for (const ch of text) {
+                wEst += ch.codePointAt(0) > 0x2e7f ? fs : fs * 0.6;
+            }
+            wEst *= pad;
+            const box = { x0: x - wEst / 2, x1: x + wEst / 2, y0: y - fs * pad, y1: y + fs * 0.4 * pad };
+            if (box.x0 < 2 || box.x1 > w - 2 || box.y0 < 2 || box.y1 > h - 2) return null;
+            for (const t of taken) {
+                if (box.x0 < t.x1 && box.x1 > t.x0 && box.y0 < t.y1 && box.y1 > t.y0) return null;
+            }
+            return box;
+        };
+        const out = [];
+        const place = (name, lon, lat, kind) => {
+            const p = geo.projection([lon, lat]);
+            if (!p || !p.every(Number.isFinite)) return;
+            const box = fits(p[0], p[1], name);
+            if (!box) return;
+            taken.push(box);
+            out.push({ name, x: p[0], y: p[1], kind });
+        };
+
+        // 1. 始点/終点の都市名は最優先で確保する（ユーザーのデータそのもの）
+        if (opts.showEndpointLabels) {
+            const endpoints = new Map();
+            visible.forEach((t) => {
+                if (t.srcName) endpoints.set(`${t.sx.toFixed(1)},${t.sy.toFixed(1)}`, { n: t.srcName, lon: t.srcLon, lat: t.srcLat });
+                if (t.dstName) endpoints.set(`${t.tx.toFixed(1)},${t.ty.toFixed(1)}`, { n: t.dstName, lon: t.dstLon, lat: t.dstLat });
+            });
+            endpoints.forEach((e) => place(e.n, e.lon, e.lat, 'endpoint'));
+        }
+
+        // 2. 国名（面積の大きい順に budget 件まで）
+        COUNTRY_LABELS.slice(0, budget.countries).forEach((c) => place(c.name, c.lon, c.lat, 'country'));
+
+        // 3. 都市名（重要度順に budget 件まで。ズームが浅いうちは 0 件）
+        //
+        // 【重要】「上位N件を取ってから画面内かを見る」のは誤り。
+        // 拡大すると世界の主要都市はほとんど画面外になるため、
+        // 上位N件がまるごと捨てられ「ズームするほど地名が減る」症状になっていた
+        // （zoom40 で budget=600 件なのに実際は3件しか出ない、という実測値）。
+        // 正しくは **先に画面内へ絞り、そのうえで重要度順に budget 件** を採る。
+        if (budget.cities > 0) {
+            const inView = [];
+            for (let i = 0; i < CITY_LABELS.length; i += 1) {
+                const c = CITY_LABELS[i];
+                const p = geo.projection([c.lon, c.lat]);
+                if (!p || !p.every(Number.isFinite)) continue;
+                if (p[0] < 0 || p[0] > w || p[1] < 0 || p[1] > h) continue;
+                // CITY_LABELS は重要度順に並んでいるので、この順序がそのまま優先度になる
+                inView.push({ c, p });
+                if (inView.length >= budget.cities) break;
+            }
+            inView.forEach(({ c }) => place(c.name, c.lon, c.lat, 'city'));
+        }
+        return out;
+    }, [geo, size, camera.zoom, opts.showPlaceLabels, opts.showEndpointLabels, opts.placeLabelSize, opts.labelDensity, visible]);
+
+    // 起点・終点のホットスポット
+    // 重複除去 + 同一地点に複数カテゴリの線が集まる場合は「表示順が先の」色を採用する。
+    // 表示順はユーザーの categoryOrder（未指定なら登場順）なので、
+    // **どのカテゴリを代表色にするかもユーザーの指定に従う**ことになる。
+    // 「深刻度が高い方を優先」のような意味的な判断は viz では行わない。
+    // 表示名は最初に見つかった非空のものを使う。
     const { sources, targets } = useMemo(() => {
         const srcMap = new Map();
         const dstMap = new Map();
-        const merge = (map, key, x, y, count, severity, name) => {
-            if (!map.has(key)) map.set(key, { x, y, count: 0, severity, name: '' });
+        const merge = (map, key, x, y, count, category, name) => {
+            if (!map.has(key)) map.set(key, { x, y, count: 0, category, name: '' });
             const entry = map.get(key);
             entry.count += count;
             if (!entry.name && name) entry.name = name;
-            if ((sevIndex[severity] ?? 0) < (sevIndex[entry.severity] ?? 0)) {
-                entry.severity = severity;
+            if ((catIndex[category] ?? 0) < (catIndex[entry.category] ?? 0)) {
+                entry.category = category;
             }
         };
         visible.forEach((t) => {
-            merge(srcMap, `${t.sx.toFixed(1)},${t.sy.toFixed(1)}`, t.sx, t.sy, t.count, t.severity, t.srcName);
-            merge(dstMap, `${t.tx.toFixed(1)},${t.ty.toFixed(1)}`, t.tx, t.ty, t.count, t.severity, t.dstName);
+            merge(srcMap, `${t.sx.toFixed(1)},${t.sy.toFixed(1)}`, t.sx, t.sy, t.count, t.category, t.srcName);
+            merge(dstMap, `${t.tx.toFixed(1)},${t.ty.toFixed(1)}`, t.tx, t.ty, t.count, t.category, t.dstName);
         });
         return { sources: [...srcMap.values()], targets: [...dstMap.values()] };
-    }, [visible, sevIndex]);
+    }, [visible, catIndex]);
+
+    // 弧とホットスポットをドリルダウン対象として登録する。
+    // 要素は再描画で作り直されるため、データが変わるたびに登録し直す。
+    // 登録に失敗しても描画は続行する（ホスト API 未提供の環境で落とさない）。
+    useEffect(() => {
+        if (typeof addDrilldownListener !== 'function') return;
+        try {
+            visible.forEach((t) => {
+                const node = arcRefs.current.get(t.id);
+                if (!node) return;
+                addDrilldownListener({
+                    node,
+                    action: 'link.click',
+                    // この要素専用の payload（固定でよい）。
+                    // row.<フィールド名>.value 形式にすると
+                    // 編集画面「インタラクション」からフィールド名で参照できる。
+                    payloadCallback: () => ({
+                        'row.src_name.value': t.srcName,
+                        'row.dst_name.value': t.dstName,
+                        'row.src_lat.value': t.srcLat,
+                        'row.src_lon.value': t.srcLon,
+                        'row.dst_lat.value': t.dstLat,
+                        'row.dst_lon.value': t.dstLon,
+                        'row.category.value': t.category,
+                        'row.count.value': t.count,
+                        name: 'src_name',
+                        value: t.srcName || `${t.srcLat},${t.srcLon}`,
+                    }),
+                });
+            });
+            [...sources.map((s) => ({ s, kind: 'src' })), ...targets.map((s) => ({ s, kind: 'dst' }))]
+                .forEach(({ s, kind }) => {
+                    const key = `${kind}:${s.x.toFixed(1)},${s.y.toFixed(1)}`;
+                    const node = spotRefs.current.get(key);
+                    if (!node) return;
+                    addDrilldownListener({
+                        node,
+                        action: 'point.click',
+                        payloadCallback: () => ({
+                            'row.name.value': s.name,
+                            'row.category.value': s.category,
+                            'row.count.value': s.count,
+                            'row.role.value': kind === 'src' ? 'source' : 'target',
+                            name: kind === 'src' ? 'src_name' : 'dst_name',
+                            value: s.name || `${s.x.toFixed(1)},${s.y.toFixed(1)}`,
+                        }),
+                    });
+                });
+        } catch (e) {
+            /* ドリルダウン未対応環境でも描画は続ける */
+        }
+    }, [visible, sources, targets]);
 
     // パネル実サイズに応じたオーバーレイのレイアウト計算
     // （小パネルで文字がはみ出したり要素同士が重ならないよう、
@@ -744,8 +1338,9 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
         // タイトルは幅が狭い / フィルタと重なる恐れがある場合に隠す
         //  - w<260 では横幅不足で隠す
         //  - フィルタ表示中かつ w<420 では上部バンドで重なるため隠す
+        // 文字列が空ならタイトル枠自体を出さない（空欄＝タイトル無しの指定）
         const showTitle =
-            opts.showTitle && w >= 260 && !(showFilter && w < 420);
+            opts.showTitle && opts.titleText.trim() !== '' && w >= 260 && !(showFilter && w < 420);
         // 凡例は極端に小さいパネルでは隠す。中間サイズでは横並びのコンパクト表示
         const showLegend = opts.showLegend && w >= 200 && h >= 140;
         const legendCompact = w < 360 || h < 240;
@@ -779,11 +1374,19 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
             legSwatchH,
             legDir,
         };
-    }, [size, opts.showTitle, opts.showFilter, opts.showLegend]);
+    }, [size, opts.showTitle, opts.titleText, opts.showFilter, opts.showLegend]);
 
     return (
         <div
-            ref={containerRef}
+            ref={(el) => {
+                containerRef.current = el;
+                attachWheel(el);
+            }}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
+            onDoubleClick={onDoubleClick}
             style={{
                 position: 'relative',
                 width: '100%',
@@ -791,6 +1394,11 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
                 minHeight: 200,
                 background: background.containerBg,
                 overflow: 'hidden',
+                // ズーム有効時は掴めることを示す。ドラッグ中は握った形に変える
+                cursor: opts.enableZoom ? (dragRef.current ? 'grabbing' : 'grab') : 'default',
+                // ドラッグ中にテキスト選択やブラウザのパンが割り込まないようにする
+                userSelect: 'none',
+                touchAction: opts.enableZoom ? 'none' : 'auto',
                 fontFamily:
                     'Splunk Platform Sans, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
             }}
@@ -798,7 +1406,6 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
             {geo && size && (
                 <svg
                     viewBox={`0 0 ${size.w} ${size.h}`}
-                    preserveAspectRatio="none"
                     style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
                 >
                     <defs>
@@ -809,8 +1416,8 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
                                 ))}
                             </radialGradient>
                         )}
-                        {/* Severity別のホットスポットグロー（線の色から導出・動的） */}
-                        {severityList.map((sev, i) => (
+                        {/* カテゴリ別のホットスポットグロー（線の色から導出・動的） */}
+                        {categoryList.map((sev, i) => (
                             <radialGradient key={sev} id={`gtm-hot-${i}`}>
                                 <stop
                                     offset="0%"
@@ -872,13 +1479,13 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
                         return (
                             <g key={`src-${i}`}>
                                 <title>
-                                    {`Source: ${s.name || 'unknown'} (${s.severity}, count ${s.count})`}
+                                    {`Source: ${s.name || 'unknown'} (${describeCategory(s.category)}count ${s.count})`}
                                 </title>
                                 <circle
                                     cx={s.x}
                                     cy={s.y}
                                     r={base}
-                                    fill={`url(#gtm-hot-${sevIndex[s.severity] ?? 0})`}
+                                    fill={`url(#gtm-hot-${catIndex[s.category] ?? 0})`}
                                 >
                                     {animOn && (
                                         <animate
@@ -903,7 +1510,22 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
                                     cx={s.x}
                                     cy={s.y}
                                     r="3"
-                                    fill={derived[s.severity]?.core}
+                                    fill={derived[s.category]?.core}
+                                />
+                                {/* 透明な当たり判定。ホバー強調とドリルダウンの受け口。 */}
+                                <circle
+                                    ref={(el) => {
+                                        const k = `src:${s.x.toFixed(1)},${s.y.toFixed(1)}`;
+                                        if (el) spotRefs.current.set(k, el);
+                                        else spotRefs.current.delete(k);
+                                    }}
+                                    cx={s.x}
+                                    cy={s.y}
+                                    r="12"
+                                    fill="transparent"
+                                    style={{ cursor: 'pointer' }}
+                                    onMouseEnter={() => setHoverKey(`${s.x.toFixed(1)},${s.y.toFixed(1)}`)}
+                                    onMouseLeave={() => setHoverKey(null)}
                                 />
                             </g>
                         );
@@ -913,20 +1535,34 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
                     {targets.map((t, i) => (
                         <g key={`dst-${i}`}>
                             <title>
-                                {`Target: ${t.name || 'unknown'} (${t.severity}, count ${t.count})`}
+                                {`Target: ${t.name || 'unknown'} (${describeCategory(t.category)}count ${t.count})`}
                             </title>
                             <circle
                                 cx={t.x}
                                 cy={t.y}
                                 r="20"
-                                fill={`url(#gtm-hot-${sevIndex[t.severity] ?? 0})`}
+                                fill={`url(#gtm-hot-${catIndex[t.category] ?? 0})`}
                                 opacity="0.85"
                             />
                             <circle
                                 cx={t.x}
                                 cy={t.y}
                                 r="2.5"
-                                fill={derived[t.severity]?.core}
+                                fill={derived[t.category]?.core}
+                            />
+                            <circle
+                                ref={(el) => {
+                                    const k = `dst:${t.x.toFixed(1)},${t.y.toFixed(1)}`;
+                                    if (el) spotRefs.current.set(k, el);
+                                    else spotRefs.current.delete(k);
+                                }}
+                                cx={t.x}
+                                cy={t.y}
+                                r="12"
+                                fill="transparent"
+                                style={{ cursor: 'pointer' }}
+                                onMouseEnter={() => setHoverKey(`${t.x.toFixed(1)},${t.y.toFixed(1)}`)}
+                                onMouseLeave={() => setHoverKey(null)}
                             />
                         </g>
                     ))}
@@ -937,10 +1573,18 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
                           軌道2: 細い芯線（弧の存在を常に示す薄い実線）
                         animOn 時は軌道を控えめにして彗星を主役に、静的時は芯線を濃くする。 */}
                     {visible.map((t) => {
-                        const color = derived[t.severity]?.css || 'rgb(56, 166, 255)';
+                        const color = derived[t.category]?.css || 'rgb(56, 166, 255)';
                         const d = arcPath(t.sx, t.sy, t.tx, t.ty);
-                        const width = Math.min(1 + Math.sqrt(t.count) * 0.12, 2.2);
-                        const tip = `${pointLabel(t.srcName, t.srcLat, t.srcLon)} → ${pointLabel(t.dstName, t.dstLat, t.dstLon)} (${t.severity}, count ${t.count})`;
+                        const width = arcWidth(t.count);
+                        const srcKey = `${t.sx.toFixed(1)},${t.sy.toFixed(1)}`;
+                        const dstKey = `${t.tx.toFixed(1)},${t.ty.toFixed(1)}`;
+                        // ホバー強調中、その地点に繋がらない弧は薄くする
+                        const dim =
+                            activeHoverKey !== null &&
+                            srcKey !== activeHoverKey &&
+                            dstKey !== activeHoverKey;
+                        const k = dim ? 0.22 : 1;
+                        const tip = `${pointLabel(t.srcName, t.srcLat, t.srcLon)} → ${pointLabel(t.dstName, t.dstLat, t.dstLon)} (${describeCategory(t.category)}count ${t.count})`;
                         return (
                             <g key={`arc-${t.id}`}>
                                 <title>{tip}</title>
@@ -950,7 +1594,7 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
                                     stroke={color}
                                     strokeWidth={width * 2.4}
                                     strokeLinecap="round"
-                                    opacity={animOn ? '0.14' : '0.28'}
+                                    opacity={(animOn ? 0.14 : 0.28) * k}
                                     filter="url(#gtm-arc-glow)"
                                 />
                                 <path
@@ -959,9 +1603,60 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
                                     stroke={color}
                                     strokeWidth={width * 0.7}
                                     strokeLinecap="round"
-                                    opacity={animOn ? '0.3' : '0.75'}
+                                    opacity={(animOn ? 0.3 : 0.75) * k}
+                                />
+                                {/* 透明な太い当たり判定。細い線でもホバー/クリックしやすくする。
+                                    ドリルダウンはこの要素に登録する（addDrilldownListener）。 */}
+                                <path
+                                    ref={(el) => {
+                                        if (el) arcRefs.current.set(t.id, el);
+                                        else arcRefs.current.delete(t.id);
+                                    }}
+                                    d={d}
+                                    fill="none"
+                                    stroke="transparent"
+                                    strokeWidth={Math.max(width * 3, 10)}
+                                    strokeLinecap="round"
+                                    style={{ cursor: 'pointer' }}
+                                    onMouseEnter={() => setHoverKey(srcKey)}
+                                    onMouseLeave={() => setHoverKey(null)}
                                 />
                             </g>
+                        );
+                    })}
+
+                    {/* 地名ラベル。ズームに応じて国名 → 都市名の順に現れる。
+                        始点/終点の都市名は最優先で場所を確保し、地図の地名より
+                        目立つ配色にする（データが主役であることを崩さないため）。
+                        縁取り(paint-order: stroke)で地図の上でも読めるようにする。 */}
+                    {placeLabels.map((l) => {
+                        const isEndpoint = l.kind === 'endpoint';
+                        const isCountry = l.kind === 'country';
+                        return (
+                            <text
+                                key={`lbl-${l.kind}-${l.name}-${Math.round(l.x)}-${Math.round(l.y)}`}
+                                x={l.x}
+                                y={l.y - (isEndpoint ? 9 : 0)}
+                                textAnchor="middle"
+                                fontSize={
+                                    isEndpoint
+                                        ? opts.placeLabelSize + 1
+                                        : isCountry
+                                          ? opts.placeLabelSize
+                                          : opts.placeLabelSize - 1
+                                }
+                                fontWeight={isEndpoint ? 700 : isCountry ? 600 : 400}
+                                fill={isEndpoint ? palette.endpointLabel : palette.placeLabel}
+                                opacity={isEndpoint ? 1 : isCountry ? 0.9 : 0.75}
+                                stroke={palette.labelHalo}
+                                strokeWidth={isEndpoint ? 3.5 : 2.5}
+                                strokeOpacity={0.85}
+                                paintOrder="stroke"
+                                strokeLinejoin="round"
+                                style={{ pointerEvents: 'none' }}
+                            >
+                                {l.name}
+                            </text>
                         );
                     })}
                 </svg>
@@ -975,6 +1670,7 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
                     width={size.w}
                     height={size.h}
                     duration={opts.animDuration}
+                    hoverKey={opts.highlightOnHover ? hoverKey : null}
                 />
             )}
 
@@ -1003,10 +1699,14 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
                 </div>
             )}
 
-            {/* Severityフィルタ（右上・地図の内側。サーチ結果から動的生成）
+            {/* カテゴリフィルタ（右上・地図の内側。サーチ結果から動的生成）
                 狭幅パネルではタイトルとの衝突を避けるため非表示 */}
             {overlay.showFilter && (
                 <div
+                    // data-viz-ui: この内側で押しても地図のパンを開始しない
+                    // （ポインタ捕捉に奪われて Select が開かなくなるのを防ぐ）
+                    data-viz-ui="1"
+                    onDoubleClick={(e) => e.stopPropagation()}
                     style={{
                         position: 'absolute',
                         top: 12,
@@ -1015,19 +1715,46 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
                         border: palette.panelBorder,
                         borderRadius: 8,
                         padding: 4,
-                        zIndex: 2,
+                        zIndex: 4,
                     }}
                 >
                     <Select
                         value={effectiveFilter}
-                        onChange={(e, { value }) => setSeverityFilter(value)}
+                        onChange={(e, { value }) => setCategoryFilter(value)}
                         appearance="subtle"
                     >
-                        <Select.Option label="All Threats" value="all" />
-                        {severityList.map((sev) => (
-                            <Select.Option key={sev} label={sev} value={sev} />
+                        <Select.Option label={opts.categoryLabel ? `すべての${opts.categoryLabel}` : 'すべて'} value="all" />
+                        {categoryList.map((cat) => (
+                            <Select.Option key={cat} label={cat} value={cat} />
                         ))}
                     </Select>
+                </div>
+            )}
+
+            {/* ズーム倍率の表示とリセット（右下）。
+                ズーム中だけ出し、押すと初期表示（オプションの中心・ズーム）へ戻る。
+                編集モードでは iframe への入力が遮断されるため表示モードでのみ機能する。 */}
+            {opts.enableZoom && Math.abs(camera.zoom - opts.initialZoom) > 0.01 && size && size.w >= 200 && (
+                <div
+                    data-viz-ui="1"
+                    onClick={onDoubleClick}
+                    onDoubleClick={(e) => e.stopPropagation()}
+                    title="初期表示に戻す"
+                    style={{
+                        position: 'absolute',
+                        right: 16,
+                        bottom: 14,
+                        background: palette.panelBg,
+                        border: palette.panelBorder,
+                        borderRadius: 8,
+                        padding: '4px 10px',
+                        color: palette.legendText,
+                        fontSize: 12,
+                        cursor: 'pointer',
+                        zIndex: 3,
+                    }}
+                >
+                    {`×${camera.zoom.toFixed(1)}　⟲`}
                 </div>
             )}
 
@@ -1036,6 +1763,8 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
                 さらに狭い場合は各行も横並びにして縦方向のかさばりを抑える */}
             {overlay.showLegend && (
                 <div
+                    data-viz-ui="1"
+                    onDoubleClick={(e) => e.stopPropagation()}
                     style={{
                         position: 'absolute',
                         left: 16,
@@ -1050,13 +1779,43 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
                         flexWrap: overlay.legDir === 'row' ? 'wrap' : 'nowrap',
                         gap: overlay.legRowGap,
                         columnGap: overlay.legDir === 'row' ? overlay.legGap + 2 : overlay.legRowGap,
-                        zIndex: 2,
+                        zIndex: 4,
                     }}
                 >
-                    {severityList.map((sev) => (
+                    {/* 見出し（色分けの基準列の呼び名）。categoryLabel 未設定なら出さない */}
+                    {opts.categoryLabel && overlay.legDir === 'column' && (
                         <div
-                            key={sev}
-                            style={{ display: 'flex', alignItems: 'center', gap: overlay.legGap }}
+                            style={{
+                                color: palette.legendText,
+                                fontSize: overlay.legFont,
+                                fontWeight: 700,
+                                opacity: 0.8,
+                                whiteSpace: 'nowrap',
+                            }}
+                        >
+                            {opts.categoryLabel}
+                        </div>
+                    )}
+                    {categoryList.map((cat) => {
+                        // 凡例クリックで絞り込み（もう一度押すと解除）。
+                        // 絞り込み中は対象外のカテゴリを薄く表示して現在の状態を示す。
+                        const isActive = effectiveFilter === cat;
+                        const isDimmed = effectiveFilter !== 'all' && !isActive;
+                        const hint = explicit?.[cat]
+                            ? ''
+                            : `（色が未設定のため既定色。編集画面の「色分け」で「${cat}|#RRGGBB」を追加すると色が付きます）`;
+                        return (
+                        <div
+                            key={cat}
+                            onClick={() => setCategoryFilter(isActive ? 'all' : cat)}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: overlay.legGap,
+                                cursor: 'pointer',
+                                opacity: isDimmed ? 0.4 : 1,
+                            }}
+                            title={`${cat}${hint}（クリックで${isActive ? '絞り込みを解除' : 'このカテゴリだけ表示'}）`}
                         >
                             <span
                                 style={{
@@ -1064,8 +1823,11 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
                                     height: overlay.legSwatchH,
                                     borderRadius: 3,
                                     flexShrink: 0,
-                                    background: derived[sev].css,
-                                    boxShadow: `0 0 8px ${derived[sev].css}`,
+                                    background: derived[cat].css,
+                                    boxShadow: `0 0 8px ${derived[cat].css}`,
+                                    // 未設定は輪郭を破線にして「既定色である」ことを視覚的に示す
+                                    outline: explicit?.[cat] ? 'none' : `1px dashed ${palette.legendText}`,
+                                    outlineOffset: 1,
                                 }}
                             />
                             <span
@@ -1073,12 +1835,16 @@ function ThreatMap({ threats, mode, severityList, severityColors, customBg, cust
                                     color: palette.legendText,
                                     fontSize: overlay.legFont,
                                     whiteSpace: 'nowrap',
+                                    opacity: explicit?.[cat] ? 1 : 0.75,
+                                    fontWeight: isActive ? 700 : 400,
+                                    textDecoration: isActive ? 'underline' : 'none',
                                 }}
                             >
-                                {sev}
+                                {cat}
                             </span>
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
         </div>
@@ -1101,10 +1867,11 @@ function ThreatMapVisualization({ mode }) {
         [fieldNames, rows, opts]
     );
 
-    // サーチ結果に登場したSeverity一覧と、オプションで設定された色の割り当て
-    const { severityList, severityColors } = useMemo(
-        () => buildSeverityModel(threats, options),
-        [threats, options]
+    // サーチ結果に登場したカテゴリ一覧と、オプションで設定された色の割り当て。
+    // 正規化済みの opts を渡す（生の options ではなく）。
+    const { categoryList, categoryColors, explicit } = useMemo(
+        () => buildCategoryModel(threats, opts),
+        [threats, opts]
     );
 
     // カスタム背景色・陸地色（各チェックボックスON時のみ有効。OFFならテーマ配色）
@@ -1121,7 +1888,7 @@ function ThreatMapVisualization({ mode }) {
     if (!data || rows.length === 0) return <MessageState message="データがありません。サーチ結果を確認してください。" />;
     if (missingFields) {
         return (
-            <MessageState message="Required fields not found: src_lat, src_lon, dst_lat, dst_lon (or select fields in the editor; optional: severity, count, src_name, dst_name)" />
+            <MessageState message="必須フィールドが見つかりません: src_lat, src_lon, dst_lat, dst_lon（編集画面の「データフィールド」で列を指定することもできます。任意: 色分けカテゴリ, count, src_name, dst_name）" />
         );
     }
     if (threats.length === 0) {
@@ -1132,8 +1899,9 @@ function ThreatMapVisualization({ mode }) {
         <ThreatMap
             threats={threats}
             mode={mode}
-            severityList={severityList}
-            severityColors={severityColors}
+            categoryList={categoryList}
+            categoryColors={categoryColors}
+            explicit={explicit}
             customBg={customBg}
             customLand={customLand}
             opts={opts}

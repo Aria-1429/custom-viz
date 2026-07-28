@@ -2,14 +2,19 @@
   "showTitleAndDescription": true,
   "includeInToolbar": true,
   "includeInVizSwitcher": true,
-  "showDrilldown": false,
-  "canSetTokens": [],
-  "hasEventHandlers": false,
+  "showDrilldown": true,
+  "canSetTokens": ["dynamic", "static"],
+  "hasEventHandlers": true,
   "config": {
     "name": "Custom Viz Worldmap",
     "description": "A custom visualization for Splunk Dashboard Studio",
     "category": "Custom",
     "icon": null,
+    "events": {
+      "link.click": { "description": "triggered when user clicks an arc (src → dst)" },
+      "point.click": { "description": "triggered when user clicks a source/target hotspot" }
+    },
+    "supports": ["events"],
     "dataContract": {
       "requiredDataSources": ["primary"],
       "optionalDataSources": []
@@ -23,17 +28,26 @@
       "srcLonField": { "type": "string", "default": "" },
       "dstLatField": { "type": "string", "default": "" },
       "dstLonField": { "type": "string", "default": "" },
-      "severityField": { "type": "string", "default": "" },
+      "categoryField": { "type": "string", "default": "" },
       "countField": { "type": "string", "default": "" },
       "srcNameField": { "type": "string", "default": "" },
       "dstNameField": { "type": "string", "default": "" },
-      "severityColors": {
-        "default": ["#ff5a2e", "#e6b93c", "#38a6ff", "#b17aff", "#2dd4bf", "#ff7ab8", "#9aa7b8"],
+      "categoryColors": {
+        "default": [],
         "anyOf": [
           { "type": "array", "items": { "type": "string" } },
           { "type": "string", "pattern": "^>.*" }
         ]
       },
+      "categoryOrder": {
+        "default": [],
+        "anyOf": [
+          { "type": "array", "items": { "type": "string" } },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      },
+      "fallbackColor": { "type": "string", "default": "#38a6ff" },
+      "categoryLabel": { "type": "string", "default": "" },
       "useBgColor": { "type": "boolean", "default": false },
       "bgColor": { "type": "string", "default": "#03080f" },
       "useLandColor": { "type": "boolean", "default": false },
@@ -42,7 +56,18 @@
       "titleText": { "type": "string", "default": "GLOBAL THREAT MAP" },
       "showLegend": { "type": "boolean", "default": true },
       "showFilter": { "type": "boolean", "default": true },
-      "animDuration": { "type": "number", "default": 2.8 }
+      "animDuration": { "type": "number", "default": 2.8 },
+      "widthScale": { "type": "number", "default": 1 },
+      "maxArcs": { "type": "number", "default": 0 },
+      "highlightOnHover": { "type": "boolean", "default": true },
+      "centerLon": { "type": "number", "default": 0 },
+      "centerLat": { "type": "number", "default": 0 },
+      "initialZoom": { "type": "number", "default": 1 },
+      "enableZoom": { "type": "boolean", "default": true },
+      "showPlaceLabels": { "type": "boolean", "default": true },
+      "showEndpointLabels": { "type": "boolean", "default": true },
+      "placeLabelSize": { "type": "number", "default": 11 },
+      "labelDensity": { "type": "number", "default": 1 }
     },
     "editorConfig": [
       {
@@ -52,7 +77,7 @@
           [{ "label": "送信元 経度", "editor": "editor.columnSelector", "option": "srcLonField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
           [{ "label": "宛先 緯度", "editor": "editor.columnSelector", "option": "dstLatField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
           [{ "label": "宛先 経度", "editor": "editor.columnSelector", "option": "dstLonField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
-          [{ "label": "深刻度（severity）", "editor": "editor.columnSelector", "option": "severityField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "色分けに使う列（深刻度・ログ種別・ステータス等、任意の列）", "editor": "editor.columnSelector", "option": "categoryField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
           [{ "label": "件数（count）", "editor": "editor.columnSelector", "option": "countField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
           [{ "label": "送信元 表示名", "editor": "editor.columnSelector", "option": "srcNameField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
           [{ "label": "宛先 表示名", "editor": "editor.columnSelector", "option": "dstNameField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }]
@@ -62,15 +87,40 @@
         "label": "表示",
         "layout": [
           [{ "label": "タイトルを表示", "editor": "editor.checkbox", "option": "showTitle" }],
+          [{ "label": "タイトルの文字列", "editor": "editor.text", "option": "titleText" }],
           [{ "label": "凡例を表示", "editor": "editor.checkbox", "option": "showLegend" }],
-          [{ "label": "深刻度フィルタを表示", "editor": "editor.checkbox", "option": "showFilter" }],
-          [{ "label": "アニメーション周期（秒、0で停止）", "editor": "editor.number", "option": "animDuration" }]
+          [{ "label": "カテゴリフィルタを表示", "editor": "editor.checkbox", "option": "showFilter" }],
+          [{ "label": "アニメーション周期（秒、0で停止）", "editor": "editor.number", "option": "animDuration" }],
+          [{ "label": "件数による線の太さの強調度（0で一律の細線）", "editor": "editor.slider", "option": "widthScale", "editorProps": { "min": 0, "max": 5, "step": 0.5 } }],
+          [{ "label": "描画する矢印の上限（件数の多い順。0で無制限）", "editor": "editor.number", "option": "maxArcs", "editorProps": { "min": 0 } }],
+          [{ "label": "地点にマウスを乗せたとき関連する矢印を強調", "editor": "editor.checkbox", "option": "highlightOnHover" }]
         ]
       },
       {
-        "label": "線の色",
+        "label": "地図の表示範囲",
         "layout": [
-          [{ "label": "深刻度の色（凡例の並び順に上から適用。色数が足りない場合は循環します）", "editor": "editor.seriesColors", "option": "severityColors" }]
+          [{ "label": "中心の経度（-180〜180。例: 135＝日本付近）", "editor": "editor.number", "option": "centerLon", "editorProps": { "min": -180, "max": 180 } }],
+          [{ "label": "中心の緯度（-85〜85。例: 35＝日本付近）", "editor": "editor.number", "option": "centerLat", "editorProps": { "min": -85, "max": 85 } }],
+          [{ "label": "初期ズーム倍率（1で世界全体）", "editor": "editor.number", "option": "initialZoom", "editorProps": { "min": 1, "max": 40 } }],
+          [{ "label": "ホイールズーム・ドラッグ移動を有効にする", "editor": "editor.checkbox", "option": "enableZoom" }]
+        ]
+      },
+      {
+        "label": "地名ラベル",
+        "layout": [
+          [{ "label": "地名を表示（ズームすると国名→都市名が現れます）", "editor": "editor.checkbox", "option": "showPlaceLabels" }],
+          [{ "label": "矢印の始点・終点に地点名を表示", "editor": "editor.checkbox", "option": "showEndpointLabels" }],
+          [{ "label": "地名の文字サイズ（px）", "editor": "editor.number", "option": "placeLabelSize", "editorProps": { "min": 6, "max": 24 } }],
+          [{ "label": "地名の表示量（大きいほど多く表示。重なる分は自動で間引かれます）", "editor": "editor.slider", "option": "labelDensity", "editorProps": { "min": 0.2, "max": 5, "step": 0.2 } }]
+        ]
+      },
+      {
+        "label": "色分け",
+        "layout": [
+          [{ "label": "カテゴリごとの色（1行に1つ「カテゴリ名|色」の形式で入力。例: high|#ff0000／auth|#00b0ff。ここに書いた色だけが使われます）", "editor": "editor.arrayOfStrings", "option": "categoryColors", "editorProps": { "labelPosition": "top", "themes": {} } }],
+          [{ "label": "上記に無いカテゴリの色（既定色）", "editor": "editor.color", "option": "fallbackColor" }],
+          [{ "label": "凡例・フィルタの並び順（1行に1カテゴリ名。書かなかったものは検索結果の登場順で後ろに並びます）", "editor": "editor.arrayOfStrings", "option": "categoryOrder", "editorProps": { "labelPosition": "top", "themes": {} } }],
+          [{ "label": "色分けの呼び名（凡例の見出し。例: 深刻度／ログ種別。空欄なら非表示）", "editor": "editor.text", "option": "categoryLabel" }]
         ]
       },
       {

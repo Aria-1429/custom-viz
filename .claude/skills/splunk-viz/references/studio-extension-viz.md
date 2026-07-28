@@ -281,8 +281,31 @@ count→件数、source/destination→送信元/宛先。
 
 ### 使える editor 型
 
-`@splunk/visualizations` の全 `*.config.js` を require して walk した結果、**実在する editor 型は
-25 種**（2026-07-25 調査）。標準 viz での採用数が多いものほど素性が確か。
+`@splunk/visualizations` の全 `*.config.js` を require して walk した結果、**標準 viz が使っている
+editor 型は 28 種**（2026-07-25 調査。2026-07-28 に v28.8.0 の一次ソースで再現・件数まで一致）。
+標準 viz での採用数が多いものほど素性が確か。
+
+> ⚠ **【重要な訂正】この 28 種は「実在する editor 型の全部」ではない**（2026-07-28 確認）。
+> 一次ソースを調べ直した結果、**この数字が上限である保証は無い**ことが分かった:
+>
+> - `@splunk/visualizations` は**標準 viz の定義集であって、有効な editor 型のレジストリではない**。
+>   28 種は「**標準 viz がたまたま使っている型**」を数えたものにすぎない。
+> - **有効／無効を判定しているホスト側のコード（`Invalid editor type` を出す実体）は、
+>   ローカルの node_modules のどこにも無い**。Splunk Web 側にあり、手元から列挙できない。
+>   `visualization-schemas` 等の兄弟パッケージ7つを全て調べたが、editor 型の定義は**0件**。
+>   `.d.ts` にも `docs-llm/` にも editor 型の union 定義は**存在しない**。
+> - **反証が実在する**：`editor.arrayOfStrings` は `LinkGraph.config.js` の
+>   **コメントアウトされたブロックの中にしか出てこない**（＝標準 viz は誰も使っていない）のに、
+>   実機では正常に動作し値も届く。**「標準 viz が使っていない＝存在しない」は成り立たない。**
+>
+> 従って正しい言い方は「**実在する型は 28 種**」ではなく
+> 「**28 種は動作確認済み。それ以外に未知の型が存在する可能性は否定できない**」。
+> 未知の型を探すには、名前を推測して Editor Probe で1つずつ試すしかない
+> （`Invalid editor type` が出れば無効、UI が出れば有効、という判定は実機でのみ可能）。
+>
+> なお `editor:` の値が変数・ファクトリ関数になっている箇所は**全パッケージで0件**（全て文字列リテラル）
+> なので、**「このパッケージ内に grep で見逃した型がある」可能性は排除できている**。
+> 見えていないのは「パッケージ外の型」だけ。
 
 | editor 型 | 採用 viz 数 | editorProps の要点 | カスタム viz での評価 |
 |---|---|---|---|
@@ -598,6 +621,44 @@ Studio 編集モードのイベント設計:
 
 **`editor.dynamicColor` は使えない**（下記）。ただし**代わりに `editor.threshold` が使える**ことが
 実機で判明したので、「範囲を+で追加」系の UI はそちらで実現する。
+
+### DOS の全体像と `matchValue`（2026-07-28 公式ドキュメントで確認）
+
+公式ドキュメントに **DOS 関数の完全な一覧ページ**がある（今まで参照していなかった）。
+DOS は **`> データソース | セレクタ関数 | フォーマット関数`** というパイプ構造で、関数は2種類:
+
+- **セレクタ関数**（列や値を取り出す）… `seriesByName` `seriesByIndex` `frameBySeriesNames`
+  `seriesByType` `getField` `getValue` `min` `max` `sum` `firstPoint` `lastPoint` ほか多数
+  <https://help.splunk.com/en/splunk-enterprise/create-dashboards-and-reports/dashboard-studio/10.4/configuration-options-reference/dynamic-options-syntax-functions/dynamic-options-syntax-selector-functions>
+- **フォーマット関数**（値を変換・着色する）… **`matchValue`** `rangeValue` `gradient` `lerp`
+  `pick` `formatByType` `multiFormat` `type` `maxContrast` `setColorChannel` `prefix` ほか
+  <https://help.splunk.com/en/splunk-enterprise/create-dashboards-and-reports/dashboard-studio/10.4/configuration-options-reference/dynamic-options-syntax-functions/dynamic-options-syntax-formatting-functions>
+
+**⭐ 文字列カテゴリ→色は `matchValue`（＝「HIGH なら赤」）が正式に存在する。**
+`rangeValue`（数値範囲→色）と対をなす関数で、標準 viz の編集画面では
+「Ranges（範囲）」と並ぶ **「Matches（一致）」** として出てくる。
+
+```
+> primary | seriesByName("status") | matchValue(colorMatchConfig)
+```
+```json
+[ { "match": "SIM Cubicle", "value": "#FF0000" },
+  { "match": "Dream Crusher", "value": "#00FF00" } ]
+```
+
+> ⚠ **【訂正】**「文字列→色を1組ずつ登録する仕組みは無い」と過去に回答したのは**誤り**。
+> `matchValue` として**確実に存在する**（公式ドキュメント記載＋パッケージ内 107 箇所で使用）。
+>
+> **ただしカスタム viz からは依然として使えない**（結論は変わらない）。理由は
+> 「機能が無いから」ではなく「**到達手段が無いから**」:
+> `matchValue` の対応表を編集 UI で設定する経路は `editor.dynamicColor` /
+> `editor.dynamicColorWithPrecedence` / `editor.tableDynamicColor` の3つだけで、
+> **いずれも実機で使用不可**。しかも対応表の実体は `option` ではなく **`context` 側**に入る
+> （`Timeline.config.js`: `context: { colorMatchConfig: "colorMatchConfig" }`）ため、
+> `useOptions()` には DOS 式の文字列しか来ない。
+>
+> → 文字列カテゴリの着色は **`editor.seriesColors`（順序付きパレット）** で自前実装する方針のまま。
+> 関連: [[threshold-vs-palette-categorical]]
 
 標準 viz の「動的色設定：範囲を+で追加」パネルは `editor.dynamicColor` だが、**カスタム viz 拡張では
 使えない**。editorConfig に書くと編集 UI は右パネルに出るが、**編集した範囲/一致の配列は options に

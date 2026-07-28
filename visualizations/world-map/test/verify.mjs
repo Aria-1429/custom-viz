@@ -102,6 +102,9 @@ let state = {
     theme: 'dark',
 };
 
+// addDrilldownListener の呼び出し記録
+const drilldownRegs = [];
+
 globalThis.DashboardExtensionAPI = {
     getDataSources: () => ({
         loading: false,
@@ -123,6 +126,9 @@ globalThis.DashboardExtensionAPI = {
     getError: () => null,
     addErrorListener: () => () => {},
     drilldown: () => {},
+    // ドリルダウン登録を記録して、要素ごとに正しい payload が閉じ込められているか検査する
+    addDrilldownListener: (args) => { drilldownRegs.push(args); },
+    triggerDrilldown: () => {},
 };
 win.DashboardExtensionAPI = globalThis.DashboardExtensionAPI;
 
@@ -146,12 +152,12 @@ console.log('\n[1] initial render (dark, auto field detection)');
     check('svg rendered', !!doc.querySelector('svg'));
     check('land path drawn', !!doc.querySelector('svg path[fill="#0d2b52"]'));
     check('6 streak paths (2 invalid rows dropped)', streaks().length === 6, `got ${streaks().length}`);
-    check('high uses default color', strokes().includes('rgb(255, 90, 46)'), JSON.stringify(strokes()));
-    // 既定パレット: 1st=high(#ff5a2e) 2nd=medium 3rd=low 4th=worm(#b17aff)
-    check('4th palette default → unknown severity (worm)', strokes().includes('rgb(177, 122, 255)'), JSON.stringify(strokes()));
+    // 色の指定が無い状態では「勝手にパレットを配らない」＝全て既定色（fallbackColor）
+    check('no colors assigned without explicit mapping (all fallback)',
+        strokes().every((c) => c === 'rgb(56, 166, 255)'), JSON.stringify(strokes()));
     const body = doc.body.textContent;
     check('title shown', body.includes('GLOBAL THREAT MAP'));
-    check('legend/filter include worm severity', body.includes('worm'));
+    check('legend/filter include arbitrary category (worm)', body.includes('worm'));
     check('arc tooltip src → dst', titles().some((t) => t.includes('Shanghai') && t.includes('Tokyo')), JSON.stringify(titles().slice(0, 4)));
     check('hotspot tooltip has target name', titles().some((t) => t.startsWith('Target: Tokyo')));
     check('pulse/streak animations present', doc.querySelectorAll('svg animate').length > 0);
@@ -161,84 +167,139 @@ console.log('\n[1] initial render (dark, auto field detection)');
     check('comets drawn on canvas (animated)', canvasStub.fills > 0, `got ${canvasStub.fills}`);
 }
 
-// ---- 2. 深刻度パレット（editor.seriesColors・単一コントロール） ----------------
-// v1.x で highColor/mediumColor/lowColor/extraColors の4オプションを廃止し、
-// severityColors パレット1本に統合した。凡例の並び順（既知順→登場順）に
-// 上から1色ずつ配る。
-console.log('\n[2] severity palette drives all colors');
+// ---- 2. 明示マッピング（editor.arrayOfStrings「カテゴリ名|色」）だけが色を決める ----
+// 色の根拠は severity とは限らない（ログ種別・ステータス等）。viz は語彙を解釈せず、
+// ユーザーが書いた「カテゴリ名|色」だけを使う。
+console.log('\n[2] explicit "name|color" mapping is the only source of color');
 {
-    // 並び順は high(1) → medium(2) → low(3) → worm(4)
-    state.options = { severityColors: ['#00ff00', '#0000ff', '#ffff00', '#ff00ff'] };
+    state.options = { categoryColors: ['high|#00ff00', 'medium|#0000ff', 'low|#ffff00'] };
     fire('options', { options: state.options });
     await sleep(250);
     const st = strokes();
-    check('1st palette entry → high', st.includes('rgb(0, 255, 0)'), JSON.stringify(st));
-    check('2nd palette entry → medium', st.includes('rgb(0, 0, 255)'), JSON.stringify(st));
-    check('3rd palette entry → low', st.includes('rgb(255, 255, 0)'), JSON.stringify(st));
-    check('4th palette entry → unknown severity (worm)', st.includes('rgb(255, 0, 255)'), JSON.stringify(st));
-    check('old defaults gone', !st.includes('rgb(255, 90, 46)'), JSON.stringify(st));
+    check('high → mapped color', st.includes('rgb(0, 255, 0)'), JSON.stringify(st));
+    check('medium → mapped color', st.includes('rgb(0, 0, 255)'), JSON.stringify(st));
+    check('low → mapped color', st.includes('rgb(255, 255, 0)'), JSON.stringify(st));
+    // worm は未マッピング → fallbackColor（既定 #38a6ff）。勝手に色を配らない
+    check('unmapped category uses fallback color', st.includes('rgb(56, 166, 255)'), JSON.stringify(st));
 }
 
-// ---- 2b. パレットが足りないときは循環する -------------------------------------
-console.log('\n[2b] palette shorter than severity count cycles');
+// ---- 2a. 大文字小文字・空白のゆれを吸収する -----------------------------------
+console.log('\n[2a] mapping is case/space tolerant');
 {
-    state.options = { severityColors: ['#00ff00', '#0000ff'] };
+    // データ側は 'high'/'HIGH' の両方が登場する（HIGH 行は high に合流済み）
+    state.options = { categoryColors: ['  HIGH | #ff0000  '] };
     fire('options', { options: state.options });
     await sleep(250);
-    const st = strokes();
-    check('only the 2 given colors are used', st.every((c) => c === 'rgb(0, 255, 0)' || c === 'rgb(0, 0, 255)'), JSON.stringify(st));
-    check('4 severities still all rendered', streaks().length === 6, `got ${streaks().length}`);
+    check('case-insensitive + trimmed mapping applies', strokes().includes('rgb(255, 0, 0)'), JSON.stringify(strokes()));
 }
 
-// ---- 2c. 任意の語彙（独自 severity 値）でも別々の色が付く ----------------------
-// 「固定 high/medium/low + あふれた分は無名パレット」という制約を外した本体の検証。
-console.log('\n[2c] arbitrary custom severity vocabulary gets distinct colors');
+// ---- 2b. fallbackColor をユーザーが変えられる ---------------------------------
+console.log('\n[2b] fallbackColor is user-controlled');
+{
+    state.options = { categoryColors: [], fallbackColor: '#123456' };
+    fire('options', { options: state.options });
+    await sleep(250);
+    check('all arcs use custom fallback', strokes().every((c) => c === 'rgb(18, 52, 86)'), JSON.stringify(strokes()));
+}
+
+// ---- 2c. 任意の語彙（ログ種別など）でも指定どおりに色が付く ---------------------
+// severity ではない語彙が主役のケース。並び順も色も推測されないことを確認する。
+console.log('\n[2c] arbitrary vocabulary (log types) colored exactly as specified');
 {
     const CUSTOM = ROWS_VALID.map((r, i) => {
         const row = [...r];
-        row[4] = ['P1', 'P2', 'P3', 'sev-red', '緊急', 'アラート'][i];
+        row[4] = ['auth', 'firewall', 'dns', 'proxy', '監査', 'アラート'][i];
         return row;
     });
     state.data = { fields: FIELDS, rows: CUSTOM };
-    state.options = { severityColors: ['#111111', '#222222', '#333333', '#444444', '#555555', '#666666'] };
+    state.options = {
+        categoryColors: ['auth|#111111', 'firewall|#222222', 'dns|#333333', 'proxy|#444444', '監査|#555555', 'アラート|#666666'],
+    };
     fire('options', { options: state.options });
     fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
     await sleep(300);
     const st = strokes();
-    check('6 arcs rendered with custom vocabulary', st.length === 6, `got ${st.length}`);
-    check('6 distinct colors assigned (no collisions)', new Set(st).size === 6, JSON.stringify(st));
+    check('6 arcs rendered with log-type vocabulary', st.length === 6, `got ${st.length}`);
+    check('6 distinct colors exactly as mapped', new Set(st).size === 6, JSON.stringify(st));
+    check('non-ascii category mapped (監査 → #555555)', st.includes('rgb(85, 85, 85)'), JSON.stringify(st));
     const body = doc.body.textContent;
-    check('legend lists custom values', body.includes('P1') && body.includes('緊急'), body.slice(0, 300));
-    check('did not crash on non-ascii severity', !!doc.querySelector('svg'));
-
-    // フィルタで独自値を選んでも動く（弧が絞り込まれる）
-    state.data = { fields: FIELDS, rows: ROWS };
-    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
-    await sleep(250);
+    check('legend lists log-type values', body.includes('auth') && body.includes('監査'), body.slice(0, 300));
+    check('did not crash on non-ascii category', !!doc.querySelector('svg'));
 }
 
-// ---- 2d. 旧キー（highColor / extraColors 等）は無視する ------------------------
-// 既定値と同じ値は options に載らないため、旧キーへのフォールバックは実装しない。
-console.log('\n[2d] legacy removed keys must not leak');
+// ---- 2d. 並び順もユーザー指定に従う（意味で並べ替えない） ----------------------
+// 旧実装は critical→high→medium→low の既知順で勝手に並べ替えていた。
+console.log('\n[2d] categoryOrder controls legend order (no semantic sorting)');
 {
-    state.options = { highColor: '#ff00ff', mediumColor: '#00ffff', lowColor: '#ffff00', extraColors: ['#123456'], extraColor1: '#abcdef' };
+    state.data = { fields: FIELDS, rows: ROWS };
+    // 登場順は low, high, medium, worm。指定で dns 的な任意順に並べ替える
+    state.options = {
+        categoryColors: ['low|#aa0000', 'high|#00aa00'],
+        categoryOrder: ['medium', 'worm', 'high'],
+    };
+    fire('options', { options: state.options });
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(300);
+    // 凡例（左下パネル）の並びで確認する。
+    // body 全体のテキストだと右上のフィルタ（Select）も混ざるため、
+    // 「色スウォッチ(boxShadow)を持つ行」を含む最小の div を凡例とみなす。
+    const legendNames = [...doc.querySelectorAll('span')]
+        .filter((s) => (s.getAttribute('style') || '').includes('box-shadow'))
+        .map((s) => (s.parentElement ? s.parentElement.textContent.trim() : ''))
+        .filter((t) => t !== '');
+    check('legend rendered with swatches', legendNames.length >= 4, JSON.stringify(legendNames));
+    // 指定した medium, worm, high が先頭3件、未指定の low がその後（登場順）
+    check('categoryOrder respected: medium, worm, high, low',
+        legendNames.slice(0, 4).join(',') === 'medium,worm,high,low', JSON.stringify(legendNames));
+    // 値が空の行は「(未分類)」として独立したカテゴリになる（low 等に混ぜない）
+    check('empty category value becomes its own "(未分類)" entry',
+        legendNames.includes('(未分類)'), JSON.stringify(legendNames));
+}
+
+// ---- 2e. 壊れた入力でも描画を壊さない ------------------------------------------
+console.log('\n[2e] malformed mapping input degrades safely');
+{
+    for (const bad of [
+        [], ['nope'], ['no-separator'], ['name|not-a-color'], ['|#ff0000'], ['x|'],
+        [42, null, {}], 'not-an-array', { a: 1 }, null,
+    ]) {
+        state.options = { categoryColors: bad };
+        fire('options', { options: state.options });
+        await sleep(150);
+        check(`malformed ${JSON.stringify(bad)} → fallback, still renders`,
+            streaks().length === 6 && strokes().every((c) => c === 'rgb(56, 166, 255)'),
+            JSON.stringify(strokes()));
+    }
+    state.options = {};
+    fire('options', { options: state.options });
+    await sleep(200);
+}
+
+// ---- 2f. 色名（red 等）も使える ------------------------------------------------
+console.log('\n[2f] CSS color names accepted in mapping');
+{
+    state.options = { categoryColors: ['high|red', 'low|lime'] };
     fire('options', { options: state.options });
     await sleep(250);
     const st = strokes();
-    check('legacy highColor ignored', !st.includes('rgb(255, 0, 255)'), JSON.stringify(st));
-    check('legacy extraColors ignored', !st.includes('rgb(18, 52, 86)'), JSON.stringify(st));
-    check('falls back to default palette (1st = high)', st.includes('rgb(255, 90, 46)'), JSON.stringify(st));
+    check('named color red applied', st.includes('rgb(255, 0, 0)'), JSON.stringify(st));
+    check('named color lime applied', st.includes('rgb(0, 255, 0)'), JSON.stringify(st));
 }
 
-// ---- 2e. 壊れたパレット入力でも既定へ倒れる -----------------------------------
-console.log('\n[2e] malformed palette degrades to defaults');
+// ---- 2g. 旧オプション（severityColors 等）は一切効かない ------------------------
+// 既定値は options に載らないため、旧キーへのフォールバックは実装しない方針。
+console.log('\n[2g] legacy severity options must not leak');
 {
-    for (const bad of [[], ['nope', 42, null], 'not-an-array', { a: 1 }, null]) {
-        state.options = { severityColors: bad };
-        fire('options', { options: state.options });
-        await sleep(180);
-        check(`malformed ${JSON.stringify(bad)} → default palette`, strokes().includes('rgb(255, 90, 46)'), JSON.stringify(strokes()));
-    }
+    state.options = {
+        severityColors: ['#ff00ff', '#00ffff'],
+        highColor: '#ff00ff', mediumColor: '#00ffff', lowColor: '#ffff00',
+    };
+    fire('options', { options: state.options });
+    await sleep(250);
+    const st = strokes();
+    check('legacy severityColors ignored', !st.includes('rgb(255, 0, 255)'), JSON.stringify(st));
+    check('legacy highColor ignored', !st.includes('rgb(0, 255, 255)'), JSON.stringify(st));
+    check('falls back to default color', st.every((c) => c === 'rgb(56, 166, 255)'), JSON.stringify(st));
     state.options = {};
     fire('options', { options: state.options });
     await sleep(200);
@@ -286,21 +347,21 @@ console.log('\n[5] columnSelector DOS strings on renamed fields');
     fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
     await sleep(250);
     // 自動判定は候補名に一致しない → 必須フィールド欠損メッセージ
-    check('auto-detect fails on renamed fields', doc.body.textContent.includes('Required fields'));
+    check('auto-detect fails on renamed fields', doc.body.textContent.includes('必須フィールドが見つかりません'));
 
     state.options = {
         srcLatField: "> primary | seriesByName('la1')",
         srcLonField: "> primary | seriesByName('lo1')",
         dstLatField: "> primary | seriesByName('la2')",
         dstLonField: '> primary | seriesByIndex(3)',
-        severityField: "> primary | seriesByName('sev')",
+        categoryField: "> primary | seriesByName('sev')",
         srcNameField: "> primary | seriesByName('n1')",
         dstNameField: "> primary | seriesByName('n2')",
     };
     fire('options', { options: state.options });
     await sleep(250);
     check('renders via columnSelector fields', streaks().length === 6, `got ${streaks().length}`);
-    check('severity resolved via selector', doc.body.textContent.includes('worm'));
+    check('category column resolved via selector', doc.body.textContent.includes('worm'));
     check('names resolved via selector', titles().some((t) => t.includes('Shanghai')));
 }
 
@@ -317,7 +378,7 @@ console.log('\n[6] guards + columns format');
     state.data = { fields: [{ name: 'a' }, { name: 'b' }], rows: [['1', '2']] };
     fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
     await sleep(200);
-    check('missing fields message', doc.body.textContent.includes('Required fields'));
+    check('missing fields message', doc.body.textContent.includes('必須フィールドが見つかりません'));
 
     // columns 形式でも動く
     state.data = {
@@ -337,6 +398,442 @@ console.log('\n[7] theme switch to light');
     await sleep(250);
     check('light land color applied', !!doc.querySelector('svg path[fill="#c3d4e6"]'));
     check('still 6 streaks', streaks().length === 6, `got ${streaks().length}`);
+}
+
+// ---- 8. 地名ラベル（ズーム段階で国名→都市名） --------------------------------
+// v1.4.0 で追加。国名は world-atlas、都市名は Natural Earth（ともにパブリックドメイン）。
+console.log('\n[8] place labels appear and scale with zoom');
+const labelTexts = () => [...doc.querySelectorAll('svg text')].map((t) => t.textContent);
+{
+    state.theme = 'dark';
+    fire('theme', { theme: 'dark' });
+    state.data = { fields: FIELDS, rows: ROWS };
+    state.options = {};
+    fire('options', { options: state.options });
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(300);
+
+    const base = labelTexts();
+    check('country labels rendered at zoom 1', base.some((t) => t === 'Russia' || t === 'Brazil' || t === 'China'),
+        JSON.stringify(base.slice(0, 12)));
+    check('no city labels at zoom 1 (countries only)', !base.includes('Osaka'), JSON.stringify(base.slice(0, 15)));
+
+    // 始点/終点の地点名はデータ由来なので zoom 1 でも出る
+    check('endpoint labels shown (src/dst names)',
+        base.includes('Tokyo') && base.includes('London'), JSON.stringify(base.slice(0, 15)));
+
+    // ズームすると都市名が現れる
+    state.options = { initialZoom: 12, centerLon: 135, centerLat: 35 };
+    fire('options', { options: state.options });
+    await sleep(320);
+    const zoomed = labelTexts();
+    // 拡大すると画面外の国が消えるため総数は減りうる。判定は「都市名が出たか」で行う。
+    const cityAppeared = zoomed.some((t) => ['Osaka', 'Nagoya', 'Kyoto', 'Sapporo', 'Seoul', 'Busan'].includes(t));
+    check('city labels appear when zoomed in', cityAppeared, JSON.stringify(zoomed.slice(0, 20)));
+    check('zoomed view is centered on Japan', zoomed.includes('Tokyo'), JSON.stringify(zoomed.slice(0, 20)));
+}
+
+// ---- 9. 中心経度・緯度で表示位置が変わる -------------------------------------
+console.log('\n[9] centerLon / centerLat recenter the map');
+{
+    // 中心経度を変えると同じ地点の投影 x 座標が動く（＝地図が回っている）
+    const tokyoX = () => {
+        const t = [...doc.querySelectorAll('svg text')].find((n) => n.textContent === 'Tokyo');
+        return t ? Number(t.getAttribute('x')) : null;
+    };
+    state.options = { centerLon: 139, centerLat: 35, initialZoom: 3 };
+    fire('options', { options: state.options });
+    await sleep(320);
+    const centered = tokyoX();
+    check('Tokyo near horizontal center when centered on lon139', centered !== null && Math.abs(centered - 450) < 90,
+        `x=${centered}`);
+
+    state.options = { centerLon: -74, centerLat: 40, initialZoom: 3 };
+    fire('options', { options: state.options });
+    await sleep(320);
+    const shifted = tokyoX();
+    check('changing centerLon moves the map', shifted === null || Math.abs(shifted - (centered ?? 0)) > 60,
+        `before=${centered} after=${shifted}`);
+}
+
+// ---- 10. ホイールズーム ------------------------------------------------------
+console.log('\n[10] wheel zoom changes scale');
+{
+    state.options = { centerLon: 0, centerLat: 0, initialZoom: 1 };
+    fire('options', { options: state.options });
+    await sleep(320);
+
+    // 陸地パスの長さはズームで変わる（拡大すると座標値が大きくなる）
+    const landLen = () => {
+        const p = doc.querySelector('svg path[fill="#0d2b52"]');
+        return p ? (p.getAttribute('d') || '').length : 0;
+    };
+    const before = landLen();
+    const container = doc.querySelector('#root div');
+    check('container present for wheel events', !!container);
+
+    // ホイールを手前→奥（deltaY 負）に回して拡大
+    const evt = new win.WheelEvent('wheel', { deltaY: -600, clientX: 450, clientY: 250, bubbles: true, cancelable: true });
+    container.dispatchEvent(evt);
+    await sleep(320);
+
+    const zoomLabel = doc.body.textContent;
+    check('zoom indicator appears after wheel', /×\d/.test(zoomLabel), zoomLabel.slice(0, 120));
+    check('wheel zoom altered the projection', landLen() !== before, `before=${before} after=${landLen()}`);
+}
+
+// ---- 11. ズーム/ラベルの無効化オプション --------------------------------------
+console.log('\n[11] labels and zoom can be turned off');
+{
+    state.options = { showPlaceLabels: false, showEndpointLabels: false };
+    fire('options', { options: state.options });
+    await sleep(320);
+    const t = labelTexts();
+    check('no place labels when disabled', !t.includes('Russia') && !t.includes('Tokyo'), JSON.stringify(t.slice(0, 12)));
+    check('arcs still rendered with labels off', streaks().length === 6, `got ${streaks().length}`);
+
+    state.options = { enableZoom: false, initialZoom: 1 };
+    fire('options', { options: state.options });
+    await sleep(320);
+    const before = (doc.querySelector('svg path[fill="#0d2b52"]').getAttribute('d') || '').length;
+    doc.querySelector('#root div').dispatchEvent(
+        new win.WheelEvent('wheel', { deltaY: -600, clientX: 450, clientY: 250, bubbles: true, cancelable: true })
+    );
+    await sleep(300);
+    const after = (doc.querySelector('svg path[fill="#0d2b52"]').getAttribute('d') || '').length;
+    check('wheel ignored when zoom disabled', before === after, `before=${before} after=${after}`);
+}
+
+// ---- 12. severity という語彙が一切無いデータでも成立する ----------------------
+// 「色の根拠は severity とは限らない」ことの本丸。列名も値も severity と無関係な
+// データを与え、ユーザー指定どおりに色が付くことを確認する。
+console.log('\n[12] works with a dataset that has nothing to do with severity');
+{
+    const F2 = ['from_lat', 'from_lon', 'to_lat', 'to_lon', 'log_type', 'bytes', 'from_site', 'to_site']
+        .map((name) => ({ name }));
+    const R2 = [
+        ['51.5', '-0.12', '35.68', '139.69', 'auth', '120', 'London', 'Tokyo'],
+        ['31.2', '121.47', '35.68', '139.69', 'firewall', '300', 'Shanghai', 'Tokyo'],
+        ['48.85', '2.35', '35.68', '139.69', 'dns', '40', 'Paris', 'Tokyo'],
+    ];
+    state.data = { fields: F2, rows: R2 };
+    state.options = {
+        // 緯度経度は自動判定できない列名 → columnSelector で明示
+        srcLatField: "> primary | seriesByName('from_lat')",
+        srcLonField: "> primary | seriesByName('from_lon')",
+        dstLatField: "> primary | seriesByName('to_lat')",
+        dstLonField: "> primary | seriesByName('to_lon')",
+        categoryField: "> primary | seriesByName('log_type')",
+        srcNameField: "> primary | seriesByName('from_site')",
+        dstNameField: "> primary | seriesByName('to_site')",
+        categoryColors: ['auth|#ff0000', 'firewall|#00ff00'],
+        categoryOrder: ['firewall', 'auth'],
+        categoryLabel: 'ログ種別',
+    };
+    fire('options', { options: state.options });
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(320);
+
+    const st = strokes();
+    check('3 arcs rendered from non-severity dataset', st.length === 3, `got ${st.length}`);
+    check('auth → mapped red', st.includes('rgb(255, 0, 0)'), JSON.stringify(st));
+    check('firewall → mapped green', st.includes('rgb(0, 255, 0)'), JSON.stringify(st));
+    check('dns (unmapped) → fallback', st.includes('rgb(56, 166, 255)'), JSON.stringify(st));
+
+    const legendNames = [...doc.querySelectorAll('span')]
+        .filter((s) => (s.getAttribute('style') || '').includes('box-shadow'))
+        .map((s) => (s.parentElement ? s.parentElement.textContent.trim() : ''));
+    check('legend order follows categoryOrder (firewall, auth, dns)',
+        legendNames.slice(0, 3).join(',') === 'firewall,auth,dns', JSON.stringify(legendNames));
+
+    const body = doc.body.textContent;
+    check('categoryLabel shown as legend heading', body.includes('ログ種別'), body.slice(0, 200));
+    check('filter says すべての<label>', body.includes('すべてのログ種別'), body.slice(0, 200));
+    // ツールチップにカテゴリが出る（深刻度前提の文言になっていない）
+    check('tooltip carries the log type', titles().some((t) => t.includes('firewall')), JSON.stringify(titles().slice(0, 4)));
+}
+
+// ---- 13. オーバーレイUI上の操作が地図のパンに奪われない -------------------------
+// v1.4.1 の不具合: コンテナの pointerdown で即 setPointerCapture していたため、
+// 右上フィルタ（Select）を押しても以降のイベントが地図に横取りされ、
+// ドロップダウンが開かなかった（ズーム無効時だけ開く、という症状）。
+console.log('\n[13] overlay UI clicks are not stolen by map panning');
+{
+    state.data = { fields: FIELDS, rows: ROWS };
+    state.options = { enableZoom: true, initialZoom: 1, centerLon: 0, centerLat: 0 };
+    fire('options', { options: state.options });
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(320);
+
+    const container = doc.querySelector('#root div');
+    // data-viz-ui でマークされたオーバーレイ（フィルタ・凡例・ズームリセット）
+    const uiPanels = [...doc.querySelectorAll('[data-viz-ui="1"]')];
+    check('overlay panels are marked with data-viz-ui', uiPanels.length >= 2, `got ${uiPanels.length}`);
+
+    // フィルタ内の要素を押しても地図は動かない（＝パンが始まらない）
+    const landBefore = (doc.querySelector('svg path[fill="#0d2b52"]').getAttribute('d') || '').length;
+    const filterPanel = uiPanels.find((p) => (p.getAttribute('style') || '').includes('top: 12px'));
+    check('filter panel found', !!filterPanel);
+    const inner = filterPanel ? (filterPanel.querySelector('button') || filterPanel.firstElementChild || filterPanel) : null;
+    if (inner) {
+        inner.dispatchEvent(new win.MouseEvent('pointerdown', { bubbles: true, clientX: 800, clientY: 20 }));
+        inner.dispatchEvent(new win.MouseEvent('pointermove', { bubbles: true, clientX: 700, clientY: 200 }));
+        inner.dispatchEvent(new win.MouseEvent('pointerup', { bubbles: true, clientX: 700, clientY: 200 }));
+    }
+    await sleep(280);
+    const landAfterUi = (doc.querySelector('svg path[fill="#0d2b52"]').getAttribute('d') || '').length;
+    check('dragging from the filter panel does NOT pan the map',
+        landAfterUi === landBefore, `before=${landBefore} after=${landAfterUi}`);
+
+    // 一方、地図本体（SVG）からのドラッグはちゃんとパンする
+    const svg = doc.querySelector('svg');
+    svg.dispatchEvent(new win.MouseEvent('pointerdown', { bubbles: true, clientX: 450, clientY: 250 }));
+    svg.dispatchEvent(new win.MouseEvent('pointermove', { bubbles: true, clientX: 300, clientY: 250 }));
+    svg.dispatchEvent(new win.MouseEvent('pointerup', { bubbles: true, clientX: 300, clientY: 250 }));
+    await sleep(300);
+    const landAfterMap = (doc.querySelector('svg path[fill="#0d2b52"]').getAttribute('d') || '').length;
+    check('dragging from the map body DOES pan', landAfterMap !== landBefore,
+        `before=${landBefore} after=${landAfterMap}`);
+}
+
+// ---- 14. 凡例クリックで絞り込み ------------------------------------------------
+console.log('\n[14] clicking a legend entry filters the map');
+{
+    state.options = { enableZoom: true, initialZoom: 1, centerLon: 0, centerLat: 0 };
+    fire('options', { options: state.options });
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(320);
+    check('all arcs visible before filtering', streaks().length === 6, `got ${streaks().length}`);
+
+    // 凡例の 'high' 行をクリック → high の弧だけになる（ROWS では high が2本）
+    const legendRow = [...doc.querySelectorAll('span')]
+        .filter((s) => (s.getAttribute('style') || '').includes('box-shadow'))
+        .map((s) => s.parentElement)
+        .find((d) => d && d.textContent.trim() === 'high');
+    check('legend row for "high" found', !!legendRow);
+    if (legendRow) {
+        legendRow.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+        await sleep(300);
+        check('legend click filters to that category', streaks().length === 2, `got ${streaks().length}`);
+        // もう一度押すと解除
+        const again = [...doc.querySelectorAll('span')]
+            .filter((s) => (s.getAttribute('style') || '').includes('box-shadow'))
+            .map((s) => s.parentElement)
+            .find((d) => d && d.textContent.trim() === 'high');
+        again.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+        await sleep(300);
+        check('clicking again clears the filter', streaks().length === 6, `got ${streaks().length}`);
+    }
+}
+
+// ---- 15. 件数による線の太さ / 上位N件 ------------------------------------------
+console.log('\n[15] arc width scales with count, maxArcs limits rendering');
+{
+    state.data = { fields: FIELDS, rows: ROWS };
+    state.options = { widthScale: 2, maxArcs: 0 };
+    fire('options', { options: state.options });
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(320);
+
+    // 芯線（filter 無し・stroke 付き）の太さを count と突き合わせる。
+    // ROWS の count は Shanghai=300 が最大、New York=10 が最小。
+    const widths = streaks().map((p) => Number(p.getAttribute('stroke-width')));
+    check('arc widths vary with count', new Set(widths).size > 1, JSON.stringify(widths));
+    check('widest arc is clearly thicker than thinnest',
+        Math.max(...widths) > Math.min(...widths) * 1.5,
+        `min=${Math.min(...widths)} max=${Math.max(...widths)}`);
+
+    // widthScale=0 なら一律
+    state.options = { widthScale: 0 };
+    fire('options', { options: state.options });
+    await sleep(280);
+    const flat = streaks().map((p) => Number(p.getAttribute('stroke-width')));
+    check('widthScale=0 → uniform width', new Set(flat).size === 1, JSON.stringify(flat));
+
+    // maxArcs で上位N件だけ描く
+    state.options = { maxArcs: 3 };
+    fire('options', { options: state.options });
+    await sleep(280);
+    check('maxArcs=3 renders only 3 arcs', streaks().length === 3, `got ${streaks().length}`);
+    // 残るのは count 上位3件（300, 120, 80）→ Shanghai/London/Sao Paulo
+    const tips = titles().join(' | ');
+    check('top-3 by count are kept (Shanghai/London/Sao Paulo)',
+        tips.includes('Shanghai') && tips.includes('London') && tips.includes('Sao Paulo'),
+        tips.slice(0, 250));
+    check('lowest-count arc (New York, 10) dropped', !tips.includes('New York'), tips.slice(0, 250));
+
+    state.options = {};
+    fire('options', { options: state.options });
+    await sleep(250);
+}
+
+// ---- 16. ドリルダウン登録（要素ごとに固有の payload） ---------------------------
+// 実機の挙動（トークンが実際に入るか）は happy-dom では再現できない。
+// ここで検証するのは「要素ごとに登録され、payload が取り違えられていないか」まで。
+console.log('\n[16] drilldown listeners are registered per element');
+{
+    drilldownRegs.length = 0;
+    state.data = { fields: FIELDS, rows: ROWS };
+    state.options = {};
+    fire('options', { options: state.options });
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(350);
+
+    check('drilldown listeners registered', drilldownRegs.length > 0, `got ${drilldownRegs.length}`);
+    const arcRegs = drilldownRegs.filter((r) => r.action === 'link.click');
+    const spotRegs = drilldownRegs.filter((r) => r.action === 'point.click');
+    check('arcs registered as link.click', arcRegs.length >= 6, `got ${arcRegs.length}`);
+    check('hotspots registered as point.click', spotRegs.length > 0, `got ${spotRegs.length}`);
+    check('every registration has a DOM node', drilldownRegs.every((r) => !!r.node));
+
+    // ⚠ 過去の失敗パターン: payloadCallback を使い回して行番号を固定すると
+    //    「どこを押しても1行目」になる。各登録が別々の値を返すことを確認する。
+    const payloads = arcRegs.map((r) => r.payloadCallback());
+    const srcNames = payloads.map((p) => p['row.src_name.value']);
+    check('each arc carries its own src (no shared/fixed payload)',
+        new Set(srcNames).size === srcNames.length, JSON.stringify(srcNames));
+    check('payload uses row.<field>.value convention',
+        payloads[0] && 'row.dst_name.value' in payloads[0] && 'row.category.value' in payloads[0],
+        JSON.stringify(payloads[0]));
+    check('payload has name/value for interaction UI',
+        payloads.every((p) => typeof p.name === 'string' && p.value !== undefined),
+        JSON.stringify(payloads[0]));
+}
+
+// ---- 17. ホバーで関連する弧を強調 ----------------------------------------------
+console.log('\n[17] hovering a hotspot highlights only related arcs');
+{
+    state.options = { highlightOnHover: true, animDuration: 0 };
+    fire('options', { options: state.options });
+    await sleep(300);
+    const opacityOf = () => streaks().map((p) => Number(p.getAttribute('opacity')));
+    const before = opacityOf();
+    check('all arcs equally visible before hover', new Set(before).size === 1, JSON.stringify(before));
+
+    // 透明な当たり判定の circle（r=12）にホバーする
+    const hit = [...doc.querySelectorAll('svg circle')].find(
+        (c) => c.getAttribute('r') === '12' && c.getAttribute('fill') === 'transparent'
+    );
+    check('hover hit-area exists on hotspots', !!hit);
+    if (hit) {
+        hit.dispatchEvent(new win.MouseEvent('mouseover', { bubbles: true }));
+        // React の onMouseEnter は mouseover から合成される
+        await sleep(300);
+        const after = opacityOf();
+        check('hover dims unrelated arcs', new Set(after).size > 1, JSON.stringify(after));
+
+        hit.dispatchEvent(new win.MouseEvent('mouseout', { bubbles: true }));
+        await sleep(300);
+        check('leaving restores all arcs', new Set(opacityOf()).size === 1, JSON.stringify(opacityOf()));
+    }
+
+    // 無効化すると強調しない
+    state.options = { highlightOnHover: false, animDuration: 0 };
+    fire('options', { options: state.options });
+    await sleep(300);
+    if (hit) {
+        const h2 = [...doc.querySelectorAll('svg circle')].find(
+            (c) => c.getAttribute('r') === '12' && c.getAttribute('fill') === 'transparent'
+        );
+        h2.dispatchEvent(new win.MouseEvent('mouseover', { bubbles: true }));
+        await sleep(300);
+        check('highlightOnHover=false keeps arcs uniform',
+            new Set(opacityOf()).size === 1, JSON.stringify(opacityOf()));
+        h2.dispatchEvent(new win.MouseEvent('mouseout', { bubbles: true }));
+    }
+}
+
+// ---- 18. ズームしても地名が減らない（画面内で絞ってから件数を採る） --------------
+// v1.5.1 の不具合: CITY_LABELS.slice(0, N) で「世界の上位N件」を先に取ってから
+// 画面内かを判定していたため、拡大すると上位N件がほぼ全部画面外になり、
+// **ズームするほど地名が減る**症状になっていた（zoom40 で実測3件）。
+console.log('\n[18] zooming in does not reduce place labels');
+{
+    const labelCount = () => [...doc.querySelectorAll('svg text')].length;
+    const labelNames = () => [...doc.querySelectorAll('svg text')].map((t) => t.textContent);
+    state.data = { fields: FIELDS, rows: ROWS };
+    state.options = {};
+    fire('options', { options: state.options });
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(340);
+
+    const counts = {};
+    for (const z of [6, 16, 40]) {
+        state.options = { initialZoom: z, centerLon: 137, centerLat: 36 };
+        fire('options', { options: state.options });
+        await sleep(340);
+        counts[z] = labelCount();
+    }
+    // 深いズームでも「ひとにぎり」にならないこと（旧実装では zoom40 で 3 件だった）
+    check('deep zoom still shows a useful number of labels', counts[40] >= 15,
+        `zoom6=${counts[6]} zoom16=${counts[16]} zoom40=${counts[40]}`);
+    check('zoom 16 shows more than the old broken behaviour', counts[16] >= 20,
+        `got ${counts[16]}`);
+
+    // 拡大したら「その地域の」都市が出る（世界の主要都市だけではない）
+    state.options = { initialZoom: 25, centerLon: 137, centerLat: 36 };
+    fire('options', { options: state.options });
+    await sleep(340);
+    const jp = labelNames();
+    check('regional Japanese cities appear when zoomed into Japan',
+        ['Kyoto', 'Nagoya', 'Kanazawa', 'Kobe', 'Hiroshima', 'Fukuoka', 'Nagano'].filter((c) => jp.includes(c)).length >= 3,
+        JSON.stringify(jp.slice(0, 20)));
+
+    // 別地域でも同様に機能する（日本だけの特殊対応ではない）
+    state.options = { initialZoom: 8, centerLon: 10, centerLat: 50 };
+    fire('options', { options: state.options });
+    await sleep(340);
+    const eu = labelNames();
+    check('European cities appear when centered on Europe',
+        ['Berlin', 'Vienna', 'Prague', 'Munich', 'Milan', 'Zurich'].filter((c) => eu.includes(c)).length >= 3,
+        JSON.stringify(eu.slice(0, 20)));
+    check('no Japanese cities leak into the European view', !eu.includes('Osaka'), JSON.stringify(eu.slice(0, 20)));
+}
+
+// ---- 19. 地名の表示量（labelDensity）が実際に効く --------------------------------
+// 件数の上限だけ変えても重なり判定が固定だと表示数が変わらないため、
+// 候補数と「ラベル間隔」の両方を density に連動させている。
+console.log('\n[19] labelDensity actually changes how many labels appear');
+{
+    const labelCount = () => [...doc.querySelectorAll('svg text')].length;
+    const got = {};
+    for (const d of [0.2, 1, 3]) {
+        state.options = { initialZoom: 16, centerLon: 137, centerLat: 36, labelDensity: d };
+        fire('options', { options: state.options });
+        await sleep(340);
+        got[d] = labelCount();
+    }
+    check('higher density → more labels', got[3] > got[1], `d1=${got[1]} d3=${got[3]}`);
+    check('lower density → fewer labels', got[0.2] < got[1], `d0.2=${got[0.2]} d1=${got[1]}`);
+    check('density spans a meaningful range', got[3] >= got[0.2] * 2,
+        `d0.2=${got[0.2]} d3=${got[3]}`);
+
+    state.options = {};
+    fire('options', { options: state.options });
+    await sleep(250);
+}
+
+// ---- 20. タイトル文字列を編集画面から変更できる ----------------------------------
+console.log('\n[20] title text is editable (and empty means no title)');
+{
+    state.options = { titleText: '通信フロー' };
+    fire('options', { options: state.options });
+    await sleep(300);
+    check('custom title rendered', doc.body.textContent.includes('通信フロー'));
+    check('default title replaced', !doc.body.textContent.includes('GLOBAL THREAT MAP'));
+
+    // 空文字は「タイトル無し」として尊重する（既定値に戻さない）
+    state.options = { titleText: '' };
+    fire('options', { options: state.options });
+    await sleep(300);
+    check('empty title hides the title (does not fall back to default)',
+        !doc.body.textContent.includes('GLOBAL THREAT MAP'), doc.body.textContent.slice(0, 120));
+
+    // キー自体が無い（未設定）ときだけ既定値
+    state.options = {};
+    fire('options', { options: state.options });
+    await sleep(300);
+    check('unset title falls back to the default', doc.body.textContent.includes('GLOBAL THREAT MAP'));
 }
 
 console.log(`\nResult: ${pass} passed, ${fail} failed`);
