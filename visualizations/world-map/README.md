@@ -1,7 +1,7 @@
 # Custom Viz World Map
 ![表示例](examples/example.png)
 
-https://github.com/user-attachments/assets/49882133-1079-4b8b-86a9-5a6bdacba007
+https://github.com/user-attachments/assets/eb299dd9-5c77-4113-a31a-c9b2e8e7cd24
 
 Splunk Dashboard Studio 向けのカスタムビジュアライゼーション（世界地図＋アタックマップ）。
 
