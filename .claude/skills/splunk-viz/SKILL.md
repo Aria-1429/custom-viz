@@ -126,8 +126,10 @@ Dashboard Studio 拡張 viz の実装ナレッジを集約している:
 1. **ルート `README.md` の該当行**（バージョン・概要）が最新か ← **忘れやすい**
 2. 各 viz の `README.md` にリリースノートを追記したか
 3. `package.json` と `package/app/app.conf` のバージョンが一致しているか
-4. `yarn build && yarn package` 済みで、`.spl` が最新コードと一致しているか
-5. `yarn verify` が全件成功しているか
+4. **`yarn build:prod` && `yarn package`** 済みで、`.spl` が最新コードと一致しているか
+   （**`yarn build` は開発ビルド**。sourcemap 入りの巨大 `.spl` になる。
+   `tar -tzf dist/<最新>.spl | grep '\.map$'` が空であること）
+5. `yarn verify` が全件成功しているか（**package 後の本番ビルドに対して**回す）
 6. 混入チェック：`git diff --cached --name-only | grep -E 'node_modules|/stage/|\.map$'` が空
 
 ## 依存パッケージ

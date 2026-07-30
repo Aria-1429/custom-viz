@@ -98,10 +98,21 @@ visualizations/<name>/
 
 ```bash
 yarn install
-yarn build          # dist/<viz>/visualization.js を生成（esbuild, jsx automatic）
+yarn build          # 開発ビルド（非minify・sourcemap付き）。検証・デバッグ用
+yarn build:prod     # 本番ビルド（minify・sourcemap無し）。.spl を作る前は必ずこちら
 yarn package        # dist/<viz>-<ver>-<hash>.spl を生成（stage/ 経由で tar.gz）
 ```
 
+- **⚠ `.spl` を作るときは必ず `yarn build:prod && yarn package`**（2026-07-30 に発覚した実害）。
+  `yarn package` は dist/ を無検査でそのまま固めるため、直前が `yarn build`（開発ビルド）だと
+  **非 minify JS＋巨大な `.map` が `.spl` に混入**する。world-map v1.7.0 で実際に発生し、
+  本来 729KB の `.spl` が 1.9MB（内容 9.5MB 相当）になっていた。しかも当時この節の手順自体が
+  `yarn build` を案内していたため**全 28 viz の `.spl` が開発ビルド混入**だった
+  （world-map は v1.8.0 で修正済み。他 viz は次回リリース時に本番ビルドで再パッケージする）。
+  - 混入チェック: `tar -tzf dist/<最新>.spl | grep '\.map$'` が**空**であること。
+  - `yarn verify` は dist/ のバンドルを叩くため、**package 後にもう一度 verify を回して
+    「本番ビルドで全件成功」まで確認**する（開発ビルドで verify → prod で梱包、だと
+    検証したものと配布物が一致しない）。
 - パッケージ化のたびに **バージョンを上げる**（`package.json` と `package/app/app.conf` 両方）:
   `npm version minor --no-git-tag-version` → app.conf の `version = x.y.z` を sed で同期。
 - **旧版の `.spl` は残す**。`rm -f dist/*.spl` はしない（ファイル名にバージョン＋ハッシュが入るので判別可）。
@@ -1089,7 +1100,8 @@ config.json と JS バンドルは別経路で配信される。§6 の `_bump` 
 ## 7. デプロイ（アンインストール・再起動なし）
 
 1. `npm version <patch|minor> --no-git-tag-version` でバージョンを上げ、`app.conf` の version も同期。
-   `yarn build && yarn package` で新 `.spl` 生成。
+   **`yarn build:prod && yarn package`** で新 `.spl` 生成（`yarn build` は開発ビルド。
+   §1「ビルド & パッケージ」の混入事故を参照）。
 2. Splunk Web「Install app from file」で **"Upgrade app"（上書き）にチェック**して `.spl` をアップロード。
 3. ブラウザで `https://<host>:8000/en-US/_bump` を開き **Bump version**（Splunk 再起動の代替）。
 4. ブラウザをハードリロード（Ctrl+Shift+R）。
