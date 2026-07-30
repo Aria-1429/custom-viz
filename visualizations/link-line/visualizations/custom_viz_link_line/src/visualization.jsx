@@ -5,6 +5,9 @@ import {
     useOptions,
     useMode,
 } from '@splunk/dashboard-studio-extension/react';
+// ドリルダウン API は /react ではなくコア側にある（公式 docs の記載は誤り。
+// world-map で実機確認済みのパターンをそのまま使う）。
+import { addDrilldownListener } from '@splunk/dashboard-studio-extension/visualization';
 import WaitSpinner from '@splunk/react-ui/WaitSpinner';
 import { SplunkThemeProvider } from '@splunk/themes';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -47,10 +50,25 @@ import './visualization.css';
 // ---------------------------------------------------------------------------
 
 // バージョン表記（デプロイ確認用。編集モードの案内に表示）
-const VIZ_VERSION = '1.9.2';
+const VIZ_VERSION = '1.10.0';
 
 // 列挙型オプションの許容値（未知値は既定へ丸める。旧バージョンの数値コードは復元しない）
 const STYLE_MODES = ['flat', 'shadow', 'neon', 'pipe'];
+// 色分けモード: range=値の範囲（editor.threshold）/ match=文字列一致（「値|色」）
+const COLOR_MODES = ['range', 'match'];
+// 光の帯の向き: forward=始点→終点 / reverse=終点→始点 / both=双方向
+const FLOW_DIRECTIONS = ['forward', 'reverse', 'both'];
+
+// 「値|色」の手入力で使われやすい CSS 色名（world-map と同じ集合）。
+// hexToRgb は hex しか読めないため、ここで自前解決する
+const NAMED_COLORS = {
+    red: '#ff0000', crimson: '#dc143c', orange: '#ffa500', gold: '#ffd700',
+    yellow: '#ffff00', lime: '#00ff00', green: '#008000', teal: '#008080',
+    cyan: '#00ffff', aqua: '#00ffff', blue: '#0000ff', navy: '#000080',
+    purple: '#800080', magenta: '#ff00ff', fuchsia: '#ff00ff', pink: '#ffc0cb',
+    brown: '#a52a2a', white: '#ffffff', black: '#000000', gray: '#808080',
+    grey: '#808080', silver: '#c0c0c0',
+};
 
 // オプションのデフォルト（config.json の optionsSchema.default と一致させる）
 const DEFAULTS = {
@@ -72,6 +90,13 @@ const DEFAULTS = {
     arrowHead: false, // 終点の矢印
     showValue: true, // 値ラベル（線の中央）
     valueDecimals: 0, // 小数点以下の桁数
+    unitLabel: '', // 値の後ろに付ける単位（例: ms / % / Mbps。空で非表示）
+    linkLabel: '', // 接続名（例: DB → App。値チップの先頭に表示。空で非表示）
+    flowDirection: 'forward', // 光の帯の向き（forward / reverse / both）
+
+    // 色分けモードと文字列一致マッピング
+    colorMode: 'range', // range=値の範囲 / match=文字列一致
+    matchColors: [], // 「値|色」の行配列（editor.arrayOfStrings）。match モードで使用
 
     // 値→色の範囲バンド（editor.threshold が [{from,to,value}] の配列を生で渡してくる）。
     // config.json の optionsSchema.colorBands.default と一致させること。
@@ -196,6 +221,12 @@ function normalizeOptions(raw) {
         arrowHead: bool(o.arrowHead, DEFAULTS.arrowHead),
         showValue: bool(o.showValue, DEFAULTS.showValue),
         valueDecimals: clamp(Math.round(numOr(o.valueDecimals, DEFAULTS.valueDecimals)), 0, 6),
+        unitLabel: typeof o.unitLabel === 'string' ? o.unitLabel.trim() : '',
+        linkLabel: typeof o.linkLabel === 'string' ? o.linkLabel.trim() : '',
+        flowDirection: enumOr(o.flowDirection, FLOW_DIRECTIONS, DEFAULTS.flowDirection),
+
+        colorMode: enumOr(o.colorMode, COLOR_MODES, DEFAULTS.colorMode),
+        matchColors: Array.isArray(o.matchColors) ? o.matchColors : [],
 
         // editor.threshold の生配列。ここでは「配列でなければ既定へ倒す」だけに留め、
         // 個々の行の検証は colorForValue() 側で行う（1 行だけ壊れていても他は活かす）。
@@ -412,6 +443,47 @@ function colorForValue(value, opts) {
 }
 
 // ---------------------------------------------------------------------------
+// 文字列一致→色（colorMode='match'。editor.arrayOfStrings の「値|色」）
+//
+// v1.9.0 で自作パネルごと廃止した「一致」方式の復活。UI は world-map の
+// 「カテゴリ名|色」と同じ書式に統一する（区切りは半角 |、大文字小文字は同一視、
+// 解釈できない行は黙って捨てる＝描画を壊さない）。
+// ---------------------------------------------------------------------------
+
+// 色文字列を hex に解決（CSS 色名も許容）。読めなければ null
+function resolveColorString(color) {
+    const s = String(color || '').trim().toLowerCase();
+    const hex = NAMED_COLORS[s] || s;
+    return hexToRgb(hex) ? hex : null;
+}
+
+// 「値|色」の行配列 → Map<小文字の値, hex色>
+function parseMatchColors(raw) {
+    const map = new Map();
+    if (!Array.isArray(raw)) return map;
+    for (const line of raw) {
+        if (typeof line !== 'string') continue;
+        const sep = line.indexOf('|');
+        if (sep < 0) continue;
+        const name = line.slice(0, sep).trim();
+        const color = resolveColorString(line.slice(sep + 1));
+        if (name === '' || !color) continue;
+        const key = name.toLowerCase();
+        if (!map.has(key)) map.set(key, color);
+    }
+    return map;
+}
+
+// 文字列値→色。どれにも一致しない／値が無い場合はニュートラル
+function colorForMatch(rawValue, opts) {
+    if (rawValue === null || rawValue === undefined) return NEUTRAL_COLOR;
+    const key = String(rawValue).trim().toLowerCase();
+    if (key === '') return NEUTRAL_COLOR;
+    const map = parseMatchColors(opts.matchColors);
+    return map.get(key) || NEUTRAL_COLOR;
+}
+
+// ---------------------------------------------------------------------------
 // 線の幾何（点列 JSON・角丸パス・中点/終端角度）
 // ---------------------------------------------------------------------------
 
@@ -608,12 +680,12 @@ function trackPointAt(track, dist) {
     return { x: s0.x + dx * t, y: s0.y + dy * t, nx: -dy / len, ny: dx / len };
 }
 
-function FlowCanvas({ track, color, lineWidth, speed, pulseCaps, caps, capR, width, height, opacity }) {
+function FlowCanvas({ track, color, lineWidth, speed, direction, pulseCaps, caps, capR, width, height, opacity }) {
     const canvasRef = useRef(null);
     // 最新の track / 色 / 速度を rAF ループから参照するための ref
     // （再購読でループを張り直さず、値だけ差し替える）
     const stateRef = useRef(null);
-    stateRef.current = { track, color, lineWidth, speed, pulseCaps, caps, capR, width, height, opacity };
+    stateRef.current = { track, color, lineWidth, speed, direction, pulseCaps, caps, capR, width, height, opacity };
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -650,40 +722,44 @@ function FlowCanvas({ track, color, lineWidth, speed, pulseCaps, caps, capR, wid
                 // 端点フェード窓の長さ。境界に近いサンプルの幅を smoothstep で
                 // 0 へ窄め、サンプルがパス外に出て消える瞬間のジャンプを不可視にする
                 const fade = bandLen * 0.5;
-                const pts = [];
-                for (let k = 0; k <= FLOW_SAMPLES; k += 1) {
-                    const u = k / FLOW_SAMPLES; // 0=帯の先頭, 1=帯の末尾
-                    const d = head - u * bandLen;
-                    if (d < 0 || d > tr.total) continue; // パス外（出発前/到達後）は描かない
-                    const p = trackPointAt(tr, d);
-                    const env =
-                        Math.sin(Math.PI * u) * smooth01(d / fade) * smooth01((tr.total - d) / fade);
-                    pts.push({ ...p, env });
-                }
-                if (pts.length >= 2) {
-                    const hwBase = Math.max(2, st.lineWidth * 0.62);
-                    // 中心線の左右に張り出したテーパーポリゴンを 1 回で塗る。
-                    // 重ね塗りしないのでアルファが累積せず白飛びしない
-                    const fillBand = (scale, alpha, fillStyle) => {
-                        ctx.beginPath();
-                        pts.forEach((p, i) => {
-                            const hw = hwBase * scale * p.env;
-                            if (i === 0) ctx.moveTo(p.x + p.nx * hw, p.y + p.ny * hw);
-                            else ctx.lineTo(p.x + p.nx * hw, p.y + p.ny * hw);
-                        });
-                        for (let i = pts.length - 1; i >= 0; i -= 1) {
-                            const p = pts[i];
-                            const hw = hwBase * scale * p.env;
-                            ctx.lineTo(p.x - p.nx * hw, p.y - p.ny * hw);
-                        }
-                        ctx.closePath();
-                        ctx.globalAlpha = alpha;
-                        ctx.fillStyle = fillStyle;
-                        ctx.fill();
-                    };
+                const hwBase = Math.max(2, st.lineWidth * 0.62);
+                // 中心線の左右に張り出したテーパーポリゴンを 1 回で塗る。
+                // 重ね塗りしないのでアルファが累積せず白飛びしない
+                const fillBand = (pts, scale, alpha, fillStyle) => {
+                    ctx.beginPath();
+                    pts.forEach((p, i) => {
+                        const hw = hwBase * scale * p.env;
+                        if (i === 0) ctx.moveTo(p.x + p.nx * hw, p.y + p.ny * hw);
+                        else ctx.lineTo(p.x + p.nx * hw, p.y + p.ny * hw);
+                    });
+                    for (let i = pts.length - 1; i >= 0; i -= 1) {
+                        const p = pts[i];
+                        const hw = hwBase * scale * p.env;
+                        ctx.lineTo(p.x - p.nx * hw, p.y - p.ny * hw);
+                    }
+                    ctx.closePath();
+                    ctx.globalAlpha = alpha;
+                    ctx.fillStyle = fillStyle;
+                    ctx.fill();
+                };
+                // 帯の向き: forward=始点→終点 / reverse=逆走 / both=両方向を同時に描く。
+                // 弧長 d を反転（total - d）するだけで、位相・フェード窓の計算は共通
+                const dirs = st.direction === 'both' ? ['forward', 'reverse'] : [st.direction || 'forward'];
+                for (const dir of dirs) {
+                    const pts = [];
+                    for (let k = 0; k <= FLOW_SAMPLES; k += 1) {
+                        const u = k / FLOW_SAMPLES; // 0=帯の先頭, 1=帯の末尾
+                        const d = head - u * bandLen;
+                        if (d < 0 || d > tr.total) continue; // パス外（出発前/到達後）は描かない
+                        const p = trackPointAt(tr, dir === 'reverse' ? tr.total - d : d);
+                        const env =
+                            Math.sin(Math.PI * u) * smooth01(d / fade) * smooth01((tr.total - d) / fade);
+                        pts.push({ ...p, env });
+                    }
+                    if (pts.length < 2) continue;
                     // 線自体が同色で不透明なので、帯は白へ寄せた明色で「線の上を走る光」に見せる
-                    fillBand(2.3, 0.16 * st.opacity, mixColor(st.color, '#ffffff', 0.35)); // 太く淡いグロー
-                    fillBand(1.0, 0.85 * st.opacity, mixColor(st.color, '#ffffff', 0.6)); // 締まった芯
+                    fillBand(pts, 2.3, 0.16 * st.opacity, mixColor(st.color, '#ffffff', 0.35)); // 太く淡いグロー
+                    fillBand(pts, 1.0, 0.85 * st.opacity, mixColor(st.color, '#ffffff', 0.6)); // 締まった芯
                 }
             }
 
@@ -923,9 +999,12 @@ function LinkLine({ mode }) {
     const pxPts = points.map((p) => ({ x: p.x * w, y: p.y * h }));
     const pathD = roundedPathD(pxPts, opts.cornerRadius);
     const geo = polylineGeometry(pxPts);
-    // 色: 編集画面の「線の色」（editor.threshold）で設定した範囲バンドから解決する
+    // 色: 「色分けモード」に応じて解決する。
+    //   range = 編集画面の「線の色」（editor.threshold）の範囲バンド × 数値
+    //   match = 「値と色の対応」（editor.arrayOfStrings「値|色」）× 生の文字列値
     const rawValue = extracted.raw;
-    const color = colorForValue(value, opts);
+    const isMatchMode = opts.colorMode === 'match';
+    const color = isMatchMode ? colorForMatch(rawValue, opts) : colorForValue(value, opts);
     const lw = opts.lineWidth;
 
     // 端点と全体方向（グラデーション・パイプのハイライトオフセットに使用）
@@ -983,14 +1062,23 @@ function LinkLine({ mode }) {
         `L ${endPt.x - cosA * arrowLen * 0.72} ${endPt.y - sinA * arrowLen * 0.72} ` +
         `L ${arrowBx + sinA * arrowW} ${arrowBy - cosA * arrowW} Z`;
 
-    // 数値はフォーマット、非数値（「一致」方式の文字列値など）は生値を表示
-    const labelText = Number.isFinite(value)
-        ? fmtValue(value, opts.valueDecimals)
-        : rawValue
-          ? rawValue.length > 14
-              ? `${rawValue.slice(0, 13)}…`
-              : rawValue
-          : 'N/A';
+    // 値の表示テキスト。
+    //   range モード: 数値はカンマ区切り＋小数桁でフォーマット（単位は別スパンで付加）
+    //   match モード: 生の文字列値をそのまま表示（OK / NG 等。数値でも整形しない）
+    //   どちらも値が無ければ N/A
+    const truncate = (s) => (s.length > 14 ? `${s.slice(0, 13)}…` : s);
+    const isNumericDisplay = !isMatchMode && Number.isFinite(value);
+    const labelText = isMatchMode
+        ? rawValue
+            ? truncate(rawValue)
+            : 'N/A'
+        : Number.isFinite(value)
+          ? fmtValue(value, opts.valueDecimals)
+          : rawValue
+            ? truncate(rawValue)
+            : 'N/A';
+    // 単位は数値表示のときだけ付ける（N/A や文字列ステータスに ms を付けない）
+    const unitText = isNumericDisplay && opts.unitLabel !== '' ? opts.unitLabel : '';
     const labelFont = clamp(11.5 + lw * 0.35, 11, 20);
     const chipDotR = Math.max(3, labelFont * 0.26);
     const chipBg = mode === 'dark' ? 'rgba(10,14,26,0.88)' : 'rgba(255,255,255,0.92)';
@@ -1014,6 +1102,37 @@ function LinkLine({ mode }) {
         userSelect: 'none',
         boxShadow: mode === 'dark' ? '0 2px 10px rgba(0,0,0,0.35)' : '0 2px 10px rgba(20,30,40,0.12)',
     };
+
+    // --- ドリルダウン（インタラクション） ---------------------------------
+    // 線の透明な当たり判定に addDrilldownListener で登録する（world-map で実機
+    // 確立済みのパターン。triggerDrilldown は効かない・発火は click のみ・
+    // config.json の events 宣言が前提）。トークンへの割り当ては編集画面の
+    // 「インタラクション」でユーザーが定義する。
+    const drillRef = useRef(null);
+    useEffect(() => {
+        if (typeof addDrilldownListener !== 'function') return;
+        const node = drillRef.current;
+        if (!node) return; // 線編集中は当たり判定ごと外している
+        try {
+            const fieldName = fieldNames[extracted.valIdx] || 'value';
+            const display = Number.isFinite(value) ? value : rawValue ?? '';
+            addDrilldownListener({
+                node,
+                action: 'line.click',
+                // row.<フィールド名>.value 形式にすると「インタラクション」から
+                // フィールド名で参照できる
+                payloadCallback: () => ({
+                    [`row.${fieldName}.value`]: display,
+                    'row.value.value': display,
+                    'row.label.value': opts.linkLabel,
+                    name: fieldName,
+                    value: display,
+                }),
+            });
+        } catch (e) {
+            /* ドリルダウン未対応環境でも描画は続ける */
+        }
+    }, [value, rawValue, opts.linkLabel, fieldNames, extracted.valIdx, lineEditActive]);
 
     // 流れる光の帯・端点パルス（Canvas）。どちらも無ければ Canvas 自体をマウントしない
     const pulseActive = opts.pulseCaps && opts.showEndCaps;
@@ -1149,6 +1268,23 @@ function LinkLine({ mode }) {
 
                 </g>
 
+                {/* ドリルダウン用の透明な当たり判定（クリックで line.click を発火）。
+                    線編集トグル中は外して編集操作を妨げない。SVG 全体は
+                    pointerEvents:none だが、この要素だけ auto で受ける */}
+                {!lineEditActive && (
+                    <path
+                        ref={drillRef}
+                        d={pathD}
+                        fill="none"
+                        stroke="transparent"
+                        strokeWidth={Math.max(lw * 2.5, 14)}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        data-role="drill-hit"
+                        style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+                    />
+                )}
+
                 {/* 線編集（表示モード・トグルON）: 点ハンドルと「＋」（追加）ハンドル */}
                 {lineEditActive && (
                     <g style={{ pointerEvents: 'auto' }} data-role="edit-layer">
@@ -1213,6 +1349,7 @@ function LinkLine({ mode }) {
                     color={color}
                     lineWidth={lw}
                     speed={opts.flowSpeed}
+                    direction={opts.flowDirection}
                     pulseCaps={pulseActive}
                     caps={pulseCapPts}
                     capR={capR}
@@ -1222,8 +1359,9 @@ function LinkLine({ mode }) {
                 />
             )}
 
-            {/* 値ラベル（線の中央。インク色テキスト＋色ドットのチップ。Canvas より上に置く） */}
-            {opts.showValue && (
+            {/* 値ラベル（線の中央。インク色テキスト＋色ドットのチップ。Canvas より上に置く）。
+                接続名（linkLabel）だけでも表示できる（showValue オフ＋接続名あり） */}
+            {(opts.showValue || opts.linkLabel !== '') && (
                 <div
                     data-role="value-label"
                     style={{
@@ -1259,7 +1397,30 @@ function LinkLine({ mode }) {
                             flex: 'none',
                         }}
                     />
-                    <span data-role="value-text">{labelText}</span>
+                    {/* 接続名（例: DB → App）。値より一段弱いウェイトで前置する */}
+                    {opts.linkLabel !== '' && (
+                        <span
+                            data-role="link-label"
+                            style={{ fontWeight: 500, opacity: 0.78 }}
+                        >
+                            {opts.linkLabel}
+                        </span>
+                    )}
+                    {opts.showValue && <span data-role="value-text">{labelText}</span>}
+                    {/* 単位（数値表示のときだけ。値よりわずかに小さく・弱く） */}
+                    {opts.showValue && unitText !== '' && (
+                        <span
+                            data-role="value-unit"
+                            style={{
+                                fontSize: Math.max(9, Math.round(labelFont * 0.82)),
+                                fontWeight: 500,
+                                opacity: 0.75,
+                                marginLeft: -Math.max(2, chipDotR),
+                            }}
+                        >
+                            {unitText}
+                        </span>
+                    )}
                 </div>
             )}
 

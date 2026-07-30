@@ -121,7 +121,12 @@ globalThis.DashboardExtensionAPI = {
     getError: () => null,
     addErrorListener: () => () => {},
     drilldown: () => {},
+    // ドリルダウン登録を記録して、正しい payload が登録されるか検査する
+    addDrilldownListener: (args) => {
+        drilldownRegs.push(args);
+    },
 };
+const drilldownRegs = [];
 win.DashboardExtensionAPI = globalThis.DashboardExtensionAPI;
 
 const fire = (key, payload) => listeners[key].forEach((cb) => cb(payload));
@@ -773,6 +778,142 @@ console.log('\n[12] ✎ line editor regression (with editor-panel colorBands set
     check('allowViewEdit off → ✎ toggle hidden', !doc.querySelector('[data-role="edit-toggle"]'));
     await setOpts({ allowViewEdit: true, colorBands: [{ from: 0, to: 1000, value: '#7b56db' }] });
     check('allowViewEdit on → ✎ toggle back', !!doc.querySelector('[data-role="edit-toggle"]'));
+    await setOpts({});
+}
+
+// ---- 12. 色分けモード「文字列の一致」（colorMode='match' + matchColors） --------
+console.log('\n[17] match mode colors the line by raw string value');
+{
+    await setData({ fields: FIELDS, rows: [['t1', 'OK']] });
+    await setOpts({ colorMode: 'match', matchColors: ['OK|#00ff00', 'NG|#dc4e41'], lineGradient: false });
+    check('OK → green', mainLine().getAttribute('stroke') === '#00ff00', mainLine().getAttribute('stroke'));
+    check('label shows the raw string', valueText().textContent === 'OK', valueText().textContent);
+
+    // 大文字小文字は同一視する
+    await setData({ fields: FIELDS, rows: [['t1', 'ng']] });
+    check('case-insensitive match (ng → red)', mainLine().getAttribute('stroke') === '#dc4e41',
+        mainLine().getAttribute('stroke'));
+
+    // どれにも一致しない値・CSS 色名・数値文字列
+    await setData({ fields: FIELDS, rows: [['t1', 'WARN']] });
+    check('unmatched value → neutral gray', mainLine().getAttribute('stroke') === '#8b93a1',
+        mainLine().getAttribute('stroke'));
+    await setOpts({ colorMode: 'match', matchColors: ['warn|orange'], lineGradient: false });
+    check('CSS color names accepted (orange)', mainLine().getAttribute('stroke') === '#ffa500',
+        mainLine().getAttribute('stroke'));
+
+    // match モードでは数値も整形しない（生の文字列のまま）
+    await setData({ fields: FIELDS, rows: [['t1', '1234.5']] });
+    await setOpts({ colorMode: 'match', matchColors: ['1234.5|#0000ff'], lineGradient: false });
+    check('numeric string matches literally and is not formatted',
+        mainLine().getAttribute('stroke') === '#0000ff' && valueText().textContent === '1234.5',
+        `${mainLine().getAttribute('stroke')} / ${valueText().textContent}`);
+
+    // range モード（既定）では matchColors は使われない
+    await setData({ fields: FIELDS, rows: ROWS });
+    await setOpts({ matchColors: ['95|#0000ff'], lineGradient: false });
+    check('range mode ignores matchColors (95 → red band)', mainLine().getAttribute('stroke') === '#dc4e41',
+        mainLine().getAttribute('stroke'));
+    await setOpts({});
+}
+
+// ---- 13. 単位表示（unitLabel）と接続名（linkLabel） -----------------------------
+console.log('\n[18] unit label and link label');
+{
+    await setData({ fields: FIELDS, rows: ROWS }); // 95
+    await setOpts({ unitLabel: 'ms' });
+    const unit = () => doc.querySelector('[data-role="value-unit"]');
+    check('unit appears after the value', unit() && unit().textContent === 'ms',
+        unit() && unit().textContent);
+    check('value itself stays formatted (95)', valueText().textContent === '95', valueText().textContent);
+
+    // 値が無い（N/A）ときは単位を付けない
+    await setData({ fields: FIELDS, rows: [] });
+    check('no unit on N/A', valueText().textContent === 'N/A' && !unit(),
+        `${valueText() && valueText().textContent} / unit=${!!unit()}`);
+    await setData({ fields: FIELDS, rows: ROWS });
+
+    // 接続名（値の前に一段弱く表示）
+    await setOpts({ linkLabel: 'DB → App', unitLabel: 'ms' });
+    const linkLabel = () => doc.querySelector('[data-role="link-label"]');
+    check('link label shown before the value', linkLabel() && linkLabel().textContent === 'DB → App',
+        linkLabel() && linkLabel().textContent);
+
+    // showValue オフでも接続名だけのチップを出せる
+    await setOpts({ linkLabel: 'DB → App', showValue: false });
+    check('label-only chip when showValue is off',
+        !!linkLabel() && !valueText() && !!doc.querySelector('[data-role="value-label"]'),
+        `label=${!!linkLabel()} value=${!!valueText()}`);
+
+    // 両方無ければチップ自体が出ない（従来どおり）
+    await setOpts({ showValue: false });
+    check('no chip when both are off', !doc.querySelector('[data-role="value-label"]'));
+    await setOpts({});
+}
+
+// ---- 14. 光の帯の向き（flowDirection: forward / reverse / both） -----------------
+console.log('\n[19] flow direction');
+{
+    const fillsIn = async (o) => {
+        await setOpts({ flowSpeed: 2, ...o });
+        const cv = flowCanvas();
+        const ctx = cv && cv.getContext('2d');
+        if (!ctx) return -1;
+        ctx.ops.length = 0;
+        await sleep(150);
+        return ctx.ops.filter((op) => op === 'fill').length;
+    };
+    const fwd = await fillsIn({ flowDirection: 'forward' });
+    check('forward: band drawn on canvas', fwd > 0, `fills=${fwd}`);
+    const rev = await fillsIn({ flowDirection: 'reverse' });
+    check('reverse: band drawn on canvas', rev > 0, `fills=${rev}`);
+    const both = await fillsIn({ flowDirection: 'both' });
+    check('both: two bands per frame (≈2x fills)', both > Math.max(fwd, rev) * 1.5,
+        `fwd=${fwd} rev=${rev} both=${both}`);
+    // 未知値は forward へ丸めて落ちない
+    const junk = await fillsIn({ flowDirection: 'zigzag' });
+    check('unknown direction falls back safely', junk > 0, `fills=${junk}`);
+    await setOpts({});
+}
+
+// ---- 15. ドリルダウン（line.click の登録と payload） -----------------------------
+console.log('\n[20] drilldown registration');
+{
+    await setData({ fields: FIELDS, rows: ROWS }); // 95
+    await setOpts({ linkLabel: 'DB → App' });
+    check('transparent hit path exists', !!doc.querySelector('path[data-role="drill-hit"]'));
+    check('drilldown listeners registered', drilldownRegs.length > 0, `got ${drilldownRegs.length}`);
+    const reg = drilldownRegs[drilldownRegs.length - 1];
+    check('action is line.click', reg && reg.action === 'line.click', reg && reg.action);
+    check('registration has a DOM node', !!(reg && reg.node));
+    const payload = reg && typeof reg.payloadCallback === 'function' ? reg.payloadCallback() : null;
+    check('payload uses row.<field>.value convention (latency_ms=95)',
+        payload && payload['row.latency_ms.value'] === 95 && payload['row.value.value'] === 95,
+        JSON.stringify(payload));
+    check('payload carries the link label', payload && payload['row.label.value'] === 'DB → App',
+        JSON.stringify(payload));
+    check('payload has name/value for interaction UI',
+        payload && payload.name === 'latency_ms' && payload.value === 95, JSON.stringify(payload));
+
+    // 線編集トグル中は当たり判定を外す（編集ドラッグを妨げない）
+    doc.querySelector('[data-role="edit-toggle"]').dispatchEvent(ev('click'));
+    await sleep(250);
+    check('hit path removed while line editing', !doc.querySelector('path[data-role="drill-hit"]'));
+    doc.querySelector('[data-role="edit-toggle"]').dispatchEvent(ev('click'));
+    await sleep(250);
+    check('hit path restored after editing', !!doc.querySelector('path[data-role="drill-hit"]'));
+    await setOpts({});
+}
+
+// ---- 16. slider 化したオプションが従来どおり効く --------------------------------
+console.log('\n[21] slider-backed options still apply');
+{
+    await setOpts({ lineOpacity: 40 });
+    const g = doc.querySelector('svg > g[opacity]');
+    check('lineOpacity 40 → group opacity 0.4', g && g.getAttribute('opacity') === '0.4',
+        g && g.getAttribute('opacity'));
+    await setOpts({ flowSpeed: 0.5 });
+    check('fractional flowSpeed accepted (canvas mounted)', !!flowCanvas());
     await setOpts({});
 }
 

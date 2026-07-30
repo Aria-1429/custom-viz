@@ -2,14 +2,18 @@
   "showTitleAndDescription": false,
   "includeInToolbar": true,
   "includeInVizSwitcher": true,
-  "showDrilldown": false,
-  "canSetTokens": [],
-  "hasEventHandlers": false,
+  "showDrilldown": true,
+  "canSetTokens": ["dynamic", "static"],
+  "hasEventHandlers": true,
   "config": {
     "name": "Custom Viz Link Line",
     "description": "An editable connector line between servers. Bend and drag the line in view mode; the color follows the value ranges configured in the editor panel",
     "category": "Custom",
     "icon": null,
+    "events": {
+      "line.click": { "description": "triggered when user clicks the connector line" }
+    },
+    "supports": ["events"],
     "dataContract": {
       "requiredDataSources": ["primary"],
       "optionalDataSources": []
@@ -37,6 +41,17 @@
       "arrowHead": { "type": "boolean", "default": false },
       "showValue": { "type": "boolean", "default": true },
       "valueDecimals": { "type": "number", "default": 0 },
+      "unitLabel": { "type": "string", "default": "" },
+      "linkLabel": { "type": "string", "default": "" },
+      "flowDirection": { "type": "string", "default": "forward" },
+      "colorMode": { "type": "string", "default": "range" },
+      "matchColors": {
+        "default": [],
+        "anyOf": [
+          { "type": "array", "items": { "type": "string" } },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      },
 
       "colorBands": {
         "default": [
@@ -80,7 +95,12 @@
       {
         "label": "線の色",
         "layout": [
-          [{ "label": "値の範囲と色（＋で範囲を追加。上限/下限なしの範囲も作れます）", "editor": "editor.threshold", "option": "colorBands", "editorProps": { "openRanges": true, "isTogglable": false } }]
+          [{ "label": "色分けモード", "editor": "editor.select", "option": "colorMode", "editorProps": { "values": [
+            { "label": "値の範囲で色分け（数値）", "value": "range" },
+            { "label": "文字列の一致で色分け（OK / NG など）", "value": "match" }
+          ] } }],
+          [{ "label": "値の範囲と色（モードが「値の範囲」のとき使用。＋で範囲を追加。上限/下限なしの範囲も作れます）", "editor": "editor.threshold", "option": "colorBands", "editorProps": { "openRanges": true, "isTogglable": false } }],
+          [{ "label": "値と色の対応（モードが「文字列の一致」のとき使用。1行に1つ「値|色」の形式。例: OK|#53a051／NG|#dc4e41。大文字小文字は区別しません）", "editor": "editor.arrayOfStrings", "option": "matchColors", "editorProps": { "labelPosition": "top", "themes": {} } }]
         ]
       },
       {
@@ -104,9 +124,14 @@
           [{ "label": "線の太さ（px）", "editor": "editor.number", "option": "lineWidth" }],
           [{ "label": "線にグラデーション（立体感）", "editor": "editor.checkbox", "option": "lineGradient" }],
           [{ "label": "破線の長さ（px、0で実線）", "editor": "editor.number", "option": "dashLength" }],
-          [{ "label": "光の帯の速度（0で停止）", "editor": "editor.number", "option": "flowSpeed" }],
+          [{ "label": "光の帯の速度（0で停止）", "editor": "editor.slider", "option": "flowSpeed", "editorProps": { "min": 0, "max": 10, "step": 0.5 } }],
+          [{ "label": "光の帯の向き", "editor": "editor.select", "option": "flowDirection", "editorProps": { "values": [
+            { "label": "順方向（始点 → 終点）", "value": "forward" },
+            { "label": "逆方向（終点 → 始点）", "value": "reverse" },
+            { "label": "双方向", "value": "both" }
+          ] } }],
           [{ "label": "端点をパルス発光させる（アニメーション）", "editor": "editor.checkbox", "option": "pulseCaps" }],
-          [{ "label": "不透明度（10〜100%）", "editor": "editor.number", "option": "lineOpacity" }]
+          [{ "label": "不透明度（%）", "editor": "editor.slider", "option": "lineOpacity", "editorProps": { "min": 10, "max": 100, "step": 5 } }]
         ]
       },
       {
@@ -115,7 +140,9 @@
           [{ "label": "両端にコネクタ（丸端子）を表示", "editor": "editor.checkbox", "option": "showEndCaps" }],
           [{ "label": "終点に矢印を表示", "editor": "editor.checkbox", "option": "arrowHead" }],
           [{ "label": "値ラベルを線の中央に表示", "editor": "editor.checkbox", "option": "showValue" }],
-          [{ "label": "小数点以下の桁数", "editor": "editor.number", "option": "valueDecimals" }]
+          [{ "label": "小数点以下の桁数", "editor": "editor.number", "option": "valueDecimals" }],
+          [{ "label": "単位（値の後ろに表示。例: ms／%。空欄で非表示）", "editor": "editor.text", "option": "unitLabel" }],
+          [{ "label": "接続名（値の前に表示。例: DB → App。空欄で非表示）", "editor": "editor.text", "option": "linkLabel" }]
         ]
       }
     ],
