@@ -1,7 +1,7 @@
 THIRD-PARTY SOFTWARE NOTICES
 ============================
 
-App: custom_viz_worldmap v1.8.1
+App: custom_viz_worldmap v1.8.2
 Fingerprint: 2258303e433448d8ed0933372278c476e49cbc84a7790dafc3980027924e7711
 
 このファイルは scripts/gen-third-party-notices.mjs が esbuild metafile

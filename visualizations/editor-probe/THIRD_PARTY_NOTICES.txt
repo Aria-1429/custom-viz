@@ -1,7 +1,7 @@
 THIRD-PARTY SOFTWARE NOTICES
 ============================
 
-App: custom_viz_editor_probe v1.0.0
+App: custom_viz_editor_probe v1.0.1
 Fingerprint: 4d56b7e7685886fed694e3956b47dc3b6a1db70b2438b36b600ecaa6ac072746
 
 このファイルは scripts/gen-third-party-notices.mjs が esbuild metafile

@@ -1,6 +1,6 @@
 {
   "name": "custom_viz_network_graph",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A physics-based force-directed network graph visualization for Splunk Dashboard Studio",
   "author": "Yuto Ishitsuki",
   "type": "module",

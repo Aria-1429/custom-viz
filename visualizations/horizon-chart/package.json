@@ -1,6 +1,6 @@
 {
   "name": "custom_viz_horizon_chart",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A horizon chart that folds many time series into compact color bands, for Splunk Dashboard Studio",
   "author": "Yuto Ishitsuki",
   "type": "module",

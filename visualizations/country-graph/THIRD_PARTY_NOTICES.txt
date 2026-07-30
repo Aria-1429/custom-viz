@@ -1,7 +1,7 @@
 THIRD-PARTY SOFTWARE NOTICES
 ============================
 
-App: custom_viz_country_graph v1.1.0
+App: custom_viz_country_graph v1.1.1
 Fingerprint: 2f9cb7f600d48b2ca8569d4dac3cddc19b7a23be45c2806fd755b93051ee9355
 
 このファイルは scripts/gen-third-party-notices.mjs が esbuild metafile

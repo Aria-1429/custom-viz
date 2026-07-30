@@ -1,7 +1,7 @@
 THIRD-PARTY SOFTWARE NOTICES
 ============================
 
-App: custom_viz_japanmap v1.2.0
+App: custom_viz_japanmap v1.2.1
 Fingerprint: 2e3dbcc6f52d5014c6706a2d4376fc96dd727e3baadadc8f55475486297f68bd
 
 このファイルは scripts/gen-third-party-notices.mjs が esbuild metafile

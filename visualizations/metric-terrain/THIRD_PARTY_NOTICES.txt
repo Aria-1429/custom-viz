@@ -1,7 +1,7 @@
 THIRD-PARTY SOFTWARE NOTICES
 ============================
 
-App: custom_viz_metric_terrain v1.1.0
+App: custom_viz_metric_terrain v1.1.1
 Fingerprint: d85d1b13f2a29e0fc8d50a541993915db686e8dedc84e91172f9b160ff08fc60
 
 このファイルは scripts/gen-third-party-notices.mjs が esbuild metafile

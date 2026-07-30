@@ -1,6 +1,6 @@
 {
   "name": "custom_viz_editor_probe",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "editor 型の実機検証用プローブ (Dashboard Studio 拡張)",
   "author": "Unknown",
   "type": "module",

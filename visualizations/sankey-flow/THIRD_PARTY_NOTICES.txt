@@ -1,7 +1,7 @@
 THIRD-PARTY SOFTWARE NOTICES
 ============================
 
-App: custom_viz_sankey_flow v1.1.0
+App: custom_viz_sankey_flow v1.1.1
 Fingerprint: 5902a705fa9a9fe7cc8b95019e0521353bb7642aeb80ea3a3ca5738fc2f9b0e9
 
 このファイルは scripts/gen-third-party-notices.mjs が esbuild metafile

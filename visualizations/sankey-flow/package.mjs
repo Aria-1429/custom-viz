@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execSync } from 'node:child_process';
 import {
     copyFileSync,
