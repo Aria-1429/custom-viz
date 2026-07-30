@@ -380,6 +380,35 @@ async function main({ cwd }) {
 
     stageConfFiles(stageAppDir, vizs);
 
+    // THIRD_PARTY_NOTICES: バンドル OSS のライセンス条文を .spl に同梱する（必須）。
+    // 「無い」「依存が変わって古い」場合は警告ではなく失敗させる
+    // （通知の欠落・陳腐化に気づかないまま配布しないため）。
+    console.log(colors.info('Checking third-party notices...'));
+    try {
+        const noticesPath = join(projectRoot, 'THIRD_PARTY_NOTICES.txt');
+        if (!existsSync(noticesPath)) {
+            throw new Error('THIRD_PARTY_NOTICES.txt がありません。yarn build:prod && yarn notices で生成してください。');
+        }
+        const helpers = await import(
+            pathToFileURL(join(projectRoot, '..', '..', 'scripts', 'gen-third-party-notices.mjs')).href
+        );
+        const current = helpers.fingerprintPackages(
+            helpers.collectPackagesFromDist(projectRoot).map((p) => `${p.name}@${p.version}`)
+        );
+        const recorded = helpers.parseFingerprintFromNotices(readFileSync(noticesPath, 'utf-8'));
+        if (recorded !== current) {
+            throw new Error(
+                'THIRD_PARTY_NOTICES.txt がバンドル内容と一致しません（依存が変わっています）。\n' +
+                'yarn build:prod && yarn notices で再生成してください。\n' +
+                `  記録: ${recorded}\n  現在: ${current}`
+            );
+        }
+        copyFileSync(noticesPath, join(stageAppDir, 'THIRD_PARTY_NOTICES.txt'));
+    } catch (err) {
+        console.error(colors.error(`Error: ${err instanceof Error ? err.message : String(err)}`));
+        process.exit(1);
+    }
+
     console.log(colors.info('Generating app manifest...'));
     writeFileSync(join(stageAppDir, 'app.manifest'), JSON.stringify(generateAppManifest(appInfoParsed), null, 2));
 

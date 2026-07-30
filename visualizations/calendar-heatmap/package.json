@@ -8,6 +8,7 @@
     "build": "node build.mjs --entry=visualization.jsx",
     "build:prod": "NODE_ENV=production node build.mjs --entry=visualization.jsx",
     "dev": "node build.mjs --entry=visualization.jsx --watch",
+    "notices": "node ../../scripts/gen-third-party-notices.mjs",
     "package": "node package.mjs"
   },
   "devDependencies": {

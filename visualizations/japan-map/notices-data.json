@@ -1,0 +1,8 @@
+[
+  {
+    "name": "Natural Earth ne_10m_admin_1_states_provinces — 47都道府県ポリゴン（name / name_ja）",
+    "license": "パブリックドメイン（クレジット表記不要）",
+    "url": "https://www.naturalearthdata.com/about/terms-of-use/",
+    "note": "src/assets/japan-prefectures.topojson.json に抽出・簡略化して同梱。"
+  }
+]

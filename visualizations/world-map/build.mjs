@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { build, context } from 'esbuild';
-import { mkdirSync, readdirSync, existsSync, rmSync, readFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, existsSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import chalk from 'chalk';
@@ -175,11 +175,19 @@ if (isWatch) {
         }
 
         try {
-            await build({
+            // metafile はライセンス通知（THIRD_PARTY_NOTICES）の対象特定に使う。
+            // 「実際にバンドルへ入ったパッケージ」の唯一の正確な情報源
+            // （package.json の dependencies から推測してはいけない）。
+            const result = await build({
                 ...buildOptions,
                 entryPoints: [entryPoint],
                 outfile: outFile,
+                metafile: true,
             });
+            writeFileSync(
+                join(distDir, vizName, 'metafile.json'),
+                JSON.stringify(result.metafile)
+            );
             console.log(colors.dim(`  ✓ Built ${vizName}`));
         } catch (error) {
             console.error(colors.error(`Error building ${vizName}:`), error);

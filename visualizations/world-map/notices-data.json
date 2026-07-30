@@ -1,0 +1,20 @@
+[
+  {
+    "name": "Natural Earth — 国境ポリゴン・国名 110m/50m（world-atlas 経由）",
+    "license": "パブリックドメイン（クレジット表記不要）",
+    "url": "https://www.naturalearthdata.com/about/terms-of-use/",
+    "note": "world-atlas パッケージ（ISC）が再配布する Natural Earth データ。コードとしての world-atlas は OSS 節に記載。"
+  },
+  {
+    "name": "Natural Earth ne_10m_populated_places — 都市名（英語・日本語 NAME_JA）",
+    "license": "パブリックドメイン（クレジット表記不要）",
+    "url": "https://www.naturalearthdata.com/about/terms-of-use/",
+    "note": "src/data/cities.json に加工して同梱（約7,340都市の名称・座標・重要度）。"
+  },
+  {
+    "name": "Natural Earth ne_110m/50m_admin_0_countries — 国名の日本語対応表（NAME_JA）",
+    "license": "パブリックドメイン（クレジット表記不要）",
+    "url": "https://www.naturalearthdata.com/about/terms-of-use/",
+    "note": "src/data/country-names-ja.json に加工して同梱。"
+  }
+]

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { build, context } from 'esbuild';
-import { mkdirSync, readdirSync, existsSync, rmSync, readFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, existsSync, rmSync, readFileSync , writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import chalk from 'chalk';
@@ -26,7 +26,12 @@ const visualizationsDir = join(__dirname, 'visualizations');
 const distDir = join(__dirname, 'dist');
 
 if (!isWatch && existsSync(distDir)) {
-    rmSync(distDir, { recursive: true, force: true });
+    // dist/ を丸ごと消すと、残す方針のパッケージ成果物(.spl)まで巻き添えになる。
+    // .spl は温存し、ビルド成果物(<viz>/ サブフォルダや .map 等)だけを掃除する。
+    for (const entry of readdirSync(distDir)) {
+        if (entry.endsWith('.spl')) continue;
+        rmSync(join(distDir, entry), { recursive: true, force: true });
+    }
 }
 
 mkdirSync(distDir, { recursive: true });
@@ -170,11 +175,19 @@ if (isWatch) {
         }
 
         try {
-            await build({
+            // metafile はライセンス通知（THIRD_PARTY_NOTICES）の対象特定に使う。
+            // 「実際にバンドルへ入ったパッケージ」の唯一の正確な情報源
+            // （package.json の dependencies から推測してはいけない）。
+            const result = await build({
                 ...buildOptions,
                 entryPoints: [entryPoint],
                 outfile: outFile,
+                metafile: true,
             });
+            writeFileSync(
+                join(distDir, vizName, 'metafile.json'),
+                JSON.stringify(result.metafile)
+            );
             console.log(colors.dim(`  ✓ Built ${vizName}`));
         } catch (error) {
             console.error(colors.error(`Error building ${vizName}:`), error);
