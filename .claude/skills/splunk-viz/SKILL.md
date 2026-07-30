@@ -87,7 +87,7 @@ Dashboard Studio 拡張 viz の実装ナレッジを集約している:
 - **リリースノートの追記とバージョン更新は成果物の一部として Claude が自動で実施する**（ファイルを書くところまで）。
 - **ただし git のコミット／プッシュは Claude が行わない**。`git add` / `git commit` / `git push` はユーザーが手動で行う。作業後は「どのファイルを更新したか」を伝えるにとどめ、勝手にプッシュしないこと（ユーザーが明示的に依頼した場合を除く）。
 
-- **リポジトリ**：モノレポ `Aria-1429/custom-viz`（private / `main`）に各 viz を `visualizations/<name>/` として収録する。1 viz = 1 repo は廃止済み。
+- **リポジトリ**：モノレポ `Aria-1429/custom-viz`（**public** / `main`。2026-07-30 に公開へ変更）に各 viz を `visualizations/<name>/` として収録する。1 viz = 1 repo は廃止済み。
   （フォルダ名は `<name>`＝プレフィックスなし、Splunk のアプリ ID は `custom_viz_<name>`。）
 - **バージョン更新**：`package.json` の `version` を SemVer で上げる（新規=`1.0.0`、機能追加=minor、修正=patch）。`config.json` 等のバージョンも整合させる。
 - **`.spl` はリポジトリに含める（旧版も残す）**：

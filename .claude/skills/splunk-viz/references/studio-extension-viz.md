@@ -3,7 +3,7 @@
 `/splunk-viz` スキルで作る **Dashboard Studio カスタムビジュアライゼーション拡張**の実装知見。
 SKILL.md 本体から参照される。新規作成・改修の前に関連章を読むこと。
 
-- リポジトリ：モノレポ `Aria-1429/custom-viz`（private / `main`）。各 viz は `visualizations/<name>/`。
+- リポジトリ：モノレポ `Aria-1429/custom-viz`（**public** / `main`。2026-07-30 に公開へ変更）。各 viz は `visualizations/<name>/`。
   （2026-07-25 に直下の `custom-viz-*/` から移設。フォルダ名からは `custom-viz-` プレフィックスを外し、
   　Splunk のアプリ ID は従来どおり `custom_viz_<name>`。）
 - push はユーザーが手動で行う（Claude は push しない）。
@@ -1112,7 +1112,7 @@ config.json と JS バンドルは別経路で配信される。§6 の `_bump` 
 
 ## 8. GitHub（ユーザーが手動 push）
 
-- モノレポ `Aria-1429/custom-viz`（private / `main`）。Claude は commit / push しない。
+- モノレポ `Aria-1429/custom-viz`（**public** / `main`。2026-07-30 に公開へ変更）。Claude は commit / push しない。
 - push 前リークチェック: `git status --short | grep -E 'node_modules|dist/|stage/'`
   （`.spl` はコミット対象。それ以外のビルド成果物は `.gitignore` で除外）。
 - `.gitignore` は「`dist/*` は無視、`!dist/*.spl` で `.spl` だけ救済」。ルート＋各 viz の両方に必要。
@@ -1286,14 +1286,37 @@ Splunkbase 提出時・Cloud 審査で使われる AppInspect でも third-party
   「宣言は MIT・原文は配布元参照」と事実だけ書く。
 - ライセンスの宣言すら無いパッケージは判断できないので**失敗させる**。
 
-### 参考：world-map での実装（v1.7.1 で試作）
+### 実装（world-map で稼働中。2026-07-30 に確立）
 
-- `build.mjs` … `metafile: true` → `dist/<viz>/metafile.json`
-- `scripts/gen-third-party-notices.mjs` … リポジトリ直下に1つだけ置く（`.gitignore` 対象）。
-  各 viz からは `yarn notices`（`node ../../scripts/...`）で呼ぶ。
-  viz 固有の同梱データ情報は各 viz の `notices-data.json` に持たせ、
-  スクリプトにハードコードしない。
-- `THIRD_PARTY_NOTICES.txt` は**コミット対象**。
-  スクリプトを ignore していても `yarn package` が通ることを確認済み
-  （再生成時だけスクリプトが要る）。
-- 実測: OSS 条文 32 件 + 条文なし 1 件（styled-components）+ Splunk 別枠 1 件 = 34 件。
+> **【訂正】** 旧記述の「v1.7.1 で試作。スクリプトは `.gitignore` 対象」は誤り。
+> **その試作はコミットされずに消えており、リポジトリに存在しなかった**
+> （2026-07-30 に調査して確認。ナレッジだけが残り実物が無い状態だった）。
+> 再現性が目的なのに生成スクリプトを ignore するのは自己矛盾。
+> **`scripts/gen-third-party-notices.mjs` はコミット対象**とし、今回コミットした。
+
+構成（すべてコミット対象。world-map が参照実装）:
+
+- `visualizations/<viz>/build.mjs` … `metafile: true` で `dist/<viz>/metafile.json` を出力
+- `scripts/gen-third-party-notices.mjs`（リポジトリ直下・共通）… 各 viz から
+  `yarn notices` で呼ぶ（`yarn build:prod && yarn notices` の順）。処理:
+  metafile から対象特定 → `yarn licenses generate-disclaimer` から条文切り出し
+  （カンマ区切りブロックを全展開）→ 無ければ node_modules の LICENSE ファイル →
+  それも無ければ「宣言のみ・原文は配布元参照」→ **宣言すら無ければ exit 1**。
+  非 OSS（license が SPDX の OSS 許諾でない。`SEE LICENSE IN LICENSE` 等）は
+  参照情報のみの別枠。ハードコードせず license フィールドで機械判定する。
+- `visualizations/<viz>/notices-data.json` … esbuild を通らない同梱素材
+  （地図データ等）の申告。データ出典の節として収録される。
+- `visualizations/<viz>/THIRD_PARTY_NOTICES.txt` … 生成物だが**コミット対象**。
+  先頭に `Fingerprint:`（バンドルされた name@version 一覧の SHA-256）を持つ。
+- `visualizations/<viz>/package.mjs` … NOTICES を `.spl` のアプリ直下へコピーする。
+  **無い／Fingerprint が現在の metafile と不一致（＝依存が変わって古い）なら
+  警告ではなく失敗**させる。3経路（成功・欠落・陳腐化）とも動作検証済み。
+
+実測（world-map v1.8.1 時点・33 パッケージ）:
+OSS 条文 31 件 + 宣言のみ 1 件（styled-components）+ 非 OSS 別枠 1 件
+（`@splunk/dashboard-studio-extension`）。同梱データ申告 3 件（Natural Earth 系）。
+
+**横展開の残作業**: 他の viz は build.mjs の metafile 出力・package.mjs の
+NOTICES チェック・`yarn notices` スクリプト登録・notices-data.json が未導入。
+各 viz を次に触るときに world-map から移植する（`.spl` の再生成が伴うので
+build:prod 再パッケージと同時にやるのが効率的）。
