@@ -1184,3 +1184,104 @@ viz にバンドルする**データ・素材**（地図データ、GeoJSON/Topo
 3. フリーと確認できたら、README の「地図データの出典・ライセンス」節に**パブリックドメインである旨**を
    記載する（表記は義務ではないが、後任が再確認せず済むように書いておく）。
 4. 少しでも不明なら採用しない。代替のフリー素材を探すか、ユーザーに確認する。
+
+---
+
+## 11. バンドルした OSS のライセンス通知（THIRD_PARTY_NOTICES）
+
+§10 は「**どの素材を採用してよいか**」の基準（CC BY / ODbL のように
+データ本体に表示・継承義務があるものを避ける）。
+本章はそれとは**別軸**で、「**採用してよいものを配布するときに何が要るか**」を扱う。
+
+### 結論：MIT / ISC / BSD / Apache-2.0 でも条文の同梱が要る
+
+これらは条件節で許諾している:
+
+- ISC: *"provided that the above copyright notice ... appear in **all copies**"*
+- MIT: *"The above copyright notice ... shall be included in **all copies**"*
+
+**バンドル＝複製・再配布**なので、`.spl` とリポジトリの両方に条文を置く必要がある。
+素材選定としては**可**であり、対応は「テキストファイルを1つ同梱する」だけ。
+
+Splunk 側もこれを求めている（[Splunk App EULA](https://www.splunk.com/en_us/legal/splunk-app-end-user-license-agreement.html)）:
+
+> "you must comply with any restrictions or requirements for the
+> **third-party software (including any open source libraries) included in the App**"
+
+Splunkbase 提出時・Cloud 審査で使われる AppInspect でも third-party ライセンス遵守は審査観点。
+
+### 🚨 対象を `package.json` の dependencies から決めてはいけない
+
+`react` / `react-dom` / `styled-components` / `@splunk/react-ui` / `@splunk/themes` /
+`lodash` / `@emotion/*` は **devDependencies** に置かれているが、
+`build.mjs` に `external` 指定が無いため **esbuild が配布物にバンドルする**。
+**`dependencies` が空の viz でも 17〜20 パッケージが入っている＝全 viz が対象。**
+
+各手段の実測比較（world-map。正解は 34 件）:
+
+| 方法 | 件数 | 問題 |
+|---|---|---|
+| `package.json` の `dependencies` | 3 | React 等が漏れる |
+| `yarn licenses list --production` | 6 | 同上。しかも未バンドルの `commander` を含む |
+| `yarn licenses list`（全体） | 192 | `esbuild` / `happy-dom` 等ビルド専用まで混入 |
+| `license-checker --production` | 7 | 同上 |
+| バンドルの grep | 34 | インライン展開に弱く、誤検出もしやすい |
+| **esbuild metafile の `outputs[*].inputs`** | **34** | **正確** |
+
+### 手順（推測を排し、ビルド結果を基準にする）
+
+1. **対象の特定**：`build.mjs` で `metafile: true` を有効にし、
+   **`outputs[*].inputs`** からパッケージを抽出する。
+   - `metafile.inputs` では**ない**。前者は tree-shaking で出力に残らなかったものを含み
+     過剰になる（world-map では `internmap` が該当。実際のバンドルに含まれないことを確認済み）。
+   - ソースマップ（`.map`）は配布物ではないので除外する。
+2. **条文の取得**：`yarn licenses generate-disclaimer` の出力をそのまま使う（**手で書き写さない**）。
+   - `--production` は使わない（devDependencies 由来が漏れる）。全体を取って①で絞る。
+   - ⚠ **yarn は同一条文のパッケージを1ブロックにまとめる**
+     （例 `product: @emotion/is-prop-valid, @emotion/memoize, @emotion/stylis.`）。
+     先頭1件だけ拾うと大半を取りこぼす。**カンマ区切りを全て展開すること**。
+3. **照合**：①の集合に②を突き合わせ、配布対象だけを収録する。
+4. **個別条件**：Splunk 提供パッケージは OSS と混ぜない（後述）。
+5. **同梱**：`package.mjs` で `.spl` にコピーし、**無ければ警告ではなく失敗させる**。
+6. **esbuild 外の配布物を別途検査**：`config.json` / `app.conf` / `visualizations.conf` /
+   `default.meta` / `app.manifest` は metafile に出ない。
+   画像・フォント・地図データを将来 `import` ではなく直接コピーする形にすると、
+   静かに追跡対象から外れる。
+
+### `@splunk/dashboard-studio-extension` は OSS ではない
+
+- `package.json` の license は **`SEE LICENSE IN LICENSE`**、同梱 LICENSE は
+  **Splunk General Terms（商用契約）**。homepage / repository の記載も無い。
+- **OSS ではないので、OSS の attribution 義務は発生しない**。
+  契約全文（約 59KB / 通知全体の 33%）を OSS 通知に貼ると
+  「OSS として再配布可能」と誤読させるため**貼らない**。
+  パッケージ名・バージョン・参照先 URL のみ記載する。
+- **同じ `@splunk/*` でも一律ではない**。`react-ui` / `themes` / `ui-utils` /
+  `react-icons` は **Apache-2.0** なので通常の OSS として扱う。
+  `package.json` の `license` を見て判定すること。
+- **このパッケージを使って開発し、成果物を配布すること自体は問題ない**。
+  General Terms が禁じる `distribute any Offering` の `Offering` は
+  **Splunk の製品・サービス**を指す。条文には
+  **`Third Party Extensions`（＝第三者が作った拡張）という区分が明示的に存在**し、
+  Splunkbase での配布を前提にした語彙になっている。
+  所有権も「Splunk は Splunk の成果物」「顧客は Customer Content」と分離されている。
+  ※ 公式ドキュメント（API リファレンス / CLI ガイド）に**再配布可否の記載は無い**（確認済み）。
+
+### 自動化できない部分
+
+- **`styled-components` は MIT を宣言しているが LICENSE ファイルを同梱していない**。
+  `generate-disclaimer` の出力に現れない。**条文を捏造せず**、
+  「宣言は MIT・原文は配布元参照」と事実だけ書く。
+- ライセンスの宣言すら無いパッケージは判断できないので**失敗させる**。
+
+### 参考：world-map での実装（v1.7.1 で試作）
+
+- `build.mjs` … `metafile: true` → `dist/<viz>/metafile.json`
+- `scripts/gen-third-party-notices.mjs` … リポジトリ直下に1つだけ置く（`.gitignore` 対象）。
+  各 viz からは `yarn notices`（`node ../../scripts/...`）で呼ぶ。
+  viz 固有の同梱データ情報は各 viz の `notices-data.json` に持たせ、
+  スクリプトにハードコードしない。
+- `THIRD_PARTY_NOTICES.txt` は**コミット対象**。
+  スクリプトを ignore していても `yarn package` が通ることを確認済み
+  （再生成時だけスクリプトが要る）。
+- 実測: OSS 条文 32 件 + 条文なし 1 件（styled-components）+ Splunk 別枠 1 件 = 34 件。

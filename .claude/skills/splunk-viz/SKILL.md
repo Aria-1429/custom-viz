@@ -139,10 +139,22 @@ Dashboard Studio 拡張 viz の実装ナレッジを集約している:
 
 - 成果物(実装するjsxコード)は本番のSplunk環境で動作するため、インターネット通信を行うコード(外部APIフェッチ、CDN読み込み等)を含めてはならない。
 - 開発時(このスキル実行中)にClaude自身が外部サイトを参照して情報収集することは問題ない。下記「参考資料」のサイトは必要に応じて参照してよい。
-- **同梱するデータ・素材（地図データ、GeoJSON/TopoJSON、アイコン、フォント、画像、辞書・参照データ等）は、著作権フリー（パブリックドメイン）またはそれ相当のもの「だけ」を使う。** クレジット表記・出典明記・利用報告・承認申請のいずれかが「必須」となる素材は使わない（表記が任意＝MIT/BSD/ISC 等の緩いコード系ライセンスは可、ただしデータ本体のライセンスを別途確認する）。判断できない場合は必ずライセンス原文で確認し、確実にフリーと言えないものは採用しない。代表例:
+- **同梱するデータ・素材（地図データ、GeoJSON/TopoJSON、アイコン、フォント、画像、辞書・参照データ等）は、著作権フリー（パブリックドメイン）またはそれ相当のもの「だけ」を使う。** クレジット表記・出典明記・利用報告・承認申請のいずれかが「必須」となる素材は使わない（MIT/BSD/ISC 等の緩いコード系ライセンスは**素材選定としては可**。ただし**配布時に条文の同梱が必要**＝下記の別項目、およびデータ本体のライセンスを別途確認する）。判断できない場合は必ずライセンス原文で確認し、確実にフリーと言えないものは採用しない。代表例:
   - **地図データ**：Natural Earth（パブリックドメイン・クレジット不要）を第一候補にする。`world-atlas`（Natural Earth の再配布）も可。行政区画（州/都道府県=Admin-1）が要る場合は Natural Earth の `ne_10m_admin_1_states_provinces` から抽出する。**国土地理院「地球地図日本」/ GADM / OpenStreetMap 由来（出典表記や継承ライセンスが必須）は使わない。**
   - 素材を加工して同梱する場合も、元素材が上記条件を満たすことを確認する。
   - 詳細な判断基準・調達手順は [references/studio-extension-viz.md](references/studio-extension-viz.md) の「同梱データ・素材のライセンス」章を参照。
+- **バンドルした OSS のライセンス条文を配布物に同梱する**（MIT / ISC / BSD / Apache-2.0 はいずれも
+  「複製物に著作権表示と許諾条文を含めること」が条件。Splunk App EULA も遵守を求めている）:
+  - **対象は `package.json` の `dependencies` から決めてはいけない。**
+    `react` / `styled-components` / `@splunk/react-ui` 等は devDependencies だが
+    `external` 指定が無いためバンドルされる。**`dependencies` が空の viz も対象**。
+  - 判定は **esbuild metafile の `outputs[*].inputs`**、条文取得は
+    **`yarn licenses generate-disclaimer`**（手で書き写さない）。
+  - `@splunk/dashboard-studio-extension` は **OSS ではない**（Splunk General Terms）。
+    OSS 通知に契約全文を貼らず、参照情報のみ別枠にする。
+    ただし**このパッケージを使った開発・成果物の配布は問題ない**。
+  - 手順・実測値・落とし穴は [references/studio-extension-viz.md](references/studio-extension-viz.md)
+    の「バンドルした OSS のライセンス通知」章を参照。
 - CSSは原則いじらない。どうしても必要な場合のみ最小限の変更にとどめる。
 - GihHubへのコミットやプッシュは行わない。これらの操作はユーザーが手動で行う。
 
