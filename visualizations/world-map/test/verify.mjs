@@ -139,7 +139,10 @@ const fire = (key, payload) => listeners[key].forEach((cb) => cb(payload));
 const streaks = () =>
     [...doc.querySelectorAll('svg path[filter="url(#gtm-arc-glow)"]')];
 const strokes = () => streaks().map((p) => p.getAttribute('stroke'));
-const titles = () => [...doc.querySelectorAll('svg title')].map((t) => t.textContent);
+// ツールチップ相当のテキスト。v1.8.0 で SVG <title>（ブラウザ標準ツールチップ）を
+// 廃止し、当たり判定要素の aria-label ＋カスタムツールチップに置き換えたため、
+// aria-label を読む（内容の書式は <title> 時代と同じ）。
+const titles = () => [...doc.querySelectorAll('svg [aria-label]')].map((t) => t.getAttribute('aria-label'));
 
 // ---- バンドル実行 -----------------------------------------------------------
 const code = readFileSync(BUNDLE, 'utf8');
@@ -834,6 +837,252 @@ console.log('\n[20] title text is editable (and empty means no title)');
     fire('options', { options: state.options });
     await sleep(300);
     check('unset title falls back to the default', doc.body.textContent.includes('GLOBAL THREAT MAP'));
+}
+
+// ---- 21. 地名の言語（labelLang）: 日本語の国名・都市名 ---------------------------
+// 地図由来のラベルだけが対象。データ由来の src_name/dst_name は翻訳しない。
+console.log('\n[21] labelLang=ja shows Japanese place names');
+{
+    const labelNames = () => [...doc.querySelectorAll('svg text')].map((t) => t.textContent);
+
+    // 日本にズーム＋日本語 → 日本の都市が日本語で出る
+    state.options = { initialZoom: 25, centerLon: 137, centerLat: 36, labelLang: 'ja' };
+    fire('options', { options: state.options });
+    await sleep(400);
+    const ja = labelNames();
+    check('Japanese city names appear (ja)',
+        ['京都', '名古屋', '神戸', '金沢', '広島', '福岡', '長野'].filter((c) => ja.some((n) => n.includes(c))).length >= 3,
+        JSON.stringify(ja.slice(0, 20)));
+    check('English names for those cities are replaced', !ja.includes('Kyoto') && !ja.includes('Nagoya'),
+        JSON.stringify(ja.slice(0, 20)));
+
+    // 同じ画角で英語（既定）に戻すと英語名
+    state.options = { initialZoom: 25, centerLon: 137, centerLat: 36 };
+    fire('options', { options: state.options });
+    await sleep(400);
+    const en = labelNames();
+    check('default stays English', en.includes('Kyoto') || en.includes('Nagoya') || en.includes('Kobe'),
+        JSON.stringify(en.slice(0, 20)));
+
+    // 低ズームでは国名も日本語になる
+    state.options = { initialZoom: 4, centerLon: 137, centerLat: 36, labelLang: 'ja' };
+    fire('options', { options: state.options });
+    await sleep(400);
+    const jaCountries = labelNames();
+    // Natural Earth の NAME_JA は正式名称（例: 中華人民共和国）。
+    // 「日本」ラベルは端点ラベル Tokyo が優先で場所を取るため出ないことがある。
+    check('Japanese country names appear (ja)',
+        ['中華人民共和国', 'モンゴル', 'ミャンマー'].filter((c) => jaCountries.some((n) => n.includes(c))).length >= 2,
+        JSON.stringify(jaCountries.slice(0, 20)));
+
+    // データ由来の地点名（src_name/dst_name）は言語設定の影響を受けない
+    state.options = { labelLang: 'ja', showEndpointLabels: true };
+    fire('options', { options: state.options });
+    await sleep(400);
+    const world = labelNames();
+    check('data-driven endpoint labels keep their own text (Tokyo from search results)',
+        world.includes('Tokyo'), JSON.stringify(world.slice(0, 20)));
+}
+
+// ---- 22. count しきい値の色分け（colorMode='count' + editor.threshold） ---------
+// バンドは from 以上・to 未満。null は開いた範囲（±∞）。
+console.log('\n[22] colorMode=count colors arcs by count thresholds');
+{
+    // counts: London120 Shanghai300 Moscow50 SaoPaulo80 NewYork10 Paris40
+    state.options = {
+        colorMode: 'count',
+        countThresholds: [
+            { from: 0, to: 100, value: '#00ff00' },
+            { from: 100, to: null, value: '#ff0000' },
+        ],
+    };
+    fire('options', { options: state.options });
+    await sleep(340);
+    const byColor = () => strokes().reduce((m, c) => { m[c] = (m[c] || 0) + 1; return m; }, {});
+    let m = byColor();
+    check('arcs >=100 are red (London, Shanghai)', m['rgb(255, 0, 0)'] === 2, JSON.stringify(m));
+    check('arcs <100 are green (other 4)', m['rgb(0, 255, 0)'] === 4, JSON.stringify(m));
+    const body = doc.body.textContent;
+    check('legend shows band labels', body.includes('0〜100') && body.includes('100以上'),
+        body.slice(0, 200));
+
+    // countThresholds 未設定（既定値はホストから届かない）でも既定バンドで動く
+    state.options = { colorMode: 'count' };
+    fire('options', { options: state.options });
+    await sleep(340);
+    m = byColor();
+    check('default bands apply when thresholds are unset (>=100 → orange)',
+        m['rgb(255, 90, 46)'] === 2, JSON.stringify(m));
+
+    // どのバンドにも入らない count は (未分類) → fallbackColor
+    state.options = {
+        colorMode: 'count',
+        countThresholds: [{ from: 0, to: 100, value: '#00ff00' }],
+    };
+    fire('options', { options: state.options });
+    await sleep(340);
+    m = byColor();
+    check('counts outside all bands fall back to the default color',
+        m['rgb(56, 166, 255)'] === 2, JSON.stringify(m));
+    check('legend shows (未分類) for out-of-band counts', doc.body.textContent.includes('(未分類)'));
+
+    // カテゴリ用の色設定（categoryColors）は count モードでは使われない
+    state.options = {
+        colorMode: 'count',
+        categoryColors: ['high|#123456'],
+        countThresholds: [
+            { from: 0, to: 100, value: '#00ff00' },
+            { from: 100, to: null, value: '#ff0000' },
+        ],
+    };
+    fire('options', { options: state.options });
+    await sleep(340);
+    check('categoryColors is ignored in count mode', !strokes().includes('rgb(18, 52, 86)'),
+        JSON.stringify(strokes()));
+
+    state.options = {};
+    fire('options', { options: state.options });
+    await sleep(300);
+}
+
+// ---- 23. 国境の詳細度（mapDetail: 110m ↔ 50m） ---------------------------------
+// 50m は 110m よりパスの座標点が桁違いに多い。パス文字列長で判別する。
+console.log('\n[23] mapDetail switches border resolution');
+{
+    const landLen = () => {
+        const p = doc.querySelector('svg path[fill="#0d2b52"]');
+        return p ? (p.getAttribute('d') || '').length : 0;
+    };
+    state.options = { initialZoom: 6, centerLon: 137, centerLat: 36, mapDetail: 'low' };
+    fire('options', { options: state.options });
+    await sleep(400);
+    const low = landLen();
+
+    state.options = { initialZoom: 6, centerLon: 137, centerLat: 36, mapDetail: 'high' };
+    fire('options', { options: state.options });
+    await sleep(400);
+    const high = landLen();
+    check('high detail draws far more border points than low', high > low * 1.5,
+        `low=${low} high=${high}`);
+
+    // auto はズームで切り替わる: zoom1 → 110m 相当 / zoom6 → 50m 相当
+    state.options = { initialZoom: 1, mapDetail: 'auto' };
+    fire('options', { options: state.options });
+    await sleep(400);
+    const autoWorld = landLen();
+    state.options = { initialZoom: 6, centerLon: 137, centerLat: 36, mapDetail: 'auto' };
+    fire('options', { options: state.options });
+    await sleep(400);
+    const autoZoomed = landLen();
+    check('auto uses high detail once zoomed in', autoZoomed === high, `auto=${autoZoomed} high=${high}`);
+    check('auto stays lightweight at world view', autoWorld < high, `world=${autoWorld} high=${high}`);
+
+    // 【v1.8.1 回帰】操作中（カメラ静止150msを待たず）でも詳細度は落ちない。
+    // v1.8.0 は「操作中は110m・静止後に50m」で、操作のたびに国境が粗くなっていた。
+    state.options = { initialZoom: 6, centerLon: 137, centerLat: 36, mapDetail: 'high' };
+    fire('options', { options: state.options });
+    await sleep(30); // 静止判定(150ms)より前
+    const during = landLen();
+    await sleep(400); // 静止後
+    const settledLen = landLen();
+    check('detail is not reduced while the camera is settling', during === settledLen && during > low,
+        `during=${during} settled=${settledLen} low110m=${low}`);
+
+    // ヒステリシス: auto の切替は「上げ=4倍・下げ=3倍」。しきい値付近で往復しても
+    // パカパカ切り替わらない（直前の詳細度を保持する）。
+    const lenAt = async (o) => {
+        state.options = o;
+        fire('options', { options: state.options });
+        await sleep(250);
+        return landLen();
+    };
+    const high35 = await lenAt({ initialZoom: 3.5, centerLon: 137, centerLat: 36, mapDetail: 'high' });
+    const low35 = await lenAt({ initialZoom: 3.5, centerLon: 137, centerLat: 36, mapDetail: 'low' });
+    await lenAt({ initialZoom: 6, centerLon: 137, centerLat: 36, mapDetail: 'auto' }); // 高詳細に入る
+    const downTo35 = await lenAt({ initialZoom: 3.5, centerLon: 137, centerLat: 36, mapDetail: 'auto' });
+    check('hysteresis keeps high detail when zooming out to 3.5', downTo35 === high35,
+        `got=${downTo35} want=${high35}`);
+    await lenAt({ initialZoom: 2, centerLon: 137, centerLat: 36, mapDetail: 'auto' }); // 低詳細へ落ちる
+    const upTo35 = await lenAt({ initialZoom: 3.5, centerLon: 137, centerLat: 36, mapDetail: 'auto' });
+    check('hysteresis stays low until zoom reaches 4', upTo35 === low35,
+        `got=${upTo35} want=${low35}`);
+
+    state.options = {};
+    fire('options', { options: state.options });
+    await sleep(300);
+}
+
+// ---- 24. カスタムツールチップ（<title> ではなく自前パネル） ----------------------
+console.log('\n[24] custom tooltip appears on hover and follows the cursor');
+{
+    state.options = { animDuration: 0 };
+    fire('options', { options: state.options });
+    await sleep(300);
+
+    // ホバー前はツールチップの中身が DOM に無い（aria-label は属性なので textContent に出ない）
+    check('no tooltip text before hover', !doc.body.textContent.includes('count 300'),
+        doc.body.textContent.slice(0, 120));
+
+    // Shanghai の弧（count 300）の当たり判定にホバー
+    const hit = [...doc.querySelectorAll('svg path[stroke="transparent"]')].find(
+        (p) => (p.getAttribute('aria-label') || '').includes('Shanghai')
+    );
+    check('arc hit-area with aria-label exists', !!hit);
+    if (hit) {
+        hit.dispatchEvent(new win.MouseEvent('mouseover', { bubbles: true, clientX: 300, clientY: 200 }));
+        await sleep(250);
+        const body = doc.body.textContent;
+        check('tooltip shows the route', body.includes('Shanghai → Tokyo'), body.slice(0, 200));
+        check('tooltip shows category and count', body.includes('count 300'), body.slice(0, 200));
+
+        hit.dispatchEvent(new win.MouseEvent('mouseout', { bubbles: true }));
+        await sleep(250);
+        check('tooltip disappears on leave', !doc.body.textContent.includes('Shanghai → Tokyo'),
+            doc.body.textContent.slice(0, 120));
+    }
+
+    // ホットスポット側にも同じツールチップ機構が付いている
+    const spot = [...doc.querySelectorAll('svg circle')].find(
+        (c) => (c.getAttribute('aria-label') || '').startsWith('Target: Tokyo')
+    );
+    check('hotspot hit-area with aria-label exists', !!spot);
+    if (spot) {
+        spot.dispatchEvent(new win.MouseEvent('mouseover', { bubbles: true, clientX: 300, clientY: 200 }));
+        await sleep(250);
+        check('hotspot tooltip rendered', doc.body.textContent.includes('Target: Tokyo'),
+            doc.body.textContent.slice(0, 200));
+        spot.dispatchEvent(new win.MouseEvent('mouseout', { bubbles: true }));
+        await sleep(200);
+    }
+}
+
+// ---- 25. 地名ラベルの選定はカメラ静止後に確定する（操作中の間引き） ----------------
+// 選定（重い）は settledCamera（150ms 静止）基準、投影（軽い）は毎フレーム。
+// カメラ変更直後でも描画は壊れず、静止後にその地域のラベルへ確定することを確認する。
+console.log('\n[25] label selection settles after the camera stops moving');
+{
+    const labelNames = () => [...doc.querySelectorAll('svg text')].map((t) => t.textContent);
+    state.options = { initialZoom: 8, centerLon: 10, centerLat: 50 };
+    fire('options', { options: state.options });
+    await sleep(400);
+
+    // 日本へジャンプ。直後（静止前）でも例外なく描画され続ける
+    state.options = { initialZoom: 8, centerLon: 137, centerLat: 36 };
+    fire('options', { options: state.options });
+    await sleep(30);
+    check('render survives immediately after a camera jump', !!doc.querySelector('svg'));
+
+    // 静止（150ms）後には移動先のラベルが確定する
+    await sleep(400);
+    const jp = labelNames();
+    check('labels settle to the new region', jp.includes('Tokyo') || jp.includes('Osaka') || jp.includes('Nagoya'),
+        JSON.stringify(jp.slice(0, 20)));
+    check('old-region labels are gone after settling', !jp.includes('Berlin'),
+        JSON.stringify(jp.slice(0, 20)));
+
+    state.options = {};
+    fire('options', { options: state.options });
+    await sleep(300);
 }
 
 console.log(`\nResult: ${pass} passed, ${fail} failed`);

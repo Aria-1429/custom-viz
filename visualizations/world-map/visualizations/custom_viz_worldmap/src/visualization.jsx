@@ -11,12 +11,14 @@ import Paragraph from '@splunk/react-ui/Paragraph';
 import Select from '@splunk/react-ui/Select';
 import WaitSpinner from '@splunk/react-ui/WaitSpinner';
 import { SplunkThemeProvider } from '@splunk/themes';
-import { geoNaturalEarth1, geoPath } from 'd3-geo';
+import { geoBounds, geoNaturalEarth1, geoPath } from 'd3-geo';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { feature } from 'topojson-client';
 import worldTopo from 'world-atlas/countries-110m.json';
+import worldTopo50 from 'world-atlas/countries-50m.json';
 import CITY_DATA from './data/cities.json';
+import COUNTRY_JA from './data/country-names-ja.json';
 import './visualization.css';
 
 // ---------------------------------------------------------------------------
@@ -189,6 +191,96 @@ const WORLD = (() => {
     }
 })();
 
+// 高詳細の国境（Natural Earth 50m 相当）。世界全体表示では 110m で十分なため、
+// 初めて必要になったときに一度だけデコードして使い回す（初期表示を遅くしない）。
+// デコードに失敗しても 110m へ退避して描画は続ける。
+let WORLD_50M_CACHE = null;
+function getWorld50() {
+    if (WORLD_50M_CACHE) return WORLD_50M_CACHE;
+    try {
+        const geo = feature(worldTopo50, worldTopo50.objects.countries);
+        geo.features = geo.features.filter((f) => f?.properties?.name !== 'Antarctica');
+        WORLD_50M_CACHE = geo;
+    } catch (e) {
+        WORLD_50M_CACHE = WORLD;
+    }
+    return WORLD_50M_CACHE;
+}
+
+// mapDetail='auto' の 110m ↔ 50m 切替ズーム。
+// 上げるとき（IN）と下げるとき（OUT）をずらしたヒステリシスにして、
+// しきい値付近のズーム操作で詳細度がパカパカ切り替わるのを防ぐ。
+// IN=4 は実測に基づく：50m は画面内の国だけに絞ってもパス生成が
+// zoom3 で約31ms/フレームと重く、zoom4 以上なら約16ms以下に収まる。
+const DETAIL_ZOOM_IN = 4;
+const DETAIL_ZOOM_OUT = 3;
+
+// ---------------------------------------------------------------------------
+// ビューポート絞り込み（50m 国境を操作中も使い続けるための最適化）
+// ---------------------------------------------------------------------------
+// 50m の全 242 フィーチャを毎フレーム投影すると約 60ms/フレームかかり、
+// ドラッグ / ズームがカクつく。ズーム中は画面に映る国が数個〜数十個しか
+// 無いため、**フィーチャの経緯度バウンディングボックスが画面と重なるものだけ**
+// パス生成する（zoom6 で 15/242 件・約13ms/フレームまで下がる実測）。
+
+// 各フィーチャの経緯度バウンディングボックスを一度だけ計算して付与する
+function ensureFeatureBounds(world) {
+    if (!world || world.__boundsReady) return;
+    try {
+        world.features.forEach((f) => {
+            f.__bounds = geoBounds(f);
+        });
+        world.__boundsReady = true;
+    } catch (e) {
+        /* 失敗しても絞り込み無しで描けるので握りつぶす */
+    }
+}
+
+// 画面の枠を逆投影して「見えている経緯度範囲」を求める。
+// 経度は中心経度からの角距離（±180 をまたいでも壊れない形）で持つ。
+// 逆投影が十分に取れない（＝ほぼ世界全体が見えている）場合は null ＝絞り込み無し。
+function viewportGeoBounds(projection, size, centerLon) {
+    if (!projection || !projection.invert || !size) return null;
+    const { w, h } = size;
+    let dLon = 0;
+    let minLat = 90;
+    let maxLat = -90;
+    let ok = 0;
+    const SAMPLES = 16;
+    for (let i = 0; i < SAMPLES; i += 1) {
+        const t = i / (SAMPLES - 1);
+        const pts = [[t * w, 0], [t * w, h], [0, t * h], [w, t * h]];
+        for (const [x, y] of pts) {
+            const g = projection.invert([x, y]);
+            if (!g || !g.every(Number.isFinite)) continue;
+            ok += 1;
+            const d = Math.abs((((g[0] - centerLon) % 360) + 540) % 360 - 180);
+            if (d > dLon) dLon = d;
+            if (g[1] < minLat) minLat = g[1];
+            if (g[1] > maxLat) maxLat = g[1];
+        }
+    }
+    if (ok < SAMPLES) return null; // 枠の多くが地図の外＝広域表示。絞り込み不要
+    return {
+        dLon: Math.min(dLon * 1.15 + 2, 180), // 端でのポップイン防止マージン
+        minLat: minLat - 3,
+        maxLat: maxLat + 3,
+    };
+}
+
+// フィーチャのバウンディングボックスが表示範囲と重なるか（経度は円環として判定）
+function featureInView(f, vb, centerLon) {
+    const b = f.__bounds;
+    if (!b) return true; // バウンディングボックスが無ければ安全側（描く）
+    const [[west, south], [east, north]] = b;
+    if (north < vb.minLat || south > vb.maxLat) return false;
+    if (west > east) return true; // 反対経線をまたぐ広大なフィーチャは保守的に描く
+    const dw = ((((west - centerLon) % 360) + 540) % 360) - 180;
+    const de = ((((east - centerLon) % 360) + 540) % 360) - 180;
+    const d = dw <= 0 && de >= 0 ? 0 : Math.min(Math.abs(dw), Math.abs(de));
+    return d <= vb.dLon;
+}
+
 // 国名ラベルの表示位置（各国ポリゴンの重心を経緯度で保持）。
 // 投影は毎フレーム変わるので、ここでは地理座標のままにしておき描画時に投影する。
 // 面積の小さい国は低ズームで潰れるため、面積順でしきい値を持たせる。
@@ -207,7 +299,8 @@ const COUNTRY_LABELS = (() => {
                 // 重心を経緯度へ戻す（描画時に現在の投影で投影し直すため）
                 const inv = geoNaturalEarth1().invert ? geoNaturalEarth1().invert(c) : null;
                 if (!inv || !Number.isFinite(inv[0]) || !Number.isFinite(inv[1])) return null;
-                return { name, lon: inv[0], lat: inv[1], area };
+                // 日本語国名（Natural Earth admin-0 の NAME_JA 由来・パブリックドメイン）
+                return { name, ja: COUNTRY_JA[name] || '', lon: inv[0], lat: inv[1], area };
             })
             .filter(Boolean)
             .sort((a, b) => b.area - a.area);
@@ -216,19 +309,27 @@ const COUNTRY_LABELS = (() => {
     }
 })();
 
-// 都市ラベル（Natural Earth ne_50m_populated_places / パブリックドメイン）。
-// [name, lon, lat, scalerank, isCapital] のタプル配列。scalerank は小さいほど主要。
+// 都市ラベル（Natural Earth ne_10m_populated_places / パブリックドメイン）。
+// [name, lon, lat, scalerank, isCapital, name_ja?] のタプル配列。scalerank は小さいほど主要。
 // 重要度順にソート済みなので、ズームに応じて先頭から N 件を採用すればよい。
+// 6要素目の日本語名（NAME_JA）は英語名と同じ場合に省略されている。
 const CITY_LABELS = (() => {
     try {
         if (!Array.isArray(CITY_DATA)) return [];
         return CITY_DATA.map((c) => {
             if (!Array.isArray(c) || c.length < 4) return null;
-            const [name, lon, lat, rank, cap] = c;
+            const [name, lon, lat, rank, cap, ja] = c;
             if (typeof name !== 'string' || !Number.isFinite(lon) || !Number.isFinite(lat)) {
                 return null;
             }
-            return { name, lon, lat, rank: Number(rank) || 0, capital: cap === 1 };
+            return {
+                name,
+                ja: typeof ja === 'string' ? ja : '',
+                lon,
+                lat,
+                rank: Number(rank) || 0,
+                capital: cap === 1,
+            };
         }).filter(Boolean);
     } catch (e) {
         return [];
@@ -311,8 +412,49 @@ function labelBudget(zoom, density) {
 }
 
 // ---------------------------------------------------------------------------
+// 件数（count）しきい値の色分け（colorMode='count'）
+// ---------------------------------------------------------------------------
+// editor.threshold から届く [{from, to, value}] を正規化する。
+// openRanges:true のため from/to は null（開いた範囲）でありうる → ±Infinity に読み替える。
+// 色が解釈できない行・数値でない行は捨てる（描画を壊さない）。from 昇順に整列する。
+function normalizeThresholds(raw) {
+    if (!Array.isArray(raw)) return [];
+    const bands = [];
+    raw.forEach((b) => {
+        if (!b || typeof b !== 'object') return;
+        const from = b.from === null || b.from === undefined ? -Infinity : Number(b.from);
+        const to = b.to === null || b.to === undefined ? Infinity : Number(b.to);
+        if (Number.isNaN(from) || Number.isNaN(to) || from > to) return;
+        if (typeof b.value !== 'string' || parseColor(b.value) === null) return;
+        bands.push({ from, to, value: b.value });
+    });
+    bands.sort((a, b) => a.from - b.from || a.to - b.to);
+    return bands;
+}
+
+// バンドの表示名（凡例・フィルタ・ツールチップに使う）。
+// 判定は from <= count < to（下端を含み上端を含まない）
+function bandLabel(band) {
+    if (!Number.isFinite(band.from) && !Number.isFinite(band.to)) return 'すべて';
+    if (!Number.isFinite(band.from)) return `${band.to}未満`;
+    if (!Number.isFinite(band.to)) return `${band.from}以上`;
+    return `${band.from}〜${band.to}`;
+}
+
+// ホストは既定値と同じ値を options に載せないため、未設定（＝schema の default のまま）は
+// ここで同じ内容を再現する。schema 側の default と一致させておくこと
+const DEFAULT_COUNT_BANDS = [
+    { from: 0, to: 100, value: '#38a6ff' },
+    { from: 100, to: Infinity, value: '#ff5a2e' },
+];
+
+// ---------------------------------------------------------------------------
 // オプション正規化（未設定・型不一致でも安全側に倒す）
 // ---------------------------------------------------------------------------
+const LABEL_LANGS = ['en', 'ja'];
+const MAP_DETAILS = ['auto', 'low', 'high'];
+const COLOR_MODES = ['category', 'count'];
+
 function normalizeOptions(options) {
     const o = options && typeof options === 'object' ? options : {};
     const bool = (v, d) => (typeof v === 'boolean' ? v : d);
@@ -347,12 +489,25 @@ function normalizeOptions(options) {
         maxArcs: Math.max(0, Math.round(num(o.maxArcs, 0))),
         // 地点にマウスを乗せたとき、その地点に繋がる弧だけを強調する
         highlightOnHover: bool(o.highlightOnHover, true),
+        // --- 地図の詳細度（国境の解像度） ---
+        // auto: ズームに応じて 110m → 50m へ切り替え / low: 常に 110m / high: 常に 50m
+        mapDetail: MAP_DETAILS.includes(o.mapDetail) ? o.mapDetail : 'auto',
         // --- 地名ラベル ---
         showPlaceLabels: bool(o.showPlaceLabels, true),
         showEndpointLabels: bool(o.showEndpointLabels, true),
         placeLabelSize: clamp(num(o.placeLabelSize, 11), 6, 24),
         // 地名の表示量の倍率。大きいほど多くの地名が出る（重なると自動で間引かれる）
         labelDensity: clamp(num(o.labelDensity, 1), 0.2, 5),
+        // 地名の言語（地図由来の国名・都市名のみ。データ由来の src_name/dst_name には影響しない）
+        labelLang: LABEL_LANGS.includes(o.labelLang) ? o.labelLang : 'en',
+        // --- 色分けモード ---
+        // category: 色分け列の文字列カテゴリで色分け（従来どおり）
+        // count:    件数（count）のしきい値バンドで色分け（editor.threshold）
+        colorMode: COLOR_MODES.includes(o.colorMode) ? o.colorMode : 'category',
+        countThresholds: (() => {
+            const bands = normalizeThresholds(o.countThresholds);
+            return bands.length > 0 ? bands : DEFAULT_COUNT_BANDS;
+        })(),
         // --- 色分け（カテゴリ） ---
         // 「カテゴリ名|色」の明示マッピング。ここに書かれたものだけが色の根拠になる
         categoryColors: Array.isArray(o.categoryColors) ? o.categoryColors : [],
@@ -600,6 +755,19 @@ function pointLabel(name, lat, lon) {
     return name || `${lat.toFixed(1)}, ${lon.toFixed(1)}`;
 }
 
+// カスタムツールチップをカーソル近くへ置く。右端・下端ではカーソルの反対側へ
+// 反転させ、パネルの外へはみ出さないようにする
+function applyTooltipPos(el, x, y, w, h) {
+    const tw = el.offsetWidth || 240;
+    const th = el.offsetHeight || 52;
+    let left = x + 14;
+    if (left + tw > w - 6) left = Math.max(6, x - tw - 14);
+    let top = y + 16;
+    if (top + th > h - 6) top = Math.max(6, y - th - 12);
+    el.style.left = `${left}px`;
+    el.style.top = `${top}px`;
+}
+
 // ツールチップ用のカテゴリ表記。末尾に区切りを含めて返す（呼び出し側は
 // `(${describeCategory(c)}count N)` の形で使う）。
 // 色分け列が無い／値が空のときは「(未分類)」を出さず、カテゴリごと省略する。
@@ -800,6 +968,13 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
     const [categoryFilter, setCategoryFilter] = useState('all');
     // ホバー中の地点キー（"x,y"）。その地点に繋がる弧だけを強調する
     const [hoverKey, setHoverKey] = useState(null);
+    // カスタムツールチップ（ブラウザ標準の <title> は表示が遅くスタイルも
+    // 当たらないため自前で描く）。内容は state で持ち（表示/非表示の切替のみ
+    // 再レンダリング）、カーソル追従は ref への直接書き込みで行う
+    // （mousemove のたびに SVG 全体を再レンダリングしない）。
+    const [tooltip, setTooltip] = useState(null); // { lines: string[] }
+    const tooltipRef = useRef(null);
+    const tooltipPosRef = useRef({ x: 0, y: 0 });
     const [containerRef, size] = useContainerSize();
     const palette = MAP_PALETTES[mode] || MAP_PALETTES.dark;
 
@@ -820,6 +995,16 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
     useEffect(() => {
         setCamera({ lon: opts.centerLon, lat: opts.centerLat, zoom: opts.initialZoom });
     }, [opts.centerLon, opts.centerLat, opts.initialZoom]);
+
+    // 「操作が落ち着いたカメラ」。ドラッグ / ホイール操作中は camera が毎フレーム
+    // 変わるため、重い処理（地名ラベルの選定・50m 国境への切替）はこちらに
+    // 追従させる。camera が LABEL_SETTLE_MS 動かなかったら同期する。
+    const LABEL_SETTLE_MS = 150;
+    const [settledCamera, setSettledCamera] = useState(camera);
+    useEffect(() => {
+        const id = setTimeout(() => setSettledCamera(camera), LABEL_SETTLE_MS);
+        return () => clearTimeout(id);
+    }, [camera]);
 
     // アニメーション: animDuration=0 で停止（静的表示）
     const animOn = opts.animDuration > 0;
@@ -906,20 +1091,52 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
     //   1. 一度 fitSize で「世界全体がちょうど収まる」基準スケールを求める
     //   2. そのスケールに zoom を掛け、rotate で中心経度、translate で中心緯度を寄せる
     // これで地図アプリと同じ「中心を保ったまま拡大縮小」が成立する。
+    // 描画に使う国境データ。mapDetail='high'（常に50m）/'low'（常に110m）/
+    // 'auto'（ズームに応じて切替。上げ=4倍・下げ=3倍のヒステリシス付き）。
+    //
+    // 【v1.8.1】操作中（ドラッグ・ズーム）も詳細度を落とさない。
+    // v1.8.0 では「操作中は110m・静止後に50m」の段階的描画にしていたが、
+    // 操作のたびに国境が粗くなるのは操作感が悪いという指摘を受けて廃止した。
+    // 代わりに、50m のコスト問題（全242国のパス生成で約60ms/フレーム）は
+    // 「画面に映っている国だけをパス生成する」ビューポート絞り込みで解決している
+    // （geo memo 内。zoom6 実測で 15/242 件・約13ms/フレーム）。
+    const detailRef = useRef(false);
+    if (opts.mapDetail === 'high') {
+        detailRef.current = true;
+    } else if (opts.mapDetail === 'low') {
+        detailRef.current = false;
+    } else {
+        detailRef.current = detailRef.current
+            ? camera.zoom >= DETAIL_ZOOM_OUT
+            : camera.zoom >= DETAIL_ZOOM_IN;
+    }
+    const activeWorld = detailRef.current ? getWorld50() : WORLD;
+
     const geo = useMemo(() => {
         const projection = makeProjection(size, camera);
         if (!projection) return null;
         try {
             const path = geoPath(projection);
+            // ズーム中は画面外の国をパス生成から除外する（50m を常用するための
+            // 最適化。110m でも無害に効く）。広域表示（zoom<2）では画面枠の
+            // 逆投影が世界全体を覆って絞り込めないため、全件描画する。
+            let features = activeWorld.features;
+            if (camera.zoom >= 2) {
+                ensureFeatureBounds(activeWorld);
+                const vb = viewportGeoBounds(projection, size, camera.lon);
+                if (vb) {
+                    features = features.filter((f) => featureInView(f, vb, camera.lon));
+                }
+            }
             return {
                 projection,
                 path,
-                landPath: WORLD.features.map((f) => path(f)).join(' '),
+                landPath: features.map((f) => path(f)).join(' '),
             };
         } catch (e) {
             return null;
         }
-    }, [size, camera]);
+    }, [size, camera, activeWorld]);
 
     // --- ホイールズーム / ドラッグパン -------------------------------------
     // カーソル位置を固定点として拡大する（地図アプリの標準挙動）。
@@ -1076,24 +1293,35 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
         setCamera({ lon: opts.centerLon, lat: opts.centerLat, zoom: opts.initialZoom });
     }, [opts.centerLon, opts.centerLat, opts.initialZoom]);
 
-    // 座標を投影し、フィルタを適用
-    const projected = useMemo(() => {
-        if (!geo) return [];
-        return threats
-            .map((t) => {
-                const s = geo.projection([t.srcLon, t.srcLat]);
-                const d = geo.projection([t.dstLon, t.dstLat]);
-                if (!s || !d || ![...s, ...d].every(Number.isFinite)) return null;
-                return { ...t, sx: s[0], sy: s[1], tx: d[0], ty: d[1] };
-            })
-            .filter(Boolean);
-    }, [geo, threats]);
+    // ツールチップのカーソル追従（state を介さず DOM を直接動かす）
+    const positionTooltip = useCallback((e) => {
+        const host = containerRef.current;
+        if (!host) return;
+        const rect = host.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+        tooltipPosRef.current = { x, y };
+        const el = tooltipRef.current;
+        if (el) applyTooltipPos(el, x, y, rect.width || 0, rect.height || 0);
+    }, [containerRef]);
 
-    const visible = useMemo(() => {
+    // 表示直後は要素の実サイズが確定してから位置を合わせ直す
+    // （初回レンダリング時点では offsetWidth が取れないため）
+    useEffect(() => {
+        const el = tooltipRef.current;
+        if (!el || !size) return;
+        applyTooltipPos(el, tooltipPosRef.current.x, tooltipPosRef.current.y, size.w, size.h);
+    }, [tooltip, size]);
+
+    // フィルタと上限（maxArcs）は投影前のデータに適用する。
+    // カメラ操作では変わらないため、地名ラベルの選定など「操作中に再計算したくない」
+    // 処理の依存をここに寄せられる（投影後の visible はカメラごとに変わる）。
+    const visibleData = useMemo(() => {
         const filtered =
             effectiveFilter === 'all'
-                ? projected
-                : projected.filter((t) => t.category === effectiveFilter);
+                ? threats
+                : threats.filter((t) => t.category === effectiveFilter);
         // 上限が設定されていれば count の多い順に絞る（0 = 無制限）。
         // 元の並び順は維持したいので、残す id の集合を作ってから filter する。
         if (opts.maxArcs > 0 && filtered.length > opts.maxArcs) {
@@ -1106,7 +1334,20 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
             return filtered.filter((t) => keep.has(t.id));
         }
         return filtered;
-    }, [projected, effectiveFilter, opts.maxArcs]);
+    }, [threats, effectiveFilter, opts.maxArcs]);
+
+    // 座標を投影（カメラが動くたびに再計算する軽い処理だけを残す）
+    const visible = useMemo(() => {
+        if (!geo) return [];
+        return visibleData
+            .map((t) => {
+                const s = geo.projection([t.srcLon, t.srcLat]);
+                const d = geo.projection([t.dstLon, t.dstLat]);
+                if (!s || !d || ![...s, ...d].every(Number.isFinite)) return null;
+                return { ...t, sx: s[0], sy: s[1], tx: d[0], ty: d[1] };
+            })
+            .filter(Boolean);
+    }, [geo, visibleData]);
 
     // 表示中の弧における count の範囲。太さの正規化に使う。
     // 固定式（sqrt(count)）だと count が 10 でも 10000 でも太さがほぼ変わらないため、
@@ -1175,11 +1416,22 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
     // --- 地名ラベル（ズーム段階で国名 → 都市名が現れる） -------------------
     // 画面外は捨て、重なるものは重要度の高い方を残す（地図アプリの間引きと同じ）。
     // 始点/終点の都市ラベルを優先したいので、そちらが先に場所を確保する。
-    const placeLabels = useMemo(() => {
-        if (!geo || !size || !opts.showPlaceLabels) return [];
+    //
+    // 【パフォーマンス】この選定は全都市（約7,300件）の走査＋重なり判定を伴い重い。
+    // ドラッグ / ホイールの毎フレーム実行すると低スペック環境でカクつくため、
+    // **選定は settledCamera（操作が150ms止まったカメラ）基準**で行い、
+    // 操作中は「選定済みラベルを現在のカメラで投影し直すだけ」（次の placeLabels memo）
+    // にする。操作中のラベルは一瞬古い選定のまま流れるが、止まると確定する。
+    const labelSelection = useMemo(() => {
+        if (!size || !opts.showPlaceLabels) return [];
+        const projection = makeProjection(size, settledCamera);
+        if (!projection) return [];
         const { w, h } = size;
         const fs = opts.placeLabelSize;
-        const budget = labelBudget(camera.zoom, opts.labelDensity);
+        const budget = labelBudget(settledCamera.zoom, opts.labelDensity);
+        // 地図由来の地名の表示名（labelLang='ja' なら日本語名。無ければ英語名のまま）
+        const displayName = (entry) =>
+            opts.labelLang === 'ja' && entry.ja ? entry.ja : entry.name;
         // 占有済み矩形。ラベル同士が重ならないかの判定に使う
         const taken = [];
         // 表示量に応じてラベル同士の間隔を変える（＝重なり判定の厳しさを変える）。
@@ -1204,26 +1456,28 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
         };
         const out = [];
         const place = (name, lon, lat, kind) => {
-            const p = geo.projection([lon, lat]);
+            const p = projection([lon, lat]);
             if (!p || !p.every(Number.isFinite)) return;
             const box = fits(p[0], p[1], name);
             if (!box) return;
             taken.push(box);
-            out.push({ name, x: p[0], y: p[1], kind });
+            // 位置は経緯度で持ち、描画時に「現在の」カメラで投影し直す
+            out.push({ name, lon, lat, kind });
         };
 
-        // 1. 始点/終点の都市名は最優先で確保する（ユーザーのデータそのもの）
+        // 1. 始点/終点の都市名は最優先で確保する（ユーザーのデータそのもの）。
+        //    カメラ操作中に依存が変わらないよう、投影前の visibleData から経緯度で集める
         if (opts.showEndpointLabels) {
             const endpoints = new Map();
-            visible.forEach((t) => {
-                if (t.srcName) endpoints.set(`${t.sx.toFixed(1)},${t.sy.toFixed(1)}`, { n: t.srcName, lon: t.srcLon, lat: t.srcLat });
-                if (t.dstName) endpoints.set(`${t.tx.toFixed(1)},${t.ty.toFixed(1)}`, { n: t.dstName, lon: t.dstLon, lat: t.dstLat });
+            visibleData.forEach((t) => {
+                if (t.srcName) endpoints.set(`${t.srcLon},${t.srcLat}`, { n: t.srcName, lon: t.srcLon, lat: t.srcLat });
+                if (t.dstName) endpoints.set(`${t.dstLon},${t.dstLat}`, { n: t.dstName, lon: t.dstLon, lat: t.dstLat });
             });
             endpoints.forEach((e) => place(e.n, e.lon, e.lat, 'endpoint'));
         }
 
         // 2. 国名（面積の大きい順に budget 件まで）
-        COUNTRY_LABELS.slice(0, budget.countries).forEach((c) => place(c.name, c.lon, c.lat, 'country'));
+        COUNTRY_LABELS.slice(0, budget.countries).forEach((c) => place(displayName(c), c.lon, c.lat, 'country'));
 
         // 3. 都市名（重要度順に budget 件まで。ズームが浅いうちは 0 件）
         //
@@ -1236,17 +1490,31 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
             const inView = [];
             for (let i = 0; i < CITY_LABELS.length; i += 1) {
                 const c = CITY_LABELS[i];
-                const p = geo.projection([c.lon, c.lat]);
+                const p = projection([c.lon, c.lat]);
                 if (!p || !p.every(Number.isFinite)) continue;
                 if (p[0] < 0 || p[0] > w || p[1] < 0 || p[1] > h) continue;
                 // CITY_LABELS は重要度順に並んでいるので、この順序がそのまま優先度になる
                 inView.push({ c, p });
                 if (inView.length >= budget.cities) break;
             }
-            inView.forEach(({ c }) => place(c.name, c.lon, c.lat, 'city'));
+            inView.forEach(({ c }) => place(displayName(c), c.lon, c.lat, 'city'));
         }
         return out;
-    }, [geo, size, camera.zoom, opts.showPlaceLabels, opts.showEndpointLabels, opts.placeLabelSize, opts.labelDensity, visible]);
+    }, [size, settledCamera, opts.showPlaceLabels, opts.showEndpointLabels, opts.placeLabelSize, opts.labelDensity, opts.labelLang, visibleData]);
+
+    // 選定済みラベルを現在のカメラで投影する（軽い処理。毎フレーム実行してよい）。
+    // 操作中に画面外へ流れたラベルはここで落ちる
+    const placeLabels = useMemo(() => {
+        if (!geo || !size) return [];
+        const out = [];
+        labelSelection.forEach((l) => {
+            const p = geo.projection([l.lon, l.lat]);
+            if (!p || !p.every(Number.isFinite)) return;
+            if (p[0] < -40 || p[0] > size.w + 40 || p[1] < -40 || p[1] > size.h + 40) return;
+            out.push({ name: l.name, kind: l.kind, x: p[0], y: p[1] });
+        });
+        return out;
+    }, [geo, size, labelSelection]);
 
     // 起点・終点のホットスポット
     // 重複除去 + 同一地点に複数カテゴリの線が集まる場合は「表示順が先の」色を採用する。
@@ -1476,11 +1744,10 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
                     {/* 攻撃元ホットスポット（脈動アニメーション付き・線の色に対応） */}
                     {sources.map((s, i) => {
                         const base = Math.min(26 + Math.sqrt(s.count) * 1.5, 44);
+                        const tipHead = `Source: ${s.name || 'unknown'}`;
+                        const tipSub = `${describeCategory(s.category)}count ${s.count}`;
                         return (
                             <g key={`src-${i}`}>
-                                <title>
-                                    {`Source: ${s.name || 'unknown'} (${describeCategory(s.category)}count ${s.count})`}
-                                </title>
                                 <circle
                                     cx={s.x}
                                     cy={s.y}
@@ -1524,19 +1791,28 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
                                     r="12"
                                     fill="transparent"
                                     style={{ cursor: 'pointer' }}
-                                    onMouseEnter={() => setHoverKey(`${s.x.toFixed(1)},${s.y.toFixed(1)}`)}
-                                    onMouseLeave={() => setHoverKey(null)}
+                                    aria-label={`${tipHead} (${tipSub})`}
+                                    onMouseEnter={(e) => {
+                                        setHoverKey(`${s.x.toFixed(1)},${s.y.toFixed(1)}`);
+                                        setTooltip({ lines: [tipHead, tipSub] });
+                                        positionTooltip(e);
+                                    }}
+                                    onMouseMove={positionTooltip}
+                                    onMouseLeave={() => {
+                                        setHoverKey(null);
+                                        setTooltip(null);
+                                    }}
                                 />
                             </g>
                         );
                     })}
 
                     {/* 攻撃先（線の色に対応） */}
-                    {targets.map((t, i) => (
+                    {targets.map((t, i) => {
+                        const tipHead = `Target: ${t.name || 'unknown'}`;
+                        const tipSub = `${describeCategory(t.category)}count ${t.count}`;
+                        return (
                         <g key={`dst-${i}`}>
-                            <title>
-                                {`Target: ${t.name || 'unknown'} (${describeCategory(t.category)}count ${t.count})`}
-                            </title>
                             <circle
                                 cx={t.x}
                                 cy={t.y}
@@ -1561,11 +1837,21 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
                                 r="12"
                                 fill="transparent"
                                 style={{ cursor: 'pointer' }}
-                                onMouseEnter={() => setHoverKey(`${t.x.toFixed(1)},${t.y.toFixed(1)}`)}
-                                onMouseLeave={() => setHoverKey(null)}
+                                aria-label={`${tipHead} (${tipSub})`}
+                                onMouseEnter={(e) => {
+                                    setHoverKey(`${t.x.toFixed(1)},${t.y.toFixed(1)}`);
+                                    setTooltip({ lines: [tipHead, tipSub] });
+                                    positionTooltip(e);
+                                }}
+                                onMouseMove={positionTooltip}
+                                onMouseLeave={() => {
+                                    setHoverKey(null);
+                                    setTooltip(null);
+                                }}
                             />
                         </g>
-                    ))}
+                        );
+                    })}
 
                     {/* 攻撃の弧のベース軌道（SVG）。流れる彗星は上に重ねた Canvas が担当。
                         ツールチップ(title)はここに置き、常にホバー可能にする。
@@ -1584,10 +1870,10 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
                             srcKey !== activeHoverKey &&
                             dstKey !== activeHoverKey;
                         const k = dim ? 0.22 : 1;
-                        const tip = `${pointLabel(t.srcName, t.srcLat, t.srcLon)} → ${pointLabel(t.dstName, t.dstLat, t.dstLon)} (${describeCategory(t.category)}count ${t.count})`;
+                        const tipHead = `${pointLabel(t.srcName, t.srcLat, t.srcLon)} → ${pointLabel(t.dstName, t.dstLat, t.dstLon)}`;
+                        const tipSub = `${describeCategory(t.category)}count ${t.count}`;
                         return (
                             <g key={`arc-${t.id}`}>
-                                <title>{tip}</title>
                                 <path
                                     d={d}
                                     fill="none"
@@ -1618,8 +1904,17 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
                                     strokeWidth={Math.max(width * 3, 10)}
                                     strokeLinecap="round"
                                     style={{ cursor: 'pointer' }}
-                                    onMouseEnter={() => setHoverKey(srcKey)}
-                                    onMouseLeave={() => setHoverKey(null)}
+                                    aria-label={`${tipHead} (${tipSub})`}
+                                    onMouseEnter={(e) => {
+                                        setHoverKey(srcKey);
+                                        setTooltip({ lines: [tipHead, tipSub] });
+                                        positionTooltip(e);
+                                    }}
+                                    onMouseMove={positionTooltip}
+                                    onMouseLeave={() => {
+                                        setHoverKey(null);
+                                        setTooltip(null);
+                                    }}
                                 />
                             </g>
                         );
@@ -1672,6 +1967,44 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
                     duration={opts.animDuration}
                     hoverKey={opts.highlightOnHover ? hoverKey : null}
                 />
+            )}
+
+            {/* カスタムツールチップ（弧・地点のホバーで表示。カーソルに追従）。
+                pointerEvents:none でホバー対象のイベントを妨げない */}
+            {tooltip && size && (
+                <div
+                    ref={tooltipRef}
+                    style={{
+                        position: 'absolute',
+                        left: Math.max(6, Math.min(tooltipPosRef.current.x + 14, size.w - 180)),
+                        top: Math.max(6, Math.min(tooltipPosRef.current.y + 16, size.h - 60)),
+                        maxWidth: Math.max(120, Math.min(340, size.w - 24)),
+                        background: palette.panelBg,
+                        border: palette.panelBorder,
+                        borderRadius: 8,
+                        padding: '6px 10px',
+                        color: palette.legendText,
+                        fontSize: 12,
+                        lineHeight: 1.5,
+                        pointerEvents: 'none',
+                        whiteSpace: 'nowrap',
+                        zIndex: 5,
+                    }}
+                >
+                    {tooltip.lines.map((line, i) => (
+                        <div
+                            key={i}
+                            style={{
+                                fontWeight: i === 0 ? 700 : 400,
+                                opacity: i === 0 ? 1 : 0.85,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                            }}
+                        >
+                            {line}
+                        </div>
+                    ))}
+                </div>
             )}
 
             {/* タイトル（左上・地図の内側）
@@ -1803,7 +2136,9 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
                         const isDimmed = effectiveFilter !== 'all' && !isActive;
                         const hint = explicit?.[cat]
                             ? ''
-                            : `（色が未設定のため既定色。編集画面の「色分け」で「${cat}|#RRGGBB」を追加すると色が付きます）`;
+                            : opts.colorMode === 'count'
+                              ? '（どのしきい値範囲にも入らない件数のため既定色）'
+                              : `（色が未設定のため既定色。編集画面の「色分け」で「${cat}|#RRGGBB」を追加すると色が付きます）`;
                         return (
                         <div
                             key={cat}
@@ -1862,17 +2197,47 @@ function ThreatMapVisualization({ mode }) {
     const opts = useMemo(() => normalizeOptions(options), [options]);
     const rows = useMemo(() => (data ? normalizeData(data) : []), [data]);
     const fieldNames = useMemo(() => (data?.fields || []).map((f) => f.name || f), [data]);
-    const { threats, missingFields } = useMemo(
+    const { threats: parsedThreats, missingFields } = useMemo(
         () => parseThreats(fieldNames, rows, opts),
         [fieldNames, rows, opts]
     );
 
+    // colorMode='count' では、しきい値バンドの表示名を「擬似カテゴリ」として各行へ
+    // 割り当てる。以降の凡例・フィルタ・ホットスポット・ドリルダウンは
+    // カテゴリ色分けと同じ機構がそのまま働く（count 専用の分岐を増やさない）。
+    // どのバンドにも入らない count は (未分類) → fallbackColor で描かれる。
+    const threats = useMemo(() => {
+        if (opts.colorMode !== 'count') return parsedThreats;
+        return parsedThreats.map((t) => {
+            const band = opts.countThresholds.find((b) => t.count >= b.from && t.count < b.to);
+            return { ...t, category: band ? bandLabel(band) : UNCATEGORIZED };
+        });
+    }, [parsedThreats, opts.colorMode, opts.countThresholds]);
+
     // サーチ結果に登場したカテゴリ一覧と、オプションで設定された色の割り当て。
     // 正規化済みの opts を渡す（生の options ではなく）。
-    const { categoryList, categoryColors, explicit } = useMemo(
-        () => buildCategoryModel(threats, opts),
-        [threats, opts]
-    );
+    // count モードでは一覧も色もしきい値バンドから決める
+    // （categoryColors / categoryOrder はカテゴリモード専用の設定なので参照しない）。
+    const { categoryList, categoryColors, explicit } = useMemo(() => {
+        if (opts.colorMode !== 'count') return buildCategoryModel(threats, opts);
+        const fallback = parseColor(opts.fallbackColor) || parseColor(DEFAULT_CATEGORY_COLOR);
+        const list = [];
+        const colors = {};
+        const exp = {};
+        opts.countThresholds.forEach((b) => {
+            const label = bandLabel(b);
+            if (list.includes(label)) return;
+            list.push(label);
+            colors[label] = parseColor(b.value) || fallback;
+            exp[label] = true;
+        });
+        if (threats.some((t) => t.category === UNCATEGORIZED)) {
+            list.push(UNCATEGORIZED);
+            colors[UNCATEGORIZED] = fallback;
+            exp[UNCATEGORIZED] = false;
+        }
+        return { categoryList: list, categoryColors: colors, explicit: exp };
+    }, [threats, opts]);
 
     // カスタム背景色・陸地色（各チェックボックスON時のみ有効。OFFならテーマ配色）
     const customBg = useMemo(
