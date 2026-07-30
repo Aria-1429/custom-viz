@@ -150,7 +150,7 @@ yarn package    # dist/custom_viz_gauge_arc-<ver>-<hash>.spl を生成
 
 アンインストール・再起動は不要。
 
-1. `package.json` と `package/app/app.conf` の `version` を上げ、`yarn build && yarn package`
+1. `package.json` と `package/app/app.conf` の `version` を上げ、`yarn build:prod && yarn package`
 2. Splunk Web「Install app from file」で **"Upgrade app"（上書き）にチェック**して `.spl` をアップロード
 3. `https://<host>:8000/en-US/_bump` を開いて **Bump version**
 4. ブラウザをハードリロード（Ctrl+Shift+R）

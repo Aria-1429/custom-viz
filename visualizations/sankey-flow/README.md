@@ -49,7 +49,7 @@ yarn package    # dist/custom_viz_sankey_flow-<ver>-<hash>.spl
 ## デプロイ（アンインストール・再起動不要）
 
 1. `npm version patch --no-git-tag-version` でバージョンを上げ、`package/app/app.conf` の `version` も同期
-2. `yarn build && yarn package`
+2. `yarn build:prod && yarn package`
 3. Splunk Web「Install app from file」で **Upgrade app にチェック**して `.spl` をアップロード
 4. `https://<host>:8000/en-US/_bump` で Bump version → ブラウザをハードリロード (Ctrl+Shift+R)
 

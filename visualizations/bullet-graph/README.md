@@ -75,7 +75,7 @@ yarn package   # dist/custom_viz_bullet_graph-<ver>-<hash>.spl
 
 ## デプロイ
 
-1. バージョンを上げて `yarn build && yarn package`
+1. バージョンを上げて `yarn build:prod && yarn package`
 2. Splunk Web「App をファイルからインストール」で **「App のアップグレード」にチェック**して `.spl` をアップロード
 3. `https://<host>:8000/en-US/_bump` で Bump version
 4. ブラウザをハードリロード（Ctrl+Shift+R）

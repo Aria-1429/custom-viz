@@ -84,7 +84,7 @@ yarn package   # dist/ に .spl を生成
 
 ## デプロイ(再デプロイ時)
 
-1. `npm version patch --no-git-tag-version && yarn build && yarn package`
+1. `npm version patch --no-git-tag-version && yarn build:prod && yarn package`
 2. Splunk Web「Appの管理 → Install app from file」で **Upgrade app にチェック**してアップロード
 3. `https://<host>:8000/en-US/_bump` で Bump version
 4. ブラウザをハードリロード(Ctrl+Shift+R)

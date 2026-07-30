@@ -228,7 +228,7 @@ yarn package        # dist/custom_viz_tab_selector-<ver>-<hash>.spl を生成
 アンインストール・Splunk 再起動は不要です。
 
 1. `package.json` と `package/app/app.conf` の `version` を上げる
-2. `yarn build && yarn package` で `.spl` を生成
+2. `yarn build:prod && yarn package` で `.spl` を生成
 3. Splunk Web「Install app from file」で **"Upgrade app"（上書き）にチェック**してアップロード
 4. `https://<host>:8000/en-US/_bump` を開き **Bump version**
 5. ブラウザをハードリロード（Ctrl+Shift+R）

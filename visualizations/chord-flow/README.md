@@ -128,7 +128,7 @@ yarn package        # dist/custom_viz_chord_flow-<ver>-<hash>.spl を生成
 ## デプロイ（アンインストール・再起動なし）
 
 1. `npm version patch --no-git-tag-version` でバージョンを上げ、`package/app/app.conf` の
-   `version` も同期して `yarn build && yarn package`
+   `version` も同期して `yarn build:prod && yarn package`
 2. Splunk Web「Install app from file」で **"Upgrade app" にチェック**して `.spl` をアップロード
 3. `https://<host>:8000/en-US/_bump` を開いて **Bump version**
 4. ブラウザをハードリロード（Ctrl+Shift+R）

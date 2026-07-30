@@ -72,7 +72,7 @@ yarn package   # dist/custom_viz_link_line-<ver>-<hash>.spl
 
 ## デプロイ（再起動不要）
 
-1. `package.json` と `package/app/app.conf` のバージョンを上げて `yarn build && yarn package`
+1. `package.json` と `package/app/app.conf` のバージョンを上げて `yarn build:prod && yarn package`
 2. Splunk Web「Install app from file」で **Upgrade にチェック**してアップロード
 3. `https://<host>:8000/en-US/_bump` で Bump version → ブラウザをハードリロード（Ctrl+Shift+R）
 

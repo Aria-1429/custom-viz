@@ -67,7 +67,7 @@ yarn package    # dist/custom_viz_radial_bar-<ver>-<hash>.spl を生成
 
 ## デプロイ（アンインストール・再起動なし）
 
-1. `yarn build && yarn package` で `.spl` を生成。
+1. `yarn build:prod && yarn package` で `.spl` を生成。
 2. Splunk Web「Install app from file」で **"Upgrade app"（上書き）にチェック**してアップロード。
 3. ブラウザで `https://<host>:8000/en-US/_bump` を開き **Bump version**。
 4. ブラウザをハードリロード（Ctrl+Shift+R）。

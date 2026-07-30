@@ -75,7 +75,7 @@ yarn package    # dist/custom_viz_network_graph-<ver>-<hash>.spl
 
 1. `npm version patch --no-git-tag-version` で `package.json` を上げ、
    `package/app/app.conf` の `version` 2 箇所も同期する
-2. `yarn build && yarn package`
+2. `yarn build:prod && yarn package`
 3. Splunk Web「App をファイルからインストール」で **「App をアップグレード」にチェック**して `.spl` をアップロード
 4. `https://<host>:8000/en-US/_bump` で **Bump version**
 5. ブラウザをハードリロード（Ctrl+Shift+R）
