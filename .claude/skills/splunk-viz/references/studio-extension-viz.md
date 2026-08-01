@@ -558,7 +558,8 @@ function resolveIconName(raw) {
 
 ### ドリルダウン用の editor 型は存在しない
 
-`editor.drilldown` のような型は 25 種のどこにも無く、標準 viz の editorConfig にも drilldown 項目は無い。
+`editor.drilldown` のような型は動作確認済みの 28 種のどこにも無く、標準 viz の editorConfig にも
+drilldown 項目は無い（※未知の型が存在する可能性は否定できないが、少なくとも標準 viz は使っていない）。
 ドリルダウン（＝「インタラクション」）は editorConfig とは**別レイヤー**の仕組み → §5 を参照。
 
 ### 無効な editor を混ぜたときの症状（2026-07-25 実機で確定）

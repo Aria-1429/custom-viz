@@ -16,7 +16,7 @@ Dashboard Studio 拡張 viz の実装ナレッジを集約している:
 
 1. プロジェクト構成 / スケルトン複製 / ビルド・パッケージ手順
 2. 実装の定番パターン（テーマガード・データ正規化・オートフィット・堅牢性チェックリスト）
-3. editorConfig と editor 型（実在する25種の一覧と可否判定、選択肢は `editor.select`、無効型の症状）
+3. editorConfig と editor 型（動作確認済み28種の一覧と可否判定、選択肢は `editor.select`、無効型の症状）
 4. **値→色マッピング**：`editor.dynamicColor` はカスタムvizで使えない（配列がoptionsに来ない）。範囲→色は **`editor.threshold`**（配列が生で届く）、連続グラデーションは自前のカラースケール
 5. ローカル検証（happy-dom で実機なしにバンドルを叩く）
 6. デプロイ（アンインストール・再起動なし。`_bump`）
@@ -75,8 +75,10 @@ Dashboard Studio 拡張 viz の実装ナレッジを集約している:
     「両方ON」が未定義動作になる組み合わせ。→ 1つの `editor.select`（`none`/`peak`/`total`）にまとめる。
   - ✅ 独立してON/OFFできるもの（`sortRowsByTotal` と `sortColsByTotal` など）は checkbox のままでよい。
 
-  `editor.select` / `editor.radioBar` の書き方と、使える editor 型 25 種の全一覧・可否判定は
+  `editor.select` / `editor.radioBar` の書き方と、動作確認済み editor 型 28 種の一覧・可否判定は
   [references/studio-extension-viz.md](references/studio-extension-viz.md) の「editorConfig と editor 型」章を参照。
+  ⚠ **28 種は「全部」ではない**（標準 viz が使っている型を数えたもの）。一覧に無い型でも実在しうるので、
+  「この型は存在しない」と断定せず、必要なら Editor Probe で実機確認する。
 - 参考資料の公式ドキュメントを参照し、Splunkのベストプラクティスに従うこと。
 - パッケージ化する際はバージョンを更新すること．（詳細は「デプロイ／リリース運用」を参照）
 
