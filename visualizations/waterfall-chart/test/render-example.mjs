@@ -1,9 +1,11 @@
 // waterfall-chart の実バンドルを happy-dom で描画し、examples/example.svg を生成する
 import { Window } from 'happy-dom';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = '<リポジトリルート>/custom-viz-waterfall-chart';
+// このスクリプトは <viz>/test/ に置かれる想定。viz ルートは1つ上。
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BUNDLE = join(ROOT, 'dist', 'custom_viz_waterfall_chart', 'visualization.js');
 const OUT_DIR = join(ROOT, 'examples');
 const OUT = join(OUT_DIR, 'example.svg');
