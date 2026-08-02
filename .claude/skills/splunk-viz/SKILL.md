@@ -26,6 +26,14 @@ Dashboard Studio 拡張 viz の実装ナレッジを集約している:
 
 タスクに関係する章は、着手前に該当箇所を Read すること。
 
+**屈折・透過・反射のような「光学的な質感」が要件なら
+[references/webgl-in-custom-viz.md](references/webgl-in-custom-viz.md) を読む**（2026-08-02 実機検証）。
+**カスタム viz の iframe 内で WebGL2 が使えることは確認済み**（GLSL ES 3.00 がそのまま通る／62fps）。
+背景を透過させる3点セット、シェーダの定石（Beer-Lambert・フレネル・SDF）、
+**やらかした間違い8件**（色相反転・不透明な塗り潰し・座標系の取り違え等）と、
+**WebGL を happy-dom で検証する方法**（getContext のスタブ化）をまとめてある。
+SVG で足りるものに WebGL を使う必要は無い（判断基準も同ファイルに記載）。
+
 **カスタム viz には2方式ある**（classic / Studio 拡張）。どのダッシュボードで使うかで選ぶ。
 方式の取り違えは「一覧に出ない」で詰まるので、迷ったら [references/custom-viz-methods.md](references/custom-viz-methods.md) を先に読む:
 - **classic**（`SplunkVisualizationBase` + `formatter.html`、`visualizations.conf` に `framework_type` なし）

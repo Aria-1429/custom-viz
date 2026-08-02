@@ -1,0 +1,139 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": true,
+  "canSetTokens": ["dynamic", "static"],
+  "hasEventHandlers": true,
+  "config": {
+    "name": "Liquid Tube",
+    "description": "試験管1本で単一の値を表す WebGL ゲージ",
+    "category": "Custom",
+    "icon": null,
+    "events": {
+      "point.click": { "description": "triggered when user clicks the tube" }
+    },
+    "supports": ["events"],
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 600,
+      "initialHeight": 400
+    },
+    "optionsSchema": {
+      "labelField": { "type": "string", "default": "" },
+      "valueField": { "type": "string", "default": "" },
+      "minValue": { "type": "number", "default": 0 },
+      "maxValue": { "type": "number", "default": 100 },
+      "colorMode": { "type": "string", "default": "threshold" },
+      "colorBands": {
+        "default": [
+          { "from": null, "to": 60, "value": "#3ddc84" },
+          { "from": 60, "to": 85, "value": "#e6b93c" },
+          { "from": 85, "to": null, "value": "#ff5a2e" }
+        ],
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": { "type": ["number", "null"] },
+                "to": { "type": ["number", "null"] },
+                "value": { "type": "string" }
+              },
+              "required": ["value"],
+              "additionalProperties": false
+            }
+          },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      },
+      "seriesColors": {
+        "default": ["#3ddc84", "#38a6ff", "#a06cff", "#e6b93c", "#ff5a2e"],
+        "anyOf": [
+          { "type": "array", "items": { "type": "string" } },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      },
+      "transparentBg": { "type": "boolean", "default": true },
+      "bgColor": { "type": "string", "default": "" },
+      "liquidOpacity": { "type": "number", "default": 0.45 },
+      "bubbleCount": { "type": "number", "default": 18 },
+      "animSpeed": { "type": "number", "default": 1 },
+      "showLabel": { "type": "boolean", "default": true },
+      "showValue": { "type": "boolean", "default": true },
+      "valueUnit": { "type": "string", "default": "%" },
+      "valueDecimals": { "type": "number", "default": 0 },
+      "labelSize": { "type": "number", "default": 14 },
+      "aggregation": { "type": "string", "default": "last" },
+      "glow": { "type": "number", "default": 1 },
+      "tubeWidth": { "type": "number", "default": 0.155 }
+    },
+    "editorConfig": [
+      {
+        "label": "データフィールド",
+        "layout": [
+          [{ "label": "ラベル（試験管の名前）", "editor": "editor.columnSelector", "option": "labelField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "値", "editor": "editor.columnSelector", "option": "valueField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "複数行のときの集計", "editor": "editor.select", "option": "aggregation", "editorProps": { "values": [
+            { "label": "最終行", "value": "last" },
+            { "label": "先頭行", "value": "first" },
+            { "label": "合計", "value": "sum" },
+            { "label": "平均", "value": "avg" },
+            { "label": "最大", "value": "max" },
+            { "label": "最小", "value": "min" },
+            { "label": "件数", "value": "count" }
+          ] } }]
+        ]
+      },
+      {
+        "label": "値の範囲",
+        "layout": [
+          [{ "label": "最小値（液面が空になる値）", "editor": "editor.number", "option": "minValue" }],
+          [{ "label": "最大値（液面が満杯になる値）", "editor": "editor.number", "option": "maxValue" }]
+        ]
+      },
+      {
+        "label": "色分け",
+        "layout": [
+          [{ "label": "色の決め方", "editor": "editor.select", "option": "colorMode", "editorProps": { "values": [
+            { "label": "値のしきい値で色分け", "value": "threshold" },
+            { "label": "固定色を使う", "value": "series" }
+          ] } }],
+          [{ "label": "しきい値と色（「値のしきい値」選択時。範囲は下限以上・上限未満）", "editor": "editor.threshold", "option": "colorBands", "editorProps": { "openRanges": true, "isTogglable": false } }],
+          [{ "label": "液体の色（「固定色」選択時。先頭の色を使用）", "editor": "editor.seriesColors", "option": "seriesColors" }]
+        ]
+      },
+      {
+        "label": "背景",
+        "layout": [
+          [{ "label": "背景を透過する（ダッシュボードの背景を透かす）", "editor": "editor.checkbox", "option": "transparentBg" }],
+          [{ "label": "背景色（透過しない場合に使用。未設定ならテーマに合わせる）", "editor": "editor.color", "option": "bgColor" }]
+        ]
+      },
+      {
+        "label": "液体の見た目",
+        "layout": [
+          [{ "label": "液体の濃さ（0で透明・背景が透ける / 1で不透明）", "editor": "editor.slider", "option": "liquidOpacity", "editorProps": { "min": 0, "max": 1, "step": 0.05 } }],
+          [{ "label": "気泡の数（0で気泡なし）", "editor": "editor.number", "option": "bubbleCount", "editorProps": { "min": 0, "max": 40 } }],
+          [{ "label": "アニメーション速度（0で停止）", "editor": "editor.slider", "option": "animSpeed", "editorProps": { "min": 0, "max": 3, "step": 0.1 } }],
+          [{ "label": "試験管の太さ", "editor": "editor.slider", "option": "tubeWidth", "editorProps": { "min": 0.05, "max": 0.35, "step": 0.005 } }],
+          [{ "label": "試験管の外側のグロー（0で消える）", "editor": "editor.slider", "option": "glow", "editorProps": { "min": 0, "max": 2, "step": 0.1 } }]
+        ]
+      },
+      {
+        "label": "ラベルと値",
+        "layout": [
+          [{ "label": "ラベルを表示", "editor": "editor.checkbox", "option": "showLabel" }],
+          [{ "label": "値を表示", "editor": "editor.checkbox", "option": "showValue" }],
+          [{ "label": "値の単位（例: %、GB）", "editor": "editor.text", "option": "valueUnit" }],
+          [{ "label": "値の小数桁数", "editor": "editor.number", "option": "valueDecimals", "editorProps": { "min": 0, "max": 4 } }],
+          [{ "label": "文字サイズ（px）", "editor": "editor.number", "option": "labelSize", "editorProps": { "min": 8, "max": 32 } }]
+        ]
+      }
+    ]
+  }
+}
