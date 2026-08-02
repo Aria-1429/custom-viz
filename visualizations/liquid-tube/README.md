@@ -1,5 +1,7 @@
 # Custom Viz Liquid Tube
 
+![表示例](examples/example.png)
+
 Splunk Dashboard Studio 向けのカスタムビジュアライゼーション（試験管型の液体ゲージ）。
 
 **1 viz = 試験管1本**で、単一の値を液面の高さで表す。ガラス・液体・気泡は
