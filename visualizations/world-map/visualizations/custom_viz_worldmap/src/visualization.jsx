@@ -489,6 +489,13 @@ function normalizeOptions(options) {
         maxArcs: Math.max(0, Math.round(num(o.maxArcs, 0))),
         // 地点にマウスを乗せたとき、その地点に繋がる弧だけを強調する
         highlightOnHover: bool(o.highlightOnHover, true),
+        // 近接した地点をまとめる半径（画面px）。0 で集約しない（1点1マーカー）。
+        // 画面距離なので、ズームすると同じ設定値でもクラスタは自然に分離する
+        clusterRadius: clamp(num(o.clusterRadius, 18), 0, 80),
+        // 凡例に「表示 N / 全 M」の内訳を出す
+        showTotals: bool(o.showTotals, true),
+        // 凡例の各カテゴリ行に件数を併記する
+        showCategoryCounts: bool(o.showCategoryCounts, true),
         // --- 地図の詳細度（国境の解像度） ---
         // auto: ズームに応じて 110m → 50m へ切り替え / low: 常に 110m / high: 常に 50m
         mapDetail: MAP_DETAILS.includes(o.mapDetail) ? o.mapDetail : 'auto',
@@ -636,7 +643,7 @@ function parseThreats(fieldNames, rows, opts) {
     const iDstName = resolveFieldIndex(opts.dstNameField, fieldNames, rows, auto.dstName);
 
     if (iSrcLat < 0 || iSrcLon < 0 || iDstLat < 0 || iDstLon < 0) {
-        return { threats: [], missingFields: true };
+        return { threats: [], missingFields: true, hasCount: false };
     }
 
     // 表記ゆれ（high / High / HIGH）を同一カテゴリに束ねる。
@@ -670,7 +677,8 @@ function parseThreats(fieldNames, rows, opts) {
             dstName: iDstName >= 0 ? String(row[iDstName] ?? '') : '',
         });
     });
-    return { threats, missingFields: false };
+    // count 列が解決できたかを返す（件数サマリーの単位を「件」/「本」で切り替えるため）
+    return { threats, missingFields: false, hasCount: iCount >= 0 };
 }
 
 /**
@@ -755,6 +763,106 @@ function pointLabel(name, lat, lon) {
     return name || `${lat.toFixed(1)}, ${lon.toFixed(1)}`;
 }
 
+// ---------------------------------------------------------------------------
+// 地点クラスタリング（画面距離ベース）
+// ---------------------------------------------------------------------------
+// 【なぜ必要か】v1.8.2 までの地点集約は「投影後の座標を小数1桁で丸めたキー」
+// （`${x.toFixed(1)},${y.toFixed(1)}`）の完全一致だけで、実質 0.1px 以内に
+// 重なった点しかまとまらなかった。IP ジオロケーションのデータは同一都市でも
+// 緯度経度がわずかにばらけるため、東京付近に数百個のホットスポットが重なって
+// 描かれ、弧の終端も同様に潰れて読めなくなる。
+//
+// ここでは **画面上の距離** で集約する。地理座標ではなく画面距離を使うのは、
+// ズームすると同じ radius が地理的により狭い範囲を指すことになり、
+// 拡大するにつれてクラスタが自然に分離する（地図アプリのピンクラスタと同じ挙動）ため。
+//
+// アルゴリズム: radius をセル幅とした均一グリッドに点を撒き、各点は自セル＋
+// 隣接8セルだけを探索して既存クラスタに吸着する（総当たり O(n^2) を避ける）。
+// 入力順に貪欲に処理するので、同じ入力なら常に同じ結果になる（決定的）。
+//
+// 代表座標はクラスタ内の **count 加重平均**。件数の多い地点へ寄るため、
+// 大量の小さな地点に引っ張られて代表点が実態からずれるのを防ぐ。
+//
+// 【重み付けの安全弁】count は生のサーチ結果なので 0 や負値もありうる
+// （`| eval count=a-b` のような差分を入れられる）。負の重みをそのまま使うと
+// 加重平均がクラスタの外へ飛ぶ（実測: x=100 と x=110 の2点に count=10/-9 を
+// 与えると代表点が x=10 になる）。重みは 0 以上に丸め、合計が 0 以下の
+// ときは単純平均へ退避する。arcWidth が Math.max(count,0) で守っているのと同じ方針。
+function clusterPoints(points, radius) {
+    if (!(radius > 0)) return null;
+    const cell = radius;
+    const grid = new Map();
+    const clusters = [];
+    const key = (cx, cy) => `${cx}|${cy}`;
+    // 重みは非負に丸める（負値・NaN は 0 として扱う）
+    const weightOf = (p) => (Number.isFinite(p.count) && p.count > 0 ? p.count : 0);
+    // 重みの合計が 0（全点が count<=0）のクラスタは単純平均で代表点を出す
+    const recenter = (c) => {
+        if (c.w > 0) {
+            c.x = c.ax / c.w;
+            c.y = c.ay / c.w;
+            return;
+        }
+        let sx = 0;
+        let sy = 0;
+        c.members.forEach((m) => {
+            sx += m.x;
+            sy += m.y;
+        });
+        c.x = sx / c.members.length;
+        c.y = sy / c.members.length;
+    };
+    points.forEach((p) => {
+        const cx = Math.floor(p.x / cell);
+        const cy = Math.floor(p.y / cell);
+        // 自セル＋隣接8セルの中から、半径内で最も近いクラスタを探す
+        let best = null;
+        let bestD2 = radius * radius;
+        for (let dx = -1; dx <= 1; dx += 1) {
+            for (let dy = -1; dy <= 1; dy += 1) {
+                const bucket = grid.get(key(cx + dx, cy + dy));
+                if (!bucket) continue;
+                bucket.forEach((ci) => {
+                    const c = clusters[ci];
+                    const d2 = (c.x - p.x) ** 2 + (c.y - p.y) ** 2;
+                    if (d2 <= bestD2) {
+                        bestD2 = d2;
+                        best = ci;
+                    }
+                });
+            }
+        }
+        if (best === null) {
+            // 新しいクラスタ。位置はグリッドに登録した時点で固定する
+            // （吸着で代表点が動くとグリッドとの整合が崩れるため、
+            //   セル登録は「作成時の座標」で行い、以降も同じセルに属させる）
+            const ci = clusters.length;
+            const w0 = weightOf(p);
+            clusters.push({
+                x: p.x,
+                y: p.y,
+                ax: p.x * w0,
+                ay: p.y * w0,
+                w: w0,
+                members: [p],
+            });
+            const k = key(cx, cy);
+            if (!grid.has(k)) grid.set(k, []);
+            grid.get(k).push(ci);
+        } else {
+            const c = clusters[best];
+            const w = weightOf(p);
+            c.members.push(p);
+            c.ax += p.x * w;
+            c.ay += p.y * w;
+            c.w += w;
+            // 代表座標は count 加重平均へ更新（吸着判定の中心も追従させる）
+            recenter(c);
+        }
+    });
+    return clusters;
+}
+
 // カスタムツールチップをカーソル近くへ置く。右端・下端ではカーソルの反対側へ
 // 反転させ、パネルの外へはみ出さないようにする
 function applyTooltipPos(el, x, y, w, h) {
@@ -766,6 +874,15 @@ function applyTooltipPos(el, x, y, w, h) {
     if (top + th > h - 6) top = Math.max(6, y - th - 12);
     el.style.left = `${left}px`;
     el.style.top = `${top}px`;
+}
+
+// 件数の桁区切り表記（8432 → "8,432"）。
+// toLocaleString はロケール依存で happy-dom / 実機の差が出るため自前で整形する。
+function formatCount(n) {
+    if (!Number.isFinite(n)) return '0';
+    const v = Math.round(n);
+    const sign = v < 0 ? '-' : '';
+    return sign + String(Math.abs(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
 // ツールチップ用のカテゴリ表記。末尾に区切りを含めて返す（呼び出し側は
@@ -964,7 +1081,7 @@ function MessageState({ message }) {
 // ---------------------------------------------------------------------------
 // マップ本体
 // ---------------------------------------------------------------------------
-function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, customBg, customLand, opts }) {
+function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, explicit, customBg, customLand, opts }) {
     const [categoryFilter, setCategoryFilter] = useState('all');
     // ホバー中の地点キー（"x,y"）。その地点に繋がる弧だけを強調する
     const [hoverKey, setHoverKey] = useState(null);
@@ -1362,6 +1479,45 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
         return Number.isFinite(lo) && Number.isFinite(hi) ? { lo, hi } : { lo: 0, hi: 0 };
     }, [visible]);
 
+    // --- 件数サマリー（v1.9.0） -------------------------------------------
+    // 【なぜ必要か】maxArcs は「count 上位 N 本だけ描いて残りを捨てる」動作なので、
+    // 捨てられた分の存在が画面上どこにも出ず「全体で何件あるのか」が分からなかった。
+    // ここでは **絞り込み前の全件（threats）** と **実際に描いた分（visibleData）** の
+    // 両方を数え、凡例に「表示 N / 全 M」として出す。
+    //
+    // 数える対象は count 列の有無で変える:
+    //   - count 列あり … 合計イベント数（単位「件」）。データの実量を表す
+    //   - count 列なし … 弧の本数（単位「本」）。count は 1 固定なので本数と一致する
+    // hasCount は「count 列が解決できたか」＝ parseThreats が付けた印を見る。
+    const totals = useMemo(() => {
+        // 1行あたりの寄与。count 列が無ければ「1本」として数える。
+        // 現状 parseThreats が count を必ず有限値にしているが、非有限が紛れ込むと
+        // 凡例に NaN が出てしまうため、合計・内訳の両方で同じガードを通す。
+        const weigh = (t) => {
+            if (!hasCount) return 1;
+            return Number.isFinite(t.count) ? t.count : 0;
+        };
+        const sum = (list) => list.reduce((acc, t) => acc + weigh(t), 0);
+        // カテゴリ別の内訳は **絞り込み前の全件** で数える。
+        // 【重要】visibleData（描画中の分）で数えてはいけない。凡例クリックで
+        // 絞り込むと他カテゴリが全て 0 になり、「medium のデータが無い」と
+        // 誤読させてしまう（実際は隠れているだけ）。凡例は「どのカテゴリに
+        // どれだけあるか」の一覧なので、フィルタ状態に依存させない。
+        // maxArcs による上限も同様に無視する（捨てた分は総数側で示す）。
+        const byCategory = {};
+        threats.forEach((t) => {
+            byCategory[t.category] = (byCategory[t.category] || 0) + weigh(t);
+        });
+        return {
+            shown: sum(visibleData),
+            all: sum(threats),
+            // 絞り込み（凡例クリック）や maxArcs で実際に減っているか
+            truncated: visibleData.length < threats.length,
+            unit: hasCount ? '件' : '本',
+            byCategory,
+        };
+    }, [threats, visibleData, hasCount]);
+
     // ホバー強調が有効なときだけ実際に適用する
     const activeHoverKey = opts.highlightOnHover ? hoverKey : null;
 
@@ -1372,6 +1528,100 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
     // payloadCallback を使い回して行番号を固定すると、どこを押しても同じ行が飛ぶ。
     const arcRefs = useRef(new Map());
     const spotRefs = useRef(new Map());
+
+    // 起点・終点のホットスポット
+    // 重複除去 + 同一地点に複数カテゴリの線が集まる場合は「表示順が先の」色を採用する。
+    // 表示順はユーザーの categoryOrder（未指定なら登場順）なので、
+    // **どのカテゴリを代表色にするかもユーザーの指定に従う**ことになる。
+    // 「深刻度が高い方を優先」のような意味的な判断は viz では行わない。
+    // 表示名は最初に見つかった非空のものを使う。
+    // 【v1.9.0】集約は「画面距離が clusterRadius 以内」で行う（従来は 0.1px 完全一致）。
+    // 併せて、各弧がどのクラスタに属するかを引ける対応表（arcEnds）も作る。
+    // 弧の始点・終点をクラスタ代表点へ吸着させることで、束ねられた地点から
+    // 弧が伸びる見た目になり、終端が数十本に割れて潰れるのを防ぐ。
+    const { sources, targets, arcEnds } = useMemo(() => {
+        // 1点1レコードに展開してから集約する（集約前の粒度を保つ）
+        const srcPts = visible.map((t) => ({
+            x: t.sx, y: t.sy, count: t.count, category: t.category, name: t.srcName, id: t.id,
+        }));
+        const dstPts = visible.map((t) => ({
+            x: t.tx, y: t.ty, count: t.count, category: t.category, name: t.dstName, id: t.id,
+        }));
+
+        // クラスタ（またはキー完全一致）を「表示用の地点」へ畳む。
+        // 代表カテゴリ・代表名の決め方は従来の merge と同じ規則を踏襲する:
+        //   - カテゴリ: 表示順（categoryOrder → 登場順）が先のものを採用
+        //   - 表示名  : 最初に見つかった非空のもの
+        //   - count   : 合算
+        const fold = (pts) => {
+            const spots = [];
+            const byId = new Map(); // 弧の id → 所属スポット（弧の端点吸着に使う）
+            const groups = clusterPoints(pts, opts.clusterRadius);
+            const buckets = groups
+                ? groups.map((c) => ({ x: c.x, y: c.y, members: c.members }))
+                : (() => {
+                      // 集約無効時は従来どおり 0.1px 完全一致でまとめる
+                      const m = new Map();
+                      pts.forEach((p) => {
+                          const k = `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+                          if (!m.has(k)) m.set(k, { x: p.x, y: p.y, members: [] });
+                          m.get(k).members.push(p);
+                      });
+                      return [...m.values()];
+                  })();
+
+            buckets.forEach((b) => {
+                let count = 0;
+                let category;
+                let name = '';
+                b.members.forEach((p) => {
+                    count += p.count;
+                    if (!name && p.name) name = p.name;
+                    if (category === undefined || (catIndex[p.category] ?? 0) < (catIndex[category] ?? 0)) {
+                        category = p.category;
+                    }
+                });
+                const spot = {
+                    x: b.x,
+                    y: b.y,
+                    count,
+                    category,
+                    name,
+                    // 集約された元地点の数（1 なら単独地点）。ツールチップに出す
+                    size: b.members.length,
+                };
+                spots.push(spot);
+                b.members.forEach((p) => byId.set(p.id, spot));
+            });
+            return { spots, byId };
+        };
+
+        const s = fold(srcPts);
+        const d = fold(dstPts);
+        return {
+            sources: s.spots,
+            targets: d.spots,
+            arcEnds: { src: s.byId, dst: d.byId },
+        };
+    }, [visible, catIndex, opts.clusterRadius]);
+
+    // 弧の端点をクラスタ代表点へ吸着させた描画用データ。
+    // 集約が無効（clusterRadius=0）なら元の座標と一致するので見た目は変わらない。
+    const arcs = useMemo(
+        () =>
+            visible.map((t) => {
+                const s = arcEnds.src.get(t.id);
+                const d = arcEnds.dst.get(t.id);
+                return {
+                    ...t,
+                    sx: s ? s.x : t.sx,
+                    sy: s ? s.y : t.sy,
+                    tx: d ? d.x : t.tx,
+                    ty: d ? d.y : t.ty,
+                };
+            }),
+        [visible, arcEnds]
+    );
 
     // count → 線幅。widthScale=0 なら一律。データが全て同値なら中庸の太さ。
     const arcWidth = useCallback(
@@ -1393,7 +1643,7 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
     // Canvas の光の帯用の弧データ（制御点・色・線幅を事前計算して rAF から使う）
     const flowArcs = useMemo(
         () =>
-            visible.map((t) => {
+            arcs.map((t) => {
                 const { cx, cy } = arcControl(t.sx, t.sy, t.tx, t.ty);
                 return {
                     sx: t.sx,
@@ -1410,7 +1660,7 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
                     dstKey: `${t.tx.toFixed(1)},${t.ty.toFixed(1)}`,
                 };
             }),
-        [visible, derived, arcWidth]
+        [arcs, derived, arcWidth]
     );
 
     // --- 地名ラベル（ズーム段階で国名 → 都市名が現れる） -------------------
@@ -1516,38 +1766,13 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
         return out;
     }, [geo, size, labelSelection]);
 
-    // 起点・終点のホットスポット
-    // 重複除去 + 同一地点に複数カテゴリの線が集まる場合は「表示順が先の」色を採用する。
-    // 表示順はユーザーの categoryOrder（未指定なら登場順）なので、
-    // **どのカテゴリを代表色にするかもユーザーの指定に従う**ことになる。
-    // 「深刻度が高い方を優先」のような意味的な判断は viz では行わない。
-    // 表示名は最初に見つかった非空のものを使う。
-    const { sources, targets } = useMemo(() => {
-        const srcMap = new Map();
-        const dstMap = new Map();
-        const merge = (map, key, x, y, count, category, name) => {
-            if (!map.has(key)) map.set(key, { x, y, count: 0, category, name: '' });
-            const entry = map.get(key);
-            entry.count += count;
-            if (!entry.name && name) entry.name = name;
-            if ((catIndex[category] ?? 0) < (catIndex[entry.category] ?? 0)) {
-                entry.category = category;
-            }
-        };
-        visible.forEach((t) => {
-            merge(srcMap, `${t.sx.toFixed(1)},${t.sy.toFixed(1)}`, t.sx, t.sy, t.count, t.category, t.srcName);
-            merge(dstMap, `${t.tx.toFixed(1)},${t.ty.toFixed(1)}`, t.tx, t.ty, t.count, t.category, t.dstName);
-        });
-        return { sources: [...srcMap.values()], targets: [...dstMap.values()] };
-    }, [visible, catIndex]);
-
     // 弧とホットスポットをドリルダウン対象として登録する。
     // 要素は再描画で作り直されるため、データが変わるたびに登録し直す。
     // 登録に失敗しても描画は続行する（ホスト API 未提供の環境で落とさない）。
     useEffect(() => {
         if (typeof addDrilldownListener !== 'function') return;
         try {
-            visible.forEach((t) => {
+            arcs.forEach((t) => {
                 const node = arcRefs.current.get(t.id);
                 if (!node) return;
                 addDrilldownListener({
@@ -1591,7 +1816,7 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
         } catch (e) {
             /* ドリルダウン未対応環境でも描画は続ける */
         }
-    }, [visible, sources, targets]);
+    }, [arcs, sources, targets]);
 
     // パネル実サイズに応じたオーバーレイのレイアウト計算
     // （小パネルで文字がはみ出したり要素同士が重ならないよう、
@@ -1628,10 +1853,17 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
         // 幅が狭いときは凡例内の各行も横並びに（縦積みだと縦に長くなり地図に被る）
         const legDir = w < 300 ? 'row' : 'column';
 
+        // 件数表示は凡例の中に出す。コンパクト表示（極小パネル）では
+        // 桁数で凡例が横に膨らんで地図を覆うため出さない。
+        const showTotals = opts.showTotals && !legendCompact;
+        const showCategoryCounts = opts.showCategoryCounts && !legendCompact;
+
         return {
             showFilter,
             showTitle,
             showLegend,
+            showTotals,
+            showCategoryCounts,
             titleFont,
             titleMaxW,
             legPad,
@@ -1642,7 +1874,8 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
             legSwatchH,
             legDir,
         };
-    }, [size, opts.showTitle, opts.titleText, opts.showFilter, opts.showLegend]);
+    }, [size, opts.showTitle, opts.titleText, opts.showFilter, opts.showLegend,
+        opts.showTotals, opts.showCategoryCounts]);
 
     return (
         <div
@@ -1744,7 +1977,8 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
                     {/* 攻撃元ホットスポット（脈動アニメーション付き・線の色に対応） */}
                     {sources.map((s, i) => {
                         const base = Math.min(26 + Math.sqrt(s.count) * 1.5, 44);
-                        const tipHead = `Source: ${s.name || 'unknown'}`;
+                        // 集約された地点は「代表名 ほか N 地点」と示す（何が畳まれたか分かるように）
+                        const tipHead = `Source: ${s.name || 'unknown'}${s.size > 1 ? ` ほか ${s.size - 1} 地点` : ''}`;
                         const tipSub = `${describeCategory(s.category)}count ${s.count}`;
                         return (
                             <g key={`src-${i}`}>
@@ -1809,7 +2043,7 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
 
                     {/* 攻撃先（線の色に対応） */}
                     {targets.map((t, i) => {
-                        const tipHead = `Target: ${t.name || 'unknown'}`;
+                        const tipHead = `Target: ${t.name || 'unknown'}${t.size > 1 ? ` ほか ${t.size - 1} 地点` : ''}`;
                         const tipSub = `${describeCategory(t.category)}count ${t.count}`;
                         return (
                         <g key={`dst-${i}`}>
@@ -1858,7 +2092,7 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
                           軌道1: 太く柔らかい発光ハロー（熱をにじませる）
                           軌道2: 細い芯線（弧の存在を常に示す薄い実線）
                         animOn 時は軌道を控えめにして彗星を主役に、静的時は芯線を濃くする。 */}
-                    {visible.map((t) => {
+                    {arcs.map((t) => {
                         const color = derived[t.category]?.css || 'rgb(56, 166, 255)';
                         const d = arcPath(t.sx, t.sy, t.tx, t.ty);
                         const width = arcWidth(t.count);
@@ -2129,6 +2363,24 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
                             {opts.categoryLabel}
                         </div>
                     )}
+                    {/* 件数サマリー（表示中 / 全体）。maxArcs や凡例フィルタで
+                        描画対象が減っているとき、捨てられた分の存在を示す。
+                        全件描いているときは「全 N 件」とだけ出す（冗長を避ける）。
+                        横並び（狭幅）では場所が無いので出さない。 */}
+                    {overlay.showTotals && overlay.legDir === 'column' && (
+                        <div
+                            style={{
+                                color: palette.legendText,
+                                fontSize: Math.max(10, overlay.legFont - 2),
+                                opacity: 0.75,
+                                whiteSpace: 'nowrap',
+                            }}
+                        >
+                            {totals.truncated
+                                ? `表示 ${formatCount(totals.shown)} / 全 ${formatCount(totals.all)} ${totals.unit}`
+                                : `全 ${formatCount(totals.all)} ${totals.unit}`}
+                        </div>
+                    )}
                     {categoryList.map((cat) => {
                         // 凡例クリックで絞り込み（もう一度押すと解除）。
                         // 絞り込み中は対象外のカテゴリを薄く表示して現在の状態を示す。
@@ -2177,6 +2429,23 @@ function ThreatMap({ threats, mode, categoryList, categoryColors, explicit, cust
                             >
                                 {cat}
                             </span>
+                            {/* カテゴリ別の件数（実際に描いている分）。
+                                縦積みのときだけ右端に寄せて数字の桁を揃える。 */}
+                            {overlay.showCategoryCounts && (
+                                <span
+                                    style={{
+                                        color: palette.legendText,
+                                        fontSize: Math.max(10, overlay.legFont - 1),
+                                        opacity: 0.7,
+                                        whiteSpace: 'nowrap',
+                                        marginLeft: overlay.legDir === 'column' ? 'auto' : 4,
+                                        paddingLeft: 8,
+                                        fontVariantNumeric: 'tabular-nums',
+                                    }}
+                                >
+                                    {formatCount(totals.byCategory[cat] || 0)}
+                                </span>
+                            )}
                         </div>
                         );
                     })}
@@ -2197,7 +2466,7 @@ function ThreatMapVisualization({ mode }) {
     const opts = useMemo(() => normalizeOptions(options), [options]);
     const rows = useMemo(() => (data ? normalizeData(data) : []), [data]);
     const fieldNames = useMemo(() => (data?.fields || []).map((f) => f.name || f), [data]);
-    const { threats: parsedThreats, missingFields } = useMemo(
+    const { threats: parsedThreats, missingFields, hasCount } = useMemo(
         () => parseThreats(fieldNames, rows, opts),
         [fieldNames, rows, opts]
     );
@@ -2263,6 +2532,7 @@ function ThreatMapVisualization({ mode }) {
     return (
         <ThreatMap
             threats={threats}
+            hasCount={hasCount}
             mode={mode}
             categoryList={categoryList}
             categoryColors={categoryColors}

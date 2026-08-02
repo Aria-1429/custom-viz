@@ -85,6 +85,9 @@
       "widthScale": { "type": "number", "default": 1 },
       "maxArcs": { "type": "number", "default": 0 },
       "highlightOnHover": { "type": "boolean", "default": true },
+      "clusterRadius": { "type": "number", "default": 18 },
+      "showTotals": { "type": "boolean", "default": true },
+      "showCategoryCounts": { "type": "boolean", "default": true },
       "centerLon": { "type": "number", "default": 0 },
       "centerLat": { "type": "number", "default": 0 },
       "initialZoom": { "type": "number", "default": 1 },
@@ -118,7 +121,10 @@
           [{ "label": "アニメーション周期（秒、0で停止）", "editor": "editor.number", "option": "animDuration" }],
           [{ "label": "件数による線の太さの強調度（0で一律の細線）", "editor": "editor.slider", "option": "widthScale", "editorProps": { "min": 0, "max": 5, "step": 0.5 } }],
           [{ "label": "描画する矢印の上限（件数の多い順。0で無制限）", "editor": "editor.number", "option": "maxArcs", "editorProps": { "min": 0 } }],
-          [{ "label": "地点にマウスを乗せたとき関連する矢印を強調", "editor": "editor.checkbox", "option": "highlightOnHover" }]
+          [{ "label": "地点にマウスを乗せたとき関連する矢印を強調", "editor": "editor.checkbox", "option": "highlightOnHover" }],
+          [{ "label": "近接した地点をまとめる半径（px。0でまとめない。ズームすると自然に分かれます）", "editor": "editor.slider", "option": "clusterRadius", "editorProps": { "min": 0, "max": 80, "step": 2 } }],
+          [{ "label": "凡例に「表示◯◯／全◯◯」の件数を表示", "editor": "editor.checkbox", "option": "showTotals" }],
+          [{ "label": "凡例のカテゴリごとに件数を表示", "editor": "editor.checkbox", "option": "showCategoryCounts" }]
         ]
       },
       {

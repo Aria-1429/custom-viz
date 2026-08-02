@@ -246,9 +246,12 @@ console.log('\n[2d] categoryOrder controls legend order (no semantic sorting)');
     // 凡例（左下パネル）の並びで確認する。
     // body 全体のテキストだと右上のフィルタ（Select）も混ざるため、
     // 「色スウォッチ(boxShadow)を持つ行」を含む最小の div を凡例とみなす。
+    // v1.9.0 で各行の末尾に件数の span が付いたため、行全体の textContent では
+    // "medium80" のように連結されてしまう。カテゴリ名は「スウォッチの次の span」
+    // に入っているので、そこだけを読む。
     const legendNames = [...doc.querySelectorAll('span')]
         .filter((s) => (s.getAttribute('style') || '').includes('box-shadow'))
-        .map((s) => (s.parentElement ? s.parentElement.textContent.trim() : ''))
+        .map((s) => (s.nextElementSibling ? s.nextElementSibling.textContent.trim() : ''))
         .filter((t) => t !== '');
     check('legend rendered with swatches', legendNames.length >= 4, JSON.stringify(legendNames));
     // 指定した medium, worm, high が先頭3件、未指定の low がその後（登場順）
@@ -545,7 +548,7 @@ console.log('\n[12] works with a dataset that has nothing to do with severity');
 
     const legendNames = [...doc.querySelectorAll('span')]
         .filter((s) => (s.getAttribute('style') || '').includes('box-shadow'))
-        .map((s) => (s.parentElement ? s.parentElement.textContent.trim() : ''));
+        .map((s) => (s.nextElementSibling ? s.nextElementSibling.textContent.trim() : ''));
     check('legend order follows categoryOrder (firewall, auth, dns)',
         legendNames.slice(0, 3).join(',') === 'firewall,auth,dns', JSON.stringify(legendNames));
 
@@ -611,8 +614,10 @@ console.log('\n[14] clicking a legend entry filters the map');
     // 凡例の 'high' 行をクリック → high の弧だけになる（ROWS では high が2本）
     const legendRow = [...doc.querySelectorAll('span')]
         .filter((s) => (s.getAttribute('style') || '').includes('box-shadow'))
+        // カテゴリ名はスウォッチの次の span（行末には件数の span が付く）
+        .filter((s) => s.nextElementSibling && s.nextElementSibling.textContent.trim() === 'high')
         .map((s) => s.parentElement)
-        .find((d) => d && d.textContent.trim() === 'high');
+        .find(Boolean);
     check('legend row for "high" found', !!legendRow);
     if (legendRow) {
         legendRow.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
@@ -621,8 +626,9 @@ console.log('\n[14] clicking a legend entry filters the map');
         // もう一度押すと解除
         const again = [...doc.querySelectorAll('span')]
             .filter((s) => (s.getAttribute('style') || '').includes('box-shadow'))
+            .filter((s) => s.nextElementSibling && s.nextElementSibling.textContent.trim() === 'high')
             .map((s) => s.parentElement)
-            .find((d) => d && d.textContent.trim() === 'high');
+            .find(Boolean);
         again.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
         await sleep(300);
         check('clicking again clears the filter', streaks().length === 6, `got ${streaks().length}`);
@@ -1082,6 +1088,198 @@ console.log('\n[25] label selection settles after the camera stops moving');
 
     state.options = {};
     fire('options', { options: state.options });
+    await sleep(300);
+}
+
+// ---- 26. 地点クラスタリング（A-1） --------------------------------------------
+// v1.8.2 までは「投影後 0.1px 完全一致」でしか集約されず、同一都市でも緯度経度が
+// わずかにばらける実データ（IP ジオロケーション）ではほぼ集約されなかった。
+// v1.9.0 は画面距離ベースで集約する。ズームすると自然に分離することも確認する。
+console.log('\n[26] nearby points cluster by screen distance');
+{
+    // 関東一円に散らばった 5 つの起点（すべて別座標）。
+    // zoom1（世界表示）では画面上 数px 以内に集まるので 1 クラスタに畳まれ、
+    // 拡大すると 18px を超えて離れるため分離する、という関係になる距離に取る。
+    // ※点を近づけすぎると拡大しても分離せず、テストが集約の解除を検証できない
+    //   （実測: 0.01°差では zoom30 でも最大 4.5px しか離れない）。
+    const SCATTER = [
+        ['35.68', '139.69', '51.5', '-0.12', 'high', '10', 'Tokyo-A', 'London'],
+        ['35.44', '139.64', '51.5', '-0.12', 'high', '20', 'Yokohama', 'London'],
+        ['35.86', '139.65', '51.5', '-0.12', 'high', '30', 'Saitama', 'London'],
+        ['35.60', '140.12', '51.5', '-0.12', 'high', '40', 'Chiba', 'London'],
+        ['35.658', '139.745', '51.5', '-0.12', 'high', '50', 'Minato', 'London'],
+    ];
+    // 起点ホットスポットの数を数える（当たり判定 r=12 の circle が 1 地点 1 個）
+    const spotCount = () =>
+        [...doc.querySelectorAll('svg circle[r="12"]')].filter((c) =>
+            (c.getAttribute('aria-label') || '').startsWith('Source:')
+        ).length;
+
+    state.data = { fields: FIELDS, rows: SCATTER };
+    // まず集約を無効にすると、5 地点が別々に描かれる（従来の挙動）
+    state.options = { clusterRadius: 0, initialZoom: 1, centerLon: 0, centerLat: 0 };
+    fire('options', { options: state.options });
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(350);
+    const noCluster = spotCount();
+    // clusterRadius=0 は従来（v1.8.2）の 0.1px 完全一致に退避する。
+    // zoom1 では 5 地点が画面上 1px 未満に潰れるため 1 つにはまとまらず、
+    // 「丸め位置が偶然一致した分だけ」が畳まれる（＝集約として機能していない）。
+    // この中途半端さこそ A-1 が解決した問題なので、複数個に割れることを記録しておく。
+    check('clusterRadius=0 falls back to legacy exact-match (barely merges)',
+        noCluster > 1, `got ${noCluster}`);
+
+    // 既定（18px）では、世界表示で近接した 5 地点が 1 つに畳まれる
+    state.options = { clusterRadius: 18, initialZoom: 1, centerLon: 0, centerLat: 0 };
+    fire('options', { options: state.options });
+    await sleep(350);
+    const clustered = spotCount();
+    check('nearby points collapse into one cluster at zoom 1', clustered === 1, `got ${clustered}`);
+
+    // 集約された地点のツールチップは「ほか N 地点」と内訳を示す
+    const clusterLabel = [...doc.querySelectorAll('svg circle[r="12"]')]
+        .map((c) => c.getAttribute('aria-label') || '')
+        .find((l) => l.startsWith('Source:'));
+    check('cluster tooltip shows how many points were merged',
+        /ほか 4 地点/.test(clusterLabel || ''), clusterLabel);
+    // count は合算される（10+20+30+40+50 = 150）
+    check('cluster sums the counts of its members',
+        /count 150/.test(clusterLabel || ''), clusterLabel);
+
+    // 十分にズームすると同じ radius でもクラスタが分離する（地図アプリと同じ挙動）
+    state.options = { clusterRadius: 18, initialZoom: 30, centerLon: 139.69, centerLat: 35.68 };
+    fire('options', { options: state.options });
+    await sleep(400);
+    const zoomed = spotCount();
+    check('zooming in separates the cluster again', zoomed > 1, `got ${zoomed}`);
+
+    // 弧の本数はクラスタリングでは変わらない（描画位置が吸着するだけ）
+    check('clustering does not drop arcs', streaks().length === 5, `got ${streaks().length}`);
+
+    // 負の count（`| eval count=a-b` のような差分）でも代表点がクラスタの外へ飛ばない。
+    // 重みを非負に丸めていないと加重平均が破綻し、マーカーが無関係な場所に描かれる。
+    state.data = {
+        fields: FIELDS,
+        rows: [
+            ['35.68', '139.69', '51.5', '-0.12', 'high', '10', 'Tokyo-A', 'London'],
+            ['35.69', '139.70', '51.5', '-0.12', 'high', '-9', 'Tokyo-B', 'London'],
+            ['35.67', '139.68', '51.5', '-0.12', 'high', '-3', 'Tokyo-C', 'London'],
+        ],
+    };
+    state.options = { clusterRadius: 18, initialZoom: 1, centerLon: 0, centerLat: 0 };
+    fire('options', { options: state.options });
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(350);
+    // 東京は zoom1・900x500 では概ね x=780 付近。代表点が壊れると 0 付近へ飛ぶ。
+    const negSpot = [...doc.querySelectorAll('svg circle[r="12"]')]
+        .filter((c) => (c.getAttribute('aria-label') || '').startsWith('Source:'))
+        .map((c) => Number(c.getAttribute('cx')));
+    check('negative counts do not throw the cluster centroid off the map',
+        negSpot.length > 0 && negSpot.every((x) => Number.isFinite(x) && x > 600),
+        JSON.stringify(negSpot));
+}
+
+// ---- 27. 件数サマリー（A-2） ---------------------------------------------------
+// maxArcs は「上位 N 本だけ描いて残りを捨てる」動作なので、捨てられた分の存在を
+// 凡例に出す。count 列の有無で単位が「件」/「本」に切り替わることも確認する。
+console.log('\n[27] legend shows totals and per-category counts');
+{
+    const legendText = () => {
+        const sw = [...doc.querySelectorAll('span')]
+            .find((s) => (s.getAttribute('style') || '').includes('box-shadow'));
+        // 凡例パネル = スウォッチを含む最小の div の、さらに親（パネル本体）
+        const panel = sw && sw.parentElement ? sw.parentElement.parentElement : null;
+        return panel ? panel.textContent : '';
+    };
+
+    state.data = { fields: FIELDS, rows: ROWS };
+    state.options = { maxArcs: 0, clusterRadius: 0, initialZoom: 1, centerLon: 0, centerLat: 0 };
+    fire('options', { options: state.options });
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(350);
+    // count 列があるので単位は「件」。全件描いているので「全 N 件」だけが出る
+    // ROWS_VALID の count 合計 = 120+300+50+80+10+40 = 600
+    check('shows grand total with 件 unit when a count column exists',
+        /全 600 件/.test(legendText()), legendText().slice(0, 160));
+    check('does not show a 表示/全 split when nothing is truncated',
+        !legendText().includes('表示'), legendText().slice(0, 160));
+
+    // maxArcs で絞ると「表示 N / 全 M」になる。上位2本 = 300 + 120 = 420
+    state.options = { maxArcs: 2, clusterRadius: 0, initialZoom: 1, centerLon: 0, centerLat: 0 };
+    fire('options', { options: state.options });
+    await sleep(350);
+    check('shows 表示/全 split when maxArcs truncates',
+        /表示 420 \/ 全 600 件/.test(legendText()), legendText().slice(0, 160));
+
+    // カテゴリごとの件数が各行に出る（high = 300 + 50 = 350）
+    state.options = { maxArcs: 0, clusterRadius: 0, initialZoom: 1, centerLon: 0, centerLat: 0 };
+    fire('options', { options: state.options });
+    await sleep(350);
+    const highRow = [...doc.querySelectorAll('span')]
+        .filter((s) => (s.getAttribute('style') || '').includes('box-shadow'))
+        .filter((s) => s.nextElementSibling && s.nextElementSibling.textContent.trim() === 'high')
+        .map((s) => s.parentElement)
+        .find(Boolean);
+    check('per-category count rendered on the legend row',
+        !!highRow && highRow.textContent.includes('350'),
+        highRow ? highRow.textContent : 'no high row');
+
+    // 【重要】カテゴリ別件数は絞り込みに影響されない。
+    // 描画中の分で数えると、凡例クリックで他カテゴリが全て 0 になり
+    // 「そのカテゴリのデータが無い」と誤読させる（実際は隠れているだけ）。
+    const beforeFilter = legendText();
+    check('category counts present before filtering',
+        /medium\s*80/.test(beforeFilter), beforeFilter.slice(0, 160));
+    const highRow2 = [...doc.querySelectorAll('span')]
+        .filter((s) => (s.getAttribute('style') || '').includes('box-shadow'))
+        .filter((s) => s.nextElementSibling && s.nextElementSibling.textContent.trim() === 'high')
+        .map((s) => s.parentElement)
+        .find(Boolean);
+    if (highRow2) {
+        highRow2.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+        await sleep(320);
+        check('filtering does not zero out other categories in the legend',
+            /medium\s*80/.test(legendText()), legendText().slice(0, 160));
+        check('totals switch to 表示/全 while filtered',
+            /表示 350 \/ 全 600 件/.test(legendText()), legendText().slice(0, 160));
+        // 解除
+        const again2 = [...doc.querySelectorAll('span')]
+            .filter((s) => (s.getAttribute('style') || '').includes('box-shadow'))
+            .filter((s) => s.nextElementSibling && s.nextElementSibling.textContent.trim() === 'high')
+            .map((s) => s.parentElement)
+            .find(Boolean);
+        if (again2) again2.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+        await sleep(320);
+    }
+
+    // オプションで両方とも消せる
+    state.options = { showTotals: false, showCategoryCounts: false, maxArcs: 2, clusterRadius: 0 };
+    fire('options', { options: state.options });
+    await sleep(350);
+    check('showTotals=false hides the totals line', !legendText().includes('表示 '),
+        legendText().slice(0, 160));
+    check('showCategoryCounts=false hides per-category counts', !/high\s*350/.test(legendText()),
+        legendText().slice(0, 160));
+
+    // count 列が無いデータでは単位が「本」になり、弧の本数を数える
+    const NO_COUNT_FIELDS = ['src_lat', 'src_lon', 'dst_lat', 'dst_lon', 'severity']
+        .map((name) => ({ name }));
+    state.data = {
+        fields: NO_COUNT_FIELDS,
+        rows: ROWS_VALID.map((r) => r.slice(0, 5)),
+    };
+    state.options = { maxArcs: 0, clusterRadius: 0, initialZoom: 1, centerLon: 0, centerLat: 0 };
+    fire('options', { options: state.options });
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(350);
+    check('unit falls back to 本 when there is no count column',
+        /全 6 本/.test(legendText()), legendText().slice(0, 160));
+
+    // 後片付け（以降のテストに影響させない）
+    state.data = { fields: FIELDS, rows: ROWS };
+    state.options = {};
+    fire('options', { options: state.options });
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
     await sleep(300);
 }
 
