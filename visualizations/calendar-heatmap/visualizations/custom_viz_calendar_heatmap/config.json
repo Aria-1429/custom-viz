@@ -6,7 +6,7 @@
   "canSetTokens": [],
   "hasEventHandlers": false,
   "config": {
-    "name": "Custom Viz Calendar Heatmap",
+    "name": "Calendar Heatmap",
     "description": "A GitHub-style calendar heatmap with auto-fit and an editable low/high value color scale",
     "category": "Custom",
     "icon": null,

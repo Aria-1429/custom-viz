@@ -6,7 +6,7 @@
   "canSetTokens": [],
   "hasEventHandlers": false,
   "config": {
-    "name": "Custom Viz Icon Status",
+    "name": "Icon Status",
     "description": "A single-value status tile with layered 3D-style SOC icons that recolor by threshold",
     "category": "Custom",
     "icon": null,

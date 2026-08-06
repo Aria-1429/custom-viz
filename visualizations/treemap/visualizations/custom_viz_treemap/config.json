@@ -6,7 +6,7 @@
   "canSetTokens": [],
   "hasEventHandlers": false,
   "config": {
-    "name": "Custom Viz Treemap",
+    "name": "Treemap",
     "description": "A hierarchical treemap with squarified layout and click-to-drill navigation",
     "category": "Custom",
     "icon": null,

@@ -6,7 +6,7 @@
   "canSetTokens": [],
   "hasEventHandlers": false,
   "config": {
-    "name": "Custom Viz Timeline Swimlane",
+    "name": "Timeline Swimlane",
     "description": "An event timeline with per-entity swimlanes, duration bars and brush-based time range selection",
     "category": "Custom",
     "icon": null,

@@ -1,4 +1,4 @@
-# Custom Viz Link Line（サーバ間コネクタ線）
+# Link Line（サーバ間コネクタ線）
 
 ![表示例](examples/example.png)
 
@@ -98,6 +98,15 @@ yarn package   # dist/custom_viz_link_line-<ver>-<hash>.spl
 
 本ファイルは [Keep a Changelog](https://keepachangelog.com/ja/1.0.0/) に準拠し、バージョニングは [Semantic Versioning](https://semver.org/lang/ja/) に従う。
 
+---
+
+### [1.10.1] - 2026-08-06
+
+#### 変更
+
+- **表示名から `Custom Viz ` プレフィックスを削除**（`Custom Viz Link Line` → `Link Line`）。
+  Studio の viz 切替 UI に出る名前・管理画面の App 一覧・README タイトルの3か所が対象。
+  **アプリ ID（`custom_viz_*`）は変更していない**ため、配置済みダッシュボードには影響しない。
 ---
 
 ### [1.10.0] - 2026-07-30

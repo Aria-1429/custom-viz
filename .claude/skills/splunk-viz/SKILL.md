@@ -99,6 +99,19 @@ SVG で足りるものに WebGL を使う必要は無い（判断基準も同フ
 
 - **リポジトリ**：モノレポ `Aria-1429/custom-viz`（**public** / `main`。2026-07-30 に公開へ変更）に各 viz を `visualizations/<name>/` として収録する。1 viz = 1 repo は廃止済み。
   （フォルダ名は `<name>`＝プレフィックスなし、Splunk のアプリ ID は `custom_viz_<name>`。）
+- **表示名に `Custom Viz` を付けない（2026-08-06 に全 viz へ適用済み）**：
+  ユーザーの目に触れる名前は **viz そのものの名前だけ**にする（例: `World Map`、`Attack Globe`）。
+  - 対象は3か所。いずれも `Custom Viz ` を**付けない**:
+    - `config.json > config.name` … **Studio の viz 切替 UI に出る表示名**。全カスタム viz に
+      同じ接頭辞が付くと肝心の名前が読みにくく、標準 viz（`Line`/`Bar` 等）とも揃わない
+    - `package/app/app.conf > [ui] label` … 管理画面の App 一覧。アプリ ID が
+      `custom_viz_*` で始まるので接頭辞が無くてもカスタム viz だと分かる
+    - 各 viz の `README.md` の H1 タイトル … リポジトリ名が custom-viz なので冗長
+  - **識別子（`custom_viz_<name>`）は従来どおり**。アプリ ID・フォルダ名・
+    `visualizations/custom_viz_<name>/` は**変えない**（変えると既存ダッシュボードが壊れる）。
+  - 表示名は**単語区切りを空けた Title Case** にする（`World Map` であって `Worldmap` ではない）。
+  - **旧 `.spl` は書き換えない**。リリースアーカイブは「その時点で実際に配布したもの」を残す
+    （ファイル名のコミットハッシュとの対応が崩れるため）。名前を変えたら**新しい版を出す**。
 - **バージョン更新**：`package.json` の `version` を SemVer で上げる（新規=`1.0.0`、機能追加=minor、修正=patch）。`config.json` 等のバージョンも整合させる。
 - **`.spl` はリポジトリに含める（旧版も残す）**：
   - パッケージ成果物 `dist/<app>-<ver>-<hash>.spl` はコミット対象。ファイル名にコミットハッシュが入るため複数併存するが、**旧バージョンの `.spl` も削除せず残す**方針（更新履歴を追えるようにするため）。

@@ -6,7 +6,7 @@
   "canSetTokens": [],
   "hasEventHandlers": false,
   "config": {
-    "name": "Custom Viz Heat Matrix",
+    "name": "Heat Matrix",
     "description": "A universal cross-tab heatmap matrix with continuous color scale",
     "category": "Custom",
     "icon": null,

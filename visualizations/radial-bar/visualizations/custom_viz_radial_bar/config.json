@@ -6,7 +6,7 @@
   "canSetTokens": [],
   "hasEventHandlers": false,
   "config": {
-    "name": "Custom Viz Radial Bar",
+    "name": "Radial Bar",
     "description": "A radial bar chart where each category is a wedge growing outward from the center, with a total in the middle",
     "category": "Custom",
     "icon": null,

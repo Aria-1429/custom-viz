@@ -6,7 +6,7 @@
   "canSetTokens": [],
   "hasEventHandlers": false,
   "config": {
-    "name": "Custom Viz Severity Table",
+    "name": "Severity Table",
     "description": "重要度を色分けするテーブル。深刻度でのソート・件数サマリ・表示スタイル・色をカスタマイズできる",
     "category": "Custom",
     "icon": null,

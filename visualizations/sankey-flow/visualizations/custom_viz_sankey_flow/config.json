@@ -6,7 +6,7 @@
   "canSetTokens": [],
   "hasEventHandlers": false,
   "config": {
-    "name": "Custom Viz Sankey Flow",
+    "name": "Sankey Flow",
     "description": "A multi-stage Sankey flow diagram with gradient links, hover highlighting and a value-based link color scale",
     "category": "Custom",
     "icon": null,

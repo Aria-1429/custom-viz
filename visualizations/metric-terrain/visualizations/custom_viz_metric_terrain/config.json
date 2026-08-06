@@ -6,7 +6,7 @@
   "canSetTokens": [],
   "hasEventHandlers": false,
   "config": {
-    "name": "Custom Viz Metric Terrain",
+    "name": "Metric Terrain",
     "description": "An isometric pseudo-3D terrain surface that rises from your metrics, with real-time lighting, shadows and rotation",
     "category": "Custom",
     "icon": null,

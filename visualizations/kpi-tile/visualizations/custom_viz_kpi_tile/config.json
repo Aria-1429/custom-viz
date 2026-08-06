@@ -6,7 +6,7 @@
   "canSetTokens": [],
   "hasEventHandlers": false,
   "config": {
-    "name": "Custom Viz KPI Tile",
+    "name": "KPI Tile",
     "description": "A KPI stat tile with a big value, day-over-day delta, sparkline bars and a selectable icon",
     "category": "Custom",
     "icon": null,

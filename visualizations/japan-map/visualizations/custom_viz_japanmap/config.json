@@ -6,7 +6,7 @@
   "canSetTokens": [],
   "hasEventHandlers": false,
   "config": {
-    "name": "Custom Viz Japanmap",
+    "name": "Japan Map",
     "description": "A custom Japan attack-map visualization for Splunk Dashboard Studio",
     "category": "Custom",
     "icon": null,

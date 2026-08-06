@@ -6,7 +6,7 @@
   "canSetTokens": [],
   "hasEventHandlers": false,
   "config": {
-    "name": "Custom Viz Network Graph",
+    "name": "Network Graph",
     "description": "A physics-based force-directed network graph with flowing-dash edges, width-linked arrows, drag, zoom and pan",
     "category": "Custom",
     "icon": null,

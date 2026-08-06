@@ -6,7 +6,7 @@
   "canSetTokens": [],
   "hasEventHandlers": false,
   "config": {
-    "name": "Custom Viz Chord Flow",
+    "name": "Chord Flow",
     "description": "An animated chord diagram: entities on a ring, mutual flows as gradient ribbons, with directional glow particles streaming along each flow",
     "category": "Custom",
     "icon": null,

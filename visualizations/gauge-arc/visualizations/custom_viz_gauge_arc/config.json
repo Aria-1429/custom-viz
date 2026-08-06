@@ -6,7 +6,7 @@
   "canSetTokens": [],
   "hasEventHandlers": false,
   "config": {
-    "name": "Custom Viz Gauge Arc",
+    "name": "Gauge Arc",
     "description": "A single-value arc gauge (continuous, segmented or tachometer) with threshold color bands, boundary value labels, delta-vs-previous comparison and a configurable side info panel.",
     "category": "Custom",
     "icon": null,

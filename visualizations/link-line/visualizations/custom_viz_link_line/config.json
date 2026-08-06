@@ -6,7 +6,7 @@
   "canSetTokens": ["dynamic", "static"],
   "hasEventHandlers": true,
   "config": {
-    "name": "Custom Viz Link Line",
+    "name": "Link Line",
     "description": "An editable connector line between servers. Bend and drag the line in view mode; the color follows the value ranges configured in the editor panel",
     "category": "Custom",
     "icon": null,

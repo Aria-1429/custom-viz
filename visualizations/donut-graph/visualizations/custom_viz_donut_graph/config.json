@@ -6,7 +6,7 @@
   "canSetTokens": [],
   "hasEventHandlers": false,
   "config": {
-    "name": "Custom Viz Donut Graph",
+    "name": "Donut Graph",
     "description": "A donut chart visualization with a center total and detailed legend",
     "category": "Custom",
     "icon": null,

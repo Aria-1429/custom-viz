@@ -6,7 +6,7 @@
   "canSetTokens": [],
   "hasEventHandlers": false,
   "config": {
-    "name": "Custom Viz Gradient Bar",
+    "name": "Gradient Bar",
     "description": "A custom visualization for Splunk Dashboard Studio",
     "category": "Custom",
     "icon": null,

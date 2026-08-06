@@ -1,6 +1,6 @@
 {
   "name": "custom_viz_spotlight_frame",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "A data-driven status frame: colored border, glow and header badge that react to a status/severity value for Splunk Dashboard Studio",
   "author": "Yuto Ishitsuki",
   "type": "module",

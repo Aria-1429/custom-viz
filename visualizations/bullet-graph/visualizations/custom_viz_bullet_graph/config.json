@@ -6,7 +6,7 @@
   "canSetTokens": [],
   "hasEventHandlers": false,
   "config": {
-    "name": "Custom Viz Bullet Graph",
+    "name": "Bullet Graph",
     "description": "A bullet graph list comparing measures against targets and qualitative ranges",
     "category": "Custom",
     "icon": null,

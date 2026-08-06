@@ -6,7 +6,7 @@
   "canSetTokens": [],
   "hasEventHandlers": false,
   "config": {
-    "name": "Custom Viz Radar Chart",
+    "name": "Radar Chart",
     "description": "A radar (spider) chart that overlays multiple series across shared axes",
     "category": "Custom",
     "icon": null,

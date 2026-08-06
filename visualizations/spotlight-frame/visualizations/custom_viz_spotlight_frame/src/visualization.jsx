@@ -45,7 +45,7 @@ import './visualization.css';
 // 枠だけ表示（frameOnly）にすると中央を透明化して他パネルへの重ね置きに向く。
 // ---------------------------------------------------------------------------
 
-const VIZ_VERSION = '1.2.0';
+const VIZ_VERSION = '1.2.2';
 
 // 列挙型オプションの許容値（未知値は既定へ丸める。旧バージョンの数値コードは復元しない）
 const MATCH_MODES = ['auto', 'numeric', 'string'];

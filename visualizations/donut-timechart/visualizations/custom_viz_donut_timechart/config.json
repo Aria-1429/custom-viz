@@ -6,7 +6,7 @@
   "canSetTokens": [],
   "hasEventHandlers": false,
   "config": {
-    "name": "Custom Viz Donut Timechart",
+    "name": "Donut Timechart",
     "description": "A status card combining a donut chart, a detailed legend and a trend sparkline",
     "category": "Custom",
     "icon": null,

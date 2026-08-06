@@ -1,6 +1,6 @@
 {
   "name": "custom_viz_funnel_leak",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "An animated funnel-with-leak visualization for Splunk Dashboard Studio",
   "author": "Yuto Ishitsuki",
   "type": "module",

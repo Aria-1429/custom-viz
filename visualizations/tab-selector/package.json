@@ -1,6 +1,6 @@
 {
   "name": "custom_viz_tab_selector",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "description": "A tab bar that sets dashboard tokens on click, with editor-configurable tabs for Splunk Dashboard Studio",
   "author": "Yuto Ishitsuki",
   "type": "module",

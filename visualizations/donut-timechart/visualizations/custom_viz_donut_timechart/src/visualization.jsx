@@ -13,7 +13,7 @@ import './visualization.css';
 import chartIcon from './assets/ChartColumnSquare.svg';
 
 // ---------------------------------------------------------------------------
-// Custom Viz Donut Timechart  v0.2.0
+// Donut Timechart  v0.2.0
 // 「Endpoint Protection Status」カード風の複合ビジュアライゼーション:
 //   上段: ドーナツ（中央に最大セグメントの割合%）+ 凡例（値・Total行つき）
 //   下段: 合計値の推移を示すトレンドチャート（エリア + ライン）

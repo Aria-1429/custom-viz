@@ -6,7 +6,7 @@
   "canSetTokens": [],
   "hasEventHandlers": false,
   "config": {
-    "name": "Custom Viz Sunburst",
+    "name": "Sunburst",
     "description": "A radial hierarchy chart with click-to-zoom navigation and a center KPI",
     "category": "Custom",
     "icon": null,

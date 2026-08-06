@@ -6,7 +6,7 @@
   "canSetTokens": [],
   "hasEventHandlers": false,
   "config": {
-    "name": "Custom Viz Spotlight Frame",
+    "name": "Spotlight Frame",
     "description": "A data-driven status frame: colored border, glow and header badge that react to a status/severity value. Overlay or place next to other panels to spotlight their state.",
     "category": "Custom",
     "icon": null,

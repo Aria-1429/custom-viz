@@ -1,4 +1,4 @@
-# Custom Viz Treemap
+# Treemap
 
 ![表示例](examples/example.png)
 
@@ -154,6 +154,15 @@ yarn package      # dist/*.spl を生成
 
 [Keep a Changelog](https://keepachangelog.com/ja/1.0.0/) 準拠 / [SemVer](https://semver.org/lang/ja/)。
 
+---
+
+### [1.2.2] - 2026-08-06
+
+#### 変更
+
+- **表示名から `Custom Viz ` プレフィックスを削除**（`Custom Viz Treemap` → `Treemap`）。
+  Studio の viz 切替 UI に出る名前・管理画面の App 一覧・README タイトルの3か所が対象。
+  **アプリ ID（`custom_viz_*`）は変更していない**ため、配置済みダッシュボードには影響しない。
 ---
 
 ### [1.2.1] - 2026-07-30

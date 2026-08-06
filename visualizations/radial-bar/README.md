@@ -1,4 +1,4 @@
-# Custom Viz Radial Bar（ラジアルバーチャート）
+# Radial Bar（ラジアルバーチャート）
 
 ![表示例](examples/example.png)
 
@@ -81,6 +81,15 @@ yarn package    # dist/custom_viz_radial_bar-<ver>-<hash>.spl を生成
 このセクションは [Keep a Changelog](https://keepachangelog.com/ja/1.0.0/) と
 [Semantic Versioning](https://semver.org/lang/ja/) に準拠する。
 
+---
+
+### [1.1.2] - 2026-08-06
+
+#### 変更
+
+- **表示名から `Custom Viz ` プレフィックスを削除**（`Custom Viz Radial Bar` → `Radial Bar`）。
+  Studio の viz 切替 UI に出る名前・管理画面の App 一覧・README タイトルの3か所が対象。
+  **アプリ ID（`custom_viz_*`）は変更していない**ため、配置済みダッシュボードには影響しない。
 ---
 
 ### [1.1.1] - 2026-07-30

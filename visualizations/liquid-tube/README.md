@@ -1,4 +1,4 @@
-# Custom Viz Liquid Tube
+# Liquid Tube
 
 ![表示例](examples/example.png)
 

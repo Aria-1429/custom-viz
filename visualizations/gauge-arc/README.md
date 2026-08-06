@@ -1,4 +1,4 @@
-# Custom Viz Gauge Arc
+# Gauge Arc
 
 ![表示例](examples/example.png)
 
@@ -198,6 +198,15 @@ yarn package    # dist/custom_viz_gauge_arc-<ver>-<hash>.spl を生成
   フォールバックを検証）。
 - 生成した `.spl`: `dist/custom_viz_gauge_arc-1.3.0-f17a996.spl`
 
+---
+
+### [1.3.2] - 2026-08-06
+
+#### 変更
+
+- **表示名から `Custom Viz ` プレフィックスを削除**（`Custom Viz Gauge Arc` → `Gauge Arc`）。
+  Studio の viz 切替 UI に出る名前・管理画面の App 一覧・README タイトルの3か所が対象。
+  **アプリ ID（`custom_viz_*`）は変更していない**ため、配置済みダッシュボードには影響しない。
 ---
 
 ### [1.3.1] - 2026-07-30

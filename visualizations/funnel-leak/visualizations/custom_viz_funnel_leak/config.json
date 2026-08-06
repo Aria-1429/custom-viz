@@ -6,7 +6,7 @@
   "canSetTokens": [],
   "hasEventHandlers": false,
   "config": {
-    "name": "Custom Viz Funnel Leak",
+    "name": "Funnel Leak",
     "description": "An animated funnel that flows pass-through volume down each step and spills the drop-off sideways as leak streams",
     "category": "Custom",
     "icon": null,

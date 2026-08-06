@@ -1,4 +1,4 @@
-# Custom Viz Sankey Flow
+# Sankey Flow
 ![表示例](examples/example.png)
 
 Splunk Dashboard Studio 向けのカスタムビジュアライゼーション（Sankey フロー図・多段対応）。
@@ -102,6 +102,15 @@ index=web sourcetype=access_combined
 書式は [Keep a Changelog](https://keepachangelog.com/ja/1.0.0/) に準拠し、バージョンは [セマンティックバージョニング](https://semver.org/lang/ja/) に従います。
 変更種別: `追加` / `変更` / `修正` / `削除` / `非推奨` / `セキュリティ`。
 
+---
+
+### [1.1.2] - 2026-08-06
+
+#### 変更
+
+- **表示名から `Custom Viz ` プレフィックスを削除**（`Custom Viz Sankey Flow` → `Sankey Flow`）。
+  Studio の viz 切替 UI に出る名前・管理画面の App 一覧・README タイトルの3か所が対象。
+  **アプリ ID（`custom_viz_*`）は変更していない**ため、配置済みダッシュボードには影響しない。
 ---
 
 ### [1.1.1] - 2026-07-30

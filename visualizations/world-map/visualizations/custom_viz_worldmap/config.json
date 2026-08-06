@@ -6,7 +6,7 @@
   "canSetTokens": ["dynamic", "static"],
   "hasEventHandlers": true,
   "config": {
-    "name": "Custom Viz Worldmap",
+    "name": "World Map",
     "description": "A custom visualization for Splunk Dashboard Studio",
     "category": "Custom",
     "icon": null,

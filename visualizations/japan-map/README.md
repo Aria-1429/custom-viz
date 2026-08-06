@@ -1,4 +1,4 @@
-# Custom Viz Japan Map
+# Japan Map
 ![表示例](examples/example.png)
 
 https://github.com/user-attachments/assets/bbf2dd36-f586-446c-9b78-c86fb98f57d0
@@ -141,6 +141,17 @@ Node/npm 用）。
 
 書式は [Keep a Changelog](https://keepachangelog.com/ja/1.0.0/) に準拠し、バージョンは [セマンティックバージョニング](https://semver.org/lang/ja/) に従います。
 変更種別: `追加` / `変更` / `修正` / `削除` / `非推奨` / `セキュリティ`。
+
+---
+
+### [1.2.2] - 2026-08-06
+
+#### 変更
+
+- **表示名から `Custom Viz ` プレフィックスを削除**（`Custom Viz Japanmap` → `Japan Map`）。
+  Studio の viz 切替 UI に出る名前・管理画面の App 一覧・README タイトルの3か所が対象。
+  **アプリ ID（`custom_viz_*`）は変更していない**ため、配置済みダッシュボードには影響しない。
+- 表記を単語区切りに統一（`Japanmap` → `Japan Map`）。
 
 ---
 

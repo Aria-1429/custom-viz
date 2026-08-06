@@ -28,7 +28,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './visualization.css';
 
-const VIZ_VERSION = 'tab-selector v1.0.0';
+const VIZ_VERSION = 'tab-selector v1.3.2';
 
 const TAB_STYLES = ['underline', 'filled', 'pill', 'outline'];
 const ALIGNS = ['left', 'center', 'right'];

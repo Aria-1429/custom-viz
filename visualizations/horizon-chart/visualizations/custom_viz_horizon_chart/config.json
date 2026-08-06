@@ -6,7 +6,7 @@
   "canSetTokens": [],
   "hasEventHandlers": false,
   "config": {
-    "name": "Custom Viz Horizon Chart",
+    "name": "Horizon Chart",
     "description": "A horizon chart that folds many time series into compact color bands",
     "category": "Custom",
     "icon": null,

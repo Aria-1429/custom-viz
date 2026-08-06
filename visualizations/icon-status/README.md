@@ -1,4 +1,4 @@
-# Custom Viz Icon Status
+# Icon Status
 
 Splunk Dashboard Studio 用のカスタムビジュアライゼーション。
 **単一の数値を、SOC でよく使うアイコンで表現し、値に応じて色を変える**タイルです。
@@ -172,6 +172,15 @@ yarn package    # dist/custom_viz_icon_status-<ver>-<hash>.spl を生成
 本セクションは [Keep a Changelog](https://keepachangelog.com/ja/1.0.0/) に準拠し、
 バージョニングは [SemVer](https://semver.org/lang/ja/) に従います。
 
+---
+
+### [1.1.4] - 2026-08-06
+
+#### 変更
+
+- **表示名から `Custom Viz ` プレフィックスを削除**（`Custom Viz Icon Status` → `Icon Status`）。
+  Studio の viz 切替 UI に出る名前・管理画面の App 一覧・README タイトルの3か所が対象。
+  **アプリ ID（`custom_viz_*`）は変更していない**ため、配置済みダッシュボードには影響しない。
 ---
 
 ### [1.1.3] - 2026-07-30
