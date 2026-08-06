@@ -1,0 +1,164 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": true,
+  "canSetTokens": ["dynamic", "static"],
+  "hasEventHandlers": true,
+  "config": {
+    "name": "Attack Globe",
+    "description": "回転する3D地球儀に攻撃アークを描く WebGL アタックマップ",
+    "category": "Custom",
+    "icon": null,
+    "events": {
+      "link.click": { "description": "triggered when user clicks an attack arc" },
+      "point.click": { "description": "triggered when user clicks a destination point" }
+    },
+    "supports": ["events"],
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 700,
+      "initialHeight": 620
+    },
+    "optionsSchema": {
+      "srcLatField": { "type": "string", "default": "" },
+      "srcLonField": { "type": "string", "default": "" },
+      "dstLatField": { "type": "string", "default": "" },
+      "dstLonField": { "type": "string", "default": "" },
+      "categoryField": { "type": "string", "default": "" },
+      "countField": { "type": "string", "default": "" },
+      "srcNameField": { "type": "string", "default": "" },
+      "dstNameField": { "type": "string", "default": "" },
+      "titleText": { "type": "string", "default": "GLOBAL ATTACK GLOBE" },
+      "showLegend": { "type": "boolean", "default": true },
+      "showPointNames": { "type": "boolean", "default": false },
+      "flowPeriod": { "type": "number", "default": 3 },
+      "rotatePeriod": { "type": "number", "default": 60 },
+      "widthScale": { "type": "number", "default": 1 },
+      "maxArcs": { "type": "number", "default": 0 },
+      "shadeMode": { "type": "string", "default": "soft" },
+      "showGraticule": { "type": "boolean", "default": true },
+      "showBorders": { "type": "boolean", "default": true },
+      "atmosphere": { "type": "number", "default": 1 },
+      "textureSize": { "type": "string", "default": "2048" },
+      "landColor": { "type": "string", "default": "" },
+      "oceanColor": { "type": "string", "default": "" },
+      "centerLon": { "type": "number", "default": 0 },
+      "centerLat": { "type": "number", "default": 12 },
+      "initialZoom": { "type": "number", "default": 1 },
+      "interactive": { "type": "boolean", "default": true },
+      "colorMode": { "type": "string", "default": "category" },
+      "countThresholds": {
+        "default": [
+          { "from": null, "to": 10, "value": "#3ddc84" },
+          { "from": 10, "to": 100, "value": "#e6b93c" },
+          { "from": 100, "to": null, "value": "#ff5a2e" }
+        ],
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": { "type": ["number", "null"] },
+                "to": { "type": ["number", "null"] },
+                "value": { "type": "string" }
+              },
+              "required": ["value"],
+              "additionalProperties": false
+            }
+          },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      },
+      "categoryColors": {
+        "default": [],
+        "anyOf": [
+          { "type": "array", "items": { "type": "string" } },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      },
+      "fallbackColor": { "type": "string", "default": "#ff5a2e" },
+      "transparentBg": { "type": "boolean", "default": false },
+      "bgColor": { "type": "string", "default": "" }
+    },
+    "editorConfig": [
+      {
+        "label": "データフィールド",
+        "layout": [
+          [{ "label": "送信元の緯度", "editor": "editor.columnSelector", "option": "srcLatField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "送信元の経度", "editor": "editor.columnSelector", "option": "srcLonField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "宛先の緯度", "editor": "editor.columnSelector", "option": "dstLatField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "宛先の経度", "editor": "editor.columnSelector", "option": "dstLonField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "色分けカテゴリの列", "editor": "editor.columnSelector", "option": "categoryField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "件数（count）の列", "editor": "editor.columnSelector", "option": "countField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "送信元の表示名の列", "editor": "editor.columnSelector", "option": "srcNameField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "宛先の表示名の列", "editor": "editor.columnSelector", "option": "dstNameField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }]
+        ]
+      },
+      {
+        "label": "表示",
+        "layout": [
+          [{ "label": "タイトルの文字列（空欄で非表示）", "editor": "editor.text", "option": "titleText" }],
+          [{ "label": "凡例を表示", "editor": "editor.checkbox", "option": "showLegend" }],
+          [{ "label": "地点の表示名を地球上に表示", "editor": "editor.checkbox", "option": "showPointNames" }],
+          [{ "label": "光の筋の周期（秒、0で停止）", "editor": "editor.number", "option": "flowPeriod", "editorProps": { "min": 0, "max": 30 } }],
+          [{ "label": "件数による線の太さの強調度（0で一律）", "editor": "editor.number", "option": "widthScale", "editorProps": { "min": 0, "max": 5 } }],
+          [{ "label": "描画する矢印の上限（0で無制限）", "editor": "editor.number", "option": "maxArcs", "editorProps": { "min": 0, "max": 5000 } }]
+        ]
+      },
+      {
+        "label": "地球の見た目",
+        "layout": [
+          [{ "label": "陰影", "editor": "editor.select", "option": "shadeMode", "editorProps": { "values": [
+            { "label": "柔らかい陰影", "value": "soft" },
+            { "label": "フラット", "value": "flat" },
+            { "label": "昼夜（太陽がゆっくり巡る）", "value": "daynight" }
+          ] } }],
+          [{ "label": "経緯線グリッドを表示", "editor": "editor.checkbox", "option": "showGraticule" }],
+          [{ "label": "国境線を表示", "editor": "editor.checkbox", "option": "showBorders" }],
+          [{ "label": "大気の光（0で消える）", "editor": "editor.slider", "option": "atmosphere", "editorProps": { "min": 0, "max": 2, "step": 0.1 } }],
+          [{ "label": "地図テクスチャの解像度", "editor": "editor.select", "option": "textureSize", "editorProps": { "values": [
+            { "label": "低（軽量）", "value": "1024" },
+            { "label": "中（既定）", "value": "2048" },
+            { "label": "高（拡大時に精細）", "value": "4096" }
+          ] } }],
+          [{ "label": "陸地の色（未設定ならテーマに合わせる）", "editor": "editor.color", "option": "landColor" }],
+          [{ "label": "海の色（未設定ならテーマに合わせる）", "editor": "editor.color", "option": "oceanColor" }]
+        ]
+      },
+      {
+        "label": "視点",
+        "layout": [
+          [{ "label": "初期表示の中心の経度", "editor": "editor.number", "option": "centerLon", "editorProps": { "min": -180, "max": 180 } }],
+          [{ "label": "初期表示の中心の緯度", "editor": "editor.number", "option": "centerLat", "editorProps": { "min": -85, "max": 85 } }],
+          [{ "label": "初期ズーム倍率", "editor": "editor.number", "option": "initialZoom", "editorProps": { "min": 1, "max": 12 } }],
+          [{ "label": "自転の周期（秒/周、0で停止）", "editor": "editor.number", "option": "rotatePeriod", "editorProps": { "min": 0, "max": 600 } }],
+          [{ "label": "ドラッグ回転・ホイールズームを有効にする", "editor": "editor.checkbox", "option": "interactive" }]
+        ]
+      },
+      {
+        "label": "色分け",
+        "layout": [
+          [{ "label": "色分けモード", "editor": "editor.select", "option": "colorMode", "editorProps": { "values": [
+            { "label": "カテゴリ列の値", "value": "category" },
+            { "label": "件数（count）のしきい値", "value": "count" }
+          ] } }],
+          [{ "label": "件数のしきい値と色（「件数」選択時。範囲は下限以上・上限未満）", "editor": "editor.threshold", "option": "countThresholds", "editorProps": { "openRanges": true, "isTogglable": false } }],
+          [{ "label": "カテゴリごとの色（1行に「カテゴリ名|色」。例: attack|#ff5a2e）", "editor": "editor.arrayOfStrings", "option": "categoryColors" }],
+          [{ "label": "上記に無いカテゴリの色", "editor": "editor.color", "option": "fallbackColor" }]
+        ]
+      },
+      {
+        "label": "背景",
+        "layout": [
+          [{ "label": "背景を透過する（ダッシュボードの背景を透かす）", "editor": "editor.checkbox", "option": "transparentBg" }],
+          [{ "label": "背景色（透過しない場合に使用。未設定ならテーマに合わせる）", "editor": "editor.color", "option": "bgColor" }]
+        ]
+      }
+    ]
+  }
+}

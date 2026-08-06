@@ -1,0 +1,8 @@
+[
+  {
+    "name": "Natural Earth — 国境ポリゴン 110m（world-atlas 経由）",
+    "license": "パブリックドメイン（クレジット表記不要）",
+    "url": "https://www.naturalearthdata.com/about/terms-of-use/",
+    "note": "world-atlas パッケージ（ISC）が再配布する Natural Earth データ。ビルド時に地球儀の陸地テクスチャとしてラスタライズされる。コードとしての world-atlas は OSS 節に記載。"
+  }
+]
