@@ -11,10 +11,10 @@ import Paragraph from '@splunk/react-ui/Paragraph';
 import Select from '@splunk/react-ui/Select';
 import WaitSpinner from '@splunk/react-ui/WaitSpinner';
 import { SplunkThemeProvider } from '@splunk/themes';
-import { geoBounds, geoNaturalEarth1, geoPath } from 'd3-geo';
+import { geoBounds, geoGraticule10, geoInterpolate, geoNaturalEarth1, geoPath } from 'd3-geo';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { feature } from 'topojson-client';
+import { feature, mesh } from 'topojson-client';
 import worldTopo from 'world-atlas/countries-110m.json';
 import worldTopo50 from 'world-atlas/countries-50m.json';
 import CITY_DATA from './data/cities.json';
@@ -99,6 +99,11 @@ const MAP_PALETTES = {
         placeLabel: '#cfe0f5',
         endpointLabel: '#ffffff',
         labelHalo: 'rgba(3, 8, 15, 0.9)',
+        // 経緯線（graticule）。管制室らしさを出す薄いグリッド
+        graticule: '#3d84d6',
+        graticuleOpacity: 0.1,
+        // HUD の LIVE インジケータ
+        liveDot: '#ff5a2e',
     },
     light: {
         containerBg: '#dde7f2',
@@ -122,6 +127,9 @@ const MAP_PALETTES = {
         placeLabel: '#31445c',
         endpointLabel: '#0e1a29',
         labelHalo: 'rgba(255, 255, 255, 0.92)',
+        graticule: '#6f96c2',
+        graticuleOpacity: 0.16,
+        liveDot: '#d63a12',
     },
 };
 
@@ -205,6 +213,54 @@ function getWorld50() {
         WORLD_50M_CACHE = WORLD;
     }
     return WORLD_50M_CACHE;
+}
+
+// 経緯線（10度間隔）。地理座標のまま持ち、描画時に現在の投影でパス化する
+const GRATICULE = (() => {
+    try {
+        return geoGraticule10();
+    } catch (e) {
+        return null;
+    }
+})();
+
+// 国境の階層表現に使う「海岸線」と「内側の国境」。
+// 従来は全フィーチャの外形をまとめて同じ線で描いていたため、隣接国の共有国境が
+// 二重に引かれ、海岸線と内陸国境の区別も無かった。topojson の mesh で
+//   - 海岸線（どのポリゴンにも共有されない辺）→ 明るめの線
+//   - 内側の国境（2国に共有される辺）→ 薄い線
+// に分離する。ビューポート絞り込みを効かせるため、MultiLineString を
+// 1本ずつの LineString フィーチャに割って経緯度バウンディングボックスを付与する。
+const BORDER_CACHE = new Map(); // world(FeatureCollection) → { coast: [], inner: [] }
+
+function getBorders(world) {
+    if (BORDER_CACHE.has(world)) return BORDER_CACHE.get(world);
+    const topo = world === WORLD ? worldTopo : worldTopo50;
+    let out = { coast: [], inner: [] };
+    try {
+        // 陸地の描画から除いている南極は、線も引かない
+        const notAnt = (g) => g?.properties?.name !== 'Antarctica';
+        const toLines = (m) => {
+            const lines = m.type === 'MultiLineString' ? m.coordinates : [m.coordinates];
+            return lines.map((coords) => {
+                const f = { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } };
+                try {
+                    f.__bounds = geoBounds(f);
+                } catch (e) {
+                    f.__bounds = null;
+                }
+                return f;
+            });
+        };
+        out = {
+            coast: toLines(mesh(topo, topo.objects.countries, (a, b) => a === b && notAnt(a))),
+            inner: toLines(mesh(topo, topo.objects.countries, (a, b) => a !== b && notAnt(a) && notAnt(b))),
+        };
+    } catch (e) {
+        /* 国境線は装飾。失敗しても陸地の塗りだけで描画は成立する */
+    }
+    BORDER_CACHE.set(world, out);
+    return out;
 }
 
 // mapDetail='auto' の 110m ↔ 50m 切替ズーム。
@@ -454,6 +510,8 @@ const DEFAULT_COUNT_BANDS = [
 const LABEL_LANGS = ['en', 'ja'];
 const MAP_DETAILS = ['auto', 'low', 'high'];
 const COLOR_MODES = ['category', 'count'];
+const ARC_STYLES = ['bezier', 'greatcircle'];
+const LAND_STYLES = ['solid', 'dots'];
 
 function normalizeOptions(options) {
     const o = options && typeof options === 'object' ? options : {};
@@ -483,6 +541,9 @@ function normalizeOptions(options) {
         // ホイールズーム / ドラッグパンを許可するか
         enableZoom: bool(o.enableZoom, true),
         // --- 弧の見た目・件数 ---
+        // 弧の形状。bezier: 装飾的なアーチ（従来） / greatcircle: 大円航路
+        // （地理的な最短経路。ズームしても経路が地理と整合する）
+        arcStyle: ARC_STYLES.includes(o.arcStyle) ? o.arcStyle : 'bezier',
         // count に応じた太さの強調度。0 で一律の細線、大きいほど差が出る
         widthScale: clamp(num(o.widthScale, 1), 0, 10),
         // 描画する弧の上限（count の多い順）。0 で無制限
@@ -499,6 +560,13 @@ function normalizeOptions(options) {
         // --- 地図の詳細度（国境の解像度） ---
         // auto: ズームに応じて 110m → 50m へ切り替え / low: 常に 110m / high: 常に 50m
         mapDetail: MAP_DETAILS.includes(o.mapDetail) ? o.mapDetail : 'auto',
+        // --- 地図のスタイル ---
+        // 経緯線（10度グリッド）を薄く敷く
+        showGraticule: bool(o.showGraticule, true),
+        // 陸地の質感。solid: ベタ塗り（従来） / dots: ドットマトリクス
+        landStyle: LAND_STYLES.includes(o.landStyle) ? o.landStyle : 'solid',
+        // タイトル下に総件数と LIVE インジケータを出す（HUD 風の統計行）
+        showHudStats: bool(o.showHudStats, true),
         // --- 地名ラベル ---
         showPlaceLabels: bool(o.showPlaceLabels, true),
         showEndpointLabels: bool(o.showEndpointLabels, true),
@@ -743,12 +811,6 @@ function arcControl(sx, sy, tx, ty) {
     return { cx, cy };
 }
 
-// 弧（ベジェ曲線）の SVG パス文字列を生成（ベース軌道の描画に使用）
-function arcPath(sx, sy, tx, ty) {
-    const { cx, cy } = arcControl(sx, sy, tx, ty);
-    return `M ${sx.toFixed(1)} ${sy.toFixed(1)} Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${tx.toFixed(1)} ${ty.toFixed(1)}`;
-}
-
 // 2次ベジェの点 (t: 0..1)。Canvas での彗星サンプリングに使用
 function bezierPoint(sx, sy, cx, cy, tx, ty, t) {
     const u = 1 - t;
@@ -756,6 +818,100 @@ function bezierPoint(sx, sy, cx, cy, tx, ty, t) {
     const b = 2 * u * t;
     const c = t * t;
     return { x: a * sx + b * cx + c * tx, y: a * sy + b * cy + c * ty };
+}
+
+// ---------------------------------------------------------------------------
+// 弧ジオメトリ（bezier / greatcircle の2形状を同一インターフェースで扱う）
+//   - SVG のベース軌道（パス文字列）と Canvas の彗星サンプリングの両方が
+//     ここを通ることで、2つの描画レイヤーの軌道が必ず一致する。
+//   - bezier: 従来の装飾的アーチ（2次ベジェ）。画面座標上の曲線。
+//   - poly(greatcircle): 大円に沿った折れ線。geoInterpolate のサンプル列を投影する。
+//     投影の継ぎ目（±180度）をまたぐと画面上で大きく跳ぶため、跳んだ区間には
+//     brk（このセグメントは描かない）の印を付けて線が画面を横切るのを防ぐ。
+// ---------------------------------------------------------------------------
+const GC_SAMPLES = 48;
+
+function buildArcGeom(a, style, projection, breakDist) {
+    if (style === 'greatcircle' && projection && projection.invert) {
+        try {
+            // クラスタ吸着後の端点（画面座標）を経緯度へ戻して大円を引く。
+            // 逆投影が取れない場合は元データの経緯度で代替する
+            const sInv = projection.invert([a.sx, a.sy]);
+            const dInv = projection.invert([a.tx, a.ty]);
+            const src = sInv && sInv.every(Number.isFinite) ? sInv : [a.srcLon, a.srcLat];
+            const dst = dInv && dInv.every(Number.isFinite) ? dInv : [a.dstLon, a.dstLat];
+            const interp = geoInterpolate(src, dst);
+            const pts = [];
+            let prev = null;
+            for (let i = 0; i <= GC_SAMPLES; i += 1) {
+                const p = projection(interp(i / GC_SAMPLES));
+                if (!p || !p.every(Number.isFinite)) {
+                    if (prev) prev.brk = true;
+                    prev = null;
+                    continue;
+                }
+                const pt = { x: p[0], y: p[1], brk: false };
+                if (prev && Math.hypot(pt.x - prev.x, pt.y - prev.y) > breakDist) {
+                    prev.brk = true;
+                }
+                pts.push(pt);
+                prev = pt;
+            }
+            if (pts.length >= 2) return { kind: 'poly', pts };
+        } catch (e) {
+            /* 大円が作れなければベジェへ退避 */
+        }
+    }
+    const { cx, cy } = arcControl(a.sx, a.sy, a.tx, a.ty);
+    return { kind: 'bezier', sx: a.sx, sy: a.sy, cx, cy, tx: a.tx, ty: a.ty };
+}
+
+// ジオメトリ → SVG パス文字列（ベース軌道・当たり判定に使用）
+function geomPath(geom) {
+    if (geom.kind === 'bezier') {
+        const { sx, sy, cx, cy, tx, ty } = geom;
+        return `M ${sx.toFixed(1)} ${sy.toFixed(1)} Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${tx.toFixed(1)} ${ty.toFixed(1)}`;
+    }
+    let d = '';
+    let pen = false;
+    geom.pts.forEach((p) => {
+        d += `${pen ? 'L' : 'M'} ${p.x.toFixed(1)} ${p.y.toFixed(1)} `;
+        pen = !p.brk;
+    });
+    return d.trim();
+}
+
+// ジオメトリ上の点 (t: 0..1) と単位法線。パス外・brk 区間は null
+function geomPoint(geom, t) {
+    if (t < 0 || t > 1) return null;
+    if (geom.kind === 'bezier') {
+        const { sx, sy, cx, cy, tx, ty } = geom;
+        const p = bezierPoint(sx, sy, cx, cy, tx, ty, t);
+        const dx = 2 * (1 - t) * (cx - sx) + 2 * t * (tx - cx);
+        const dy = 2 * (1 - t) * (cy - sy) + 2 * t * (ty - cy);
+        const len = Math.hypot(dx, dy) || 1;
+        return { x: p.x, y: p.y, nx: -dy / len, ny: dx / len };
+    }
+    const pts = geom.pts;
+    const n = pts.length;
+    if (n < 2) return null;
+    const f = t * (n - 1);
+    const i = Math.min(Math.floor(f), n - 2);
+    const u = f - i;
+    const a = pts[i];
+    const b = pts[i + 1];
+    if (a.brk) return null; // 継ぎ目をまたぐ区間は描かない
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    return { x: a.x + dx * u, y: a.y + dy * u, nx: -dy / len, ny: dx / len };
+}
+
+// ジオメトリの終点（到達リップルの中心）
+function geomEnd(geom) {
+    if (geom.kind === 'bezier') return { x: geom.tx, y: geom.ty };
+    const last = geom.pts[geom.pts.length - 1];
+    return last ? { x: last.x, y: last.y } : null;
 }
 
 // ツールチップ用の地点表記（名前が無ければ緯度経度で代替）
@@ -952,6 +1108,9 @@ function ArcFlowCanvas({ arcs, width, height, duration, hoverKey }) {
     // 張り直さず、値だけ差し替える）
     const stateRef = useRef({ arcs, width, height, duration, hoverKey });
     stateRef.current = { arcs, width, height, duration, hoverKey };
+    // ホバー強調の減光係数（弧ID → 現在値）。毎フレーム目標値へ漸近させ、
+    // 強調の ON/OFF をフェードで切り替える（瞬時に切り替わると画面がチカつく）
+    const dimRef = useRef(new Map());
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -969,26 +1128,16 @@ function ArcFlowCanvas({ arcs, width, height, duration, hoverKey }) {
         // 光の帯1本を描く。head は帯の先頭位置(0..1)。帯は head から後方へ
         // FLOW_LEN ぶんの区間を占め、幅・不透明度とも sin エンベロープで
         // 前後両端に向かって 0 に窄まる（テーパー形状）。
-        const drawFlow = (a, head, dim) => {
-            const { sx, sy, cx, cy, tx, ty, color, w } = a;
+        // 軌道の形状（ベジェ / 大円折れ線）は geomPoint が吸収する。
+        const drawFlow = (a, head, k) => {
+            const { geom, color, w } = a;
             // 帯の中心線サンプル（座標＋法線＋エンベロープ）を先に集める
             const pts = [];
-            for (let k = 0; k <= FLOW_SAMPLES; k += 1) {
-                const u = k / FLOW_SAMPLES; // 0=帯の先頭, 1=帯の末尾
-                const tt = head - u * FLOW_LEN;
-                if (tt < 0 || tt > 1) continue; // パス外（出発前/到達後）は描かない
-                const p = bezierPoint(sx, sy, cx, cy, tx, ty, tt);
-                // 2次ベジェの接線 → 単位法線（帯の幅方向）
-                const dx = 2 * (1 - tt) * (cx - sx) + 2 * tt * (tx - cx);
-                const dy = 2 * (1 - tt) * (cy - sy) + 2 * tt * (ty - cy);
-                const len = Math.hypot(dx, dy) || 1;
-                pts.push({
-                    x: p.x,
-                    y: p.y,
-                    nx: -dy / len,
-                    ny: dx / len,
-                    env: Math.sin(Math.PI * u),
-                });
+            for (let s = 0; s <= FLOW_SAMPLES; s += 1) {
+                const u = s / FLOW_SAMPLES; // 0=帯の先頭, 1=帯の末尾
+                const p = geomPoint(geom, head - u * FLOW_LEN);
+                if (!p) continue; // パス外（出発前/到達後）・投影の継ぎ目は描かない
+                pts.push({ x: p.x, y: p.y, nx: p.nx, ny: p.ny, env: Math.sin(Math.PI * u) });
             }
             if (pts.length < 2) return;
             // 中心線の左右に halfWidth ぶん張り出したテーパーポリゴンを 1 回で
@@ -1012,10 +1161,23 @@ function ArcFlowCanvas({ arcs, width, height, duration, hoverKey }) {
             };
             ctx.save();
             ctx.fillStyle = color;
-            // ホバー強調中、関係しない弧は薄く描く（0.18 倍）
-            const k = dim ? 0.18 : 1;
             fillBand(2.4, 0.18 * k); // 太く淡い同色グロー（柔らかい輪郭）
             fillBand(1.0, 0.9 * k); // 締まった芯
+            ctx.restore();
+        };
+
+        // 到達リップル: 帯の先頭が終点を通過した直後（head が 1 を超えている間）、
+        // 終点から細い輪をひとつ広げて消す。「着弾した」ことが目で追える
+        const drawRipple = (a, head, k) => {
+            if (head <= 1 || !a.end) return;
+            const rt = Math.min((head - 1) / FLOW_LEN, 1); // 0→1 で拡大しつつ減衰
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(a.end.x, a.end.y, 2.5 + rt * (10 + a.w * 4), 0, Math.PI * 2);
+            ctx.strokeStyle = a.color;
+            ctx.lineWidth = 0.5 + 1.4 * (1 - rt);
+            ctx.globalAlpha = 0.5 * (1 - rt) * k;
+            ctx.stroke();
             ctx.restore();
         };
 
@@ -1025,14 +1187,25 @@ function ArcFlowCanvas({ arcs, width, height, duration, hoverKey }) {
             ctx.clearRect(0, 0, st.width, st.height);
             if (st.duration > 0 && st.arcs.length > 0) {
                 if (!start) start = now;
-                // 全弧で位相を共有（同時に出発・到達）。帯の先頭は 0→1 を周回。
-                // 帯の末尾が終点を過ぎてから次周が始点に入るよう、1+FLOW_LEN 周期で
-                // 動かして「到達 → 一瞬消える → 再出発」を途切れなくループさせる。
+                // 帯の先頭は 0→1 を周回。帯の末尾が終点を過ぎてから次周が始点に
+                // 入るよう、1+FLOW_LEN 周期で動かして「到達 → リップル → 再出発」を
+                // 途切れなくループさせる。弧ごとに固有の位相オフセット（a.off）を
+                // 足すことで、全弧が同時に出発・到達する単調さを崩し、常に
+                // どこかでトラフィックが流れている画にする。
                 const phase = ((now - start) / (st.duration * 1000)) % 1;
-                const head = phase * (1 + FLOW_LEN);
-                st.arcs.forEach((a) =>
-                    drawFlow(a, head, st.hoverKey ? a.srcKey !== st.hoverKey && a.dstKey !== st.hoverKey : false)
-                );
+                const dims = dimRef.current;
+                st.arcs.forEach((a) => {
+                    const head = ((phase + a.off) % 1) * (1 + FLOW_LEN);
+                    const target =
+                        st.hoverKey && a.srcKey !== st.hoverKey && a.dstKey !== st.hoverKey
+                            ? 0.18
+                            : 1;
+                    const cur = dims.has(a.id) ? dims.get(a.id) : 1;
+                    const k = Math.abs(target - cur) < 0.01 ? target : cur + (target - cur) * 0.18;
+                    dims.set(a.id, k);
+                    drawFlow(a, head, k);
+                    drawRipple(a, head, k);
+                });
             }
             raf = requestAnimationFrame(frame);
         };
@@ -1106,12 +1279,25 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
         zoom: opts.initialZoom,
     }));
 
+    // --- カメラアニメーション（慣性パン / イージング付きリセット） ----------
+    // どちらも rAF で camera を動かす。ユーザーの新たな操作（ドラッグ開始・
+    // ホイール）とオプション変更で必ず打ち切る（操作の主導権を奪わない）
+    const camAnimRef = useRef(0);
+    const cancelCameraAnim = useCallback(() => {
+        if (camAnimRef.current) {
+            cancelAnimationFrame(camAnimRef.current);
+            camAnimRef.current = 0;
+        }
+    }, []);
+    useEffect(() => cancelCameraAnim, [cancelCameraAnim]); // アンマウント時に停止
+
     // 編集画面でオプションを変えたときはカメラをリセットする。
     // 手動操作した後でもオプション変更が確実に効くよう、オプション値の
     // 変化だけを依存にする（camera 自体を依存に入れるとループする）。
     useEffect(() => {
+        cancelCameraAnim();
         setCamera({ lon: opts.centerLon, lat: opts.centerLat, zoom: opts.initialZoom });
-    }, [opts.centerLon, opts.centerLat, opts.initialZoom]);
+    }, [opts.centerLon, opts.centerLat, opts.initialZoom, cancelCameraAnim]);
 
     // 「操作が落ち着いたカメラ」。ドラッグ / ホイール操作中は camera が毎フレーム
     // 変わるため、重い処理（地名ラベルの選定・50m 国境への切替）はこちらに
@@ -1238,22 +1424,31 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
             // 最適化。110m でも無害に効く）。広域表示（zoom<2）では画面枠の
             // 逆投影が世界全体を覆って絞り込めないため、全件描画する。
             let features = activeWorld.features;
+            let vb = null;
             if (camera.zoom >= 2) {
                 ensureFeatureBounds(activeWorld);
-                const vb = viewportGeoBounds(projection, size, camera.lon);
+                vb = viewportGeoBounds(projection, size, camera.lon);
                 if (vb) {
                     features = features.filter((f) => featureInView(f, vb, camera.lon));
                 }
             }
+            // 海岸線 / 内側の国境。LineString 単位に割ってあるので、国と同じ
+            // ビューポート絞り込みがそのまま効く（50m 常用時の負荷対策）
+            const borders = getBorders(activeWorld);
+            const inView = (list) =>
+                vb ? list.filter((f) => featureInView(f, vb, camera.lon)) : list;
             return {
                 projection,
                 path,
                 landPath: features.map((f) => path(f)).join(' '),
+                coastPath: inView(borders.coast).map((f) => path(f)).join(' '),
+                innerBorderPath: inView(borders.inner).map((f) => path(f)).join(' '),
+                graticulePath: opts.showGraticule && GRATICULE ? path(GRATICULE) || '' : '',
             };
         } catch (e) {
             return null;
         }
-    }, [size, camera, activeWorld]);
+    }, [size, camera, activeWorld, opts.showGraticule]);
 
     // --- ホイールズーム / ドラッグパン -------------------------------------
     // カーソル位置を固定点として拡大する（地図アプリの標準挙動）。
@@ -1267,6 +1462,69 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
     sizeRef.current = size;
     const zoomEnabledRef = useRef(opts.enableZoom);
     zoomEnabledRef.current = opts.enableZoom;
+
+    // 慣性パン: ドラッグを離した速度（度/ms）で滑走し、指数減衰で止まる。
+    // 地図アプリの「投げる」操作感。速度が小さければ何もしない
+    const startInertia = useCallback(
+        (vLon, vLat) => {
+            const MAX_V = 0.3; // 暴走ガード（度/ms）
+            vLon = clamp(vLon, -MAX_V, MAX_V);
+            vLat = clamp(vLat, -MAX_V, MAX_V);
+            if (Math.hypot(vLon, vLat) < 0.00004) return;
+            cancelCameraAnim();
+            let last = performance.now();
+            const step = (now) => {
+                const dt = Math.min(Math.max(now - last, 0), 50); // タブ復帰等の巨大 dt を抑制
+                last = now;
+                const f = Math.exp(-0.004 * dt); // 減衰（約250msで1/e）
+                vLon *= f;
+                vLat *= f;
+                if (Math.hypot(vLon, vLat) < 0.00002) {
+                    camAnimRef.current = 0;
+                    return;
+                }
+                setCamera((c) => ({
+                    lon: wrapLon(c.lon + vLon * dt),
+                    lat: clamp(c.lat + vLat * dt, -85, 85),
+                    zoom: c.zoom,
+                }));
+                camAnimRef.current = requestAnimationFrame(step);
+            };
+            camAnimRef.current = requestAnimationFrame(step);
+        },
+        [cancelCameraAnim]
+    );
+
+    // 現在のカメラから target へイージング付きで遷移する（リセット時に使用）。
+    // 経度は近い側へ回り、ズームは対数空間で補間する（倍率変化が等速に見える）
+    const animateCameraTo = useCallback(
+        (target) => {
+            cancelCameraAnim();
+            const from = cameraRef.current;
+            const dLon = ((target.lon - from.lon + 540) % 360) - 180;
+            const dLat = target.lat - from.lat;
+            const zoomRatio = target.zoom / Math.max(from.zoom, 0.001);
+            const T = 480; // ms
+            const t0 = performance.now();
+            const ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - ((-2 * x + 2) ** 3) / 2);
+            const step = (now) => {
+                const u = clamp((now - t0) / T, 0, 1);
+                const e = ease(u);
+                setCamera({
+                    lon: wrapLon(from.lon + dLon * e),
+                    lat: clamp(from.lat + dLat * e, -85, 85),
+                    zoom: clamp(from.zoom * (zoomRatio ** e), ZOOM_MIN, ZOOM_MAX),
+                });
+                if (u < 1) {
+                    camAnimRef.current = requestAnimationFrame(step);
+                } else {
+                    camAnimRef.current = 0;
+                }
+            };
+            camAnimRef.current = requestAnimationFrame(step);
+        },
+        [cancelCameraAnim]
+    );
 
     // ズーム後も「カーソルが指していた地点」がカーソル位置に留まるように中心を補正する。
     //   1. 拡大前にカーソルが指していた地理座標 anchor を得る
@@ -1335,13 +1593,14 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
             const cur = cameraRef.current;
             const delta = Number.isFinite(e.deltaY) ? e.deltaY : 0;
             if (delta === 0) return;
+            cancelCameraAnim(); // 慣性・リセット遷移中のホイールは手動操作を優先
             // deltaY>0（手前に回す）で縮小。指数変換で倍率が滑らかに変わる
             const factor = Math.exp(-delta * ZOOM_WHEEL_SENSITIVITY);
             recenterFrom(x, y, cur.zoom * factor);
         };
         el.addEventListener('wheel', onWheel, { passive: false });
         return () => el.removeEventListener('wheel', onWheel);
-    }, [opts.enableZoom, recenterFrom, geo !== null, size !== null]);
+    }, [opts.enableZoom, recenterFrom, cancelCameraAnim, geo !== null, size !== null]);
 
     // ドラッグでパン（ポインタイベントでマウス/タッチ両対応）
     const dragRef = useRef(null);
@@ -1363,10 +1622,12 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
         if (!Number.isFinite(px) || !Number.isFinite(py)) return;
         const origin = g.projection.invert([px, py]);
         if (!origin || !origin.every(Number.isFinite)) return;
-        dragRef.current = { origin, rect, camera: cameraRef.current, moved: false };
+        cancelCameraAnim(); // 滑走中に掴んだら即座に止める（地図アプリの挙動）
+        // samples: 慣性パンの初速を求めるための直近のカメラ位置履歴
+        dragRef.current = { origin, rect, camera: cameraRef.current, moved: false, samples: [] };
         // ポインタ捕捉は「実際に動き始めてから」行う（onPointerMove 側）。
         // 押した瞬間に捕捉すると、単なるクリックでも下の要素がイベントを失う。
-    }, []);
+    }, [cancelCameraAnim]);
 
     const onPointerMove = useCallback((e) => {
         const drag = dragRef.current;
@@ -1388,11 +1649,15 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
         }
         // 掴んだ地点がカーソルに追従するよう中心をずらす
         const cur = cameraRef.current;
-        setCamera({
+        const next = {
             lon: wrapLon(cur.lon - (here[0] - drag.origin[0])),
             lat: clamp(cur.lat - (here[1] - drag.origin[1]), -85, 85),
             zoom: cur.zoom,
-        });
+        };
+        setCamera(next);
+        // 慣性パンの初速用にカメラ位置の履歴を取る（直近数点だけ保持）
+        drag.samples.push({ t: performance.now(), lon: next.lon, lat: next.lat });
+        if (drag.samples.length > 6) drag.samples.shift();
     }, []);
 
     const endDrag = useCallback((e) => {
@@ -1403,12 +1668,27 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
         try {
             e.currentTarget.releasePointerCapture(e.pointerId);
         } catch (err) { /* noop */ }
-    }, []);
+        // 離した瞬間の速度から慣性パンを開始する。
+        // 直近 120ms 以内のサンプルだけで速度を出す（途中で止めてから離した
+        // 場合は古い速度で滑らないように）。dt が小さすぎる場合は速度が
+        // 発散するため開始しない
+        const now = performance.now();
+        const recent = drag.samples.filter((s) => now - s.t < 120);
+        if (recent.length >= 2) {
+            const a = recent[0];
+            const b = recent[recent.length - 1];
+            const dt = b.t - a.t;
+            if (dt >= 8 && now - b.t < 80) {
+                const dLon = ((b.lon - a.lon + 540) % 360) - 180; // ±180 をまたいでも最短方向
+                startInertia(dLon / dt, (b.lat - a.lat) / dt);
+            }
+        }
+    }, [startInertia]);
 
-    // ダブルクリックで初期表示（オプションの中心・ズーム）へ戻す
+    // ダブルクリックで初期表示（オプションの中心・ズーム）へイージング付きで戻す
     const onDoubleClick = useCallback(() => {
-        setCamera({ lon: opts.centerLon, lat: opts.centerLat, zoom: opts.initialZoom });
-    }, [opts.centerLon, opts.centerLat, opts.initialZoom]);
+        animateCameraTo({ lon: opts.centerLon, lat: opts.centerLat, zoom: opts.initialZoom });
+    }, [opts.centerLon, opts.centerLat, opts.initialZoom, animateCameraTo]);
 
     // ツールチップのカーソル追従（state を介さず DOM を直接動かす）
     const positionTooltip = useCallback((e) => {
@@ -1640,27 +1920,36 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
         [countRange, opts.widthScale]
     );
 
-    // Canvas の光の帯用の弧データ（制御点・色・線幅を事前計算して rAF から使う）
+    // 弧のジオメトリ（形状はオプションの arcStyle で決まる）。
+    // SVG のベース軌道・当たり判定・Canvas の彗星がすべて同じ geom を使うので、
+    // どの描画レイヤーでも軌道が食い違わない
+    const arcGeoms = useMemo(() => {
+        const projection = geo ? geo.projection : null;
+        // 大円折れ線が投影の継ぎ目で「跳んだ」とみなす画面距離
+        const breakDist = size ? Math.max(size.w, size.h) * 0.45 : 400;
+        return arcs.map((t) => {
+            const geom = buildArcGeom(t, opts.arcStyle, projection, breakDist);
+            return { t, geom, d: geomPath(geom) };
+        });
+    }, [arcs, opts.arcStyle, geo, size]);
+
+    // Canvas の光の帯用の弧データ（ジオメトリ・色・線幅を事前計算して rAF から使う）
     const flowArcs = useMemo(
         () =>
-            arcs.map((t) => {
-                const { cx, cy } = arcControl(t.sx, t.sy, t.tx, t.ty);
-                return {
-                    sx: t.sx,
-                    sy: t.sy,
-                    cx,
-                    cy,
-                    tx: t.tx,
-                    ty: t.ty,
-                    color: derived[t.category]?.css || 'rgb(56, 166, 255)',
-                    w: arcWidth(t.count),
-                    // ホバー強調時に「関係ない弧」を薄くするための識別子
-                    id: t.id,
-                    srcKey: `${t.sx.toFixed(1)},${t.sy.toFixed(1)}`,
-                    dstKey: `${t.tx.toFixed(1)},${t.ty.toFixed(1)}`,
-                };
-            }),
-        [arcs, derived, arcWidth]
+            arcGeoms.map(({ t, geom }) => ({
+                geom,
+                end: geomEnd(geom), // 到達リップルの中心
+                color: derived[t.category]?.css || 'rgb(56, 166, 255)',
+                w: arcWidth(t.count),
+                // ホバー強調時に「関係ない弧」を薄くするための識別子
+                id: t.id,
+                // 弧ごとの位相オフセット（0..1）。id から決定的に散らし、
+                // 全弧が同時に出発・到達する単調さを崩す
+                off: (Math.imul(t.id + 1, 2654435761) >>> 0) / 4294967296,
+                srcKey: `${t.sx.toFixed(1)},${t.sy.toFixed(1)}`,
+                dstKey: `${t.tx.toFixed(1)},${t.ty.toFixed(1)}`,
+            })),
+        [arcGeoms, derived, arcWidth]
     );
 
     // --- 地名ラベル（ズーム段階で国名 → 都市名が現れる） -------------------
@@ -1938,6 +2227,19 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                                 <stop offset="100%" stopColor={derived[sev].css} stopOpacity="0" />
                             </radialGradient>
                         ))}
+                        {/* ドットマトリクス陸地。userSpaceOnUse なので画面上の
+                            ドット密度が一定になる（スクリーングリッドで陸地を
+                            サンプリングした定番の表現） */}
+                        {opts.landStyle === 'dots' && (
+                            <pattern
+                                id="gtm-land-dots"
+                                width="7"
+                                height="7"
+                                patternUnits="userSpaceOnUse"
+                            >
+                                <circle cx="3.5" cy="3.5" r="1.3" fill={land.visible ? land.fill : 'none'} />
+                            </pattern>
+                        )}
                         <filter id="gtm-land-blur" x="-10%" y="-10%" width="120%" height="120%">
                             <feGaussianBlur stdDeviation="7" />
                         </filter>
@@ -1955,7 +2257,19 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                         <rect width={size.w} height={size.h} fill="url(#gtm-bg)" />
                     )}
 
-                    {/* 大陸（グロー層 + 本体。完全透過時は描画しない） */}
+                    {/* 経緯線（10度グリッド）。陸地の下に薄く敷く */}
+                    {opts.showGraticule && geo.graticulePath && (
+                        <path
+                            d={geo.graticulePath}
+                            data-gtm="graticule"
+                            fill="none"
+                            stroke={palette.graticule}
+                            strokeWidth="0.5"
+                            strokeOpacity={palette.graticuleOpacity}
+                        />
+                    )}
+
+                    {/* 大陸（グロー層 + 本体 + 階層国境。完全透過時は描画しない） */}
                     {land.visible && (
                         <>
                             <path
@@ -1964,11 +2278,32 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                                 opacity={land.glowOpacity}
                                 filter="url(#gtm-land-blur)"
                             />
+                            {/* ドットマトリクス時は淡いベタ塗りを下敷きにして
+                                シルエットを読めるようにし、その上にドットを重ねる */}
+                            {opts.landStyle === 'dots' && (
+                                <path d={geo.landPath} fill={land.fill} opacity="0.14" />
+                            )}
                             <path
                                 d={geo.landPath}
-                                fill={land.fill}
+                                fill={opts.landStyle === 'dots' ? 'url(#gtm-land-dots)' : land.fill}
+                            />
+                            {/* 国境の階層表現: 隣接国どうしの内側国境は薄く、
+                                海岸線（大陸の輪郭）は明るく。遠目にはシルエット、
+                                ズームすると国境が立つ */}
+                            <path
+                                d={geo.innerBorderPath}
+                                data-gtm="border-inner"
+                                fill="none"
                                 stroke={land.stroke}
-                                strokeWidth="0.5"
+                                strokeWidth="0.4"
+                                strokeOpacity={land.strokeOpacity * 0.45}
+                            />
+                            <path
+                                d={geo.coastPath}
+                                data-gtm="coast"
+                                fill="none"
+                                stroke={land.stroke}
+                                strokeWidth="0.7"
                                 strokeOpacity={land.strokeOpacity}
                             />
                         </>
@@ -2092,9 +2427,8 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                           軌道1: 太く柔らかい発光ハロー（熱をにじませる）
                           軌道2: 細い芯線（弧の存在を常に示す薄い実線）
                         animOn 時は軌道を控えめにして彗星を主役に、静的時は芯線を濃くする。 */}
-                    {arcs.map((t) => {
+                    {arcGeoms.map(({ t, d }) => {
                         const color = derived[t.category]?.css || 'rgb(56, 166, 255)';
-                        const d = arcPath(t.sx, t.sy, t.tx, t.ty);
                         const width = arcWidth(t.count);
                         const srcKey = `${t.sx.toFixed(1)},${t.sy.toFixed(1)}`;
                         const dstKey = `${t.tx.toFixed(1)},${t.ty.toFixed(1)}`;
@@ -2116,6 +2450,7 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                                     strokeLinecap="round"
                                     opacity={(animOn ? 0.14 : 0.28) * k}
                                     filter="url(#gtm-arc-glow)"
+                                    style={{ transition: 'opacity 0.25s ease' }}
                                 />
                                 <path
                                     d={d}
@@ -2124,6 +2459,7 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                                     strokeWidth={width * 0.7}
                                     strokeLinecap="round"
                                     opacity={(animOn ? 0.3 : 0.75) * k}
+                                    style={{ transition: 'opacity 0.25s ease' }}
                                 />
                                 {/* 透明な太い当たり判定。細い線でもホバー/クリックしやすくする。
                                     ドリルダウンはこの要素に登録する（addDrilldownListener）。 */}
@@ -2216,6 +2552,8 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                         background: palette.panelBg,
                         border: palette.panelBorder,
                         borderRadius: 8,
+                        backdropFilter: 'blur(10px)',
+                        WebkitBackdropFilter: 'blur(10px)',
                         padding: '6px 10px',
                         color: palette.legendText,
                         fontSize: 12,
@@ -2266,6 +2604,45 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                 </div>
             )}
 
+            {/* HUD 統計行（タイトル直下）。アニメーション中は LIVE インジケータ、
+                常時は総件数を出す。数字は凡例の totals と同じ集計を使う */}
+            {overlay.showTitle && opts.showHudStats && (
+                <div
+                    style={{
+                        position: 'absolute',
+                        top: 16 + overlay.titleFont + 8,
+                        left: 20,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 7,
+                        color: palette.legendText,
+                        fontSize: Math.max(10, Math.round(overlay.titleFont * 0.55)),
+                        letterSpacing: '0.08em',
+                        opacity: 0.85,
+                        pointerEvents: 'none',
+                        whiteSpace: 'nowrap',
+                        zIndex: 2,
+                    }}
+                >
+                    {animOn && (
+                        <span
+                            style={{
+                                width: 7,
+                                height: 7,
+                                borderRadius: '50%',
+                                background: palette.liveDot,
+                                boxShadow: `0 0 6px ${palette.liveDot}`,
+                                animation: 'gtm-live-blink 1.6s ease-in-out infinite',
+                            }}
+                        />
+                    )}
+                    {animOn && <span style={{ fontWeight: 700 }}>LIVE</span>}
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        {`全 ${formatCount(totals.all)} ${totals.unit}`}
+                    </span>
+                </div>
+            )}
+
             {/* カテゴリフィルタ（右上・地図の内側。サーチ結果から動的生成）
                 狭幅パネルではタイトルとの衝突を避けるため非表示 */}
             {overlay.showFilter && (
@@ -2281,6 +2658,8 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                         background: palette.panelBg,
                         border: palette.panelBorder,
                         borderRadius: 8,
+                        backdropFilter: 'blur(10px)',
+                        WebkitBackdropFilter: 'blur(10px)',
                         padding: 4,
                         zIndex: 4,
                     }}
@@ -2314,6 +2693,8 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                         background: palette.panelBg,
                         border: palette.panelBorder,
                         borderRadius: 8,
+                        backdropFilter: 'blur(10px)',
+                        WebkitBackdropFilter: 'blur(10px)',
                         padding: '4px 10px',
                         color: palette.legendText,
                         fontSize: 12,
@@ -2340,6 +2721,8 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                         background: palette.legendBg,
                         border: palette.legendBorder,
                         borderRadius: 10,
+                        backdropFilter: 'blur(10px)',
+                        WebkitBackdropFilter: 'blur(10px)',
                         padding: overlay.legPad,
                         display: 'flex',
                         flexDirection: overlay.legDir,
@@ -2410,7 +2793,9 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                                     height: overlay.legSwatchH,
                                     borderRadius: 3,
                                     flexShrink: 0,
-                                    background: derived[cat].css,
+                                    // 画面上の弧（尾が透けて先端が明るい光の帯）を
+                                    // そのままミニチュア化したスウォッチ
+                                    background: `linear-gradient(90deg, transparent, ${derived[cat].css} 45%, ${derived[cat].core})`,
                                     boxShadow: `0 0 8px ${derived[cat].css}`,
                                     // 未設定は輪郭を破線にして「既定色である」ことを視覚的に示す
                                     outline: explicit?.[cat] ? 'none' : `1px dashed ${palette.legendText}`,

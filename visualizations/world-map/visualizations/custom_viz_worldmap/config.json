@@ -72,6 +72,10 @@
         ]
       },
       "mapDetail": { "type": "string", "default": "auto" },
+      "arcStyle": { "type": "string", "default": "bezier" },
+      "showGraticule": { "type": "boolean", "default": true },
+      "landStyle": { "type": "string", "default": "solid" },
+      "showHudStats": { "type": "boolean", "default": true },
       "labelLang": { "type": "string", "default": "en" },
       "useBgColor": { "type": "boolean", "default": false },
       "bgColor": { "type": "string", "default": "#03080f" },
@@ -99,6 +103,25 @@
     },
     "editorConfig": [
       {
+        "label": "スタイルプリセット",
+        "layout": [
+          [{ "label": "見た目をまとめて切り替え", "editor": "editor.presetSelector", "editorProps": { "presets": [
+            { "label": "管制室ダーク（既定）", "name": "p.console", "value": { "context": {}, "options": {
+              "landStyle": "solid", "showGraticule": true, "arcStyle": "bezier",
+              "animDuration": 2.8, "showHudStats": true, "useBgColor": false, "useLandColor": false } } },
+            { "label": "ドットマトリクス", "name": "p.dots", "value": { "context": {}, "options": {
+              "landStyle": "dots", "showGraticule": true, "arcStyle": "bezier",
+              "animDuration": 2.8, "showHudStats": true, "useBgColor": false, "useLandColor": false } } },
+            { "label": "航路図（大円・静止）", "name": "p.routes", "value": { "context": {}, "options": {
+              "landStyle": "solid", "showGraticule": true, "arcStyle": "greatcircle",
+              "animDuration": 0, "showHudStats": true, "useBgColor": false, "useLandColor": false } } },
+            { "label": "ミニマル", "name": "p.minimal", "value": { "context": {}, "options": {
+              "landStyle": "solid", "showGraticule": false, "arcStyle": "bezier",
+              "animDuration": 0, "showHudStats": false, "useBgColor": false, "useLandColor": false } } }
+          ] } }]
+        ]
+      },
+      {
         "label": "データフィールド",
         "layout": [
           [{ "label": "送信元 緯度", "editor": "editor.columnSelector", "option": "srcLatField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
@@ -119,6 +142,11 @@
           [{ "label": "凡例を表示", "editor": "editor.checkbox", "option": "showLegend" }],
           [{ "label": "カテゴリフィルタを表示", "editor": "editor.checkbox", "option": "showFilter" }],
           [{ "label": "アニメーション周期（秒、0で停止）", "editor": "editor.number", "option": "animDuration" }],
+          [{ "label": "矢印の形状", "editor": "editor.select", "option": "arcStyle", "editorProps": { "values": [
+            { "label": "アーチ（装飾的な弧）", "value": "bezier" },
+            { "label": "大円航路（地理的な最短経路）", "value": "greatcircle" }
+          ] } }],
+          [{ "label": "タイトル下に総件数とLIVE表示を出す", "editor": "editor.checkbox", "option": "showHudStats" }],
           [{ "label": "件数による線の太さの強調度（0で一律の細線）", "editor": "editor.slider", "option": "widthScale", "editorProps": { "min": 0, "max": 5, "step": 0.5 } }],
           [{ "label": "描画する矢印の上限（件数の多い順。0で無制限）", "editor": "editor.number", "option": "maxArcs", "editorProps": { "min": 0 } }],
           [{ "label": "地点にマウスを乗せたとき関連する矢印を強調", "editor": "editor.checkbox", "option": "highlightOnHover" }],
@@ -138,6 +166,16 @@
             { "label": "自動（ズームすると詳細な国境に切り替え）", "value": "auto" },
             { "label": "低（軽量。世界全体の表示向け）", "value": "low" },
             { "label": "高（常に詳細な国境で描画）", "value": "high" }
+          ] } }]
+        ]
+      },
+      {
+        "label": "地図のスタイル",
+        "layout": [
+          [{ "label": "経緯線（10度グリッド）を表示", "editor": "editor.checkbox", "option": "showGraticule" }],
+          [{ "label": "陸地の質感", "editor": "editor.select", "option": "landStyle", "editorProps": { "values": [
+            { "label": "ベタ塗り", "value": "solid" },
+            { "label": "ドットマトリクス", "value": "dots" }
           ] } }]
         ]
       },

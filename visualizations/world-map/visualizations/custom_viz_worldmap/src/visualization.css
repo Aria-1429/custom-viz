@@ -33,3 +33,9 @@
 .viz-row-count {
     margin-top: 12px;
 }
+
+/* HUD の LIVE インジケータ（タイトル下の点滅ドット） */
+@keyframes gtm-live-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.25; }
+}

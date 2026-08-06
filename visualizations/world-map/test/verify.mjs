@@ -36,7 +36,7 @@ globalThis.performance = globalThis.performance || { now: () => 0 };
 
 // happy-dom は canvas.getContext を実装しないため 2D コンテキストをスタブ化。
 // 彗星描画（fill 回数）を数えて「Canvas に描かれたか / 静止時は描かれないか」を検証する。
-const canvasStub = { fills: 0, arcs: 0, clears: 0 };
+const canvasStub = { fills: 0, arcs: 0, clears: 0, strokes: 0 };
 const ctxStub = {
     setTransform() {},
     clearRect() { canvasStub.clears += 1; },
@@ -48,7 +48,12 @@ const ctxStub = {
     closePath() {},
     arc() { canvasStub.arcs += 1; },
     fill() { canvasStub.fills += 1; },
+    // v1.10.0 到達リップル（終点の輪）は stroke で描く
+    stroke() { canvasStub.strokes += 1; },
     set fillStyle(v) {}, get fillStyle() { return '#000'; },
+    set strokeStyle(v) {}, get strokeStyle() { return '#000'; },
+    set lineWidth(v) {}, get lineWidth() { return 1; },
+    set lineCap(v) {}, get lineCap() { return 'butt'; },
     set globalAlpha(v) {}, get globalAlpha() { return 1; },
     set globalCompositeOperation(v) {}, get globalCompositeOperation() { return 'source-over'; },
 };
@@ -250,7 +255,7 @@ console.log('\n[2d] categoryOrder controls legend order (no semantic sorting)');
     // "medium80" のように連結されてしまう。カテゴリ名は「スウォッチの次の span」
     // に入っているので、そこだけを読む。
     const legendNames = [...doc.querySelectorAll('span')]
-        .filter((s) => (s.getAttribute('style') || '').includes('box-shadow'))
+        .filter((s) => (s.getAttribute('style') || '').includes('0 0 8px'))
         .map((s) => (s.nextElementSibling ? s.nextElementSibling.textContent.trim() : ''))
         .filter((t) => t !== '');
     check('legend rendered with swatches', legendNames.length >= 4, JSON.stringify(legendNames));
@@ -547,7 +552,7 @@ console.log('\n[12] works with a dataset that has nothing to do with severity');
     check('dns (unmapped) → fallback', st.includes('rgb(56, 166, 255)'), JSON.stringify(st));
 
     const legendNames = [...doc.querySelectorAll('span')]
-        .filter((s) => (s.getAttribute('style') || '').includes('box-shadow'))
+        .filter((s) => (s.getAttribute('style') || '').includes('0 0 8px'))
         .map((s) => (s.nextElementSibling ? s.nextElementSibling.textContent.trim() : ''));
     check('legend order follows categoryOrder (firewall, auth, dns)',
         legendNames.slice(0, 3).join(',') === 'firewall,auth,dns', JSON.stringify(legendNames));
@@ -613,7 +618,7 @@ console.log('\n[14] clicking a legend entry filters the map');
 
     // 凡例の 'high' 行をクリック → high の弧だけになる（ROWS では high が2本）
     const legendRow = [...doc.querySelectorAll('span')]
-        .filter((s) => (s.getAttribute('style') || '').includes('box-shadow'))
+        .filter((s) => (s.getAttribute('style') || '').includes('0 0 8px'))
         // カテゴリ名はスウォッチの次の span（行末には件数の span が付く）
         .filter((s) => s.nextElementSibling && s.nextElementSibling.textContent.trim() === 'high')
         .map((s) => s.parentElement)
@@ -625,7 +630,7 @@ console.log('\n[14] clicking a legend entry filters the map');
         check('legend click filters to that category', streaks().length === 2, `got ${streaks().length}`);
         // もう一度押すと解除
         const again = [...doc.querySelectorAll('span')]
-            .filter((s) => (s.getAttribute('style') || '').includes('box-shadow'))
+            .filter((s) => (s.getAttribute('style') || '').includes('0 0 8px'))
             .filter((s) => s.nextElementSibling && s.nextElementSibling.textContent.trim() === 'high')
             .map((s) => s.parentElement)
             .find(Boolean);
@@ -1186,7 +1191,7 @@ console.log('\n[27] legend shows totals and per-category counts');
 {
     const legendText = () => {
         const sw = [...doc.querySelectorAll('span')]
-            .find((s) => (s.getAttribute('style') || '').includes('box-shadow'));
+            .find((s) => (s.getAttribute('style') || '').includes('0 0 8px'));
         // 凡例パネル = スウォッチを含む最小の div の、さらに親（パネル本体）
         const panel = sw && sw.parentElement ? sw.parentElement.parentElement : null;
         return panel ? panel.textContent : '';
@@ -1216,7 +1221,7 @@ console.log('\n[27] legend shows totals and per-category counts');
     fire('options', { options: state.options });
     await sleep(350);
     const highRow = [...doc.querySelectorAll('span')]
-        .filter((s) => (s.getAttribute('style') || '').includes('box-shadow'))
+        .filter((s) => (s.getAttribute('style') || '').includes('0 0 8px'))
         .filter((s) => s.nextElementSibling && s.nextElementSibling.textContent.trim() === 'high')
         .map((s) => s.parentElement)
         .find(Boolean);
@@ -1231,7 +1236,7 @@ console.log('\n[27] legend shows totals and per-category counts');
     check('category counts present before filtering',
         /medium\s*80/.test(beforeFilter), beforeFilter.slice(0, 160));
     const highRow2 = [...doc.querySelectorAll('span')]
-        .filter((s) => (s.getAttribute('style') || '').includes('box-shadow'))
+        .filter((s) => (s.getAttribute('style') || '').includes('0 0 8px'))
         .filter((s) => s.nextElementSibling && s.nextElementSibling.textContent.trim() === 'high')
         .map((s) => s.parentElement)
         .find(Boolean);
@@ -1244,7 +1249,7 @@ console.log('\n[27] legend shows totals and per-category counts');
             /表示 350 \/ 全 600 件/.test(legendText()), legendText().slice(0, 160));
         // 解除
         const again2 = [...doc.querySelectorAll('span')]
-            .filter((s) => (s.getAttribute('style') || '').includes('box-shadow'))
+            .filter((s) => (s.getAttribute('style') || '').includes('0 0 8px'))
             .filter((s) => s.nextElementSibling && s.nextElementSibling.textContent.trim() === 'high')
             .map((s) => s.parentElement)
             .find(Boolean);
@@ -1281,6 +1286,75 @@ console.log('\n[27] legend shows totals and per-category counts');
     fire('options', { options: state.options });
     fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
     await sleep(300);
+}
+
+// ---- 28. v1.10.0 デザイン洗練（経緯線・階層国境・大円・ドット陸地・HUD・リップル） --
+console.log('\n[28] v1.10.0 design refinements');
+{
+    state.data = { fields: FIELDS, rows: ROWS };
+    state.options = {};
+    fire('options', { options: state.options });
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(350);
+
+    // 既定で経緯線と階層国境（海岸線 / 内側の国境）が描かれる
+    check('graticule drawn by default', !!doc.querySelector('svg path[data-gtm="graticule"]'));
+    check('coastline layer drawn', !!doc.querySelector('svg path[data-gtm="coast"]'));
+    check('inner borders layer drawn', !!doc.querySelector('svg path[data-gtm="border-inner"]'));
+    const coastD = doc.querySelector('svg path[data-gtm="coast"]').getAttribute('d') || '';
+    check('coastline path has geometry', coastD.length > 100, `len=${coastD.length}`);
+
+    // HUD 統計行（LIVE + 総件数）。count 合計 600
+    const body = doc.body.textContent;
+    check('HUD shows LIVE while animated', body.includes('LIVE'), body.slice(0, 200));
+    check('HUD shows grand total', body.includes('全 600 件'), body.slice(0, 200));
+
+    // 到達リップル（Canvas の stroke）はアニメーション中に描かれる
+    canvasStub.strokes = 0;
+    await sleep(150);
+    check('arrival ripples drawn while animated', canvasStub.strokes > 0, `got ${canvasStub.strokes}`);
+
+    // 既定の弧はベジェ（パスに Q が含まれる）
+    check('default arcs are bezier (Q command)',
+        (streaks()[0].getAttribute('d') || '').includes('Q'));
+
+    // 経緯線と HUD はオプションで消せる
+    state.options = { showGraticule: false, showHudStats: false };
+    fire('options', { options: state.options });
+    await sleep(300);
+    check('showGraticule=false removes the graticule',
+        !doc.querySelector('svg path[data-gtm="graticule"]'));
+    check('showHudStats=false removes the HUD line', !doc.body.textContent.includes('LIVE'));
+
+    // ドットマトリクス陸地: パターンが定義され、陸地の塗りがパターン参照になる
+    state.options = { landStyle: 'dots' };
+    fire('options', { options: state.options });
+    await sleep(300);
+    check('dot-matrix pattern defined', !!doc.querySelector('svg pattern#gtm-land-dots'));
+    check('land fill references the dot pattern',
+        !!doc.querySelector('svg path[fill="url(#gtm-land-dots)"]'));
+
+    // 大円航路: 弧は折れ線（L コマンド）になり、本数は変わらない
+    state.options = { arcStyle: 'greatcircle' };
+    fire('options', { options: state.options });
+    await sleep(300);
+    check('greatcircle mode keeps 6 arcs', streaks().length === 6, `got ${streaks().length}`);
+    const gcD = streaks()[0].getAttribute('d') || '';
+    check('greatcircle arcs are polylines (L, no Q)',
+        gcD.includes('L') && !gcD.includes('Q'), gcD.slice(0, 60));
+
+    // 静的表示ではリップルも止まる（rAF は回るが stroke されない）
+    state.options = { animDuration: 0 };
+    fire('options', { options: state.options });
+    await sleep(250);
+    canvasStub.strokes = 0;
+    await sleep(150);
+    check('no ripples in static mode', canvasStub.strokes === 0, `got ${canvasStub.strokes}`);
+
+    // 後片付け
+    state.options = {};
+    fire('options', { options: state.options });
+    await sleep(250);
 }
 
 console.log(`\nResult: ${pass} passed, ${fail} failed`);
