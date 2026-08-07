@@ -27,7 +27,7 @@ function parseArgs(argv) {
             flags[key] = val;
             if (val !== true) i++;
             // 撮影側にも渡すフラグ
-            if (['panels', 'wait', 'settle', 'width', 'height', 'out', 'probe'].includes(key)) {
+            if (['panels', 'wait', 'settle', 'width', 'height', 'out', 'probe', 'tab', 'scale', 'full'].includes(key)) {
                 passthrough.push(`--${key}`);
                 if (val !== true) passthrough.push(String(val));
             }

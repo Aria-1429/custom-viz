@@ -6,6 +6,11 @@
 // 使い方:
 //   node src/shot.mjs <dashboard-name> [--out <dir>] [--width 1920] [--height 1080]
 //                                      [--wait 45] [--settle 2] [--theme dark] [--panels] [--probe]
+//                                      [--tab <ラベル or 0始まりの番号>]
+//
+// タブ付きダッシュボードは既定で先頭タブしか撮れない。`--tab` で切り替えてから撮る
+// （タブは [data-test="tab"]。2026-08-07 実機の probe で確認）。
+// 出力ファイル名には `__tab-<指定値>` が付くので、タブごとに上書きされない。
 
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
@@ -186,6 +191,25 @@ async function main() {
         }
         await context.storageState({ path: STATE_FILE });
 
+        // タブの切り替え（タブ付きダッシュボードのみ）
+        let activeTab = null;
+        if (flags.tab !== undefined && flags.tab !== true) {
+            const tabs = page.locator('[data-test="tab"]');
+            await tabs.first().waitFor({ timeout: 30_000 }).catch(() => {});
+            const labels = await tabs.allTextContents();
+            if (labels.length === 0) throw new Error('タブが見つかりません（タブ付きダッシュボードではない可能性）');
+            const spec = String(flags.tab);
+            let idx = labels.findIndex((t) => t.trim() === spec);
+            if (idx < 0 && /^\d+$/.test(spec)) idx = Number(spec);
+            if (idx < 0 || idx >= labels.length) {
+                throw new Error(`タブ "${spec}" が見つかりません。存在するタブ: ${JSON.stringify(labels)}`);
+            }
+            await tabs.nth(idx).click();
+            await page.waitForTimeout(2000); // 切り替え後の再レイアウト待ち
+            activeTab = { index: idx, label: labels[idx].trim(), all: labels.map((t) => t.trim()) };
+        }
+        const fileTag = activeTab ? `${name}__tab-${activeTab.index}` : name;
+
         // ダッシュボードの実寸に合わせてビューポートを広げる。
         //
         // これをやらないと折り返しより下のパネルが「描画されないまま」撮れる（2026-08-07 実機で遭遇。
@@ -211,7 +235,7 @@ async function main() {
 
         // 既定はダッシュボード本体だけを切り出す（Splunk のヘッダ・ナビ・ツールバーを除く）。
         // --full を付けるとブラウザ画面全体。セレクタは実機確認済み（2026-08-07）。
-        const shotPath = join(outDir, `${name}.png`);
+        const shotPath = join(outDir, `${fileTag}.png`);
         const canvas = page.locator('[data-test="canvas"]').first();
         const useCanvas = !flags.full && (await canvas.count()) > 0;
         if (useCanvas) await canvas.screenshot({ path: shotPath });
@@ -221,6 +245,7 @@ async function main() {
             capture: useCanvas ? 'canvas（ダッシュボード本体のみ）' : 'ブラウザ画面全体',
             fitted,
             dashboard: name,
+            activeTab,
             url: dashUrl,
             viewport: { width, height },
             settled: render.settled,
@@ -242,7 +267,7 @@ async function main() {
                 const el = items.nth(i);
                 const id = (await el.getAttribute('data-id')) || `panel${i}`;
                 const vizType = await el.getAttribute('data-viz-type');
-                const p = join(outDir, `${name}__${id}.png`);
+                const p = join(outDir, `${fileTag}__${id}.png`);
                 await el.screenshot({ path: p }).catch(() => {});
                 result.panels.push({ id, vizType, path: p });
             }
@@ -291,7 +316,7 @@ async function main() {
             if (EMPTY_RE.test(text)) result.emptyPanels.push(id);
         }
 
-        const reportPath = join(outDir, `${name}.report.json`);
+        const reportPath = join(outDir, `${fileTag}.report.json`);
         writeFileSync(reportPath, JSON.stringify(result, null, 2));
 
         console.log(`✓ スクリーンショット: ${shotPath}（${result.capture}）`);

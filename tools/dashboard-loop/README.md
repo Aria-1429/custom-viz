@@ -47,6 +47,11 @@ node src/push.mjs <path/to/dashboard.json> [--name <id>] [--theme dark|light]
 # 撮影だけ（既に実機にあるダッシュボードを見る）
 node src/shot.mjs <dashboard-name> [--panels] [--wait 45] [--width 1920]
 
+# タブ付きダッシュボードの2枚目以降（ラベルでも 0 始まりの番号でも指定できる）
+# 出力名は <name>__tab-<番号>.png になるのでタブ同士で上書きされない
+node src/shot.mjs <dashboard-name> --tab 1
+node src/shot.mjs <dashboard-name> --tab リスクと統制
+
 # ヘッドレスで WebGL が描けるかの単体確認（Splunk 不要）
 node src/probe-webgl.mjs out.png
 
@@ -137,6 +142,9 @@ node src/click-check.mjs viz_check_<viz名> <出力先> <押すセルの文字�
   **パネル個別撮影は Playwright が要素を可視域へスクロールするので影響を受けない**ため、
   「個別は撮れているのに全体だと空白」という紛らわしい出方をする。
   → `[data-test="canvas"]` の実寸を測ってビューポートを自動で広げるようにした（`--nofit` で無効化）。
+- **タブ付きは「未配置」の判定をタブ横断でやる。** `validate-dashboard.mjs` は当初
+  layout ごとに全パネルと突き合わせていたため、**3タブ 24 パネルで 58 件の誤検出**を出した。
+  タブ付きは各 layout に一部しか置かないのが正常。
 - **共有をアプリレベルに上げると所有者が `nobody` に移る。**
   ユーザー名前空間の URL で GET/DELETE すると 404 になる。
   → ユーザー → `nobody` の順に試す `requestEntity` で吸収している。

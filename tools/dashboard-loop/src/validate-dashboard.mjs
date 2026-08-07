@@ -114,6 +114,8 @@ function validate(file, defs) {
 
     // layout は単一ページ（structure 直下）とタブ付き（layoutDefinitions）の2形式
     const layouts = d.layout.structure ? [d.layout] : Object.values(d.layout.layoutDefinitions || {});
+    // 「未配置」はタブをまたいで判定する（タブ付きは各 layout に一部しか置かないため）
+    const placedAnywhere = new Set();
     for (const L of layouts) {
         const S = L.structure || [];
         for (const s of S) {
@@ -132,10 +134,7 @@ function validate(file, defs) {
                 }
             }
         }
-        const placed = new Set(S.map((s) => s.item));
-        Object.keys(d.visualizations).forEach((k) => {
-            if (!placed.has(k)) warn(`未配置: ${k}`);
-        });
+        S.forEach((s) => placedAnywhere.add(s.item));
         // パネルが低すぎると viz が要素を落とす（ラベル・凡例が消える）
         for (const s of S) {
             const v = d.visualizations[s.item];
@@ -152,6 +151,9 @@ function validate(file, defs) {
             }
         }
     }
+    Object.keys(d.visualizations).forEach((k) => {
+        if (!placedAnywhere.has(k)) warn(`未配置: ${k}`);
+    });
 
     for (const [k, v] of Object.entries(d.dataSources || {})) {
         if (v.options.query.includes('\\')) warn(`SPL に残存バックスラッシュ（2重エスケープの疑い）: ${k}`);

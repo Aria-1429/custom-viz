@@ -14,6 +14,7 @@ JSON を作る**ときに読む。viz 本体の実装ナレッジは
 | `soc_custom_viz_dashboard.json` | 16 | SOC 統合監視（最初に作ったもの） |
 | `soc_overview_dashboard.json` | 28 | **SOC 概要（デザイン画からの再現）**。左サイドバー（Spotlight Frame ＋ Icon Status 5枚）／KPI 6枚の横一列／World Map ＋ Donut ＋ MITRE の3分割／下段の一覧3枚＋ミニ地図という「参考画像レイアウトの写し取り」。ヘッダ・フッタに `splunk.markdown` を使う |
 | `soc_incident_console_dashboard.json` | 16 | **クリックで連動する調査コンソール**（2026-08-07）。他の5枚が「見るだけ」なのに対し、**Severity Table のクリックがトークンを設定し、右の調査ペイン（Gauge / Radar）と下の関連イベントがそのホストに切り替わる**。`input.dropdown` で初期値を与えて「未選択で空パネル」を避けている（下記 §5.1） |
+| `executive_briefing_dashboard.json` | 29 | **経営層向け・タブ3枚**（2026-08-07）。唯一の**複数タブ**構成（`layoutDefinitions` × 3）。SOC 用語ではなく**経営の言葉**（被害回避額・リスク指数・投資対効果）で組み、落ち着いた紺＋金の配色にしてある。タブごとに縦に伸ばしてよいので、1画面に詰め込むための無理な圧縮をしていない |
 
 ### パネルを組み合わせて「図」を作る（network_topology の手法）
 
@@ -445,6 +446,37 @@ const layouts = d.layout.structure
 for (const L of layouts) { /* L.structure と L.options を見る */ }
 ```
 
+⚠ **「未配置」の判定だけはタブをまたいで集計する**（2026-08-07 に踏んだ）。
+タブ付きは各 layout に一部のパネルしか置かないので、layout ごとに
+`Object.keys(d.visualizations)` と突き合わせると**他タブのパネルが全部「未配置」になる**
+（29 パネル・3タブで 58 件の誤検出）。`validate-dashboard.mjs` は修正済み:
+
+```js
+const placedAnywhere = new Set();
+for (const L of layouts) { /* … */ L.structure.forEach((s) => placedAnywhere.add(s.item)); }
+Object.keys(d.visualizations).forEach((k) => { if (!placedAnywhere.has(k)) warn(`未配置: ${k}`); });
+```
+
+### タブ付きダッシュボードの書き方
+
+```jsonc
+"layout": {
+  "globalInputs": ["input_time"],
+  "tabs": { "items": [
+    { "label": "経営サマリー", "layoutId": "layout_exec" },
+    { "label": "リスクと統制", "layoutId": "layout_risk" }
+  ] },
+  "layoutDefinitions": {
+    "layout_exec": { "type": "absolute", "options": { "width": 1920, "height": 1526, … }, "structure": [ … ] },
+    "layout_risk": { "type": "absolute", "options": { "width": 1920, "height": 1472, … }, "structure": [ … ] }
+  }
+}
+```
+
+- `visualizations` / `dataSources` は**タブ共通**（トップレベルに1つ）。`structure` だけタブごとに分ける。
+- **タブごとに `height` を変えてよい**。無理に1画面へ詰めるより、タブを切って縦に伸ばすほうが読める。
+- **`globalInputs` は `layout` 直下**（`layoutDefinitions` の中ではない）。全タブで共有される。
+
 
 - `display: "auto-scale"` にすると、宣言した `width`/`height` を基準に画面サイズへ拡縮される。
   壁掛け想定なら `1920 x <必要な高さ>` で組むと収まりが良い。
@@ -641,7 +673,14 @@ Claude 側だけで回せる。詳細は [tools/dashboard-loop/README.md](../../
 # push → 撮影（通常はこれだけ）
 node /home/ishitsuki/work/custom-viz/tools/dashboard-loop/src/sync.mjs <dashboard.json> \
      --name <id> --out <出力先> --panels
+
+# タブ付きは既定で先頭タブしか撮れない。2枚目以降は --tab で切り替える
+#   （ラベル指定でも 0 始まりの番号でも可。出力名に __tab-<番号> が付く）
+node .../src/shot.mjs <id> --out <出力先> --tab 1
+node .../src/shot.mjs <id> --out <出力先> --tab リスクと統制
 ```
+
+タブは `[data-test="tab"]`（2026-08-07 実機の `--probe` で確認）。
 
 接続設定は `~/.splunk-dev.env`（git 管理外）。**認証情報をチャットやリポジトリに書かない。**
 
@@ -679,6 +718,18 @@ node /home/ishitsuki/work/custom-viz/tools/dashboard-loop/src/sync.mjs <dashboar
   **パネル個別撮影は要素を可視域へスクロールするので影響を受けない**ため、
   「個別は撮れているのに全体だと空白」という紛らわしい出方をする。
   → `[data-test="canvas"]` の実寸を測ってビューポートを自動追従させて解決。
+- **「パネル内で最終行が見切れる」は重なり検証では出ない**（2026-08-07）。パネル同士は
+  重なっておらず、はみ出しも無く、推奨高さ比も満たしていても、**viz が中で描く行が
+  パネル下端で切れる**ことがある。実測した1行あたりの必要高さ:
+  | viz | 1行あたり | 見切れたときの直し方 |
+  |---|---|---|
+  | **bullet-graph** | 約 60px（＋上余白 40px） | 6行なら h≥400。それでも切れるなら**行数を減らす** |
+  | **severity-table** | 約 43px（＋見出し 40px ＋サマリ 45px） | 6行なら h≥380 |
+  | **donut-graph の凡例** | 約 52px（＋ヘッダ 40px） | 6凡例なら h≥380 |
+  **スクリーンショットを見ないと分からない**ので、行数のあるパネルは必ず実機で確認する。
+- **ウォーターフォールの x ラベルはパネルが高いほど大きくなり、先に省略される**。
+  h=280 では6文字入ったラベルが h=440 では5文字で `…` になった（同じ幅 743px）。
+  **高くすれば読めるとは限らない**。5文字前後に収めるのが安全。
 - **共有をアプリレベルに上げると所有者が `nobody` に移り**、ユーザー名前空間の
   URL では GET/DELETE が 404 になる。両方の名前空間を試すこと。
 - **描画完了は DOM のロード完了では判定できない**（サーチ実行が挟まる）。
