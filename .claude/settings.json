@@ -14,7 +14,8 @@
       "Edit(/.claude/skills/splunk-viz/**)",
       "Bash(node /home/ishitsuki/work/custom-viz/tools/dashboard-loop/src/*)",
       "Bash(curl -sk -m * https://*:8000/*)",
-      "Bash(curl -sk -m * https://*:8089/*)"
+      "Bash(curl -sk -m * https://*:8089/*)",
+      "WebFetch(domain:docs.splunk.com)"
     ]
   }
 }

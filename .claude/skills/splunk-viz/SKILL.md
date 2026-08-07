@@ -54,6 +54,14 @@ viz 本体の実装ナレッジとは別物。特に:
   接続設定は `~/.splunk-dev.env`（git 管理外）。**認証情報をチャットやリポジトリに書かない。**
   セレクタ・落とし穴は studio-dashboard-json.md の §6 を参照。
 
+**⭐ 作る前に「標準 viz で足りないか」を確認する。**
+トレリス（`splitByLayout`）・イベント注釈・第2Y軸・punchcard・sankey などは
+**標準 viz で普通にできる**（2026-08-07 実機で描画確認）。同じものをカスタム viz で
+作り直すのは無駄なので、着手前に [references/studio-standard-viz.md](references/studio-standard-viz.md) を見る。
+同ファイルには **標準 viz のオプション名を推測せずに実機のバンドルから抜き出す方法**
+（169 個の schema が取れる）と、**Simple XML の旧キーが混在していて紛らわしい罠**
+（`dataOverlayMode` / `totalsRow` は Studio では無反応）も載せてある。
+
 **カスタム viz には2方式ある**（classic / Studio 拡張）。どのダッシュボードで使うかで選ぶ。
 方式の取り違えは「一覧に出ない」で詰まるので、迷ったら [references/custom-viz-methods.md](references/custom-viz-methods.md) を先に読む:
 - **classic**（`SplunkVisualizationBase` + `formatter.html`、`visualizations.conf` に `framework_type` なし）
