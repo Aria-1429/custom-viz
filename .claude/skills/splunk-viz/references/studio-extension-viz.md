@@ -994,6 +994,46 @@ useEffect(() => {
 `payloadCallback` に `buildPayload(0, …)` のような**固定の行番号**を書くと、
 **どこを押しても1行目の値が飛ぶ**（「2行目の OK を押したのに1行目の NG になる」症状。実際にやらかした）。
 
+#### ⭐ 登録は「ノード1つにつき1回」にする（payload は WeakMap で差し替える）
+
+上の `useEffect` 版は**データが変わるたびに同じノードへ登録し直す**形になっている。
+**`addDrilldownListener` に解除手段は無い**（`removeDrilldownListener` は存在せず、
+型定義の export にも無い＝確認済み）。React が同じ `<td>` を使い回すと登録が積み上がる。
+
+→ **登録は1回だけにして、payload の方を毎レンダー差し替える**のが安全:
+
+```jsx
+const cellPayloads = useRef(new WeakMap());   // ノード → payload
+const registeredCells = useRef(new WeakSet());
+
+const attachCell = useCallback((node, payload) => {
+    if (!node) return;                        // ref のデタッチ（null）は無視
+    cellPayloads.current.set(node, payload);  // 毎レンダー入れ直す
+    if (registeredCells.current.has(node)) return;
+    registeredCells.current.add(node);
+    addDrilldownListener({
+        node,
+        action: 'cell.click',
+        payloadCallback: () => cellPayloads.current.get(node) || {},
+    });
+}, []);
+
+// インライン ref は毎レンダー呼ばれるので、これが payload の更新契機になる
+<td ref={(el) => attachCell(el, { ...rowTokens, name: field, value: text })} />
+```
+
+- **並べ替え・オプション変更のあとでも「その位置に表示されている行」の値が飛ぶ**
+  （クリック時に WeakMap を読むため）。**実機確認済み**（severity-table v2.1.0 で
+  別々の行・別々の列を押して、それぞれの値が飛ぶことを確認）。
+- WeakMap / WeakSet なのでノードが捨てられれば一緒に回収される。
+- **クリックを無効化したいときは、その要素を作り直す**（例: `<tbody key={clickable ? 'on' : 'off'}>`）。
+  解除 API が無いので、**登録済みノードを捨てる以外に止める方法がない**。
+- ⚠ **未検証**：「同じノードに2回登録すると1クリックで2回発火するか」は実機では試していない
+  （ローカル検証のモックでは2回発火する）。**確かめる価値のない賭け**なので、
+  そもそも二重登録しない作りにしてある。
+
+参照実装: `visualizations/severity-table/.../visualization.jsx`（`attachCell`）。
+
 #### テーブル以外（SVG 図形など）にも同じ手法が使える
 
 登録するのは**任意の DOM ノード**なので、テーブルのセルに限らない。
@@ -1115,10 +1155,58 @@ declare const triggerDrilldown: (a: DrilldownArgs) => void;
 （`$name$` / `$value$` 相当）やリンク先 URL のパラメータに渡る値になる。
 行全体を `data` に入れておくと、フィールド指定のインタラクションで参照できる。
 
+### ダッシュボード JSON 側の書き方（`eventHandlers`）
+
+viz が発火したイベントを**何に使うか**はダッシュボード側の `eventHandlers` が決める。
+公式ドキュメント
+[Setting tokens on a visualization click](https://help.splunk.com/en/splunk-enterprise/create-dashboards-and-reports/dashboard-studio/9.4/add-dashboard-interactions/setting-tokens-on-a-visualization-click)
+に形が載っている（**カスタム viz でもそのまま使える。2026-08-07 実機確認済み**）:
+
+```jsonc
+"viz_table": {
+  "type": "custom_viz_severity_table.custom_viz_severity_table",
+  "options": { … },
+  "eventHandlers": [
+    { "type": "drilldown.setToken",
+      "options": { "tokens": [
+        { "token": "tok_sev",   "key": "row.severity.value" },
+        { "token": "tok_name",  "key": "name" },
+        { "token": "tok_value", "key": "value" }
+      ] } }
+  ]
+}
+```
+
+`key` に指定できるのは **`name`（押した列名）/ `value`（押した値）/ `row.<フィールド名>.value`** の3種類。
+**viz の `payloadCallback` が返すキーと1対1で対応する**ので、viz 側は
+「全フィールドの `row.<名>.value` ＋ `name` ＋ `value`」を載せておけば標準テーブルと同じ使い勝手になる。
+
+`drilldown.customUrl` などと併記して複数の動作を同時に設定することもできる（公式ドキュメント記載）。
+
+### 実機での確認方法（クリックは押してみるしかない）
+
+`tools/dashboard-loop/src/click-check.mjs` を使う。表示モードで開いてセルを押し、
+クリック前後のスクリーンショットを撮る:
+
+```bash
+node tools/dashboard-loop/src/click-check.mjs <dashboard-name> <出力先> <押すセルの文字列>
+```
+
+トークンが入ったかは、**同じダッシュボードにトークンを使うパネル**
+（`| makeresults | eval x="$tok_sev$"` や `| search severity="$tok_sev$"`）を置いて、
+その表示が変わることで確認する。
+
+⚠ **カスタム viz は iframe（`about:srcdoc`）の中に描画される**ので、
+ページ本体の DOM を探しても要素は見つからない。`page.frames()` を辿ること。
+
 ### 注意
 
 - **編集モードでは viz 内のマウス操作が iframe ごと遮断される**（§3 の既知事項）。
   クリックの動作確認は表示モードで行う。
+- **`config.json` に `events` を足した回は splunkd の再起動が要る**（§7.1）。
+  再起動前は「実装は正しいのにクリックしても何も起きない」状態になるので、
+  **実装を疑う前にまず実機の config が新しいかを確認する**
+  （`install-viz.mjs` が自動で警告する。`--restart` で再起動まで行う）。
 - ローカル検証（§6）では `DashboardExtensionAPI` モックに
   `addDrilldownListener` / `triggerDrilldown` を生やしておくと、発火の有無を検査できる。
 
@@ -1252,9 +1340,15 @@ Studio の編集パネルはこの REST の `content.config` を読む。つま�
 - **`config.json` を変えたリリースは splunkd の再起動が要る。**
   `_bump` では直らないので、「直したのに編集パネルが古い」と誤診しないこと。
 - **JS だけの変更（描画・ロジック）なら再起動は不要**。インストール＋`_bump` で足りる。
-- 再起動には `restart_splunkd` 権限が要る（開発用ユーザーには**無い**ので、
-  **editorConfig を変えたときはユーザーに再起動を依頼する**）。
-  `POST /services/server/control/restart` で REST から再起動できるが、同じ権限が必要。
+- **開発機では再起動まで自動化できる**（2026-08-07 に `restart_splunkd` を付与して確認）:
+
+  ```bash
+  node tools/dashboard-loop/src/install-viz.mjs <viz名> --restart
+  ```
+
+  `POST /services/server/control/restart` を叩き、`data/ui/visualizations` が
+  新しい `optionsSchema` を返すまでポーリングして待つ。**実測 45 秒前後**で復帰する。
+  `--restart` を付けなければ警告だけ出して終わる（権限が無い環境ではユーザーに依頼する）。
 - **未検証**：`web.conf` の `cacheEntriesLimit=0` は Splunk *Web* のキャッシュ設定で、
   今回の犯人（splunkd 側）とは層が違うため効かないと考えられるが、**試していない**。
   設定変更自体に再起動が必要なので、開発機で常時入れておく価値はあるかもしれない。

@@ -142,10 +142,17 @@ node /home/ishitsuki/work/custom-viz/tools/dashboard-loop/src/sync.mjs <検証�
 
 - **撮る前に `viz-status.mjs` でバージョン一致を確認する。**
   実機に古いバンドルが入ったままだと「直したのに直らない」と誤診する。
-- **`config.json` を変えた回は、編集パネルだけは反映されない**（描画は反映される）。
+- **`config.json` を変えた回は、編集パネルとインタラクションが反映されない**（描画は反映される）。
   splunkd のキャッシュで、**再起動しないと直らない**（`_bump` も `debug/refresh` も無効。
-  2026-08-07 実機で確定）。**スクリーンショットで確認できるのは描画だけ**と割り切り、
-  編集パネルの確認が要るときはユーザーに再起動を依頼する。→ §7.1（studio-extension-viz.md）
+  2026-08-07 実機で確定）。**`install-viz.mjs <viz名> --restart` で再起動まで自動でできる**
+  （所要 45 秒前後。`restart_splunkd` 付与済み）。→ §7.1（studio-extension-viz.md）
+- **クリック（インタラクション）の確認は `click-check.mjs`**。
+  表示モードで開いてセルを押し、前後のスクリーンショットを撮る:
+  ```bash
+  node /home/ishitsuki/work/custom-viz/tools/dashboard-loop/src/click-check.mjs \
+       <dashboard-name> <出力先> <押すセルの文字列>
+  ```
+  トークンが入ったかは、同じダッシュボードに `| eval x="$tok$"` のパネルを置いて見る。
 - **`.spl` のインストールは `install-viz.mjs` で自動化できる**（2026-08-07 実機確認済み）。
   > **【訂正】** 以前ここには「インストールは自動化できない。ユーザーに依頼する」と書いてあったが、
   > **`install_apps` が付与された今は誤り**。当時の記述は「権限が無い」という事実の説明で、

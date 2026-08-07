@@ -55,6 +55,12 @@ node src/probe-dom.mjs <dashboard-name>
 
 # viz アプリのバージョンをローカルと突き合わせる（viz を撮影する前に必ず）
 node src/viz-status.mjs [<viz名>] [--all]
+
+# viz の .spl を実機へ入れる（上書き ＋ _bump。--restart で splunkd 再起動まで）
+node src/install-viz.mjs <viz名|path/to/file.spl> [--restart] [--no-bump]
+
+# viz のクリック（インタラクション）を実機で試す。前後のスクショを撮る
+node src/click-check.mjs <dashboard-name> <出力先> <押すセルの文字列>
 ```
 
 出力は `shots/`（git 管理外）:
@@ -91,6 +97,8 @@ node src/viz-status.mjs [<viz名>] [--all]
 | アプリの新規作成 | **`power` ロールでは不可**（要 `admin_all_objects` か `edit_local_apps`）。既存アプリへの書き込みは可 |
 | `.spl` のインストール／アップグレード | **可**（2026-08-07 に `install_apps` を付与して確認）。`install-viz.mjs` が `POST /en-US/manager/appinstall/upload_app` を叩く。⚠ 管理ポート(8089)の `services/apps/local` / `services/apps/appinstall` は **multipart を受け付けない**（`Unparsable URI-encoded request data`）ので使えない |
 | 実機の viz アプリ一覧・バージョン参照 | **可**（`rest_apps_view`）。`viz-status.mjs` がこれを使う |
+| splunkd の再起動 | **可**（2026-08-07 に `restart_splunkd` を付与して確認）。`POST /services/server/control/restart`。**実測 45 秒前後**で復帰。`config.json`（editorConfig・`events`）はこれをしないと更新されない |
+| カスタム viz の中の要素をクリック | **可**。ただし **iframe（`about:srcdoc`）の中**なので `page.frames()` を辿る。**表示モードでのみ**（編集モードは入力が遮断される） |
 
 ## viz を撮影して見た目を詰める
 
@@ -101,7 +109,9 @@ node src/viz-status.mjs [<viz名>] [--all]
 node src/viz-status.mjs <viz名>       # ① 実機とローカルのバージョン一致を確認 ← 必ず最初
 # ② ズレていたら: cd visualizations/<viz名> && yarn build:prod && yarn package
 node src/install-viz.mjs <viz名>      #    最新 .spl を上書きインストール ＋ _bump
+#    config.json を変えたなら --restart を付ける（splunkd 再起動まで待つ。約45秒）
 node src/sync.mjs <検証用.json> --name viz_check_<viz名> --out <出力先>   # ③ 撮る
+node src/click-check.mjs viz_check_<viz名> <出力先> <押すセルの文字列>     # ③' クリックを試す
 # ④ PNG を見て直して ② に戻る
 ```
 

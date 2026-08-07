@@ -7,6 +7,7 @@
 //   node src/install-viz.mjs <viz名|アプリID>      … その viz の最新 .spl を入れる
 //   node src/install-viz.mjs <path/to/file.spl>    … .spl を直接指定する
 //   node src/install-viz.mjs <viz名> --no-bump     … bump をしない
+//   node src/install-viz.mjs <viz名> --restart     … config.json が古いままなら splunkd を再起動する
 //
 // ── どの API で入れているか（実機で試した順。すべて 2026-08-07 に確認） ──
 //   ✗ 管理ポート(8089) `POST /services/apps/local`（multipart）
@@ -31,8 +32,9 @@
 //    反映されるが、editorConfig は splunkd の `data/ui/visualizations?includeConfig=true`
 //    経由で配信され、**splunkd 内にキャッシュされていて再起動しないと更新されない**。
 //    `_bump` / `debug/refresh` / 各種 `_reload` / app の disable→enable はいずれも無効だった。
-//    → オプションを増減したら**ユーザーに splunkd の再起動を依頼する**
-//      （`restart_splunkd` 権限が要る）。詳細は
+//    → **`--restart` を付ければこのスクリプトが splunkd を再起動して復帰まで待つ**
+//      （`restart_splunkd` 権限が要る。2026-08-07 に付与済み・実機確認済み。所要 45 秒前後）。
+//      権限が無い環境では警告だけ出すので、ユーザーに再起動を依頼すること。詳細は
 //      `.claude/skills/splunk-viz/references/studio-extension-viz.md` の §7.1。
 //
 // 認証情報は ~/.splunk-dev.env（config.mjs）から読む。チャットやリポジトリに書かない。
@@ -177,7 +179,7 @@ function multipart(fields, file) {
  * 一致しなければ「描画は新しいが編集パネルは古い」状態（§7.1）。`_bump` では直らないので、
  * 黙って通さずに再起動が要ることを警告する。判定は optionsSchema のキー集合で行う。
  */
-async function warnIfEditorConfigStale(appId, splPath) {
+async function warnIfEditorConfigStale(appId, splPath, doRestart) {
     let localKeys;
     try {
         const raw = execFileSync('tar', ['-xzOf', splPath, `${appId}/appserver/static/visualizations/${appId}/config.json`]);
@@ -185,7 +187,32 @@ async function warnIfEditorConfigStale(appId, splPath) {
     } catch (e) {
         return; // config.json を読めないなら黙って諦める（インストール自体は成功している）
     }
-    const served = await new Promise((res) => {
+    const served = await servedOptionKeys(appId);
+    if (!served) return;
+    const missing = localKeys.filter((k) => !served.includes(k));
+    const extra = served.filter((k) => !localKeys.includes(k));
+    if (missing.length === 0 && extra.length === 0) {
+        console.log('✓ 編集パネルの定義も最新（splunkd が新しい config.json を配信している）');
+        return;
+    }
+    console.log('');
+    console.log('⚠ 編集パネル（editorConfig）は古いままです。**splunkd の再起動が必要**');
+    console.log(`   実機が配信中の optionsSchema: ${served.length} 個 / いま入れた .spl: ${localKeys.length} 個`);
+    if (missing.length) console.log(`   まだ出ないオプション: ${missing.join(', ')}`);
+    if (extra.length) console.log(`   まだ残っている旧オプション: ${extra.join(', ')}`);
+    console.log('   描画（visualization.js）は反映済み。config.json だけ splunkd にキャッシュされています。');
+    console.log('   `_bump` / `debug/refresh` / `_reload` / app の disable→enable では直りません。');
+    if (!doRestart) {
+        console.log('   → `--restart` を付けて実行し直すと、このスクリプトが再起動まで行います。');
+        console.log('     （`restart_splunkd` 権限が無い環境ではユーザーに再起動を依頼してください）');
+        return;
+    }
+    await restartAndWait(appId, localKeys);
+}
+
+/** splunkd が配信している optionsSchema のキー一覧（取得できなければ null）。 */
+function servedOptionKeys(appId) {
+    return new Promise((res) => {
         const u = new URL(
             `${mgmtBase()}/services/data/ui/visualizations?output_mode=json&count=0&includeConfig=true`
         );
@@ -196,6 +223,7 @@ async function warnIfEditorConfigStale(appId, splPath) {
                 path: u.pathname + u.search,
                 method: 'GET',
                 rejectUnauthorized: false,
+                timeout: 10_000,
                 headers: {
                     Authorization:
                         'Basic ' + Buffer.from(`${config.user}:${config.pass}`).toString('base64'),
@@ -219,23 +247,63 @@ async function warnIfEditorConfigStale(appId, splPath) {
             }
         );
         r.on('error', () => res(null));
+        r.on('timeout', () => {
+            r.destroy();
+            res(null);
+        });
         r.end();
     });
-    if (!served) return;
-    const missing = localKeys.filter((k) => !served.includes(k));
-    const extra = served.filter((k) => !localKeys.includes(k));
-    if (missing.length === 0 && extra.length === 0) {
-        console.log('✓ 編集パネルの定義も最新（splunkd が新しい config.json を配信している）');
+}
+
+/**
+ * splunkd を再起動し、config.json が新しくなるまで待つ。
+ * 実測 45 秒前後で復帰する（Splunk Enterprise 10.4.2）。
+ */
+async function restartAndWait(appId, localKeys) {
+    console.log('');
+    console.log('→ splunkd を再起動します（config.json を読み直させるため）');
+    const u = new URL(`${mgmtBase()}/services/server/control/restart`);
+    const status = await new Promise((res) => {
+        const r = https.request(
+            {
+                hostname: u.hostname,
+                port: u.port,
+                path: u.pathname,
+                method: 'POST',
+                rejectUnauthorized: false,
+                timeout: 15_000,
+                headers: {
+                    Authorization:
+                        'Basic ' + Buffer.from(`${config.user}:${config.pass}`).toString('base64'),
+                    'Content-Length': 0,
+                },
+            },
+            (x) => {
+                x.resume();
+                x.on('end', () => res(x.statusCode));
+            }
+        );
+        r.on('error', () => res(0));
+        r.on('timeout', () => {
+            r.destroy();
+            res(0);
+        });
+        r.end();
+    });
+    if (status !== 200) {
+        console.log(`✗ 再起動を要求できませんでした (HTTP ${status})。restart_splunkd 権限を確認してください。`);
         return;
     }
-    console.log('');
-    console.log('⚠ 編集パネル（editorConfig）は古いままです。**splunkd の再起動が必要**');
-    console.log(`   実機が配信中の optionsSchema: ${served.length} 個 / いま入れた .spl: ${localKeys.length} 個`);
-    if (missing.length) console.log(`   まだ出ないオプション: ${missing.join(', ')}`);
-    if (extra.length) console.log(`   まだ残っている旧オプション: ${extra.join(', ')}`);
-    console.log('   描画（visualization.js）は反映済み。config.json だけ splunkd にキャッシュされています。');
-    console.log('   `_bump` / `debug/refresh` / `_reload` / app の disable→enable では直りません。');
-    console.log('   → ユーザーに splunkd の再起動を依頼してください（`restart_splunkd` 権限が必要）。');
+    const sleep = (ms) => new Promise((z) => setTimeout(z, ms));
+    for (let i = 1; i <= 40; i += 1) {
+        await sleep(5000);
+        const served = await servedOptionKeys(appId);
+        if (served && localKeys.every((k) => served.includes(k))) {
+            console.log(`✓ 再起動完了（${i * 5} 秒）。編集パネルの定義も最新になりました`);
+            return;
+        }
+    }
+    console.log('⚠ 200 秒待っても config が更新されませんでした。実機の状態を確認してください。');
 }
 
 // ---- main -------------------------------------------------------------------
@@ -243,6 +311,7 @@ assertConfig();
 
 const args = process.argv.slice(2);
 const noBump = args.includes('--no-bump');
+const doRestart = args.includes('--restart');
 const target = args.find((a) => !a.startsWith('--'));
 
 if (!target) {
@@ -290,7 +359,7 @@ try {
     console.log(`✓ インストール完了（上書き）: ${payload.appId}`);
 
     // splunkd が配信する editorConfig が古いままでないか確かめる（§7.1 のキャッシュ）
-    await warnIfEditorConfigStale(payload.appId, splPath);
+    await warnIfEditorConfigStale(payload.appId, splPath, doRestart);
 
     if (!noBump) {
         // _bump は「アセットのバージョン番号を上げる」だけの単純なフォーム POST。
