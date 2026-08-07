@@ -64,7 +64,7 @@ Splunk **Dashboard Studio** 向けのカスタムビジュアライゼーショ�
 | <img src="visualizations/donut-graph/examples/example.png" width="240"> | **[Donut Graph](visualizations/donut-graph/)**<br>v1.1.2 | ドーナツチャート。中央に合計、詳細な凡例付き。 |
 | <img src="visualizations/donut-timechart/examples/example.png" width="240"> | **[Donut Timechart](visualizations/donut-timechart/)**<br>v1.1.2 | ドーナツ＋詳細凡例＋トレンド・スパークラインを組み合わせたステータスカード。 |
 | <img src="visualizations/gradient-bar/examples/example.png" width="240"> | **[Gradient Bar](visualizations/gradient-bar/)**<br>v1.1.2 | グラデーションの縦棒グラフ。 |
-| <img src="visualizations/severity-table/examples/example.png" width="240"> | **[Severity Table](visualizations/severity-table/)** <br>v2.0.0 | 重要度を色分けするテーブル。深刻度の順位・別名・色・並び順・一覧にない値の扱いまで、判定ルールをすべて編集画面で設定できる。 |
+| <img src="visualizations/severity-table/examples/example.png" width="240"> | **[Severity Table](visualizations/severity-table/)** <br>v2.1.0 | 重要度を色分けするテーブル。深刻度の順位・別名・色・並び順・一覧にない値の扱いまで、判定ルールをすべて編集画面で設定できる。セルのクリックでトークン設定も可能。 |
 
 ### 地理の可視化
 

@@ -1,6 +1,6 @@
 {
   "name": "custom_viz_severity_table",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "A custom visualization for Splunk Dashboard Studio",
   "author": "Yuto Ishitsuki",
   "type": "module",

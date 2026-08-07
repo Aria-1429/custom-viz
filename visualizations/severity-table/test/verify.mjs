@@ -101,6 +101,9 @@ let state = {
     theme: 'dark',
 };
 
+// ドリルダウンの記録（登録・発火・triggerDrilldown 呼び出し）
+const drilldown = { registrations: [], fired: [], triggered: [] };
+
 globalThis.DashboardExtensionAPI = {
     getDataSources: () => ({ loading: false, dataSources: { primary: { data: state.data } } }),
     addDataSourcesListener: mkListener('dataSources'),
@@ -120,7 +123,18 @@ globalThis.DashboardExtensionAPI = {
     setToken: () => {},
     getError: () => null,
     addErrorListener: () => () => {},
-    drilldown: () => {},
+    // ドリルダウン: ホストは「登録されたノードの click」を見て payloadCallback を呼ぶ。
+    // 実機の挙動を真似て、ここで実際に DOM の click リスナーを張る。
+    // registrations に積むことで「同じノードに二重登録していないか」も検査できる。
+    addDrilldownListener: ({ node, action, payloadCallback }) => {
+        drilldown.registrations.push({ node, action });
+        node.addEventListener('click', () => {
+            drilldown.fired.push({ action, payload: payloadCallback() });
+        });
+    },
+    triggerDrilldown: (args) => {
+        drilldown.triggered.push(args);
+    },
 };
 win.DashboardExtensionAPI = globalThis.DashboardExtensionAPI;
 
@@ -650,6 +664,83 @@ console.log('\n[9] guards');
     check('no debug dump', !doc.body.textContent.includes('severityIndex'));
     check('no debug overlay <pre>', !doc.querySelector('pre'));
     check('table still renders with unknown options', !!doc.querySelector('table'));
+}
+
+// ---- 10. ドリルダウン（インタラクション） ----------------------------------
+console.log('\n[10] drilldown / interactions');
+{
+    const clickCell = (rowIndex, colIndex) => {
+        drilldown.fired.length = 0;
+        const tr = doc.querySelectorAll('tbody tr')[rowIndex];
+        const td = tr.querySelectorAll('td')[colIndex];
+        td.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+        return drilldown.fired;
+    };
+
+    await setOptions(
+        { maxRows: 0, rowBar: false, sortMode: 'none' },
+        { fields: FIELDS, rows: ROWS }
+    );
+    check('cells registered as drilldown nodes', drilldown.registrations.length > 0, `got ${drilldown.registrations.length}`);
+    check(
+        'action is cell.click',
+        drilldown.registrations.every((r) => r.action === 'cell.click'),
+        JSON.stringify([...new Set(drilldown.registrations.map((r) => r.action))])
+    );
+    // 1ノード1登録（解除手段が無いので二重登録は1クリック多重発火になる）
+    const nodes = drilldown.registrations.map((r) => r.node);
+    check('no node registered twice', new Set(nodes).size === nodes.length, `${nodes.length} 登録 / ${new Set(nodes).size} ノード`);
+
+    // 先頭行（サーチ結果のまま = medium の行）の event 列をクリック
+    const fired = clickCell(0, 2);
+    check('click fires exactly once', fired.length === 1, `got ${fired.length}`);
+    const p = fired[0] ? fired[0].payload : {};
+    check('payload has row.<field>.value for every field', ['_time_str', 'severity', 'event', 'host'].every((f) => `row.${f}.value` in p), JSON.stringify(Object.keys(p)));
+    check('row tokens are from the clicked row', p['row.severity.value'] === 'medium' && p['row.host.value'] === 'host-22', JSON.stringify(p));
+    check('name is the clicked column', p.name === 'event', String(p.name));
+    check('value is the clicked cell', p.value === 'Policy violation', String(p.value));
+
+    // 別の行・別の列を押したら、その行・その列の値が飛ぶ
+    // （payloadCallback を使い回して行を固定すると、ここで1行目の値が返ってしまう）
+    const fired2 = clickCell(2, 1);
+    const p2 = fired2[0] ? fired2[0].payload : {};
+    check('another row sends its own values', p2['row.host.value'] === 'host-03' && p2.value === 'low', JSON.stringify(p2));
+    check('name follows the clicked column', p2.name === 'severity', String(p2.name));
+
+    // 並べ替えても「表示されている行」の値が飛ぶ（位置固定になっていないこと）
+    await setOptions({ maxRows: 0, rowBar: false, sortMode: 'desc' });
+    const fired3 = clickCell(0, 1);
+    const p3 = fired3[0] ? fired3[0].payload : {};
+    check('after re-sort the top row sends critical', p3.value === 'critical' && p3['row.host.value'] === 'host-01', JSON.stringify(p3));
+
+    // 再レンダリングを何度か挟んでも二重登録・多重発火しない
+    await setOptions({ maxRows: 0, rowBar: false, sortMode: 'desc', zebra: false });
+    await setOptions({ maxRows: 0, rowBar: false, sortMode: 'desc', zebra: true });
+    const fired4 = clickCell(0, 1);
+    check('still fires exactly once after re-renders', fired4.length === 1, `got ${fired4.length}`);
+
+    // 行頭カラーバーのセルも押せる（name/value は深刻度列）
+    await setOptions({ maxRows: 0, rowBar: true, sortMode: 'desc' });
+    const fired5 = clickCell(0, 0);
+    const p5 = fired5[0] ? fired5[0].payload : {};
+    check('row bar cell is clickable', fired5.length === 1, `got ${fired5.length}`);
+    check('row bar sends the severity column', p5.name === 'severity' && p5.value === 'critical', JSON.stringify(p5));
+
+    // OFF にしたら発火しない
+    await setOptions({ maxRows: 0, rowBar: false, sortMode: 'desc', enableDrilldown: false });
+    const fired6 = clickCell(0, 1);
+    check('enableDrilldown=false → no fire', fired6.length === 0, `got ${fired6.length}`);
+    const style = doc.querySelector('tbody td').getAttribute('style') || '';
+    check('enableDrilldown=false → no pointer cursor', !/cursor:\s*pointer/.test(style), style.slice(0, 120));
+
+    // 戻したらまた発火する
+    await setOptions({ maxRows: 0, rowBar: false, sortMode: 'desc', enableDrilldown: true });
+    const fired7 = clickCell(0, 1);
+    check('enableDrilldown=true → fires again', fired7.length === 1, `got ${fired7.length}`);
+    check('pointer cursor on cells', /cursor:\s*pointer/.test(doc.querySelector('tbody td').getAttribute('style') || ''));
+
+    // triggerDrilldown は使わない（実機で効かないことが分かっている）
+    check('triggerDrilldown is never called', drilldown.triggered.length === 0, `got ${drilldown.triggered.length}`);
 }
 
 console.log(`\n=== ${pass} passed, ${fail} failed ===`);

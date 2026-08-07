@@ -2,14 +2,18 @@
   "showTitleAndDescription": true,
   "includeInToolbar": true,
   "includeInVizSwitcher": true,
-  "showDrilldown": false,
-  "canSetTokens": [],
-  "hasEventHandlers": false,
+  "showDrilldown": true,
+  "canSetTokens": ["dynamic", "static"],
+  "hasEventHandlers": true,
   "config": {
     "name": "Severity Table",
-    "description": "重要度を色分けするテーブル。深刻度の順位・別名・色・並び順・一覧にない値の扱いまで、判定ルールをすべて編集画面で設定できる",
+    "description": "重要度を色分けするテーブル。深刻度の順位・別名・色・並び順・一覧にない値の扱いまで、判定ルールをすべて編集画面で設定できる。セルのクリックでトークンを設定できる",
     "category": "Custom",
     "icon": null,
+    "events": {
+      "cell.click": { "description": "triggered when user clicks a table cell" }
+    },
+    "supports": ["events"],
     "dataContract": {
       "requiredDataSources": ["primary"],
       "optionalDataSources": []
@@ -87,7 +91,8 @@
       "summaryLabelMode": { "type": "string", "default": "canonical" },
       "topIcon": { "type": "string", "default": "highest" },
       "autoHideColumns": { "type": "boolean", "default": true },
-      "title": { "type": "string", "default": "" }
+      "title": { "type": "string", "default": "" },
+      "enableDrilldown": { "type": "boolean", "default": true }
     },
     "editorConfig": [
       {
@@ -133,6 +138,12 @@
             { "label": "最も近い範囲の色にする", "value": "clamp" },
             { "label": "「一覧にない値」として扱う", "value": "unknown" }
           ] } }]
+        ]
+      },
+      {
+        "label": "クリック操作",
+        "layout": [
+          [{ "label": "セルのクリックでインタラクションを発火（「インタラクション」タブで設定）", "editor": "editor.checkbox", "option": "enableDrilldown" }]
         ]
       },
       {

@@ -3,6 +3,9 @@ import {
     useTheme,
     useOptions,
 } from '@splunk/dashboard-studio-extension/react';
+// ドリルダウン（編集画面の「インタラクション」）は /react にフックが無いので、
+// コアの /visualization から関数を直接 import する。
+import { addDrilldownListener } from '@splunk/dashboard-studio-extension/visualization';
 import Paragraph from '@splunk/react-ui/Paragraph';
 import WaitSpinner from '@splunk/react-ui/WaitSpinner';
 import { SplunkThemeProvider } from '@splunk/themes';
@@ -28,7 +31,11 @@ import chartIcon from './assets/ChartColumnSquare.svg';
 //   - どちらでも一覧/範囲に当たらない値は「一覧にない値」の設定に従う
 // -----------------------------------------------------------------------------
 
-const VIZ_VERSION = '2.0.0';
+const VIZ_VERSION = '2.1.0';
+
+// ドリルダウンで発火するイベント名。config.json の `events` に宣言した名前と一致させる。
+// ホストは宣言済みの名前しか認識しないので、両方を同時に直すこと。
+const CLICK_ACTION = 'cell.click';
 
 // 深刻度の順位一覧の既定値。1 行 = 1 段階、上ほど重大。
 // 同じ段階に畳む別名は `|` で区切る（先頭の語がその段階の代表値）。
@@ -246,6 +253,8 @@ const DEFAULT_OPTIONS = {
     topIcon: 'highest', // highest(データ内で最も重大) | top(順位一覧の1行目) | none
     autoHideColumns: true,
     title: '',
+    // インタラクション（クリックでトークンを設定する等）
+    enableDrilldown: true,
 };
 
 function normalizeOptions(raw) {
@@ -279,6 +288,7 @@ function normalizeOptions(raw) {
         topIcon: asEnum(o.topIcon, TOP_ICON_MODES, d.topIcon),
         autoHideColumns: asBool(o.autoHideColumns, d.autoHideColumns),
         title: typeof o.title === 'string' ? o.title : d.title,
+        enableDrilldown: asBool(o.enableDrilldown, d.enableDrilldown),
     };
 }
 
@@ -839,6 +849,54 @@ function AlertTable({ fieldNames, rows, severityIndex, colorScheme, opts, order,
         return { rows: limited, summaryItems, highestKey, total, shown: limited.length };
     }, [rows, severityIndex, opts, order]);
 
+    // -------------------------------------------------------------------------
+    // ドリルダウン（編集画面の「インタラクション」）
+    //
+    // 発火するのは addDrilldownListener に登録した DOM ノードのクリックだけ。
+    // triggerDrilldown() を自前の onClick から呼んでも効かない（サイレントに無視される）。
+    //
+    // ★登録は「ノード1つにつき1回だけ」。API に解除手段が無いため、再レンダリングの
+    //   たびに登録し直すと同じノードにリスナーが積み上がり、1クリックで何度も発火する。
+    //   そこで payload は WeakMap（ノード → payload）に毎レンダー入れ直し、
+    //   payloadCallback はクリック時にそこから読む。こうすると登録は1回で済み、
+    //   かつ「今その位置に表示されている行」の値が必ず飛ぶ。
+    //   （payloadCallback に行番号を固定で閉じ込めると、並べ替え後に別の行の値が飛ぶ）
+    // -------------------------------------------------------------------------
+    const clickable = opts.enableDrilldown && typeof addDrilldownListener === 'function';
+    const cellPayloads = useRef(new WeakMap());
+    const registeredCells = useRef(new WeakSet());
+
+    const attachCell = useCallback((node, payload) => {
+        if (!node) return; // ref のデタッチ（null）は何もしない
+        cellPayloads.current.set(node, payload);
+        if (registeredCells.current.has(node)) return;
+        registeredCells.current.add(node);
+        try {
+            addDrilldownListener({
+                node,
+                action: CLICK_ACTION,
+                payloadCallback: () => cellPayloads.current.get(node) || {},
+            });
+        } catch (e) {
+            /* ドリルダウン未対応のホストでも描画は続ける */
+        }
+    }, []);
+
+    // 行ごとのトークン（`row.<フィールド名>.value`）。
+    // 幅が狭くて非表示になっている列も含めて全フィールドを載せる
+    // （見えていない列の値でトークンを設定したいこともあるため）。
+    const rowTokens = useMemo(
+        () =>
+            prepared.rows.map(({ row }) => {
+                const t = {};
+                fieldNames.forEach((f, i) => {
+                    t[`row.${f}.value`] = cellToText(Array.isArray(row) ? row[i] : undefined);
+                });
+                return t;
+            }),
+        [prepared.rows, fieldNames]
+    );
+
     // アイコンを付ける対象の判定(モードは明示オプション)
     const iconMatches = useCallback(
         (sev) => {
@@ -1021,7 +1079,10 @@ function AlertTable({ fieldNames, rows, severityIndex, colorScheme, opts, order,
                             ))}
                         </tr>
                     </thead>
-                    <tbody>
+                    {/* ★ key に clickable を混ぜて、オプションを切り替えたら行を作り直す。
+                        addDrilldownListener に解除手段が無いため、OFF にしたときは
+                        「登録済みのノードごと捨てる」以外に止める方法がない。 */}
+                    <tbody key={clickable ? 'cells-clickable' : 'cells-plain'}>
                         {prepared.rows.map((item, rowIndex) => {
                             const { row, sev } = item;
                             const rowColor = sev ? sev.color : null;
@@ -1029,6 +1090,7 @@ function AlertTable({ fieldNames, rows, severityIndex, colorScheme, opts, order,
                             const barColor = hasRowBar && rowColor ? rowColor : 'transparent';
                             const zebraBg =
                                 opts.zebra && rowIndex % 2 === 1 ? palette.zebraBg : 'transparent';
+                            const tokens = rowTokens[rowIndex] || {};
                             return (
                                 <tr
                                     key={item.origIndex}
@@ -1037,10 +1099,21 @@ function AlertTable({ fieldNames, rows, severityIndex, colorScheme, opts, order,
                                 >
                                     {hasRowBar ? (
                                         <td
+                                            ref={
+                                                clickable
+                                                    ? (el) =>
+                                                          attachCell(el, {
+                                                              ...tokens,
+                                                              name: fieldNames[severityIndex],
+                                                              value: cellToText(row[severityIndex]),
+                                                          })
+                                                    : undefined
+                                            }
                                             style={{
                                                 ...baseTdStyle,
                                                 padding: 0,
                                                 width: '4px',
+                                                ...(clickable ? { cursor: 'pointer' } : null),
                                                 ...(isLast ? { borderBottom: 'none' } : null),
                                             }}
                                         >
@@ -1061,6 +1134,7 @@ function AlertTable({ fieldNames, rows, severityIndex, colorScheme, opts, order,
                                         );
                                         const tdStyle = {
                                             ...baseTdStyle,
+                                            ...(clickable ? { cursor: 'pointer' } : null),
                                             ...(isLast ? { borderBottom: 'none' } : null),
                                             ...(isTimeField
                                                 ? {
@@ -1073,6 +1147,16 @@ function AlertTable({ fieldNames, rows, severityIndex, colorScheme, opts, order,
                                         return (
                                             <td
                                                 key={cellIndex}
+                                                ref={
+                                                    clickable
+                                                        ? (el) =>
+                                                              attachCell(el, {
+                                                                  ...tokens,
+                                                                  name: fieldNames[cellIndex],
+                                                                  value: cellText,
+                                                              })
+                                                        : undefined
+                                                }
                                                 style={tdStyle}
                                                 title={
                                                     cellIndex === severityIndex ? undefined : cellText
