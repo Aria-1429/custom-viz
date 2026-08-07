@@ -556,6 +556,7 @@ node /home/ishitsuki/work/custom-viz/tools/dashboard-loop/src/sync.mjs <dashboar
 | パネルのセレクタ | **`[data-test="viz-item"]`**（`data-id` = `visualizations` のキー、`data-viz-type` = viz の型） |
 | ダッシュボード本体の領域 | **`[data-test="canvas"]`** |
 | アプリの新規作成 | **`power` ロールでは不可**（要 `admin_all_objects` / `edit_local_apps`）。既存アプリへの書き込みは可 |
+| `.spl` のインストール／アップグレード | **可**（2026-08-07 に `install_apps` を付与して確認）。`tools/dashboard-loop/src/install-viz.mjs`。⚠ **管理ポート(8089)の REST では送れない**（`services/apps/local` / `services/apps/appinstall` とも multipart 非対応で `Unparsable URI-encoded request data`）。効くのは Splunk Web の `POST /en-US/manager/appinstall/upload_app`（`appPackage` + `forceOverride=1`） |
 
 ### 踏んだ落とし穴
 

@@ -89,19 +89,20 @@ node src/viz-status.mjs [<viz名>] [--all]
 | ダッシュボード本体の領域 | **`[data-test="canvas"]`**（Splunk のヘッダ・ナビを除いた矩形） |
 | ログインフォーム | `input[name="username"]` / `input[name="password"]` |
 | アプリの新規作成 | **`power` ロールでは不可**（要 `admin_all_objects` か `edit_local_apps`）。既存アプリへの書き込みは可 |
-| `.spl` のインストール／アップグレード | **不可**。`install_apps` / `edit_local_apps` / `admin_all_objects` をいずれも持たない。ユーザーが Splunk Web から手動で行う |
+| `.spl` のインストール／アップグレード | **可**（2026-08-07 に `install_apps` を付与して確認）。`install-viz.mjs` が `POST /en-US/manager/appinstall/upload_app` を叩く。⚠ 管理ポート(8089)の `services/apps/local` / `services/apps/appinstall` は **multipart を受け付けない**（`Unparsable URI-encoded request data`）ので使えない |
 | 実機の viz アプリ一覧・バージョン参照 | **可**（`rest_apps_view`）。`viz-status.mjs` がこれを使う |
 
 ## viz を撮影して見た目を詰める
 
 ダッシュボードだけでなく、**カスタム viz 本体の見た目も実機で確認して直せる**。
-ただし `.spl` のインストールだけは権限が無いのでユーザーの手作業になる。
+**インストールまで含めて自動で回せる**（2026-08-07 に `install_apps` 付与）。
 
 ```bash
 node src/viz-status.mjs <viz名>       # ① 実機とローカルのバージョン一致を確認 ← 必ず最初
-# ② ズレていたら yarn build:prod && yarn package → ユーザーにインストールを依頼
+# ② ズレていたら: cd visualizations/<viz名> && yarn build:prod && yarn package
+node src/install-viz.mjs <viz名>      #    最新 .spl を上書きインストール ＋ _bump
 node src/sync.mjs <検証用.json> --name viz_check_<viz名> --out <出力先>   # ③ 撮る
-# ④ PNG を見て直して ③ に戻る
+# ④ PNG を見て直して ② に戻る
 ```
 
 **①を飛ばすと、実機の古いバンドルを見て「直したのに直らない」と誤診する。**

@@ -5,6 +5,7 @@
   "description": "Studio ダッシュボードを実機へ push し、描画結果をスクリーンショットで取得する開発ループ用ツール",
   "type": "module",
   "scripts": {
+    "install-viz": "node src/install-viz.mjs",
     "push": "node src/push.mjs",
     "shot": "node src/shot.mjs",
     "sync": "node src/sync.mjs"

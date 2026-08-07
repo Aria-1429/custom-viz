@@ -120,31 +120,50 @@ viz 本体の実装ナレッジとは別物。特に:
 `tools/dashboard-loop/` を使う（接続設定は `~/.splunk-dev.env`。
 **認証情報をチャットやリポジトリに書かない**）。
 
-**手順**（`.spl` のインストールだけユーザーの手作業）:
+**手順**（2026-08-07 に `install_apps` が付与され、**インストールまで自動化できるようになった**）:
 
 ```bash
 # 1. 実機のバージョンとローカルが一致しているか確認する ← 必ず最初にやる
 node /home/ishitsuki/work/custom-viz/tools/dashboard-loop/src/viz-status.mjs <viz名>
 
-# 2. ズレていたら .spl を作る（インストールはユーザーに依頼）
+# 2. ズレていたら .spl を作って、そのまま実機へ入れる
 cd visualizations/<viz名> && yarn build:prod && yarn package
+node /home/ishitsuki/work/custom-viz/tools/dashboard-loop/src/install-viz.mjs <viz名>
+#   → 最新の .spl を上書きインストールし、_bump まで行う（依存ゼロの HTTP 呼び出し）
 
 # 3. その viz を並べた検証用ダッシュボードを push して撮影
 node /home/ishitsuki/work/custom-viz/tools/dashboard-loop/src/sync.mjs <検証用.json> \
      --name viz_check_<viz名> --out <出力先>
 
-# 4. 出力された PNG を Read で見て、直して 3 に戻る
+# 4. 出力された PNG を Read で見て、直して 2 に戻る
 ```
 
 **⚠ 必ず守ること（どれも実際に踏んだ失敗）**:
 
 - **撮る前に `viz-status.mjs` でバージョン一致を確認する。**
   実機に古いバンドルが入ったままだと「直したのに直らない」と誤診する。
-- **`.spl` のインストール／アップグレードは自動化できない。**
-  実機ユーザー `<開発用ユーザー>` は `power` ロールで、`install_apps` /
-  `edit_local_apps` / `admin_all_objects` を**いずれも持たない**（実機確認済み）。
-  **ユーザーに Splunk Web からのインストール（Upgrade にチェック）＋ `/en-US/_bump` を依頼する。**
-  ダッシュボードの読み書きと実機バージョンの参照は自動でできる。
+- **`config.json` を変えた回は、編集パネルだけは反映されない**（描画は反映される）。
+  splunkd のキャッシュで、**再起動しないと直らない**（`_bump` も `debug/refresh` も無効。
+  2026-08-07 実機で確定）。**スクリーンショットで確認できるのは描画だけ**と割り切り、
+  編集パネルの確認が要るときはユーザーに再起動を依頼する。→ §7.1（studio-extension-viz.md）
+- **`.spl` のインストールは `install-viz.mjs` で自動化できる**（2026-08-07 実機確認済み）。
+  > **【訂正】** 以前ここには「インストールは自動化できない。ユーザーに依頼する」と書いてあったが、
+  > **`install_apps` が付与された今は誤り**。当時の記述は「権限が無い」という事実の説明で、
+  > 「API が無い」ではなかった。**権限が変わったら結論も変わる**ので、
+  > 「できない」と書いてある項目は前提条件（権限・config 宣言）ごと疑うこと。
+  - **管理ポート(8089)の REST では `.spl` を送れない**（実機で3通り試して全滅）。
+    `POST /services/apps/local` も `POST /services/apps/appinstall` も、Web の REST プロキシ
+    `/en-US/splunkd/__raw/services/apps/local` も、multipart を投げると
+    **`Unparsable URI-encoded request data` (HTTP 400)**。`name` は
+    「splunkd から見えるパス / URL」を渡す前提で、手元のファイルは送れない。
+  - **効くのは Splunk Web の `POST /en-US/manager/appinstall/upload_app`**
+    （フィールド `appPackage` = ファイル、`forceOverride=1` = Upgrade 上書き）。
+    App Management 画面の JS（`uploadLocalApp`）が実際に呼んでいるもの。
+    **画面のボタンは非表示でもエンドポイントは通る**（`install_apps` があれば十分。
+    `edit_local_apps` / `admin_all_objects` は不要）。
+  - 旧 UI の `/en-US/manager/appinstall/_upload` は **Splunk 10.4 では 404**（廃止済み）。
+  - ⚠ Splunk Web のログインは **CSRF トークンの Cookie 名がログイン前後で変わる**
+    （前=`cval` / 後=`splunkweb_csrf_token_<port>`）。前者を使わずに POST すると **HTTP 400**。
 - **一発の撮影を信用しない。** サーチが終わらないと正常なパネルでも
   「データがありません」になり、**撮り直すたびに空になるパネルが変わる**。
   `shot.mjs` が空表示パネルを警告するので、出たら `--wait` を伸ばして撮り直す。
@@ -203,7 +222,16 @@ node /home/ishitsuki/work/custom-viz/tools/dashboard-loop/src/sync.mjs <検証�
       [ "$a" != "$r" ] && echo "差異 $n: README=v${r:-なし} 実際=v$a"; done
     ```
     （`editor-probe` は検証用でリポジトリ一覧に載せないため、`README=vなし` と出るのが正常）
-- **実機デプロイ**：アンインストール・再起動は不要。`version` を上げ、Splunk の Upgrade チェックを通し、`_bump` ＋ハードリロードで反映する（詳細は [references/studio-extension-viz.md](references/studio-extension-viz.md) の「デプロイ」章）。
+- **実機デプロイ**：`version` を上げ、Splunk の Upgrade チェックを通し、`_bump` ＋ハードリロードで反映する。
+  **⚠ ただし `config.json` を変えた場合は `_bump` では反映されず、splunkd の再起動が要る**
+  （2026-08-07 実機で確定。**旧記述「再起動は不要」は誤り**）:
+  - **`visualization.js`（描画）** … 静的アセット。インストール＋`_bump` で反映される
+  - **`config.json`（編集パネルの editorConfig / optionsSchema）** … splunkd の
+    `data/ui/visualizations?includeConfig=true` から配信され、**splunkd 内にキャッシュされる**。
+    `_bump` も `debug/refresh` も各種 `_reload` も app の disable/enable も効かない（全部試して無効）
+  - → **オプションを増減した回は「再起動しないと編集パネルに出ない」**。
+    開発用ユーザーには `restart_splunkd` が無いので**ユーザーに再起動を依頼する**。
+  - 詳細・実測は [references/studio-extension-viz.md](references/studio-extension-viz.md) の §7.1。
 
 ### コミット／プッシュを依頼されたときのチェックリスト
 

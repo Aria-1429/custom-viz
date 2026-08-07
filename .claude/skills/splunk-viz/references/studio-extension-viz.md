@@ -1167,11 +1167,19 @@ globalThis.DashboardExtensionAPI = {
 ### 「オプションは出るのに反映されない」症状の切り分け
 
 config.json は新しいが `visualization.js` が古い（JS キャッシュ or 古い `.spl` をインストール）可能性大。
-config.json と JS バンドルは別経路で配信される。§6 の `_bump` + ハードリロードと、正しい `.spl` の確認。
+config.json と JS バンドルは別経路で配信される。§7 の `_bump` + ハードリロードと、正しい `.spl` の確認。
+
+**逆の症状（「描画は新しいのに編集パネルが古い」＝新オプションが出てこない）は
+splunkd のキャッシュ**。`_bump` では直らず、**splunkd の再起動が要る**。→ §7.1
 
 ---
 
-## 7. デプロイ（アンインストール・再起動なし）
+## 7. デプロイ
+
+> **【重要な訂正】この章は以前「アンインストール・再起動なし」と題していたが、
+> `config.json` を変更した場合は誤り**（2026-08-07 実機で確認）。
+> **JS（見た目）は `_bump` で反映されるが、`config.json`（編集パネル）は splunkd の再起動が要る。**
+> 詳細は下の「§7.1 config.json は再起動しないと反映されない」。
 
 1. `npm version <patch|minor> --no-git-tag-version` でバージョンを上げ、`app.conf` の version も同期。
    **`yarn build:prod && yarn package`** で新 `.spl` 生成（`yarn build` は開発ビルド。
@@ -1180,7 +1188,76 @@ config.json と JS バンドルは別経路で配信される。§6 の `_bump` 
 3. ブラウザで `https://<host>:8000/en-US/_bump` を開き **Bump version**（Splunk 再起動の代替）。
 4. ブラウザをハードリロード（Ctrl+Shift+R）。
 
+**開発機（`~/.splunk-dev.env` の実機）では 2〜3 を自動化できる**（2026-08-07 実機確認済み）:
+
+```bash
+node tools/dashboard-loop/src/install-viz.mjs <viz名>   # 上書きインストール ＋ _bump
+```
+
+- **管理ポート(8089)の REST では `.spl` を送れない**。`POST /services/apps/local` /
+  `POST /services/apps/appinstall` / Web の REST プロキシ `__raw/services/apps/local` の
+  いずれも multipart を受け付けず **`Unparsable URI-encoded request data` (HTTP 400)**。
+  これらの `name` は「splunkd から見えるパス / URL」を渡す前提。
+- 効くのは **Splunk Web の `POST /en-US/manager/appinstall/upload_app`**
+  （`appPackage` = ファイル、`forceOverride=1` = Upgrade 上書き）。
+  必要な権限は **`install_apps` だけ**（`edit_local_apps` / `admin_all_objects` は不要）。
+  画面上のボタンが表示されないロールでも**エンドポイントは通る**。
+- 旧 UI の `/en-US/manager/appinstall/_upload` は **Splunk 10.4 では 404**（廃止）。
+
 反映されない場合は §1「実機に反映されないとき」（リバースプロキシのキャッシュ）を参照。
+
+### 7.1 config.json は splunkd を再起動しないと反映されない（2026-08-07 実機で確定）
+
+**症状**：`.spl` を上書きインストールすると**描画（見た目）は新しくなるのに、
+編集パネル（Configuration）は古いオプションのまま**。新しく足したオプションが出てこない。
+
+**原因**：viz の2つの成果物は**配信経路が違う**。
+
+| 成果物 | 配信経路 | 更新のされ方 |
+|---|---|---|
+| `visualization.js` | Splunk Web の静的アセット<br>`/en-US/static/@<bump>/app/<app>/visualizations/<app>/visualization.js` | **`_bump` + リロードで反映される** |
+| `visualizations.conf` の `label` / `description` | splunkd の conf レイヤ | **インストールだけで反映される** |
+| **`config.json`（editorConfig / optionsSchema / name / dataContract）** | **splunkd の REST**<br>`data/ui/visualizations?includeConfig=true` の `content.config` | **splunkd 内にキャッシュされ、再起動するまで古いまま** |
+
+Studio の編集パネルはこの REST の `content.config` を読む。つまり
+**`_bump` は editorConfig には一切効かない**（`_bump` は Splunk *Web* の静的アセット用）。
+
+**実機で確かめたこと**（Splunk Enterprise 10.4.2。すべて splunkd 再起動なしで実施）:
+
+- ディスク上の `config.json` は**新しい**
+  （`/en-US/static/app/<app>/visualizations/<app>/config.json` を直接取得して確認）。
+  → **ファイルは置き換わっている。古いのは splunkd のキャッシュだけ。**
+- それでも `data/ui/visualizations?includeConfig=true` は**旧版の config を返し続ける**
+  （namespace を `nobody/<app>` / `<user>/<app>` / `nobody/search` / 無指定 のどれにしても同じ）。
+- 編集パネルのスクリーンショットでも**旧ラベルが並ぶ**（描画は新しいのに）。
+- **効かなかった手段（すべて HTTP 200 が返るのに config は古いまま）**:
+  - `/en-US/_bump`
+  - `POST /services/apps/local/<app>/_reload`
+  - `POST /servicesNS/nobody/<app>/data/ui/visualizations/_reload`
+  - `POST /services/data/ui/visualizations/_reload`
+  - `POST /services/configs/conf-visualizations/_reload`
+  - `POST /services/admin/localapps/_reload`
+  - `POST /en-US/debug/refresh?entity=data/ui/visualizations`
+    （公式ドキュメントが挙げる「登録済み EAI ハンドラを全部 reload」する手段）
+  - アプリの **disable → enable**（一覧から消えて戻るが config は古いまま）
+- **公開ドキュメントにこの挙動の記述は無い**。
+  [Customization options and caching](https://help.splunk.com/en/splunk-enterprise/developing-views-and-apps-for-splunk-web/10.4/customize-splunk-web/customization-options-and-caching)
+  は `appserver/static` のキャッシュ対処として `_bump` / `debug/refresh` / **splunkd 再起動** /
+  `web.conf` の `cacheEntriesLimit=0`（開発用）を挙げているが、
+  `config.json` や `includeConfig` については何も書いていない。
+  拡張 CLI のページも API リファレンスも、インストール後の反映手順に触れていない。
+
+**運用（結論）**:
+
+- **`config.json` を変えたリリースは splunkd の再起動が要る。**
+  `_bump` では直らないので、「直したのに編集パネルが古い」と誤診しないこと。
+- **JS だけの変更（描画・ロジック）なら再起動は不要**。インストール＋`_bump` で足りる。
+- 再起動には `restart_splunkd` 権限が要る（開発用ユーザーには**無い**ので、
+  **editorConfig を変えたときはユーザーに再起動を依頼する**）。
+  `POST /services/server/control/restart` で REST から再起動できるが、同じ権限が必要。
+- **未検証**：`web.conf` の `cacheEntriesLimit=0` は Splunk *Web* のキャッシュ設定で、
+  今回の犯人（splunkd 側）とは層が違うため効かないと考えられるが、**試していない**。
+  設定変更自体に再起動が必要なので、開発機で常時入れておく価値はあるかもしれない。
 
 **まとめてインストールする場合**: `node scripts/collect-packages.mjs` で各 viz の
 現行バージョンの `.spl` がリポジトリ直下の `packages/` に集約される
