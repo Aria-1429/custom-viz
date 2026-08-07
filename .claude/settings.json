@@ -11,7 +11,10 @@
       "WebFetch(domain:splunkui.splunk.com)",
       "Bash(grep -v '.map$')",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Edit(/.claude/skills/splunk-viz/**)"
+      "Edit(/.claude/skills/splunk-viz/**)",
+      "Bash(node /home/ishitsuki/work/custom-viz/tools/dashboard-loop/src/*)",
+      "Bash(curl -sk -m * https://*:8000/*)",
+      "Bash(curl -sk -m * https://*:8089/*)"
     ]
   }
 }

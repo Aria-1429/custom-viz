@@ -19,6 +19,8 @@ Dashboard Studio 拡張 viz の実装ナレッジを集約している:
 3. editorConfig と editor 型（動作確認済み28種の一覧と可否判定、選択肢は `editor.select`、無効型の症状）
 4. **値→色マッピング**：`editor.dynamicColor` はカスタムvizで使えない（配列がoptionsに来ない）。範囲→色は **`editor.threshold`**（配列が生で届く）、連続グラデーションは自前のカラースケール
 5. ローカル検証（happy-dom で実機なしにバンドルを叩く）
+   … これに加えて **実機に描画させてスクリーンショットで見た目を詰められる**
+   （下の「viz を実機で撮影して見た目を詰めてよい」を参照）
 6. デプロイ（アンインストール・再起動なし。`_bump`）
 7. GitHub 運用（モノレポ `Aria-1429/custom-viz`、push はユーザー手動）
 8. データモデルの型
@@ -42,6 +44,15 @@ viz 本体の実装ナレッジとは別物。特に:
 - **カスタム viz の `type` は `<appId>.<appId>`**（アプリ ID はフォルダ名と一致しないものがある）
 - **オプション名・選択肢の値を推測で書かない**。`config.json` と突き合わせる検証スクリプトを
   同ファイルに載せてある（2026-08-06 に推測で書いた5件が実際に無効だった）
+- **⭐ 実機へ push して自分で画面を見てから引き渡す**（2026-08-07 構築・実機確認済み）。
+  `tools/dashboard-loop/` に push＋スクリーンショットのツールがある。撮った PNG は
+  Read ツールで画像として見えるので、**手貼りを頼む前に描画結果を確認して直せる**:
+  ```bash
+  node /home/ishitsuki/work/custom-viz/tools/dashboard-loop/src/sync.mjs <dashboard.json> \
+       --name <id> --out <出力先> --panels
+  ```
+  接続設定は `~/.splunk-dev.env`（git 管理外）。**認証情報をチャットやリポジトリに書かない。**
+  セレクタ・落とし穴は studio-dashboard-json.md の §6 を参照。
 
 **カスタム viz には2方式ある**（classic / Studio 拡張）。どのダッシュボードで使うかで選ぶ。
 方式の取り違えは「一覧に出ない」で詰まるので、迷ったら [references/custom-viz-methods.md](references/custom-viz-methods.md) を先に読む:
@@ -98,6 +109,50 @@ viz 本体の実装ナレッジとは別物。特に:
   「この型は存在しない」と断定せず、必要なら Editor Probe で実機確認する。
 - 参考資料の公式ドキュメントを参照し、Splunkのベストプラクティスに従うこと。
 - パッケージ化する際はバージョンを更新すること．（詳細は「デプロイ／リリース運用」を参照）
+
+### ⭐ viz を実機で撮影して見た目を詰めてよい（2026-08-07 実機検証済み）
+
+**カスタム viz の新規作成・改修でも、実機に描画させてスクリーンショットを撮り、
+それを見ながら微調整してよい。** 撮った PNG は Read ツールで画像として見えるので、
+「実装 → 画面を見る → 直す」を Claude 側だけで回せる。
+実機画面とほぼ差異がないことはユーザー確認済み。
+
+`tools/dashboard-loop/` を使う（接続設定は `~/.splunk-dev.env`。
+**認証情報をチャットやリポジトリに書かない**）。
+
+**手順**（`.spl` のインストールだけユーザーの手作業）:
+
+```bash
+# 1. 実機のバージョンとローカルが一致しているか確認する ← 必ず最初にやる
+node /home/ishitsuki/work/custom-viz/tools/dashboard-loop/src/viz-status.mjs <viz名>
+
+# 2. ズレていたら .spl を作る（インストールはユーザーに依頼）
+cd visualizations/<viz名> && yarn build:prod && yarn package
+
+# 3. その viz を並べた検証用ダッシュボードを push して撮影
+node /home/ishitsuki/work/custom-viz/tools/dashboard-loop/src/sync.mjs <検証用.json> \
+     --name viz_check_<viz名> --out <出力先>
+
+# 4. 出力された PNG を Read で見て、直して 3 に戻る
+```
+
+**⚠ 必ず守ること（どれも実際に踏んだ失敗）**:
+
+- **撮る前に `viz-status.mjs` でバージョン一致を確認する。**
+  実機に古いバンドルが入ったままだと「直したのに直らない」と誤診する。
+- **`.spl` のインストール／アップグレードは自動化できない。**
+  実機ユーザー `<開発用ユーザー>` は `power` ロールで、`install_apps` /
+  `edit_local_apps` / `admin_all_objects` を**いずれも持たない**（実機確認済み）。
+  **ユーザーに Splunk Web からのインストール（Upgrade にチェック）＋ `/en-US/_bump` を依頼する。**
+  ダッシュボードの読み書きと実機バージョンの参照は自動でできる。
+- **一発の撮影を信用しない。** サーチが終わらないと正常なパネルでも
+  「データがありません」になり、**撮り直すたびに空になるパネルが変わる**。
+  `shot.mjs` が空表示パネルを警告するので、出たら `--wait` を伸ばして撮り直す。
+  それでも空なら初めて実装／データ側の問題と判断する。
+- **アニメーションする viz は毎回わずかに絵が変わる**（これは異常ではない）。
+
+検証用ダッシュボードの書き方・セレクタ・その他の落とし穴は
+[references/studio-dashboard-json.md](references/studio-dashboard-json.md) の §6 を参照。
 
 ## デプロイ／リリース運用
 

@@ -1,0 +1,15 @@
+{
+  "name": "dashboard-loop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Studio ダッシュボードを実機へ push し、描画結果をスクリーンショットで取得する開発ループ用ツール",
+  "type": "module",
+  "scripts": {
+    "push": "node src/push.mjs",
+    "shot": "node src/shot.mjs",
+    "sync": "node src/sync.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  }
+}
