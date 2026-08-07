@@ -13,6 +13,7 @@ JSON を作る**ときに読む。viz 本体の実装ナレッジは
 | `network_topology_dashboard.json` | 18 | **機器構成監視。Icon Status のアイコンを Link Line で結んで手描きトポロジを組む**（下記） |
 | `soc_custom_viz_dashboard.json` | 16 | SOC 統合監視（最初に作ったもの） |
 | `soc_overview_dashboard.json` | 28 | **SOC 概要（デザイン画からの再現）**。左サイドバー（Spotlight Frame ＋ Icon Status 5枚）／KPI 6枚の横一列／World Map ＋ Donut ＋ MITRE の3分割／下段の一覧3枚＋ミニ地図という「参考画像レイアウトの写し取り」。ヘッダ・フッタに `splunk.markdown` を使う |
+| `soc_incident_console_dashboard.json` | 16 | **クリックで連動する調査コンソール**（2026-08-07）。他の5枚が「見るだけ」なのに対し、**Severity Table のクリックがトークンを設定し、右の調査ペイン（Gauge / Radar）と下の関連イベントがそのホストに切り替わる**。`input.dropdown` で初期値を与えて「未選択で空パネル」を避けている（下記 §5.1） |
 
 ### パネルを組み合わせて「図」を作る（network_topology の手法）
 
@@ -250,7 +251,29 @@ for (const n of fs.readdirSync('visualizations')) {
 `none`/`warn`/`crit`/`always` が正しく、icon-status では `none`/`ring`）。
 **一括置換すると別の viz を壊す**ので、viz 単位で確認する。
 
-### 検証スクリプト（そのまま使える）
+### ⭐ 検証は2本立て（2026-08-07 にツール化）
+
+**書いたら必ずこの2つを通してから push する。** 毎回スクリプトを書き直さない
+（自前で書き直して `backgroundColor` の除外を忘れ、23 パネル全部を誤検出した実績がある）。
+
+```bash
+# ① 定義との突き合わせ（実機不要）：オプション名・選択値・レイアウト・eventHandlers・inputs
+node tools/dashboard-loop/src/validate-dashboard.mjs Splunk-Dashboard-Examples/*.json
+
+# ② SPL を実機で1本ずつ実行（oneshot 検索）。0行・エラーを検出する
+node tools/dashboard-loop/src/spl-check.mjs Splunk-Dashboard-Examples/<file>.json
+```
+
+- **①で分かるのは「定義と食い違っていないか」まで**。SPL が動くかは分からない。
+- **②が本命**。`| eval x=round(3*係数,0)` のような**実行時にしか落ちない誤り**
+  （§3 の日本語フィールド名）を、push する前に捕まえられる。
+  トークンは `inputs` の `defaultValue` で埋めてから実行し、埋まらないものはスキップして報告する。
+- ①のパネル高さ（推奨の 75% 未満）は**警告**扱い。細い帯として使う意図的な設計もあるため。
+
+以下は①が内部でやっていることの説明（自分で書き直す必要はない）。
+
+<details>
+<summary>検証スクリプトの中身（参考）</summary>
 
 リポジトリの `config.json` を正として突き合わせる。**5項目すべてを通す**:
 
@@ -328,8 +351,10 @@ console.log(e === 0 ? '✓ 全チェック通過' : '✗ ' + e + ' 件');
 "
 ```
 
+</details>
+
 **この検証で分かるのは「定義と食い違っていないか」まで。**
-実際に表示されるか・SPL が意図どおり動くかは**実機でしか確認できない**。
+実際に表示されるか・SPL が意図どおり動くかは**実機でしか確認できない**（→ ②の `spl-check.mjs` と §6 の撮影）。
 
 ### 既存ダッシュボードにも回す（viz 改修で古くなる）
 
@@ -363,6 +388,25 @@ console.log(e === 0 ? '✓ 全チェック通過' : '✗ ' + e + ' 件');
 // 時系列（現在時刻基準で生成する）
 "query": "| makeresults count=48 | streamstats count as i | eval _time=relative_time(now(), \"-\".(48-i).\"m\"), host=\"web-01\", cpu=45+20*sin(i/4)+random()%12 | table _time host cpu"
 ```
+
+### ⚠ 日本語のフィールド名を `eval` の**演算**に使うなら `'…'` で囲む（2026-08-07 実機で確定）
+
+このリポジトリのダッシュボードは日本語のフィールド名を多用するので**踏みやすい**。
+
+```
+✗ | makeresults format=csv data="domain,係数\nA,0.86" | eval x=round(3*係数,0)
+     → Error in 'EvalCommand': The expression is malformed.
+       An unexpected character is reached at '係数,0)'.
+✓ | … | eval x=round(3*'係数',0)                    ← 単一引用符で囲む
+✓ | … | eval f=係数 … は不可。ASCII 名で計算して最後に `| rename` する方法も可
+```
+
+**代入先が日本語なのは問題ない**（`| eval 選択ホスト=round(3*f,0)` は通る）。
+落ちるのは**式の中でフィールドを参照するとき**だけ。実機の oneshot 検索で
+4パターン試して切り分け済み（引用符あり／なし × 代入先／オペランド）。
+
+**パネルにはエラー文言が小さく出るだけ**なので、スクリーンショットを拡大しないと気づかない。
+`spl-check.mjs`（§2）で先に潰すこと。
 
 - 複数系列は `| append [ ... ]` で足す。
 - `queryParameters` に `"$global_time.earliest$"` / `"$global_time.latest$"` を渡すと
@@ -518,6 +562,60 @@ for (const L of layouts) for (const s of L.structure) {
 
 ---
 
+## 5.1 クリックで連動させる（インタラクション）
+
+**カスタム viz でも標準 viz と同じようにトークンを設定できる**（2026-08-07 実機確認済み。
+参照実装 `soc_incident_console_dashboard.json`）。viz 側の対応は
+[studio-extension-viz.md](studio-extension-viz.md) の §5、ダッシュボード側は下記。
+
+```jsonc
+"viz_queue": {
+  "type": "custom_viz_severity_table.custom_viz_severity_table",
+  "options": { … },
+  "eventHandlers": [
+    { "type": "drilldown.setToken",
+      "options": { "tokens": [
+        { "token": "sel_host", "key": "row.host.value" },
+        { "token": "sel_rule", "key": "row.rule.value" }
+      ] } }
+  ]
+}
+```
+
+### ⚠ 未設定のトークンを使うパネルは「Set token value to render visualization」になる
+
+**実機で確認した表示**：トークンが未設定だとパネルは描画されず、警告アイコンと
+`Set token value to render visualization` が出る。**クリック前の初期状態がこれだと壊れて見える。**
+
+→ **`input.dropdown` で同じトークンに既定値を与える**（実機確認済み）:
+
+```jsonc
+"inputs": {
+  "input_host": {
+    "type": "input.dropdown",
+    "title": "調査対象ホスト",
+    "options": {
+      "token": "sel_host",
+      "defaultValue": "web-01",
+      "items": [ { "label": "web-01", "value": "web-01" }, … ]
+    }
+  }
+},
+"layout": { "globalInputs": ["input_time", "input_host"], … }
+```
+
+- **`layout.globalInputs` に入れないと画面に出ない**。
+- **ドロップダウンとドリルダウンは同じトークンを共有でき、表示も同期する**
+  （行をクリックすると**ドロップダウンの選択も切り替わった**。実機確認済み）。
+  つまり「初期値を与える」と「クリックで切り替える」を両立できる。
+
+### パネルタイトルにトークンを書ける
+
+`"title": "$sel_host$ のリスクスコア"` は**実機で置換される**（確認済み）。
+選択中の対象をタイトルに出すと、どのパネルが連動しているのかが一目で分かる。
+
+---
+
 ## 5. カスタム viz を並べるときの注意
 
 - **そのダッシュボードで使う viz アプリがすべてインストール済みである必要がある**。
@@ -572,6 +670,10 @@ node /home/ishitsuki/work/custom-viz/tools/dashboard-loop/src/sync.mjs <dashboar
 - **オプション検証は §2 のスクリプトをそのまま使う。自前で書き直さない。**
   自前で書いて `HOST_OPTS`（`backgroundColor`）の除外を忘れ、**23 パネル全部を
   「無効オプション」と誤検出した**。§2 のスクリプトには最初からこの除外が入っている。
+- **⚠ 縦長のダッシュボードは `--scale 1` で撮る**（2026-08-07）。
+  既定の 2x（`deviceScaleFactor: 2`）だと 1920x2200 のダッシュボードで画像が巨大になり、
+  **`page.screenshot: Timeout 30000ms exceeded`** で撮影自体が失敗する。
+  「fonts loaded」の直後に固まるのが特徴。`--scale 1` にすると通る。
 - **ビューポートが足りないと折り返しより下のパネルが空白のまま撮れる。**
   レイアウト 1920x1680 を 1920x1080 で撮って下段4パネルが空白になった。
   **パネル個別撮影は要素を可視域へスクロールするので影響を受けない**ため、

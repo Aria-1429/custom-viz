@@ -97,7 +97,7 @@ custom-viz/
 │       └── visualizations/custom_viz_<name>/
 │           ├── config.json             ← dataContract, optionsSchema, editorConfig
 │           └── src/visualization.jsx   ← 実装本体
-└── Splunk-Dashboard-Examples/          ← Splunk 公式サンプル（参考資料）
+└── Splunk-Dashboard-Examples/          ← これらの viz を並べた Dashboard Studio の JSON（そのまま取り込めます）
 
 ※ フォルダ名は `<name>`（例 `horizon-chart`）、Splunk のアプリ ID は
 　 `custom_viz_<name>`（例 `custom_viz_horizon_chart`）で対応します。

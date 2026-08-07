@@ -61,6 +61,12 @@ node src/install-viz.mjs <viz名|path/to/file.spl> [--restart] [--no-bump]
 
 # viz のクリック（インタラクション）を実機で試す。前後のスクショを撮る
 node src/click-check.mjs <dashboard-name> <出力先> <押すセルの文字列>
+
+# ダッシュボード JSON を viz 定義と突き合わせて検証する（実機不要）
+node src/validate-dashboard.mjs ../../Splunk-Dashboard-Examples/*.json
+
+# 中の SPL を実機で1本ずつ実行して検算する（0行・エラーを検出）
+node src/spl-check.mjs ../../Splunk-Dashboard-Examples/<file>.json
 ```
 
 出力は `shots/`（git 管理外）:
@@ -84,6 +90,7 @@ node src/click-check.mjs <dashboard-name> <出力先> <押すセルの文字列>
 | `--maxheight <px>` | 3000 | 自動追従の上限 |
 | `--full` | off | ダッシュボード本体だけでなくブラウザ画面全体を撮る |
 | `--probe` | off | DOM の `data-test` 値を列挙する（セレクタ調査用） |
+| `--scale <n>` | 2 | 撮影の解像度倍率。**縦長のダッシュボードは 1 にする**（2x だと画像が巨大になり撮影が 30 秒でタイムアウトする） |
 
 ## 実機で確認した事実（2026-08-07 / Splunk Enterprise 10.4.2）
 

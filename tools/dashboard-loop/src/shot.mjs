@@ -149,7 +149,10 @@ async function main() {
     const ctxOpts = {
         ignoreHTTPSErrors: true, // 開発機の自己署名証明書
         viewport: { width, height },
-        deviceScaleFactor: 2, // 細部を読み取れるように 2x で撮る
+        // 細部を読み取れるように既定は 2x。ただし**縦長のダッシュボードでは画像が巨大になり、
+        // page.screenshot が 30 秒でタイムアウトする**（2026-08-07 に 1920x2200 で発生）。
+        // その場合は `--scale 1` で撮る。
+        deviceScaleFactor: Math.max(1, Math.min(3, Number(flags.scale) || 2)),
     };
     if (existsSync(STATE_FILE)) ctxOpts.storageState = STATE_FILE;
 
