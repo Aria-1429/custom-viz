@@ -7,7 +7,7 @@
   "hasEventHandlers": false,
   "config": {
     "name": "Severity Table",
-    "description": "重要度を色分けするテーブル。深刻度でのソート・件数サマリ・表示スタイル・色をカスタマイズできる",
+    "description": "重要度を色分けするテーブル。深刻度の順位・別名・色・並び順・一覧にない値の扱いまで、判定ルールをすべて編集画面で設定できる",
     "category": "Custom",
     "icon": null,
     "dataContract": {
@@ -20,9 +20,39 @@
     },
     "optionsSchema": {
       "severityField": { "type": "string", "default": "" },
-      "sortBySeverity": { "type": "boolean", "default": true },
+      "severityFieldCandidates": {
+        "default": ["severity", "sev", "priority", "urgency", "level", "risk"],
+        "anyOf": [
+          { "type": "array", "items": { "type": "string" } },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      },
+      "sortMode": { "type": "string", "default": "desc" },
       "maxRows": { "type": "number", "default": 200 },
-      "numericSeverity": { "type": "boolean", "default": false },
+      "severityMode": { "type": "string", "default": "string" },
+      "severityOrder": {
+        "default": [
+          "critical|crit|fatal|emergency|severe",
+          "high|error|major",
+          "medium|warning|warn|moderate",
+          "low|minor|notice",
+          "info|informational|information|debug|ok|normal"
+        ],
+        "anyOf": [
+          { "type": "array", "items": { "type": "string" } },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      },
+      "severityColors": {
+        "default": ["#ff5c3d", "#ffab2e", "#f2c14b", "#4dcf6e", "#4fa8f0"],
+        "anyOf": [
+          { "type": "array", "items": { "type": "string" } },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      },
+      "unknownOrder": { "type": "string", "default": "last" },
+      "colorUnknown": { "type": "boolean", "default": true },
+      "unknownColor": { "type": "string", "default": "#8b9bb4" },
       "severityBands": {
         "default": [
           { "from": 0, "to": 1, "value": "#4fa8f0" },
@@ -48,38 +78,87 @@
           { "type": "string", "pattern": "^>.*" }
         ]
       },
+      "bandOutOfRange": { "type": "string", "default": "clamp" },
       "cellStyle": { "type": "string", "default": "pill" },
       "rowBar": { "type": "boolean", "default": true },
       "zebra": { "type": "boolean", "default": true },
       "compact": { "type": "boolean", "default": false },
       "showSummary": { "type": "boolean", "default": true },
-      "showTitle": { "type": "boolean", "default": true },
+      "summaryLabelMode": { "type": "string", "default": "canonical" },
+      "topIcon": { "type": "string", "default": "highest" },
+      "autoHideColumns": { "type": "boolean", "default": true },
       "title": { "type": "string", "default": "" }
     },
     "editorConfig": [
       {
         "label": "データ",
         "layout": [
-          [{ "label": "深刻度フィールド（未指定なら自動判定）", "editor": "editor.columnSelector", "option": "severityField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
-          [{ "label": "深刻度でソート（重大→情報）", "editor": "editor.checkbox", "option": "sortBySeverity" }],
+          [{ "label": "深刻度フィールド（未指定なら下の候補から自動判定）", "editor": "editor.columnSelector", "option": "severityField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
+          [{ "label": "自動判定に使う列名（上ほど優先。上の指定が空のときだけ使用）", "editor": "editor.arrayOfStrings", "option": "severityFieldCandidates", "editorProps": { "labelPosition": "top", "themes": {} } }],
+          [{ "label": "行の並び順", "editor": "editor.select", "option": "sortMode", "editorProps": { "values": [
+            { "label": "サーチ結果のまま", "value": "none" },
+            { "label": "重大 → 軽微", "value": "desc" },
+            { "label": "軽微 → 重大", "value": "asc" }
+          ] } }],
           [{ "label": "最大表示行数（0で無制限）", "editor": "editor.number", "option": "maxRows" }]
         ]
       },
       {
-        "label": "深刻度の色",
+        "label": "深刻度の判定",
+        "layout": [
+          [{ "label": "深刻度の型", "editor": "editor.radioBar", "option": "severityMode", "editorProps": { "values": [
+            { "label": "文字列", "value": "string" },
+            { "label": "数値", "value": "number" }
+          ] } }],
+          [{ "label": "深刻度の順位（上ほど重大。同じ段階の別名は | で区切る）", "editor": "editor.arrayOfStrings", "option": "severityOrder", "editorProps": { "labelPosition": "top", "themes": {} } }],
+          [{ "label": "深刻度の色（上の順位と同じ並び。足りない分は先頭から繰り返し）", "editor": "editor.seriesColors", "option": "severityColors" }]
+        ]
+      },
+      {
+        "label": "一覧にない値",
+        "layout": [
+          [{ "label": "並べ替えでの位置", "editor": "editor.select", "option": "unknownOrder", "editorProps": { "values": [
+            { "label": "最下位（軽微側）に置く", "value": "last" },
+            { "label": "最上位（重大側）に置く", "value": "first" }
+          ] } }],
+          [{ "label": "色を付ける", "editor": "editor.checkbox", "option": "colorUnknown" }],
+          [{ "label": "一覧にない値の色", "editor": "editor.color", "option": "unknownColor" }]
+        ]
+      },
+      {
+        "label": "数値の範囲と色（深刻度の型＝数値のとき）",
         "layout": [
           [{ "label": "値の範囲と色（＋で段階を追加。上限/下限なしの範囲も作れます）", "editor": "editor.threshold", "option": "severityBands", "editorProps": { "openRanges": true, "isTogglable": false } }],
-          [{ "label": "数値を深刻度として扱う（上の範囲で直接判定）", "editor": "editor.checkbox", "option": "numericSeverity" }]
+          [{ "label": "どの範囲にも入らない値", "editor": "editor.select", "option": "bandOutOfRange", "editorProps": { "values": [
+            { "label": "最も近い範囲の色にする", "value": "clamp" },
+            { "label": "「一覧にない値」として扱う", "value": "unknown" }
+          ] } }]
         ]
       },
       {
         "label": "表示",
         "layout": [
+          [{ "label": "タイトル（空欄で非表示）", "editor": "editor.text", "option": "title" }],
+          [{ "label": "深刻度セルの形", "editor": "editor.select", "option": "cellStyle", "editorProps": { "values": [
+            { "label": "ピル（塗り＋枠）", "value": "pill" },
+            { "label": "ドット＋文字", "value": "dot" },
+            { "label": "文字のみ", "value": "text" },
+            { "label": "左の縦線＋文字", "value": "bar" }
+          ] } }],
           [{ "label": "行頭に深刻度カラーバー", "editor": "editor.checkbox", "option": "rowBar" }],
           [{ "label": "縞模様（ゼブラ）", "editor": "editor.checkbox", "option": "zebra" }],
           [{ "label": "コンパクト表示（行を詰める）", "editor": "editor.checkbox", "option": "compact" }],
+          [{ "label": "幅が狭いときに列を自動で省略する", "editor": "editor.checkbox", "option": "autoHideColumns" }],
           [{ "label": "件数サマリを表示", "editor": "editor.checkbox", "option": "showSummary" }],
-          [{ "label": "タイトルを表示", "editor": "editor.checkbox", "option": "showTitle" }]
+          [{ "label": "件数サマリのラベル", "editor": "editor.select", "option": "summaryLabelMode", "editorProps": { "values": [
+            { "label": "順位一覧の代表値（別名をまとめる）", "value": "canonical" },
+            { "label": "データの値をそのまま", "value": "raw" }
+          ] } }],
+          [{ "label": "アイコンを付ける深刻度", "editor": "editor.select", "option": "topIcon", "editorProps": { "values": [
+            { "label": "データ内で最も重大なもの", "value": "highest" },
+            { "label": "順位一覧の1行目", "value": "top" },
+            { "label": "付けない", "value": "none" }
+          ] } }]
         ]
       }
     ]

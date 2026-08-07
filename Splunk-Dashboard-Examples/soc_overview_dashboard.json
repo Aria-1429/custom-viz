@@ -708,15 +708,15 @@
             },
             "options": {
                 "severityField": "> primary | seriesByName('影響度')",
-                "sortBySeverity": true,
+                "sortMode": "desc",
                 "maxRows": 6,
-                "numericSeverity": false,
+                "severityMode": "string",
                 "cellStyle": "pill",
                 "rowBar": true,
                 "zebra": true,
                 "compact": true,
                 "showSummary": false,
-                "showTitle": false,
+                "title": "",
                 "backgroundColor": "transparent"
             }
         },
@@ -728,9 +728,9 @@
             },
             "options": {
                 "severityField": "> primary | seriesByName('リスクスコア')",
-                "sortBySeverity": false,
+                "sortMode": "none",
                 "maxRows": 6,
-                "numericSeverity": true,
+                "severityMode": "number",
                 "severityBands": [
                     {
                         "from": null,
@@ -758,7 +758,7 @@
                 "zebra": true,
                 "compact": true,
                 "showSummary": false,
-                "showTitle": false,
+                "title": "",
                 "backgroundColor": "transparent"
             }
         },
@@ -770,15 +770,15 @@
             },
             "options": {
                 "severityField": "> primary | seriesByName('深刻度')",
-                "sortBySeverity": true,
+                "sortMode": "desc",
                 "maxRows": 6,
-                "numericSeverity": false,
+                "severityMode": "string",
                 "cellStyle": "pill",
                 "rowBar": true,
                 "zebra": true,
                 "compact": true,
                 "showSummary": false,
-                "showTitle": false,
+                "title": "",
                 "backgroundColor": "transparent"
             }
         },

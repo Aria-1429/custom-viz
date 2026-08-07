@@ -605,15 +605,15 @@
             },
             "options": {
                 "severityField": "> primary | seriesByName('severity')",
-                "sortBySeverity": true,
+                "sortMode": "desc",
                 "maxRows": 10,
-                "numericSeverity": false,
+                "severityMode": "string",
                 "cellStyle": "pill",
                 "rowBar": true,
                 "zebra": true,
                 "compact": true,
                 "showSummary": true,
-                "showTitle": false,
+                "title": "",
                 "backgroundColor": "transparent"
             }
         }

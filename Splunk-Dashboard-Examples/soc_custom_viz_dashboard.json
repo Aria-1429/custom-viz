@@ -329,44 +329,23 @@
             },
             "description": "深刻度でソートし色分けバッジ表示。",
             "options": {
-                "cellStyle": "badge",
+                "cellStyle": "pill",
                 "compact": false,
                 "maxRows": 50,
                 "rowBar": true,
                 "severityField": "深刻度",
                 "showSummary": true,
-                "showTitle": true,
-                "sortBySeverity": true,
+                "sortMode": "desc",
                 "title": "直近のノータブルイベント",
                 "zebra": true,
-                "severityBands": [
-                    {
-                        "from": 0,
-                        "to": 1,
-                        "value": "#38bdf8"
-                    },
-                    {
-                        "from": 1,
-                        "to": 2,
-                        "value": "#38bdf8"
-                    },
-                    {
-                        "from": 2,
-                        "to": 3,
-                        "value": "#f5c518"
-                    },
-                    {
-                        "from": 3,
-                        "to": 4,
-                        "value": "#f0912e"
-                    },
-                    {
-                        "from": 4,
-                        "to": 5,
-                        "value": "#ef4d6a"
-                    }
-                ],
-                "backgroundColor": "transparent"
+                "backgroundColor": "transparent",
+                "severityColors": [
+                    "#ef4d6a",
+                    "#f0912e",
+                    "#f5c518",
+                    "#38bdf8",
+                    "#38bdf8"
+                ]
             },
             "title": "ノータブルイベント一覧",
             "type": "custom_viz_severity_table.custom_viz_severity_table",

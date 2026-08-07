@@ -1,4 +1,9 @@
 // Severity Table viz のローカル検証（happy-dom、Splunk実機なし）
+//
+// v2.0.0 の検証方針：
+//   「viz が独自に持つ暗黙のルール」が無いことを確かめる。
+//   深刻度の順位・別名・色・並び順・一覧にない値の扱い・範囲外の数値の扱いは
+//   すべてオプションで決まり、オプションを変えれば結果が変わること。
 import { Window } from 'happy-dom';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -76,9 +81,19 @@ const ROWS = [
     ['2026-07-19 09:58', 'low', 'Login success', 'host-03'],
     ['2026-07-19 10:09', 'high', 'Port scan', 'host-07'],
     ['2026-07-19 09:51', 'info', 'Config reload', 'host-11'],
-    ['2026-07-19 09:40', 'warning', 'Unusual traffic', 'host-05'], // alias → medium
-    ['2026-07-19 09:30', 'unknown-xyz', 'Odd thing', 'host-09'], // 未定義 → プレーン表示
+    ['2026-07-19 09:40', 'warning', 'Unusual traffic', 'host-05'], // 既定の順位一覧では medium 段
+    ['2026-07-19 09:30', 'unknown-xyz', 'Odd thing', 'host-09'], // 一覧にない値
 ];
+
+// 既定の色（順位一覧と同じ並び）
+const C = {
+    critical: '#ff5c3d',
+    high: '#ffab2e',
+    medium: '#f2c14b',
+    low: '#4dcf6e',
+    info: '#4fa8f0',
+    unknown: '#8b9bb4',
+};
 
 let state = {
     data: { fields: FIELDS, rows: ROWS },
@@ -110,25 +125,38 @@ globalThis.DashboardExtensionAPI = {
 win.DashboardExtensionAPI = globalThis.DashboardExtensionAPI;
 
 const fire = (key, payload) => listeners[key].forEach((cb) => cb(payload));
+
 // 深刻度の色が出る領域だけの HTML（= テーブル本体）。
 // タイトル行のアクセントバーはテーマ由来の固定色(#ff5c3d)で深刻度とは無関係なので、
-// 「固定パレットが残っていないこと」の検査からは除外する。
+// 「特定の色が使われていないこと」の検査からは除外する。
 const severityHtml = () => {
     const tbody = doc.querySelector('tbody');
     return (tbody ? tbody.innerHTML : '').toLowerCase();
 };
+const allHtml = () => doc.body.innerHTML.toLowerCase();
 const bodyRowTexts = () =>
     [...doc.querySelectorAll('tbody tr')].map((tr) =>
         [...tr.querySelectorAll('td')].map((td) => td.textContent).join(' | ')
     );
+
+// options を丸ごと差し替えて再描画を待つ
+async function setOptions(options, data) {
+    state.options = options;
+    if (data) {
+        state.data = data;
+        fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    }
+    fire('options', { options: state.options });
+    await sleep(220);
+}
 
 // ---- バンドル実行 -----------------------------------------------------------
 const code = readFileSync(BUNDLE, 'utf8');
 (0, eval)(code);
 await sleep(350);
 
-// ---- 1. 基本描画・自動判定・ソート -----------------------------------------
-console.log('\n[1] basic render (auto severity detect, default sort by severity)');
+// ---- 1. 既定の描画（既定オプションだけで従来どおりの見た目） ---------------
+console.log('\n[1] default render');
 {
     const table = doc.querySelector('table');
     check('table rendered', !!table);
@@ -138,202 +166,201 @@ console.log('\n[1] basic render (auto severity detect, default sort by severity)
 
     const rows = bodyRowTexts();
     check('7 rows rendered', rows.length === 7, `got ${rows.length}`);
-    // ソート既定ON: 先頭は critical、末尾付近に info/unknown
-    check('first row is critical', rows[0].includes('critical'), rows[0]);
-    check('critical before high', rows[0].includes('critical') && rows[1].includes('high'), rows.slice(0, 2).join(' // '));
-    // 件数サマリ(既定ON): 各レベルの日本語ラベル
-    const body = doc.body.textContent;
-    check('summary shows 重大', body.includes('重大'), body.slice(0, 120));
-    check('summary shows 中 (warning→medium counted)', body.includes('中'));
-    // pill 既定: critical セルに critical テキスト
-    check('unknown severity shown as plain text', rows.some((r) => r.includes('unknown-xyz')));
+    check('default sort desc: critical first', rows[0].includes('critical'), rows[0]);
+    check('high second', rows[1].includes('high'), rows[1]);
+    check('unknown value sorts last', rows[6].includes('unknown-xyz'), rows[6]);
+
+    const html = allHtml();
+    check('critical uses palette[0]', html.includes(C.critical));
+    check('high uses palette[1]', html.includes(C.high));
+    check('medium uses palette[2]', html.includes(C.medium));
+    check('low uses palette[3]', html.includes(C.low));
+    check('info uses palette[4]', html.includes(C.info));
+    check('unknown uses unknownColor', html.includes(C.unknown), 'missing unknown color');
+
+    // 既定のサマリラベルは順位一覧の代表値（日本語への暗黙変換はしない）
+    const text = doc.body.textContent;
+    check('summary label is canonical "critical"', text.includes('critical'));
+    check('no hidden Japanese level label 重大', !text.includes('重大'), text.slice(0, 200));
+    // 既定ではタイトルは出ない（暗黙の英語タイトルを廃止）
+    check('no hardcoded default title', !text.includes('Recent High Severity Alerts'));
 }
 
-// ---- 2. ソートOFF（元順序維持） --------------------------------------------
-console.log('\n[2] sortBySeverity off → original order');
+// ---- 2. 並び順オプション（3択） --------------------------------------------
+console.log('\n[2] sortMode');
 {
-    state.options = { sortBySeverity: false };
-    fire('options', { options: state.options });
-    await sleep(200);
+    await setOptions({ sortMode: 'none' });
+    check('none → original order (medium first)', bodyRowTexts()[0].includes('medium'), bodyRowTexts()[0]);
+
+    await setOptions({ sortMode: 'asc' });
     const rows = bodyRowTexts();
-    check('first row back to medium (original order)', rows[0].includes('medium'), rows[0]);
+    // asc は「軽微→重大」。一覧にない値は既定で最下位＝軽微側なので先頭に来る。
+    check('asc → unknown (最下位扱い) first', rows[0].includes('unknown-xyz'), rows[0]);
+    check('asc → critical last', rows[rows.length - 1].includes('critical'), rows[rows.length - 1]);
+
+    await setOptions({ sortMode: 'desc' });
+    check('desc → critical first', bodyRowTexts()[0].includes('critical'));
 }
 
 // ---- 3. 最大表示行数 --------------------------------------------------------
 console.log('\n[3] maxRows = 3');
 {
-    state.options = { maxRows: 3 };
-    fire('options', { options: state.options });
-    await sleep(200);
-    const rows = bodyRowTexts();
-    check('only 3 rows shown', rows.length === 3, `got ${rows.length}`);
-    // タイトル行に "3 / 7" の件数表示
-    check('title shows shown/total 3 / 7', doc.body.textContent.includes('3') && doc.body.textContent.includes('7'));
+    await setOptions({ maxRows: 3 });
+    check('only 3 rows shown', bodyRowTexts().length === 3, `got ${bodyRowTexts().length}`);
+    check('shown/total indicator visible', doc.body.textContent.includes('3 / 7'), doc.body.textContent.slice(0, 120));
 }
 
-// ---- 4. 標準5レベルの文字列データが既定バンド色で描画される ----------------
-// 既定バンド(低→高): info #4fa8f0 / low #4dcf6e / medium #f2c14b / high #ffab2e / critical #ff5c3d
-// 文字列パスは「出現した深刻度をランク順に並べ、バンド色を高い順に割り当てる」。
-// ROWS には critical/high/medium(warning含む)/low/info の 5 種が出るので、
-// 割り当ては 5:5 でそのまま重大→#ff5c3d … 情報→#4fa8f0 になる。
-console.log('\n[4] standard 5-level string data uses default band colors');
+// ---- 4. ★順位一覧（severityOrder）がすべてを決める ------------------------
+console.log('\n[4] severityOrder drives rank / alias / grouping');
 {
-    state.options = { maxRows: 0 };
-    fire('options', { options: state.options });
-    await sleep(200);
-    const html = doc.body.innerHTML.toLowerCase();
-    check('critical → #ff5c3d', html.includes('#ff5c3d'), 'missing');
-    check('high → #ffab2e', html.includes('#ffab2e'), 'missing');
-    check('medium → #f2c14b', html.includes('#f2c14b'), 'missing');
-    check('low → #4dcf6e', html.includes('#4dcf6e'), 'missing');
-    check('info → #4fa8f0', html.includes('#4fa8f0'), 'missing');
-    check('summary shows Japanese labels', doc.body.textContent.includes('重大') && doc.body.textContent.includes('情報'));
-}
-
-// ---- 4b. 文字列パスの色も severityBands が支配する ---------------------------
-console.log('\n[4b] string severity colors are driven by severityBands');
-{
-    state.options = {
+    // 既定と逆の順位を宣言する: info が最重大、critical が最軽微
+    await setOptions({
         maxRows: 0,
-        severityBands: [
-            { from: 0, to: 1, value: '#0000aa' },
-            { from: 1, to: 2, value: '#00aa00' },
-            { from: 2, to: 3, value: '#aa0000' },
-        ],
-    };
-    fire('options', { options: state.options });
-    await sleep(220);
-    const html = doc.body.innerHTML.toLowerCase();
-    check('custom band color #aa0000 used for most severe', html.includes('#aa0000'), 'missing #aa0000');
-    check('custom band color #0000aa used for least severe', html.includes('#0000aa'), 'missing #0000aa');
-    check('old fixed default #ff5c3d no longer in table', !severityHtml().includes('#ff5c3d'), 'fixed 5-color palette leaked');
-}
-
-// ---- 4c. ★カスタム/未知の深刻度文字列(P1/P2/P3)が動く ---------------------
-// これが今回の柔軟性修正の核心。5 レベルに一致しない任意の文字列でも
-// 異なる色が付き、クラッシュせず、サマリに生の値がそのまま出る。
-console.log('\n[4c] custom/unknown severity strings (P1/P2/P3)');
-{
-    state.data = {
-        fields: [{ name: 'severity' }, { name: 'event' }],
-        rows: [
-            ['P2', 'Disk pressure'],
-            ['P1', 'Cluster down'],
-            ['P3', 'Cert expiring'],
-            ['P1', 'Second outage'],
-        ],
-    };
-    state.options = { maxRows: 0 };
-    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
-    fire('options', { options: state.options });
-    await sleep(240);
-    check('no error boundary for unknown severities', !doc.body.textContent.includes('Visualization error'));
+        severityOrder: ['info', 'low', 'medium', 'high', 'critical'],
+    });
     const rows = bodyRowTexts();
-    check('4 rows rendered for P1/P2/P3 data', rows.length === 4, `got ${rows.length}`);
-    // サマリには生の値がそのまま出る(日本語ラベルに化けない)
-    const text = doc.body.textContent;
-    check('summary shows raw P1', text.includes('P1'), text.slice(0, 200));
-    check('summary shows raw P2', text.includes('P2'));
-    check('summary shows raw P3', text.includes('P3'));
-    // 3 種の深刻度に 3 つの異なる色が付く
-    const html = doc.body.innerHTML.toLowerCase();
-    const bandColors = ['#4fa8f0', '#4dcf6e', '#f2c14b', '#ffab2e', '#ff5c3d'];
-    const used = bandColors.filter((c) => html.includes(c));
-    check('at least 3 distinct band colors used for P1/P2/P3', used.length >= 3, `used=${JSON.stringify(used)}`);
-    // 最重大(P1)には既定バンドの最上位色が当たる
-    check('P1 gets the top band color #ff5c3d', html.includes('#ff5c3d'), 'top color missing');
-}
+    check('reversed order → info first', rows[0].includes('info'), rows[0]);
+    check('reversed order → critical last among known', rows[4].includes('critical'), rows.join(' // '));
+    const html = allHtml();
+    check('info now painted with palette[0]', html.includes(C.critical), 'palette[0] missing');
 
-// ---- 4d. 非ASCII のカスタム深刻度(緊急/注意)でも動く -----------------------
-console.log('\n[4d] non-ASCII custom severities (緊急/注意)');
-{
-    state.data = {
-        fields: [{ name: 'level' }, { name: 'event' }],
-        rows: [
-            ['注意', '軽微な逸脱'],
-            ['緊急', '侵害の可能性'],
-        ],
-    };
-    state.options = { maxRows: 0 };
-    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
-    fire('options', { options: state.options });
-    await sleep(240);
+    // 別名は | で宣言する。宣言しなければ「一覧にない値」になる。
+    await setOptions({
+        maxRows: 0,
+        severityOrder: ['critical', 'high', 'medium', 'low', 'info'], // warning を宣言しない
+    });
+    const summary = doc.body.textContent;
+    check('undeclared alias "warning" is NOT folded into medium', summary.includes('warning'), summary.slice(0, 200));
+
+    // 宣言すれば畳まれる
+    await setOptions({
+        maxRows: 0,
+        severityOrder: ['critical', 'high', 'medium|warning', 'low', 'info'],
+        summaryLabelMode: 'canonical',
+    });
+    const text2 = doc.body.textContent;
+    check('declared alias folds into canonical "medium"', !/warning\s*1/.test(text2), text2.slice(0, 200));
+
+    // 順位一覧に無い深刻度体系（P1/P2/P3）を宣言すればそのまま動く
+    await setOptions(
+        { maxRows: 0, severityOrder: ['P1', 'P2', 'P3'] },
+        {
+            fields: [{ name: 'severity' }, { name: 'event' }],
+            rows: [
+                ['P2', 'Disk pressure'],
+                ['P1', 'Cluster down'],
+                ['P3', 'Cert expiring'],
+                ['P1', 'Second outage'],
+            ],
+        }
+    );
+    const p = bodyRowTexts();
+    check('P1/P2/P3: 4 rows', p.length === 4, `got ${p.length}`);
+    check('P1 sorts first', p[0].includes('P1') && p[1].includes('P1'), p.join(' // '));
+    check('P3 sorts last', p[3].includes('P3'), p.join(' // '));
+    const ph = allHtml();
+    check('P1 → palette[0]', ph.includes(C.critical));
+    check('P2 → palette[1]', ph.includes(C.high));
+    check('P3 → palette[2]', ph.includes(C.medium));
     check('no error boundary', !doc.body.textContent.includes('Visualization error'));
-    check('2 rows rendered', bodyRowTexts().length === 2, `got ${bodyRowTexts().length}`);
-    check('summary shows 緊急 as-is', doc.body.textContent.includes('緊急'));
-    check('summary shows 注意 as-is', doc.body.textContent.includes('注意'));
+
+    // 非ASCII でも同じ
+    await setOptions(
+        { maxRows: 0, severityOrder: ['緊急', '注意'] },
+        {
+            fields: [{ name: 'level' }, { name: 'event' }],
+            rows: [
+                ['注意', '軽微な逸脱'],
+                ['緊急', '侵害の可能性'],
+            ],
+        }
+    );
+    check('non-ASCII order: 緊急 sorts first', bodyRowTexts()[0].includes('緊急'), bodyRowTexts().join(' // '));
+    check('non-ASCII: no error boundary', !doc.body.textContent.includes('Visualization error'));
 }
 
-// ---- 4e. 旧 criticalColor 等の固定色キーは完全に無視される -----------------
-console.log('\n[4e] legacy fixed color keys are ignored');
+// ---- 4b. 色はデータの中身に依存しない（v1 系の比例配分を撤廃） -------------
+console.log('\n[4b] a value keeps its color regardless of what else is in the data');
 {
-    state.data = { fields: FIELDS, rows: ROWS };
-    state.options = {
+    const opts = { maxRows: 0, severityOrder: ['critical', 'high', 'medium', 'low', 'info'] };
+    // critical のみのデータ
+    await setOptions(opts, {
+        fields: [{ name: 'severity' }, { name: 'event' }],
+        rows: [['critical', 'only one level']],
+    });
+    check('critical alone → palette[0]', severityHtml().includes(C.critical), severityHtml().slice(0, 200));
+
+    // critical + info のデータ（v1 系ではここで色の割り当てが変わっていた）
+    await setOptions(opts, {
+        fields: [{ name: 'severity' }, { name: 'event' }],
+        rows: [
+            ['critical', 'a'],
+            ['info', 'b'],
+        ],
+    });
+    const h = severityHtml();
+    check('critical still palette[0] with info present', h.includes(C.critical));
+    check('info uses palette[4], not palette[3]', h.includes(C.info) && !h.includes(C.low), h.slice(0, 300));
+}
+
+// ---- 4c. 色パレット（severityColors）を差し替えられる ----------------------
+console.log('\n[4c] severityColors palette');
+{
+    await setOptions(
+        {
+            maxRows: 0,
+            severityOrder: ['a', 'b', 'c'],
+            severityColors: ['#111aaa', '#222bbb', '#333ccc'],
+        },
+        {
+            fields: [{ name: 'severity' }, { name: 'event' }],
+            rows: [['a', '1'], ['b', '2'], ['c', '3']],
+        }
+    );
+    const h = severityHtml();
+    check('custom palette[0] used', h.includes('#111aaa'));
+    check('custom palette[1] used', h.includes('#222bbb'));
+    check('custom palette[2] used', h.includes('#333ccc'));
+    check('default palette gone from table', !h.includes(C.critical) && !h.includes(C.info), h.slice(0, 200));
+
+    // パレットが順位より短いときは先頭から繰り返す
+    await setOptions({
         maxRows: 0,
-        criticalColor: '#123abc',
-        highColor: '#456def',
-        mediumColor: '#789012',
-        lowColor: '#345678',
-        infoColor: '#9abcde',
-    };
-    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
-    fire('options', { options: state.options });
-    await sleep(240);
-    const html = doc.body.innerHTML.toLowerCase();
-    check('legacy criticalColor not used', !html.includes('#123abc'), 'legacy color leaked');
-    check('legacy highColor not used', !html.includes('#456def'), 'legacy color leaked');
-    check('legacy infoColor not used', !html.includes('#9abcde'), 'legacy color leaked');
-    check('default band colors used instead', html.includes('#ff5c3d'), 'default band color missing');
+        severityOrder: ['a', 'b', 'c'],
+        severityColors: ['#111aaa', '#222bbb'],
+    });
+    const h2 = severityHtml();
+    check('palette cycles when shorter than order', h2.includes('#111aaa') && h2.includes('#222bbb'));
+    check('no error with short palette', !doc.body.textContent.includes('Visualization error'));
 }
 
-// ---- 4f. エイリアス吸収がソートに効き続ける --------------------------------
-console.log('\n[4f] alias absorption still drives sorting');
+// ---- 4d. 一覧にない値の扱いがオプションで決まる ----------------------------
+console.log('\n[4d] unknown value handling');
 {
-    state.data = {
+    const data = {
         fields: [{ name: 'severity' }, { name: 'event' }],
         rows: [
-            ['info', 'Z last'],
-            ['crit', 'A should be first'], // crit → critical
-            ['warn', 'M middle'], // warn → medium
+            ['low', 'known-low'],
+            ['zzz', 'unknown-1'],
+            ['critical', 'known-crit'],
         ],
     };
-    state.options = { maxRows: 0, sortBySeverity: true };
-    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
-    fire('options', { options: state.options });
-    await sleep(240);
-    const rows = bodyRowTexts();
-    check('crit sorts first (alias → critical rank)', rows[0].includes('crit'), rows.join(' // '));
-    check('warn sorts before info (alias → medium rank)', rows[1].includes('warn'), rows.join(' // '));
-    check('info sorts last', rows[2].includes('info'), rows.join(' // '));
-    // crit と critical が同じ正規キーに畳まれることを確認(サマリは 1 チップにまとまる)
-    check('crit labelled 重大 in summary (canonicalized)', doc.body.textContent.includes('重大'));
+    await setOptions({ maxRows: 0, sortMode: 'desc' }, data);
+    check('unknown default → last', bodyRowTexts()[2].includes('zzz'), bodyRowTexts().join(' // '));
+    check('unknown colored by default', severityHtml().includes(C.unknown), severityHtml().slice(0, 200));
+
+    await setOptions({ maxRows: 0, sortMode: 'desc', unknownOrder: 'first' });
+    check('unknownOrder=first → unknown on top', bodyRowTexts()[0].includes('zzz'), bodyRowTexts().join(' // '));
+
+    await setOptions({ maxRows: 0, sortMode: 'desc', colorUnknown: false });
+    check('colorUnknown=false → no unknown color', !severityHtml().includes(C.unknown), severityHtml().slice(0, 200));
+    check('known values still colored', severityHtml().includes(C.critical));
+
+    await setOptions({ maxRows: 0, sortMode: 'desc', unknownColor: '#abcdef' });
+    check('custom unknownColor applied', severityHtml().includes('#abcdef'), severityHtml().slice(0, 200));
 }
 
-// ---- 4g. 未知の深刻度は既知より後ろ・初出順で安定する ----------------------
-console.log('\n[4g] unknown severities rank after known ones, stable by first-seen');
-{
-    state.data = {
-        fields: [{ name: 'severity' }, { name: 'event' }],
-        rows: [
-            ['zeta-unknown', 'U1'],
-            ['low', 'K-low'],
-            ['critical', 'K-crit'],
-            ['alpha-unknown', 'U2'],
-        ],
-    };
-    state.options = { maxRows: 0, sortBySeverity: true };
-    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
-    fire('options', { options: state.options });
-    await sleep(240);
-    const rows = bodyRowTexts();
-    check('known critical first', rows[0].includes('critical'), rows.join(' // '));
-    check('known low second', rows[1].includes('low') && !rows[1].includes('unknown'), rows.join(' // '));
-    check('unknowns after knowns, first-seen order', rows[2].includes('zeta-unknown') && rows[3].includes('alpha-unknown'), rows.join(' // '));
-}
-
-// ---- 5. 数値 severity + バンド(editor.threshold) ---------------------------
-// 既定バンド: [0,1)=info #4fa8f0 / [1,2)=low #4dcf6e / [2,3)=medium #f2c14b /
-//             [3,4)=high #ffab2e / [4,5]=critical #ff5c3d
+// ---- 5. 数値モード ----------------------------------------------------------
 const NUMERIC_DATA = {
     fields: [{ name: 'urgency' }, { name: 'event' }],
     rows: [
@@ -343,51 +370,79 @@ const NUMERIC_DATA = {
     ],
 };
 
-console.log('\n[5] numeric severity via default severityBands');
+console.log('\n[5] numeric mode via severityBands');
 {
-    state.data = NUMERIC_DATA;
-    state.options = { numericSeverity: true };
-    fire('options', { options: state.options });
-    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
-    await sleep(220);
-    const rows = bodyRowTexts();
-    check('3 rows for numeric data', rows.length === 3, `got ${rows.length}`);
-    // 数値パスはバンドの色を「そのまま」使う(固定レベル名を経由しない)
-    const html = doc.body.innerHTML.toLowerCase();
-    check('band color #ff5c3d used for 5 (top band)', html.includes('#ff5c3d'));
-    check('band color #ffab2e used for 3', html.includes('#ffab2e'));
-    check('band color #4dcf6e used for 1', html.includes('#4dcf6e'));
-    // サマリは範囲ラベルで出る(5 レベル固定名ではない)
-    check('summary shows numeric range labels', /\d+–\d+/.test(doc.body.textContent), doc.body.textContent.slice(0, 200));
+    await setOptions({ severityMode: 'number' }, NUMERIC_DATA);
+    check('3 rows for numeric data', bodyRowTexts().length === 3, `got ${bodyRowTexts().length}`);
+    const html = allHtml();
+    check('5 → top band color', html.includes(C.critical));
+    check('3 → high band color', html.includes(C.high));
+    check('1 → low band color', html.includes(C.low));
+    check('summary shows range labels', /\d+–\d+/.test(doc.body.textContent), doc.body.textContent.slice(0, 200));
+    check('numeric sorted desc: 5 first', bodyRowTexts()[0].includes('5'), bodyRowTexts().join(' // '));
+
+    // 文字列モードのままなら数値は「一覧にない値」になる（型は明示オプション）
+    await setOptions({ severityMode: 'string' }, NUMERIC_DATA);
+    check('string mode → numbers are unknown-colored', severityHtml().includes(C.unknown), severityHtml().slice(0, 200));
 }
 
-// ---- 5b. カスタムバンドの色が数値へ直接適用される --------------------------
-console.log('\n[5b] custom severityBands colors applied directly to numeric values');
+console.log('\n[5b] custom bands and out-of-range handling');
 {
-    state.options = {
-        numericSeverity: true,
+    await setOptions(
+        {
+            severityMode: 'number',
+            severityBands: [
+                { from: 0, to: 2, value: '#111aaa' },
+                { from: 2, to: 4, value: '#222bbb' },
+                { from: 4, to: 9, value: '#333ccc' },
+            ],
+        },
+        NUMERIC_DATA
+    );
+    const h = severityHtml();
+    check('custom band color for 5', h.includes('#333ccc'));
+    check('custom band color for 3', h.includes('#222bbb'));
+    check('custom band color for 1', h.includes('#111aaa'));
+    check('default bands gone', !h.includes(C.critical) && !h.includes(C.info), h.slice(0, 200));
+
+    // 範囲外の扱い: clamp(既定) と unknown
+    const outData = {
+        fields: [{ name: 'urgency' }, { name: 'event' }],
+        rows: [
+            ['50', 'way above'],
+            ['1', 'inside'],
+        ],
+    };
+    await setOptions(
+        {
+            severityMode: 'number',
+            bandOutOfRange: 'clamp',
+            severityBands: [
+                { from: 0, to: 2, value: '#111aaa' },
+                { from: 2, to: 4, value: '#222bbb' },
+            ],
+        },
+        outData
+    );
+    check('clamp → out-of-range gets nearest band color', severityHtml().includes('#222bbb'), severityHtml().slice(0, 200));
+
+    await setOptions({
+        severityMode: 'number',
+        bandOutOfRange: 'unknown',
         severityBands: [
             { from: 0, to: 2, value: '#111aaa' },
             { from: 2, to: 4, value: '#222bbb' },
-            { from: 4, to: 9, value: '#333ccc' },
         ],
-    };
-    fire('options', { options: state.options });
-    await sleep(220);
-    const html = doc.body.innerHTML.toLowerCase();
-    check('custom band color for 5 present', html.includes('#333ccc'), 'missing #333ccc');
-    check('custom band color for 3 present', html.includes('#222bbb'), 'missing #222bbb');
-    check('custom band color for 1 present', html.includes('#111aaa'), 'missing #111aaa');
-    // 固定 5 色は撤廃済み。テーブル本体に既定色が残っていてはいけない。
-    const rowHtml = severityHtml();
-    check('no fixed default palette in table', !rowHtml.includes('#ff5c3d') && !rowHtml.includes('#4fa8f0'), rowHtml.slice(0, 200));
-    check('rows use band colors', rowHtml.includes('#333ccc'), rowHtml.slice(0, 200));
+    });
+    const h2 = severityHtml();
+    check('unknown → out-of-range gets unknownColor', h2.includes(C.unknown), h2.slice(0, 200));
+    check('unknown → nearest band color NOT used', !h2.includes('#222bbb'), h2.slice(0, 200));
 }
 
-// ---- 5c. 未ソート / 重なり / 空 / 不正なバンドでも壊れない -----------------
-console.log('\n[5c] malformed severityBands fall back sanely');
+// ---- 5c. 壊れたバンド・壊れた順位一覧でも落ちない --------------------------
+console.log('\n[5c] malformed options fall back sanely');
 {
-    const malformed = [
+    const malformedBands = [
         ['unsorted', [
             { from: 4, to: 9, value: '#333ccc' },
             { from: 0, to: 2, value: '#111aaa' },
@@ -406,105 +461,157 @@ console.log('\n[5c] malformed severityBands fall back sanely');
         ['not an array', 'nonsense'],
         ['garbage entries', [null, 42, { from: 'x', to: 'y' }, { value: 'not-a-color' }]],
     ];
-    for (const [name, bands] of malformed) {
-        state.options = { numericSeverity: true, severityBands: bands };
-        fire('options', { options: state.options });
-        await sleep(160);
-        const rows = bodyRowTexts();
-        check(`${name}: still renders 3 rows`, rows.length === 3, `got ${rows.length}`);
+    for (const [name, bands] of malformedBands) {
+        await setOptions({ severityMode: 'number', severityBands: bands }, NUMERIC_DATA);
+        check(`${name}: still renders 3 rows`, bodyRowTexts().length === 3, `got ${bodyRowTexts().length}`);
         check(`${name}: no error boundary`, !doc.body.textContent.includes('Visualization error'));
     }
 
-    // 文字列パスでも同じ壊れたバンドで落ちないこと(色マップの生成経路を通す)
-    state.data = { fields: FIELDS, rows: ROWS };
-    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
-    for (const [name, bands] of malformed) {
-        state.options = { numericSeverity: false, severityBands: bands };
-        fire('options', { options: state.options });
-        await sleep(140);
-        check(`${name} (string path): renders 7 rows`, bodyRowTexts().length === 7, `got ${bodyRowTexts().length}`);
-        check(`${name} (string path): no error boundary`, !doc.body.textContent.includes('Visualization error'));
+    const malformedOrder = [
+        ['empty array', []],
+        ['not an array', 'nonsense'],
+        ['blank strings', ['', '   ']],
+        ['pipes only', ['|||']],
+        ['non-strings', [1, null, {}]],
+        ['duplicate token across stages', ['critical|dup', 'high|dup']],
+    ];
+    for (const [name, order] of malformedOrder) {
+        await setOptions({ maxRows: 0, severityOrder: order }, { fields: FIELDS, rows: ROWS });
+        check(`order ${name}: renders 7 rows`, bodyRowTexts().length === 7, `got ${bodyRowTexts().length}`);
+        check(`order ${name}: no error boundary`, !doc.body.textContent.includes('Visualization error'));
     }
-    // 復帰
-    state.data = NUMERIC_DATA;
-    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
-    await sleep(140);
+
+    const malformedPalette = [
+        ['empty array', []],
+        ['not an array', 'nonsense'],
+        ['all invalid colors', ['red', 'nope', 123]],
+        ['mixed valid/invalid', ['#123456', 'nope']],
+    ];
+    for (const [name, colors] of malformedPalette) {
+        await setOptions({ maxRows: 0, severityColors: colors });
+        check(`palette ${name}: renders 7 rows`, bodyRowTexts().length === 7, `got ${bodyRowTexts().length}`);
+        check(`palette ${name}: no error boundary`, !doc.body.textContent.includes('Visualization error'));
+    }
 }
 
-// ---- 5d. 旧 criticalThreshold 系キーは無視される ---------------------------
-console.log('\n[5d] legacy threshold keys are ignored');
+// ---- 5d. 旧オプションキーは一切読まれない ----------------------------------
+console.log('\n[5d] legacy option keys are ignored');
 {
-    // 旧キーだけを与える。読み替えを実装していないので既定バンドで判定されるはず。
-    // 旧キーが効いてしまうと 3 が「重大」になる（criticalThreshold:3）。
-    state.options = {
-        numericSeverity: true,
-        criticalThreshold: 3,
-        highThreshold: 2,
-        mediumThreshold: 1,
-        lowThreshold: 0,
-    };
-    fire('options', { options: state.options });
-    await sleep(220);
-    const html = doc.body.innerHTML.toLowerCase();
-    // 既定バンドなら 3 は high(#ffab2e)、1 は low(#4dcf6e)。
-    check('legacy keys ignored → 3 stays high (#ffab2e)', html.includes('#ffab2e'));
-    check('legacy keys ignored → 1 stays low (#4dcf6e)', html.includes('#4dcf6e'));
-    // 旧キーが効いていれば 1 が medium(#f2c14b) になる。そうなっていないこと。
-    check('legacy keys ignored → no medium color leaked', !html.includes('#f2c14b'), 'legacy threshold leaked');
+    await setOptions(
+        {
+            maxRows: 0,
+            // v1 系のキーだけを与える
+            sortBySeverity: false,
+            numericSeverity: true,
+            showTitle: true,
+            criticalColor: '#123abc',
+            highColor: '#456def',
+            infoColor: '#9abcde',
+            criticalThreshold: 3,
+        },
+        { fields: FIELDS, rows: ROWS }
+    );
+    const h = allHtml();
+    check('legacy criticalColor not used', !h.includes('#123abc'));
+    check('legacy highColor not used', !h.includes('#456def'));
+    check('legacy infoColor not used', !h.includes('#9abcde'));
+    check('legacy sortBySeverity ignored → still sorted desc', bodyRowTexts()[0].includes('critical'), bodyRowTexts()[0]);
+    check('legacy numericSeverity ignored → strings still colored', h.includes(C.critical));
+    check('legacy showTitle ignored → no default title', !doc.body.textContent.includes('Recent High Severity Alerts'));
 }
 
-// ---- 5e. 文字列 severity もバンド色に従う（単一の色設定） ------------------
-console.log('\n[5e] string severity path is governed by the same bands');
+// ---- 6. 表示オプション ------------------------------------------------------
+console.log('\n[6] display options');
 {
-    state.data = { fields: FIELDS, rows: ROWS };
-    // バンドが 1 本しかない場合、すべての深刻度がその色になる(破綻しない)
-    state.options = {
-        numericSeverity: false,
-        severityBands: [{ from: 0, to: 100, value: '#000fff' }],
-    };
-    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
-    fire('options', { options: state.options });
-    await sleep(220);
-    const html = doc.body.innerHTML.toLowerCase();
-    check('band color applied to string path', html.includes('#000fff'), 'band color not used for strings');
-    check('removed fixed palette absent from table', !severityHtml().includes('#ff5c3d'), 'fixed palette leaked');
-    check('summary still shows 重大', doc.body.textContent.includes('重大'));
-    check('no error boundary with single band', !doc.body.textContent.includes('Visualization error'));
+    await setOptions({ maxRows: 0, title: 'セキュリティアラート' }, { fields: FIELDS, rows: ROWS });
+    check('title shown when set', doc.body.textContent.includes('セキュリティアラート'));
+
+    await setOptions({ maxRows: 0, title: '' });
+    check('title hidden when empty', !doc.body.textContent.includes('セキュリティアラート'));
+
+    await setOptions({ maxRows: 0, showSummary: false });
+    check('summary hidden', !/critical\s*1/.test(doc.body.textContent), doc.body.textContent.slice(0, 160));
+
+    await setOptions({ maxRows: 0, summaryLabelMode: 'raw', severityOrder: ['critical', 'high', 'medium|warning', 'low', 'info'] });
+    check('summaryLabelMode=raw shows the data value "warning"', doc.body.textContent.includes('warning'), doc.body.textContent.slice(0, 200));
+
+    await setOptions({ maxRows: 0, cellStyle: 'text' });
+    check('cellStyle=text → no pill border-radius 999px', !severityHtml().includes('999px'), severityHtml().slice(0, 200));
+    await setOptions({ maxRows: 0, cellStyle: 'bar' });
+    // happy-dom は borderLeft ショートハンドを個別プロパティへ展開して直列化する
+    check(
+        'cellStyle=bar → left border',
+        /border-left-width:\s*4px/.test(severityHtml()) && /border-left-style:\s*solid/.test(severityHtml()),
+        severityHtml().slice(0, 300)
+    );
+    await setOptions({ maxRows: 0, cellStyle: 'pill' });
+    check('cellStyle=pill → pill radius back', severityHtml().includes('999px'));
+
+    await setOptions({ maxRows: 0, rowBar: false });
+    const headers = [...doc.querySelectorAll('thead th')];
+    check('rowBar=false → no extra bar column', headers.length === 4, `got ${headers.length}`);
+
+    // アイコンモード
+    await setOptions({ maxRows: 0, rowBar: true, topIcon: 'none' });
+    check('topIcon=none → no svg icon in cells', doc.querySelectorAll('tbody svg').length === 0);
+    await setOptions({ maxRows: 0, topIcon: 'highest' });
+    check('topIcon=highest → icon present', doc.querySelectorAll('tbody svg').length > 0);
+    // 最上位(critical)が居ないデータでは 'top' はアイコンを出さない
+    await setOptions(
+        { maxRows: 0, topIcon: 'top' },
+        {
+            fields: [{ name: 'severity' }, { name: 'event' }],
+            rows: [['low', 'a'], ['info', 'b']],
+        }
+    );
+    check('topIcon=top → no icon when stage 0 absent', doc.querySelectorAll('tbody svg').length === 0);
+    await setOptions({ maxRows: 0, topIcon: 'highest' });
+    check('topIcon=highest → icon on most severe present (low)', doc.querySelectorAll('tbody svg').length > 0);
 }
 
-// ---- 6. columnSelector の DOS 文字列で列指定 -------------------------------
-console.log('\n[6] severityField via DOS string');
+// ---- 7. 深刻度フィールドの選択 ---------------------------------------------
+console.log('\n[7] severity field selection');
 {
-    state.data = {
+    const data = {
         fields: [{ name: 'lvl' }, { name: 'sev2' }, { name: 'msg' }],
         rows: [
             ['x', 'critical', 'A'],
             ['y', 'low', 'B'],
         ],
     };
-    // 自動判定では sev2 は名前一致しない → DOS で明示指定
-    state.options = { severityField: "> primary | seriesByName('sev2')", numericSeverity: false };
-    fire('options', { options: state.options });
-    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
-    await sleep(220);
-    check('summary reflects sev2 column (重大 present)', doc.body.textContent.includes('重大'), doc.body.textContent.slice(0, 120));
+    // 既定の候補列名には lvl / sev2 のどちらも無い → 色が付かない
+    await setOptions({ maxRows: 0 }, data);
+    check('no candidate match → no severity coloring', !severityHtml().includes(C.critical), severityHtml().slice(0, 200));
+
+    // 候補列名をオプションで足せば自動判定できる
+    await setOptions({ maxRows: 0, severityFieldCandidates: ['sev2'] });
+    check('custom candidate list detects sev2', severityHtml().includes(C.critical), severityHtml().slice(0, 200));
+
+    // DOS 文字列での明示指定
+    await setOptions({ maxRows: 0, severityField: "> primary | seriesByName('sev2')" });
+    check('DOS columnSelector selects sev2', severityHtml().includes(C.critical));
+
+    // 明示指定は候補リストより優先される
+    await setOptions({
+        maxRows: 0,
+        severityField: "> primary | seriesByName('lvl')",
+        severityFieldCandidates: ['sev2'],
+    });
+    check('explicit field wins over candidates', !severityHtml().includes(C.critical), severityHtml().slice(0, 200));
 }
 
-// ---- 7. テーマ切替 ----------------------------------------------------------
-console.log('\n[7] theme switch to light');
+// ---- 8. テーマ切替 ----------------------------------------------------------
+console.log('\n[8] theme switch to light');
 {
-    state.data = { fields: FIELDS, rows: ROWS };
-    state.options = {};
-    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await setOptions({}, { fields: FIELDS, rows: ROWS });
     state.theme = 'light';
     fire('theme', { theme: 'light' });
     await sleep(220);
-    const container = doc.querySelector('table');
-    check('table still rendered after theme switch', !!container);
+    check('table still rendered after theme switch', !!doc.querySelector('table'));
 }
 
-// ---- 8. ガード（空・ローディング・列形式） ---------------------------------
-console.log('\n[8] guards');
+// ---- 9. ガード（空・列形式・未知オプション） -------------------------------
+console.log('\n[9] guards');
 {
     state.data = { fields: FIELDS, rows: [] };
     fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
@@ -522,20 +629,27 @@ console.log('\n[8] guards');
     fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
     await sleep(180);
     check('columns-form renders 2 rows', bodyRowTexts().length === 2, `got ${bodyRowTexts().length}`);
-}
 
-// ---- 9. debug オーバーレイは削除済み ---------------------------------------
-console.log('\n[9] debug overlay removed');
-{
-    state.data = { fields: FIELDS, rows: ROWS };
-    // 旧 debug オプションを渡しても何も出ない（オプションごと削除済み）
-    state.options = { debug: true };
-    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
-    fire('options', { options: state.options });
-    await sleep(220);
-    check('no debug dump (severityIndex absent)', !doc.body.textContent.includes('severityIndex'), doc.body.textContent.slice(-200));
-    check('no debug overlay <pre> element', !doc.querySelector('pre'));
-    check('table still renders with unknown debug option', !!doc.querySelector('table'));
+    // 空の深刻度値は並べ替え対象外で常に末尾
+    await setOptions(
+        { maxRows: 0, sortMode: 'asc' },
+        {
+            fields: [{ name: 'severity' }, { name: 'event' }],
+            rows: [['', 'blank'], ['critical', 'c'], ['info', 'i']],
+        }
+    );
+    check('blank severity always last (asc)', bodyRowTexts()[2].includes('blank'), bodyRowTexts().join(' // '));
+    await setOptions({ maxRows: 0, sortMode: 'desc' });
+    check('blank severity always last (desc)', bodyRowTexts()[2].includes('blank'), bodyRowTexts().join(' // '));
+
+    // ホストが勝手に載せる未知キー・旧 debug オプションは無視される
+    await setOptions(
+        { maxRows: 0, debug: true, backgroundColor: 'transparent' },
+        { fields: FIELDS, rows: ROWS }
+    );
+    check('no debug dump', !doc.body.textContent.includes('severityIndex'));
+    check('no debug overlay <pre>', !doc.querySelector('pre'));
+    check('table still renders with unknown options', !!doc.querySelector('table'));
 }
 
 console.log(`\n=== ${pass} passed, ${fail} failed ===`);
