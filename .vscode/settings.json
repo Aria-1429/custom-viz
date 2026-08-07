@@ -1,0 +1,35 @@
+{
+    // ファイル監視（inotify）から除外する。
+    //
+    // 【なぜ必要か】Linux の inotify は「1ディレクトリ = 1 watch」を消費する。
+    // このリポジトリは 29 の viz がそれぞれ node_modules を持つため、
+    // node_modules だけで約 47,800 ディレクトリあり、既定の上限
+    // （fs.inotify.max_user_watches = 61,318）をほぼ食い潰す。
+    // その結果 VSCode が「ファイルの変更を監視できません」を出す。
+    //
+    // ここで除外すると監視対象は約 978 ディレクトリまで下がる。
+    // ビルド成果物は編集対象ではないので、監視しなくても支障はない。
+    "files.watcherExclude": {
+        "**/node_modules/**": true,
+        "**/dist/**": true,
+        "**/stage/**": true,
+        "**/.git/objects/**": true,
+        "**/.git/subtree-cache/**": true,
+        "**/packages/**": true
+    },
+
+    // 全文検索の対象からも外す（検索を速くするため。監視とは別設定）。
+    // dist/*.spl はコミット対象だがバイナリなので検索しても意味がない。
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/dist": true,
+        "**/stage": true,
+        "**/packages": true,
+        "**/yarn.lock": true
+    }
+
+    // 【注】files.exclude はあえて設定しない。
+    // エクスプローラには node_modules / dist / stage も表示させる方針。
+    // 監視（watcherExclude）と表示（files.exclude）は独立した設定なので、
+    // 表示したままでも inotify の消費は増えない。
+}
