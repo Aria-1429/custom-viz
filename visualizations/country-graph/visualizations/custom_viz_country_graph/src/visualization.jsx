@@ -362,32 +362,56 @@ function useResolvedColorScheme() {
 /* =========================================================================
  * 最小限のグローバルCSS（visualization.css は変更しない）
  * ========================================================================= */
+// ★ここに登場アニメーションを書かないこと（@keyframes + fill-mode: both は禁止）。
+//   fill-mode: both は animation-delay 中の要素を from の状態（opacity:0 / scaleX(0)）に
+//   固定するため、「アニメーションが一度も進まない描画コンテキスト」では中身が
+//   不可視のまま確定してしまう。PNG 書き出しのように DOM を複製して撮る経路では
+//   パネルごと真っ白に写る。登場アニメーションは mounted フラグ＋inline transition
+//   で行い、最終状態が常に inline style に載っている状態を保つ（下記 useMounted）。
+//   他の viz（gradient-bar / donut-graph / radial-bar / radar-chart 等）と同じ方式。
 const GLOBAL_CSS = `
-@keyframes cg-grow {
-    from { transform: scaleX(0); }
-    to   { transform: scaleX(1); }
-}
-@keyframes cg-fade-in {
-    from { opacity: 0; transform: translateY(4px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-.cg-anim .cg-bar {
-    transform-origin: left center;
-    animation: cg-grow 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-.cg-anim .cg-row {
-    animation: cg-fade-in 0.45s ease both;
-}
-.cg-row { transition: background-color 0.15s ease; }
 .cg-dark .cg-row:hover { background-color: rgba(120, 170, 255, 0.07); }
 .cg-light .cg-row:hover { background-color: rgba(60, 100, 180, 0.07); }
-@media (prefers-reduced-motion: reduce) {
-    .cg-anim .cg-bar, .cg-anim .cg-row { animation: none; }
-}
 `;
 
 function GlobalStyles() {
     return <style>{GLOBAL_CSS}</style>;
+}
+
+/* OS の「視差効果を減らす」設定。true ならアニメーションを行わない。
+ * CSS の @media ではなく JS で判定するのは、inline style を @media で
+ * 上書きするには !important が必要になり、指定が読みにくくなるため。 */
+function prefersReducedMotion() {
+    try {
+        const mq = globalThis.matchMedia;
+        return Boolean(mq && mq('(prefers-reduced-motion: reduce)').matches);
+    } catch (e) {
+        return false;
+    }
+}
+
+/* マウント直後に true になるフラグ。false の間だけ「アニメーション開始前の姿」を
+ * 描き、次フレームで最終状態へ transition させる。 */
+function useMounted() {
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => {
+        // rAF が無い環境（一部のヘッドレス描画・テスト環境）では即座に確定させる。
+        // ここで待ち続けると「バーが 0% のまま」という新たな不表示を作ってしまう。
+        const raf = globalThis.requestAnimationFrame;
+        if (typeof raf !== 'function') {
+            setMounted(true);
+            return undefined;
+        }
+        const id = raf(() => setMounted(true));
+        return () => {
+            try {
+                globalThis.cancelAnimationFrame(id);
+            } catch (e) {
+                /* 解除できなくても害はない */
+            }
+        };
+    }, []);
+    return mounted;
 }
 
 /* =========================================================================
@@ -604,20 +628,25 @@ function buildStyles(colorScheme, opts, plan) {
     };
 }
 
-function barFillStyle(percent, colors, index, opts) {
+// バーの塗り。settled=true で最終幅、false で 0%（＝アニメーション開始前）。
+// scaleX ではなく width を動かす（他 viz と同じ）。scaleX は角丸とグローまで
+// 一緒に潰れるため、伸びている最中の見た目が崩れる。
+function barFillStyle(percent, colors, index, opts, settled, animate) {
     return {
         position: 'absolute',
         top: 0,
         left: 0,
         height: '100%',
-        width: `${percent}%`,
-        minWidth: '12px',
+        width: settled ? `${percent}%` : '0%',
+        minWidth: settled ? '12px' : 0,
         borderRadius: '5px',
         background: `linear-gradient(90deg, ${colors.fillStart}, ${colors.fillEnd})`,
         boxShadow: opts.glow
             ? `0 0 10px ${colors.glow}, 0 0 22px ${colors.glowSoft}`
             : 'none',
-        animationDelay: `${index * 70}ms`,
+        transition: animate
+            ? `width 700ms cubic-bezier(0.22, 1, 0.36, 1) ${index * 70}ms`
+            : 'none',
     };
 }
 
@@ -665,6 +694,14 @@ function CountryGraphTable({ fieldNames, rows, colorScheme, opts }) {
 
     // パネル実サイズを計測し、狭い時は列を落として収める
     const [measureRef, size] = useElementSize();
+
+    // 登場アニメーション（他 viz と同方式：mounted フラグ＋inline transition）。
+    // settled が true の間は最終状態が inline style に載っているので、
+    // DOM を複製して撮る経路（PNG 書き出し等）でもそのまま写る。
+    const [reducedMotion] = useState(prefersReducedMotion);
+    const mounted = useMounted();
+    const animate = opts.animate && !reducedMotion;
+    const settled = mounted || !animate;
     const plan = useMemo(
         () => computeResponsivePlan(size.width, opts),
         [size.width, opts],
@@ -732,12 +769,8 @@ function CountryGraphTable({ fieldNames, rows, colorScheme, opts }) {
     // 値セルは「値」か（幅の残る）「シェア」のどちらかを表示する時のみ出す
     const showValueCell = opts.showValue || plan.showShare;
 
-    const wrapperClass = [
-        isDark ? 'cg-dark' : 'cg-light',
-        opts.animate ? 'cg-anim' : '',
-    ]
-        .filter(Boolean)
-        .join(' ');
+    // クラスはホバー配色の出し分けにのみ使う（アニメーションは inline style 側）
+    const wrapperClass = isDark ? 'cg-dark' : 'cg-light';
 
     // 外側＝パネル実寸の計測用（overflow:hidden でスクロールバーの影響を排除）、
     // 内側＝実スクロール領域。計測要素のサイズが揺れないためフリッカーしない。
@@ -776,9 +809,18 @@ function CountryGraphTable({ fieldNames, rows, colorScheme, opts }) {
                     isDark,
                 });
                 const isLast = index === items.length - 1;
+                const rowDelay = index * 55;
                 const rowStyle = {
                     ...(isLast ? { ...styles.row, ...styles.rowLast } : styles.row),
-                    animationDelay: `${index * 55}ms`,
+                    opacity: settled ? 1 : 0,
+                    transform: settled ? 'translateY(0)' : 'translateY(4px)',
+                    // ホバーの背景遷移も inline に含める（inline は CSS クラスより強く、
+                    // ここで上書きすると .cg-row 側の transition が効かなくなるため）
+                    transition: animate
+                        ? `opacity 450ms ease ${rowDelay}ms,` +
+                          ` transform 450ms ease ${rowDelay}ms,` +
+                          ' background-color 150ms ease'
+                        : 'background-color 150ms ease',
                 };
                 return (
                     <div
@@ -799,9 +841,18 @@ function CountryGraphTable({ fieldNames, rows, colorScheme, opts }) {
                         </span>
                         {plan.showBar && (
                             <div style={styles.barTrack}>
+                                {/* cg-bar は目印用のクラス（CSS は付いていない）。
+                                    見た目はすべて inline style 側で決まる */}
                                 <div
                                     className="cg-bar"
-                                    style={barFillStyle(percent, colors, index, opts)}
+                                    style={barFillStyle(
+                                        percent,
+                                        colors,
+                                        index,
+                                        opts,
+                                        settled,
+                                        animate,
+                                    )}
                                 />
                             </div>
                         )}

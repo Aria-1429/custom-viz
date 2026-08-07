@@ -118,6 +118,20 @@ console.log('\n[1] default (palette mode, desc sort, dark)');
     const topBarBg = bars()[0].getAttribute('style') || '';
     check('bar uses linear-gradient', topBarBg.includes('linear-gradient'), topBarBg.slice(0, 80));
     check('glow on by default (box-shadow)', topBarBg.includes('box-shadow') && !topBarBg.includes('box-shadow: none'));
+
+    // ★回帰テスト：登場アニメーションを CSS @keyframes + fill-mode:both で作らないこと。
+    //   both は animation-delay 中の要素を from（opacity:0 / scaleX(0)）に固定するため、
+    //   アニメーションが一度も進まない描画コンテキスト（DOM を複製して撮る PNG 書き出し等）
+    //   では中身が不可視のまま焼き付き、パネルごと真っ白になる。
+    //   最終状態が必ず inline style に載っていることを確認する。
+    const barW = /width:\s*([\d.]+)%/.exec(topBarBg);
+    check('bar width materialized in inline style', barW && parseFloat(barW[1]) > 0, topBarBg.slice(0, 140));
+    check('bars use no CSS animation', !/animation/.test(topBarBg), topBarBg.slice(0, 140));
+    const topRowStyle = rows()[0].getAttribute('style') || '';
+    check('row opaque after mount', /opacity:\s*1\b/.test(topRowStyle), topRowStyle.slice(0, 180));
+    check('rows use no CSS animation', !/animation/.test(topRowStyle), topRowStyle.slice(0, 180));
+    const injectedCss = [...doc.querySelectorAll('style')].map((s) => s.textContent).join('\n');
+    check('no @keyframes injected', !injectedCss.includes('@keyframes'), injectedCss.slice(0, 200));
 }
 
 // ---- 2. 昇順ソート -----------------------------------------------------------
@@ -182,7 +196,9 @@ console.log('\n[6] display toggles off');
     check('no share %', !/%/.test(doc.body.textContent));
     const topBg = bars()[0].getAttribute('style') || '';
     check('glow off (box-shadow: none)', topBg.includes('box-shadow: none'), topBg.slice(0, 120));
-    check('animate off (no cg-anim class)', !doc.querySelector('.cg-anim'));
+    check('animate off → bar transition: none', /transition:\s*none/.test(topBg), topBg.slice(0, 180));
+    const rowOff = rows()[0].getAttribute('style') || '';
+    check('animate off → row visible immediately', /opacity:\s*1\b/.test(rowOff), rowOff.slice(0, 180));
 }
 
 // ---- 7. スケール min/max 固定 ------------------------------------------------

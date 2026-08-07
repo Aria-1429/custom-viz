@@ -234,6 +234,79 @@ function normalizeData(data) {
 - オプションは必ず `normalizeOptions(options)` で型・範囲を安全側に補正（未設定/型不一致に耐える）。
 - 幅・高さは ResizeObserver でコンテナ実寸を測って自動フィット。非対応環境では初回計測にフォールバック。
 
+### 登場アニメーションは `@keyframes` + `fill-mode: both` で作らない（2026-08-07 実害）
+
+**症状**：ダッシュボードを **PNG でダウンロードすると、その viz のパネルだけ真っ白**になる。
+画面上は正常に表示されているので気づきにくい。country-graph で実際に発生した。
+
+**原因**：行とバーの登場アニメーションを、行ごとの `animation-delay` 付き
+CSS `@keyframes` ＋ `animation-fill-mode: both` で描いていた。
+
+```css
+/* ✗ やってはいけない */
+@keyframes cg-fade-in { from { opacity: 0 } to { opacity: 1 } }
+.cg-row { animation: cg-fade-in 0.45s ease both; }   /* + style={{animationDelay: `${i*55}ms`}} */
+```
+
+`both`（= `backwards` + `forwards`）は **`animation-delay` の間、要素を `from` の状態に固定する**。
+つまり遅延中の行は `opacity: 0`、バーは `transform: scaleX(0)` で**完全に不可視**。
+**アニメーションが一度も進まない描画コンテキスト**（DOM を複製して撮る書き出し経路など）では、
+その不可視状態のまま確定して焼き付く。
+
+**対策（house pattern）**：**最終状態が常に inline style に載っている**方式にする。
+マウント後フラグ＋`transition` で、DOM を複製しても最終値がそのまま複製先に残るようにする。
+
+```jsx
+function useMounted() {
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => {
+        const raf = globalThis.requestAnimationFrame;
+        if (typeof raf !== 'function') { setMounted(true); return undefined; }  // rAF 無し環境の保険
+        const id = raf(() => setMounted(true));
+        return () => { try { globalThis.cancelAnimationFrame(id); } catch (e) { /* noop */ } };
+    }, []);
+    return mounted;
+}
+// …
+const settled = mounted || !animate;
+<div style={{
+    width: settled ? `${pct}%` : '0%',
+    transition: animate ? `width 700ms cubic-bezier(0.22,1,0.36,1) ${index * 70}ms` : 'none',
+}} />
+```
+
+- **`transform: scaleX()` ではなく `width` を動かす**。`scaleX` は角丸と `box-shadow` のグローまで
+  一緒に潰れ、伸びている最中の見た目が崩れる。
+- **`prefers-reduced-motion` は CSS の `@media` ではなく JS（`matchMedia`）で判定する**。
+  inline style を `@media` で上書きするには `!important` が要り、指定が読みにくくなる。
+- **rAF が無い環境のフォールバックを必ず入れる**。入れないと `mounted` が立たず
+  「バーが 0% のまま」という別の不表示を作る。
+- 採用実績：gradient-bar / donut-graph / radial-bar / radar-chart / calendar-heatmap /
+  donut-timechart / country-graph。**それ以外の viz は rAF で SVG 属性を直接更新**しており、
+  いずれも「DOM にその瞬間の最終値が入っている」点は同じ。
+
+**回帰テストの書き方**（`test/verify.mjs`。country-graph に実装済み）:
+
+```js
+const s = bar.getAttribute('style') || '';
+check('bar width materialized in inline style', /width:\s*([\d.]+)%/.exec(s)?.[1] > 0);
+check('bars use no CSS animation', !/animation/.test(s));
+check('row opaque after mount', /opacity:\s*1\b/.test(row.getAttribute('style') || ''));
+const css = [...doc.querySelectorAll('style')].map((e) => e.textContent).join('\n');
+check('no @keyframes injected', !css.includes('@keyframes'));
+```
+
+**検出コマンド**（他の viz に同じ地雷が無いか。2026-08-07 時点では 0 件）:
+
+```bash
+grep -l "animation:.* both" visualizations/*/visualizations/*/src/visualization.jsx
+```
+
+> ⚠ **未検証**：Splunk の PNG 書き出しが「アニメーションを進めずに DOM を複製して撮っている」
+> という機構そのものは、書き出し実装が手元に無いため確認していない。
+> **確認済みなのは**「コンテンツ本体を `@keyframes` + `both` + `delay` で描いていたのは
+> 全 viz 中 country-graph だけ」「`both` は遅延中 `from` に固定する（CSS 仕様）」の2点。
+
 ### アニメーション viz（物理シミュレーション・パーティクル等）のハイブリッド描画
 
 60fps の位置更新を React の再レンダリングでやると持たないので、**役割を属性単位で分離**する:

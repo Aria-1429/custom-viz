@@ -107,6 +107,41 @@ BR,9"
 
 ---
 
+### [1.1.3] - 2026-08-07
+
+#### 修正
+
+- **登場アニメーションの実装方式を他の viz に合わせた。PNG 書き出しでパネルが真っ白になる問題を解消。**
+  従来は行とバーを CSS `@keyframes` ＋ `animation-fill-mode: both` ＋ 行ごとの `animation-delay`
+  で描いていた。`both` は遅延中の要素を `from` の状態（行 `opacity: 0` / バー `transform: scaleX(0)`）に
+  固定するため、**アニメーションが一度も進まない描画コンテキストでは中身が不可視のまま確定する**。
+  DOM を複製して撮る経路（ダッシュボードの PNG ダウンロード等）では、行もバーも消えたまま焼き付いていた。
+  コンテンツ本体を `@keyframes` で描いていたのは全 viz 中この viz だけだった。
+  マウント後フラグ（`requestAnimationFrame`）＋ inline `transition` へ置き換え、
+  **最終状態が常に inline style に載っている**方式にした（gradient-bar / donut-graph /
+  radial-bar / radar-chart / calendar-heatmap / donut-timechart と同じ実装）。
+
+#### 変更
+
+- バーの伸長を `transform: scaleX()` から `width` の遷移に変更。
+  `scaleX` は角丸とグロー（`box-shadow`）まで一緒に潰れるため、伸びている最中の見た目が崩れていた。
+- 「視差効果を減らす」（`prefers-reduced-motion: reduce`）の判定を CSS の `@media` から JS
+  （`matchMedia`）へ移した。inline style を `@media` で上書きするには `!important` が必要になるため。
+  アニメーションを行わない挙動自体は従来どおり。
+- `requestAnimationFrame` が無い環境では即座にマウント確定するフォールバックを追加
+  （待ち続けて「バーが 0% のまま」になる新たな不表示を作らないため）。
+- 回帰テストを追加（`test/verify.mjs`、35 件に増加）:
+  バー幅が inline style に実体化していること／行が `opacity: 1` であること／
+  スタイル属性に `animation` が現れないこと／`@keyframes` が注入されないこと。
+
+#### 内部
+
+- `.cg-anim` クラスと `cg-grow` / `cg-fade-in` の `@keyframes` を削除。
+  `.cg-bar` は CSS の付かない目印用クラスとして残置（テストのセレクタ）。
+- パッケージ: `dist/custom_viz_country_graph-1.1.3-4552a4b.spl`
+
+---
+
 ### [1.1.2] - 2026-08-06
 
 #### 変更
