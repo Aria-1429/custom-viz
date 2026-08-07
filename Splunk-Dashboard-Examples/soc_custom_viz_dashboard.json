@@ -35,12 +35,6 @@
             "description": "アラートをカテゴリ別に集計したドーナツ。",
             "options": {
                 "categoryField": "カテゴリ",
-                "color1": "#ff4d6a",
-                "color2": "#ff9f45",
-                "color3": "#ffd166",
-                "color4": "#2dd4bf",
-                "color5": "#38bdf8",
-                "color6": "#8b7cf6",
                 "gap": 3,
                 "glow": true,
                 "glowStrength": 7,
@@ -51,7 +45,16 @@
                 "showPercent": true,
                 "showTotal": true,
                 "thickness": 26,
-                "valueField": "件数"
+                "valueField": "件数",
+                "seriesColors": [
+                    "#ff4d6a",
+                    "#ff9f45",
+                    "#ffd166",
+                    "#2dd4bf",
+                    "#38bdf8",
+                    "#8b7cf6"
+                ],
+                "backgroundColor": "transparent"
             },
             "title": "アラート分類",
             "type": "custom_viz_donut_graph.custom_viz_donut_graph",
@@ -78,7 +81,8 @@
                 "useMidColor": true,
                 "useValueColors": true,
                 "valueField": "incidents",
-                "weekStartMonday": true
+                "weekStartMonday": true,
+                "backgroundColor": "transparent"
             },
             "title": "日次インシデント発生ヒートマップ",
             "type": "custom_viz_calendar_heatmap.custom_viz_calendar_heatmap",
@@ -117,7 +121,8 @@
                 "useGradientRibbons": true,
                 "useMidColor": true,
                 "useValueColors": true,
-                "valueField": "value"
+                "valueField": "value",
+                "backgroundColor": "transparent"
             },
             "title": "ゾーン間トラフィックマトリクス",
             "type": "custom_viz_chord_flow.custom_viz_chord_flow",
@@ -133,10 +138,6 @@
                 "autoFit": true,
                 "categoryField": "severity",
                 "centerPercent": true,
-                "color1": "#ff4d6a",
-                "color2": "#ff9f45",
-                "color3": "#ffd166",
-                "color4": "#38bdf8",
                 "gap": 3,
                 "glow": true,
                 "glowStrength": 6,
@@ -152,7 +153,14 @@
                 "thickness": 24,
                 "timeField": "_time",
                 "totalColor": "#dbe9ff",
-                "valueField": "count"
+                "valueField": "count",
+                "seriesColors": [
+                    "#ff4d6a",
+                    "#ff9f45",
+                    "#ffd166",
+                    "#38bdf8"
+                ],
+                "backgroundColor": "transparent"
             },
             "title": "深刻度別アラート推移",
             "type": "custom_viz_donut_timechart.custom_viz_donut_timechart",
@@ -246,7 +254,8 @@
                 "showValues": true,
                 "spacing": 140,
                 "useMidColor": true,
-                "useValueColors": true
+                "useValueColors": true,
+                "backgroundColor": "transparent"
             },
             "title": "ラテラルムーブメント 通信グラフ",
             "type": "custom_viz_network_graph.custom_viz_network_graph",
@@ -263,19 +272,24 @@
                 "fillOpacity": 28,
                 "glow": true,
                 "rings": 5,
-                "seriesColor1": "#38bdf8",
-                "seriesColor2": "#2dd4bf",
-                "seriesColor3": "#8b7cf6",
-                "seriesField1": "現状",
-                "seriesField2": "目標",
-                "seriesField3": "前月",
                 "sharedScale": true,
                 "showAxisLabels": true,
                 "showDots": true,
                 "showLegend": true,
                 "showValueLabels": false,
                 "startAngle": -90,
-                "strokeWidth": 2
+                "strokeWidth": 2,
+                "seriesFields": [
+                    "現状",
+                    "目標",
+                    "前月"
+                ],
+                "seriesColors": [
+                    "#38bdf8",
+                    "#2dd4bf",
+                    "#8b7cf6"
+                ],
+                "backgroundColor": "transparent"
             },
             "title": "セキュリティ統制カバレッジ",
             "type": "custom_viz_radar_chart.custom_viz_radar_chart",
@@ -301,7 +315,8 @@
                 "showValues": true,
                 "useGradientLinks": true,
                 "useMidColor": true,
-                "useValueColors": true
+                "useValueColors": true,
+                "backgroundColor": "transparent"
             },
             "title": "キルチェーン ステージ遷移",
             "type": "custom_viz_sankey_flow.custom_viz_sankey_flow",
@@ -316,19 +331,42 @@
             "options": {
                 "cellStyle": "badge",
                 "compact": false,
-                "criticalColor": "#ef4d6a",
-                "highColor": "#f0912e",
-                "infoColor": "#38bdf8",
-                "lowColor": "#38bdf8",
                 "maxRows": 50,
-                "mediumColor": "#f5c518",
                 "rowBar": true,
                 "severityField": "深刻度",
                 "showSummary": true,
                 "showTitle": true,
                 "sortBySeverity": true,
                 "title": "直近のノータブルイベント",
-                "zebra": true
+                "zebra": true,
+                "severityBands": [
+                    {
+                        "from": 0,
+                        "to": 1,
+                        "value": "#38bdf8"
+                    },
+                    {
+                        "from": 1,
+                        "to": 2,
+                        "value": "#38bdf8"
+                    },
+                    {
+                        "from": 2,
+                        "to": 3,
+                        "value": "#f5c518"
+                    },
+                    {
+                        "from": 3,
+                        "to": 4,
+                        "value": "#f0912e"
+                    },
+                    {
+                        "from": 4,
+                        "to": 5,
+                        "value": "#ef4d6a"
+                    }
+                ],
+                "backgroundColor": "transparent"
             },
             "title": "ノータブルイベント一覧",
             "type": "custom_viz_severity_table.custom_viz_severity_table",
@@ -361,7 +399,8 @@
                 "useMidColor": true,
                 "usePeakColor": true,
                 "wireframe": false,
-                "yaw": 35
+                "yaw": 35,
+                "backgroundColor": "transparent"
             },
             "title": "攻撃サーフェス 時間×曜日 ヒートマップ地形",
             "type": "custom_viz_metric_terrain.custom_viz_metric_terrain",
@@ -386,12 +425,12 @@
                 "showTitle": true,
                 "showTrack": true,
                 "showValue": true,
-                "sortAscending": false,
-                "sortByValue": true,
                 "topN": 8,
                 "useMidColor": true,
                 "useValueColors": true,
-                "valueField": "攻撃数"
+                "valueField": "攻撃数",
+                "sortMode": "desc",
+                "backgroundColor": "transparent"
             },
             "title": "攻撃対象ホスト TOP8",
             "type": "custom_viz_gradient_bar.custom_viz_gradient_bar",
@@ -418,7 +457,8 @@
                 "showValue": true,
                 "sortDescending": true,
                 "topN": 10,
-                "useMidColor": true
+                "useMidColor": true,
+                "backgroundColor": "transparent"
             },
             "title": "攻撃元国 ランキング",
             "type": "custom_viz_country_graph.custom_viz_country_graph",
@@ -437,11 +477,7 @@
                 "dstLatField": "dstLat",
                 "dstLonField": "dstLon",
                 "dstNameField": "dstName",
-                "highColor": "#ef4d6a",
                 "landColor": "#101a2e",
-                "lowColor": "#38bdf8",
-                "mediumColor": "#f5c518",
-                "severityField": "severity",
                 "showFilter": true,
                 "showLegend": true,
                 "showTitle": true,
@@ -450,7 +486,17 @@
                 "srcNameField": "srcName",
                 "titleText": "攻撃元→データセンター 地理フロー",
                 "useBgColor": true,
-                "useLandColor": true
+                "useLandColor": true,
+                "categoryField": "severity",
+                "colorMode": "category",
+                "categoryColors": [
+                    "critical|#ef4d6a",
+                    "high|#ef4d6a",
+                    "medium|#f5c518",
+                    "low|#38bdf8"
+                ],
+                "fallbackColor": "#f5c518",
+                "backgroundColor": "transparent"
             },
             "title": "攻撃元ジオマップ",
             "type": "custom_viz_worldmap.custom_viz_worldmap",
@@ -561,7 +607,7 @@
         "ds_network": {
             "name": "ds_network",
             "options": {
-                "query": "| makeresults format=csv data=\"src,dst,weight\nattacker-ext,vpn-gw-02,90\nvpn-gw-02,jump-host-01,70\njump-host-01,dc01,120\njump-host-01,file-srv-07,45\ndc01,db-prod-03,80\ndc01,web-front-01,30\ndb-prod-03,exfil-node,110\nweb-front-01,mail-relay-01,20\nfile-srv-07,exfil-node,60\nmail-relay-01,attacker-ext,35\" ",
+                "query": "| makeresults format=csv data=\"src,dst,weight\nattacker-ext,vpn-gw-02,90\nvpn-gw-02,jump-host-01,70\njump-host-01,dc01,120\njump-host-01,file-srv-07,45\ndc01,db-prod-03,80\ndc01,web-front-01,30\ndb-prod-03,exfil-node,110\nweb-front-01,mail-relay-01,20\nfile-srv-07,exfil-node,60\nmail-relay-01,attacker-ext,35\" | table src dst weight",
                 "queryParameters": {
                     "earliest": "-24h@h",
                     "latest": "now"
@@ -583,7 +629,7 @@
         "ds_sankey": {
             "name": "ds_sankey",
             "options": {
-                "query": "| makeresults format=csv data=\"source,target,value\nRecon,Initial Access,320\nInitial Access,Execution,214\nInitial Access,Blocked,106\nExecution,Persistence,150\nExecution,Privilege Esc,64\nPersistence,Lateral Movement,98\nPrivilege Esc,Lateral Movement,52\nLateral Movement,Exfiltration,71\nLateral Movement,Contained,79\nExfiltration,Impact,33\" ",
+                "query": "| makeresults format=csv data=\"source,target,value\nRecon,Initial Access,320\nInitial Access,Execution,214\nInitial Access,Blocked,106\nExecution,Persistence,150\nExecution,Privilege Esc,64\nPersistence,Lateral Movement,98\nPrivilege Esc,Lateral Movement,52\nLateral Movement,Exfiltration,71\nLateral Movement,Contained,79\nExfiltration,Impact,33\" | table source target value",
                 "queryParameters": {
                     "earliest": "-24h@h",
                     "latest": "now"
@@ -645,7 +691,7 @@
                 "options": {
                     "backgroundColor": "#060b16",
                     "display": "auto-scale",
-                    "height": 1438,
+                    "height": 2072,
                     "width": 1460
                 },
                 "structure": [
@@ -694,9 +740,9 @@
                         "item": "terrain",
                         "position": {
                             "x": 16,
-                            "y": 104,
+                            "y": 108,
                             "w": 948,
-                            "h": 250
+                            "h": 380
                         }
                     },
                     {
@@ -704,9 +750,9 @@
                         "item": "sevtable",
                         "position": {
                             "x": 976,
-                            "y": 104,
+                            "y": 108,
                             "w": 468,
-                            "h": 250
+                            "h": 380
                         }
                     },
                     {
@@ -714,9 +760,9 @@
                         "item": "worldmap",
                         "position": {
                             "x": 16,
-                            "y": 366,
+                            "y": 504,
                             "w": 948,
-                            "h": 270
+                            "h": 340
                         }
                     },
                     {
@@ -724,9 +770,9 @@
                         "item": "viz_country",
                         "position": {
                             "x": 976,
-                            "y": 366,
+                            "y": 504,
                             "w": 468,
-                            "h": 270
+                            "h": 340
                         }
                     },
                     {
@@ -734,9 +780,9 @@
                         "item": "tophosts",
                         "position": {
                             "x": 16,
-                            "y": 648,
+                            "y": 860,
                             "w": 468,
-                            "h": 250
+                            "h": 400
                         }
                     },
                     {
@@ -744,9 +790,9 @@
                         "item": "alertcat",
                         "position": {
                             "x": 496,
-                            "y": 648,
+                            "y": 860,
                             "w": 468,
-                            "h": 250
+                            "h": 400
                         }
                     },
                     {
@@ -754,9 +800,9 @@
                         "item": "radar",
                         "position": {
                             "x": 976,
-                            "y": 648,
+                            "y": 860,
                             "w": 468,
-                            "h": 250
+                            "h": 400
                         }
                     },
                     {
@@ -764,9 +810,9 @@
                         "item": "donuttime",
                         "position": {
                             "x": 16,
-                            "y": 910,
+                            "y": 1276,
                             "w": 708,
-                            "h": 210
+                            "h": 340
                         }
                     },
                     {
@@ -774,9 +820,9 @@
                         "item": "calendar",
                         "position": {
                             "x": 736,
-                            "y": 910,
+                            "y": 1276,
                             "w": 708,
-                            "h": 210
+                            "h": 340
                         }
                     },
                     {
@@ -784,9 +830,9 @@
                         "item": "network",
                         "position": {
                             "x": 16,
-                            "y": 1132,
+                            "y": 1632,
                             "w": 468,
-                            "h": 290
+                            "h": 420
                         }
                     },
                     {
@@ -794,9 +840,9 @@
                         "item": "chord",
                         "position": {
                             "x": 496,
-                            "y": 1132,
+                            "y": 1632,
                             "w": 468,
-                            "h": 290
+                            "h": 420
                         }
                     },
                     {
@@ -804,9 +850,9 @@
                         "item": "sankey",
                         "position": {
                             "x": 976,
-                            "y": 1132,
+                            "y": 1632,
                             "w": 468,
-                            "h": 290
+                            "h": 420
                         }
                     }
                 ],

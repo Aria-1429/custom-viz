@@ -1,0 +1,1025 @@
+{
+    "title": "国内インフラ運用センター",
+    "description": "国内データセンター／拠点の運用監視ビュー。Japan Map（国内フローマップ）と Link Line（拠点間コネクタ線）を主役に据え、キャパシティ・トレンド・構成の各面をカスタムビジュアライゼーションで可視化する。全パネルが makeresults のサンプルデータで動作するため、実データ無しでそのまま表示を確認できる。",
+    "inputs": {
+        "input_time": {
+            "type": "input.timerange",
+            "title": "時間範囲",
+            "options": {
+                "token": "global_time",
+                "defaultValue": "-24h@h,now"
+            }
+        }
+    },
+    "defaults": {
+        "dataSources": {
+            "ds.search": {
+                "options": {
+                    "queryParameters": {
+                        "latest": "now"
+                    }
+                }
+            }
+        },
+        "visualizations": {
+            "global": {
+                "showLastUpdated": false,
+                "showProgressBar": false
+            }
+        }
+    },
+    "visualizations": {
+        "viz_env_tabs": {
+            "type": "custom_viz_tab_selector.custom_viz_tab_selector",
+            "title": "対象環境",
+            "description": "クリックでトークン env を切り替える。トークンの反映には編集画面「インタラクション」で「トークンを設定」を1回だけ設定する必要がある。",
+            "options": {
+                "tabs": [
+                    "本番|prod",
+                    "ステージング|stg",
+                    "検証|dev",
+                    "全環境|*"
+                ],
+                "defaultTabIndex": 1,
+                "tabStyle": "underline",
+                "align": "left",
+                "fontSize": 14,
+                "accentColor": "#2dd4bf",
+                "backgroundColor": "transparent"
+            }
+        },
+        "viz_ops_frame": {
+            "type": "custom_viz_spotlight_frame.custom_viz_spotlight_frame",
+            "title": "運用ステータス",
+            "description": "未クローズの重大障害件数で OK / WARNING / CRITICAL を判定し、枠の色・発光・点滅で示す。",
+            "dataSources": {
+                "primary": "ds_ops_status"
+            },
+            "options": {
+                "labelField": "> primary | seriesByName('scope')",
+                "valueField": "> primary | seriesByName('open_p1')",
+                "titleText": "OPERATIONS STATUS",
+                "showTitle": true,
+                "showBadge": true,
+                "showCounts": true,
+                "matchMode": "numeric",
+                "colorBands": [
+                    {
+                        "from": null,
+                        "to": 1,
+                        "value": "#22c55e"
+                    },
+                    {
+                        "from": 1,
+                        "to": 3,
+                        "value": "#f59e0b"
+                    },
+                    {
+                        "from": 3,
+                        "to": null,
+                        "value": "#ef4444"
+                    }
+                ],
+                "okLabel": "平常",
+                "warnLabel": "注意",
+                "critLabel": "重大",
+                "borderWidth": 4,
+                "cornerRadius": 12,
+                "showGlow": true,
+                "glowStrength": 55,
+                "pulseMode": "crit",
+                "fillOpacity": 8,
+                "backgroundColor": "transparent"
+            }
+        },
+        "viz_kpi_uptime": {
+            "type": "custom_viz_kpi_tile.custom_viz_kpi_tile",
+            "title": "稼働率",
+            "dataSources": {
+                "primary": "ds_kpi_uptime"
+            },
+            "options": {
+                "labelField": "> primary | seriesByName('label')",
+                "valueField": "> primary | seriesByName('value')",
+                "titleText": "UPTIME / 30D",
+                "deltaLabel": "前月比",
+                "accentColor": "#2dd4bf",
+                "iconName": "check",
+                "showIcon": true,
+                "showGlow": true,
+                "showDelta": true,
+                "deltaAsPercent": false,
+                "deltaColorMode": "positiveGood",
+                "sparkMode": "line",
+                "valueDecimals": 2,
+                "abbreviateValue": false,
+                "bgOpacity": 20,
+                "backgroundColor": "transparent"
+            }
+        },
+        "viz_kpi_tickets": {
+            "type": "custom_viz_kpi_tile.custom_viz_kpi_tile",
+            "title": "未対応チケット",
+            "dataSources": {
+                "primary": "ds_kpi_tickets"
+            },
+            "options": {
+                "labelField": "> primary | seriesByName('label')",
+                "valueField": "> primary | seriesByName('value')",
+                "titleText": "OPEN TICKETS",
+                "deltaLabel": "前日比",
+                "accentColor": "#f59e0b",
+                "iconName": "flag",
+                "showIcon": true,
+                "showGlow": true,
+                "showDelta": true,
+                "deltaAsPercent": false,
+                "deltaColorMode": "positiveBad",
+                "sparkMode": "bars",
+                "abbreviateValue": false,
+                "bgOpacity": 20,
+                "backgroundColor": "transparent"
+            }
+        },
+        "viz_icon_db": {
+            "type": "custom_viz_icon_status.custom_viz_icon_status",
+            "title": "データベース",
+            "description": "アイコンの陰影・差し色・発光がしきい値に連動して一斉に色を変える。",
+            "dataSources": {
+                "primary": "ds_health_db"
+            },
+            "options": {
+                "labelField": "> primary | seriesByName('label')",
+                "valueField": "> primary | seriesByName('load')",
+                "iconName": "database",
+                "iconStyle": "solid",
+                "colorMode": "threshold",
+                "colorBands": [
+                    {
+                        "from": null,
+                        "to": 65,
+                        "value": "#3fb950"
+                    },
+                    {
+                        "from": 65,
+                        "to": 85,
+                        "value": "#d29922"
+                    },
+                    {
+                        "from": 85,
+                        "to": null,
+                        "value": "#f85149"
+                    }
+                ],
+                "labelText": "DATABASE",
+                "unitText": "%",
+                "aggregation": "last",
+                "showGlow": true,
+                "showShadow": true,
+                "pulseMode": "ring",
+                "showCard": false,
+                "backgroundColor": "transparent"
+            }
+        },
+        "viz_icon_cloud": {
+            "type": "custom_viz_icon_status.custom_viz_icon_status",
+            "title": "クラウド基盤",
+            "dataSources": {
+                "primary": "ds_health_cloud"
+            },
+            "options": {
+                "labelField": "> primary | seriesByName('label')",
+                "valueField": "> primary | seriesByName('load')",
+                "iconName": "cloud",
+                "iconStyle": "solid",
+                "colorMode": "threshold",
+                "colorBands": [
+                    {
+                        "from": null,
+                        "to": 65,
+                        "value": "#3fb950"
+                    },
+                    {
+                        "from": 65,
+                        "to": 85,
+                        "value": "#d29922"
+                    },
+                    {
+                        "from": 85,
+                        "to": null,
+                        "value": "#f85149"
+                    }
+                ],
+                "labelText": "CLOUD",
+                "unitText": "%",
+                "aggregation": "last",
+                "showGlow": true,
+                "showShadow": true,
+                "pulseMode": "none",
+                "showCard": false,
+                "backgroundColor": "transparent"
+            }
+        },
+        "viz_marker_latency": {
+            "type": "custom_viz_gauge_arc.custom_viz_gauge_arc",
+            "title": "平均応答時間",
+            "dataSources": {
+                "primary": "ds_latency"
+            },
+            "options": {
+                "valueField": "> primary | seriesByName('latency')",
+                "labelField": "> primary | seriesByName('_time')",
+                "aggMode": "last",
+                "minValue": 0,
+                "maxValue": 400,
+                "gaugeStyle": "segmented",
+                "sweepAngle": 240,
+                "arcThickness": 16,
+                "segmentCount": 32,
+                "litMode": "band",
+                "showTrack": true,
+                "showGlow": true,
+                "showTicks": true,
+                "showRangeLabels": true,
+                "showBoundaryValues": true,
+                "animate": true,
+                "colorMode": "band",
+                "colorBands": [
+                    {
+                        "from": null,
+                        "to": 150,
+                        "value": "#22c55e"
+                    },
+                    {
+                        "from": 150,
+                        "to": 280,
+                        "value": "#f59e0b"
+                    },
+                    {
+                        "from": 280,
+                        "to": null,
+                        "value": "#ef4444"
+                    }
+                ],
+                "titleText": "LATENCY",
+                "unitText": "ms",
+                "decimals": 0,
+                "showTitle": true,
+                "compareMode": "avg",
+                "deltaLabel": "平均比",
+                "goodDirection": "down",
+                "showDelta": true,
+                "panelPosition": "right",
+                "panelWidth": 0.42,
+                "slot1": "delta",
+                "slot2": "sparkline",
+                "slot3": "target",
+                "slot4": "none",
+                "targetValue": 200,
+                "showTarget": true,
+                "backgroundColor": "transparent"
+            }
+        },
+        "viz_japan": {
+            "type": "custom_viz_japanmap.custom_viz_japanmap",
+            "title": "国内拠点間トラフィック",
+            "description": "都道府県境つきの日本地図に、拠点間の通信フローを弧＋流れる光の帯で描く。凡例クリックで絞り込める。",
+            "dataSources": {
+                "primary": "ds_jp_flows"
+            },
+            "options": {
+                "srcLatField": "> primary | seriesByName('src_lat')",
+                "srcLonField": "> primary | seriesByName('src_lon')",
+                "dstLatField": "> primary | seriesByName('dst_lat')",
+                "dstLonField": "> primary | seriesByName('dst_lon')",
+                "severityField": "> primary | seriesByName('severity')",
+                "countField": "> primary | seriesByName('count')",
+                "srcNameField": "> primary | seriesByName('src_name')",
+                "dstNameField": "> primary | seriesByName('dst_name')",
+                "severityColors": [
+                    "#ef4444",
+                    "#f59e0b",
+                    "#2dd4bf",
+                    "#38a6ff"
+                ],
+                "showPrefBorders": true,
+                "showTitle": true,
+                "titleText": "JAPAN BACKBONE TRAFFIC",
+                "showLegend": true,
+                "showFilter": true,
+                "animDuration": 2.8,
+                "useBgColor": false,
+                "useLandColor": true,
+                "landColor": "#123456",
+                "backgroundColor": "transparent"
+            }
+        },
+        "viz_link_tokyo_osaka": {
+            "type": "custom_viz_link_line.custom_viz_link_line",
+            "title": "東京 ⇄ 大阪 回線使用率",
+            "description": "表示画面の「✎ 線を編集」で線の形をドラッグ調整し、編集モードに入って保存すると確定する。",
+            "dataSources": {
+                "primary": "ds_link_tokyo_osaka"
+            },
+            "options": {
+                "valueField": "> primary | seriesByName('usage')",
+                "styleMode": "pipe",
+                "lineWidth": 10,
+                "lineGradient": true,
+                "flowSpeed": 2,
+                "flowDirection": "both",
+                "pulseCaps": true,
+                "showEndCaps": true,
+                "arrowHead": true,
+                "showValue": true,
+                "valueDecimals": 0,
+                "unitLabel": "%",
+                "linkLabel": "TOKYO ⇄ OSAKA",
+                "colorMode": "range",
+                "colorBands": [
+                    {
+                        "from": 0,
+                        "to": 40,
+                        "value": "#53a051"
+                    },
+                    {
+                        "from": 40,
+                        "to": 70,
+                        "value": "#f8be34"
+                    },
+                    {
+                        "from": 70,
+                        "to": 90,
+                        "value": "#f1813f"
+                    },
+                    {
+                        "from": 90,
+                        "to": null,
+                        "value": "#dc4e41"
+                    }
+                ],
+                "lineOpacity": 100,
+                "allowViewEdit": true,
+                "backgroundColor": "transparent"
+            }
+        },
+        "viz_link_dc_cloud": {
+            "type": "custom_viz_link_line.custom_viz_link_line",
+            "title": "DC ⇄ クラウド 死活",
+            "description": "文字列一致モード。OK / DEGRADED / DOWN の値をそのまま色に対応させる。",
+            "dataSources": {
+                "primary": "ds_link_dc_cloud"
+            },
+            "options": {
+                "valueField": "> primary | seriesByName('status')",
+                "styleMode": "neon",
+                "lineWidth": 8,
+                "lineGradient": false,
+                "dashLength": 12,
+                "flowSpeed": 1.5,
+                "flowDirection": "forward",
+                "showEndCaps": true,
+                "arrowHead": true,
+                "showValue": true,
+                "linkLabel": "DC ⇄ CLOUD",
+                "colorMode": "match",
+                "matchColors": [
+                    "OK|#53a051",
+                    "DEGRADED|#f8be34",
+                    "DOWN|#dc4e41"
+                ],
+                "lineOpacity": 100,
+                "allowViewEdit": true,
+                "backgroundColor": "transparent"
+            }
+        },
+        "viz_calendar": {
+            "type": "custom_viz_calendar_heatmap.custom_viz_calendar_heatmap",
+            "title": "障害発生日カレンダー",
+            "description": "GitHub 風のカレンダーヒートマップ。どの時期に障害が集中したかを一望する。",
+            "dataSources": {
+                "primary": "ds_calendar"
+            },
+            "options": {
+                "dateField": "> primary | seriesByName('day')",
+                "valueField": "> primary | seriesByName('incidents')",
+                "useValueColors": true,
+                "lowColor": "#0d2137",
+                "midColor": "#f59e0b",
+                "highColor": "#ef4444",
+                "useMidColor": true,
+                "levels": 5,
+                "showLegend": true,
+                "showMonthLabels": true,
+                "showWeekdayLabels": true,
+                "showHeader": true,
+                "backgroundColor": "transparent"
+            }
+        },
+        "viz_metric_terrain": {
+            "type": "custom_viz_metric_terrain.custom_viz_metric_terrain",
+            "title": "リソース使用率の起伏",
+            "description": "等角投影の疑似3D地形。値の起伏を地形として描き、負荷の山を立体で見せる。x 軸＝ラック、y 軸＝ノード番号のグリッドで高さを表す。",
+            "dataSources": {
+                "primary": "ds_terrain"
+            },
+            "options": {
+                "xField": "> primary | seriesByName('rack')",
+                "yField": "> primary | seriesByName('node')",
+                "valueField": "> primary | seriesByName('load')",
+                "height": 110,
+                "yaw": 35,
+                "pitch": 55,
+                "autoRotate": true,
+                "rotateSpeed": 60,
+                "lowColor": "#1b3a6b",
+                "midColor": "#2dd4bf",
+                "highColor": "#ffd166",
+                "useMidColor": true,
+                "usePeakColor": true,
+                "peakColor": "#ff5470",
+                "wireframe": true,
+                "showShadow": true,
+                "showBase": true,
+                "glow": true,
+                "showHeader": true,
+                "showLegend": true,
+                "showPeakMarker": true,
+                "backgroundColor": "transparent"
+            }
+        },
+        "viz_network": {
+            "type": "custom_viz_network_graph.custom_viz_network_graph",
+            "title": "サービス依存関係",
+            "description": "力学ベースのフォースダイレクテッド図。ドラッグ／ズーム／パンで探索できる。列は「送信元・宛先・値」の順で渡す（この viz はフィールド選択オプションを持たない）。",
+            "dataSources": {
+                "primary": "ds_network"
+            },
+            "options": {
+                "maxNodes": 60,
+                "spacing": 140,
+                "linkDistance": 95,
+                "repulsion": 110,
+                "autoFit": true,
+                "curved": true,
+                "showArrows": true,
+                "showFlow": true,
+                "flowSpeed": 100,
+                "glow": true,
+                "showLabels": true,
+                "labelSize": 11,
+                "showHeader": true,
+                "highlightOnHover": true,
+                "useValueColors": true,
+                "lowColor": "#2dd4bf",
+                "midColor": "#f5c518",
+                "highColor": "#ef4d4d",
+                "useMidColor": true,
+                "backgroundColor": "transparent"
+            }
+        },
+        "viz_horizon_traffic": {
+            "type": "custom_viz_horizon_chart.custom_viz_horizon_chart",
+            "title": "拠点別 回線トラフィック",
+            "dataSources": {
+                "primary": "ds_horizon_traffic"
+            },
+            "options": {
+                "timeField": "> primary | seriesByName('_time')",
+                "seriesField": "> primary | seriesByName('site')",
+                "valueField": "> primary | seriesByName('mbps')",
+                "bands": 3,
+                "perSeriesScale": false,
+                "showNegative": false,
+                "positiveColor": "#2dd4bf",
+                "laneHeight": 30,
+                "autoFitLanes": true,
+                "curve": true,
+                "sortMode": "peak",
+                "showLabels": true,
+                "showPeakValue": true,
+                "showTimeAxis": true,
+                "showLegend": false,
+                "showCrosshair": true,
+                "animate": true,
+                "backgroundColor": "transparent"
+            }
+        },
+        "viz_capacity_bullet": {
+            "type": "custom_viz_bullet_graph.custom_viz_bullet_graph",
+            "title": "キャパシティ対 上限",
+            "dataSources": {
+                "primary": "ds_capacity"
+            },
+            "options": {
+                "labelField": "> primary | seriesByName('resource')",
+                "valueField": "> primary | seriesByName('used')",
+                "targetField": "> primary | seriesByName('limit')",
+                "showBands": true,
+                "band1Pct": 60,
+                "band2Pct": 85,
+                "showTarget": true,
+                "showValues": true,
+                "showPercent": true,
+                "useValueColors": true,
+                "animate": true,
+                "backgroundColor": "transparent"
+            }
+        },
+        "viz_sankey_cost": {
+            "type": "custom_viz_sankey_flow.custom_viz_sankey_flow",
+            "title": "コスト配分の流れ",
+            "description": "多段サンキー図。予算がどの環境・どのサービスへ流れているかを追う。列は「送信元・宛先・値」の順で渡す（この viz はフィールド選択オプションを持たない）。",
+            "dataSources": {
+                "primary": "ds_sankey_cost"
+            },
+            "options": {
+                "useGradientLinks": true,
+                "linkOpacity": 45,
+                "useValueColors": true,
+                "lowColor": "#2dd4bf",
+                "midColor": "#f5c518",
+                "highColor": "#ef4d4d",
+                "useMidColor": true,
+                "nodeWidth": 14,
+                "nodePadding": 14,
+                "showLabels": true,
+                "showValues": true,
+                "showHeader": true,
+                "highlightOnHover": true,
+                "backgroundColor": "transparent"
+            }
+        },
+        "viz_change_waterfall": {
+            "type": "custom_viz_waterfall_chart.custom_viz_waterfall_chart",
+            "title": "月次コストの増減内訳",
+            "dataSources": {
+                "primary": "ds_cost_waterfall"
+            },
+            "options": {
+                "labelField": "> primary | seriesByName('label')",
+                "valueField": "> primary | seriesByName('delta')",
+                "typeField": "> primary | seriesByName('kind')",
+                "showTotal": true,
+                "totalLabel": "当月合計",
+                "increaseColor": "#f85149",
+                "decreaseColor": "#3fb950",
+                "totalColor": "#4f8ff7",
+                "showValues": true,
+                "showConnectors": true,
+                "showAxis": true,
+                "showXLabels": true,
+                "animate": true,
+                "abbreviateValue": true,
+                "backgroundColor": "transparent"
+            }
+        },
+        "viz_storage_treemap": {
+            "type": "custom_viz_treemap.custom_viz_treemap",
+            "title": "ストレージ使用量",
+            "dataSources": {
+                "primary": "ds_storage"
+            },
+            "options": {
+                "valueField": "> primary | seriesByName('bytes')",
+                "level1Field": "> primary | seriesByName('tier')",
+                "level2Field": "> primary | seriesByName('volume')",
+                "maxDepth": 2,
+                "shadeChildren": true,
+                "showLabels": true,
+                "showValues": true,
+                "showPercent": true,
+                "showGroupHeaders": true,
+                "showBreadcrumb": true,
+                "enableDrilldown": true,
+                "animate": true,
+                "abbreviateValue": true,
+                "backgroundColor": "transparent"
+            }
+        },
+        "viz_incident_table": {
+            "type": "custom_viz_severity_table.custom_viz_severity_table",
+            "title": "進行中インシデント",
+            "dataSources": {
+                "primary": "ds_incidents"
+            },
+            "options": {
+                "severityField": "> primary | seriesByName('severity')",
+                "sortBySeverity": true,
+                "maxRows": 10,
+                "numericSeverity": false,
+                "cellStyle": "pill",
+                "rowBar": true,
+                "zebra": true,
+                "compact": true,
+                "showSummary": true,
+                "showTitle": false,
+                "backgroundColor": "transparent"
+            }
+        }
+    },
+    "dataSources": {
+        "ds_ops_status": {
+            "type": "ds.search",
+            "name": "ds_ops_status",
+            "options": {
+                "query": "| makeresults format=csv data=\"scope,open_p1\nJP Infrastructure,2\"",
+                "queryParameters": {
+                    "earliest": "$global_time.earliest$",
+                    "latest": "$global_time.latest$"
+                }
+            }
+        },
+        "ds_kpi_uptime": {
+            "type": "ds.search",
+            "name": "ds_kpi_uptime",
+            "options": {
+                "query": "| makeresults format=csv data=\"label,value\n03月,99.94\n04月,99.97\n05月,99.91\n06月,99.98\n07月,99.99\n08月,99.96\"",
+                "queryParameters": {
+                    "earliest": "$global_time.earliest$",
+                    "latest": "$global_time.latest$"
+                }
+            }
+        },
+        "ds_kpi_tickets": {
+            "type": "ds.search",
+            "name": "ds_kpi_tickets",
+            "options": {
+                "query": "| makeresults format=csv data=\"label,value\n月,41\n火,38\n水,45\n木,52\n金,47\n土,29\n日,34\"",
+                "queryParameters": {
+                    "earliest": "$global_time.earliest$",
+                    "latest": "$global_time.latest$"
+                }
+            }
+        },
+        "ds_health_db": {
+            "type": "ds.search",
+            "name": "ds_health_db",
+            "options": {
+                "query": "| makeresults format=csv data=\"label,load\nDATABASE,88\"",
+                "queryParameters": {
+                    "earliest": "$global_time.earliest$",
+                    "latest": "$global_time.latest$"
+                }
+            }
+        },
+        "ds_health_cloud": {
+            "type": "ds.search",
+            "name": "ds_health_cloud",
+            "options": {
+                "query": "| makeresults format=csv data=\"label,load\nCLOUD,54\"",
+                "queryParameters": {
+                    "earliest": "$global_time.earliest$",
+                    "latest": "$global_time.latest$"
+                }
+            }
+        },
+        "ds_latency": {
+            "type": "ds.search",
+            "name": "ds_latency",
+            "options": {
+                "query": "| makeresults count=24 | streamstats count as i | eval _time=relative_time(now(), \"-24h\") + i*3600 | eval latency=140+70*sin(i/3)+random()%45 | table _time latency",
+                "queryParameters": {
+                    "earliest": "$global_time.earliest$",
+                    "latest": "$global_time.latest$"
+                }
+            }
+        },
+        "ds_jp_flows": {
+            "type": "ds.search",
+            "name": "ds_jp_flows",
+            "options": {
+                "query": "| makeresults format=csv data=\"src_lat,src_lon,dst_lat,dst_lon,severity,count,src_name,dst_name\n35.6895,139.6917,34.6937,135.5023,critical,1840,東京DC,大阪DC\n35.6895,139.6917,43.0642,141.3469,high,920,東京DC,札幌拠点\n35.6895,139.6917,33.5904,130.4017,high,880,東京DC,福岡拠点\n34.6937,135.5023,34.3853,132.4553,medium,540,大阪DC,広島拠点\n35.6895,139.6917,38.2682,140.8694,medium,610,東京DC,仙台拠点\n34.6937,135.5023,35.1815,136.9066,low,470,大阪DC,名古屋拠点\n35.6895,139.6917,26.2124,127.6809,low,290,東京DC,那覇拠点\n34.6937,135.5023,33.5904,130.4017,medium,505,大阪DC,福岡拠点\n38.2682,140.8694,43.0642,141.3469,low,240,仙台拠点,札幌拠点\n35.1815,136.9066,35.6895,139.6917,high,760,名古屋拠点,東京DC\"",
+                "queryParameters": {
+                    "earliest": "$global_time.earliest$",
+                    "latest": "$global_time.latest$"
+                }
+            }
+        },
+        "ds_link_tokyo_osaka": {
+            "type": "ds.search",
+            "name": "ds_link_tokyo_osaka",
+            "options": {
+                "query": "| makeresults format=csv data=\"usage\n45\n52\n61\n58\n73\"",
+                "queryParameters": {
+                    "earliest": "$global_time.earliest$",
+                    "latest": "$global_time.latest$"
+                }
+            }
+        },
+        "ds_link_dc_cloud": {
+            "type": "ds.search",
+            "name": "ds_link_dc_cloud",
+            "options": {
+                "query": "| makeresults format=csv data=\"status\nOK\nOK\nDEGRADED\"",
+                "queryParameters": {
+                    "earliest": "$global_time.earliest$",
+                    "latest": "$global_time.latest$"
+                }
+            }
+        },
+        "ds_calendar": {
+            "type": "ds.search",
+            "name": "ds_calendar",
+            "options": {
+                "query": "| makeresults count=180 | streamstats count as i | eval day=strftime(relative_time(now(), \"-180d\") + i*86400, \"%Y-%m-%d\") | eval incidents=if(random()%100 < 62, 0, random()%6+1) | table day incidents",
+                "queryParameters": {
+                    "earliest": "$global_time.earliest$",
+                    "latest": "$global_time.latest$"
+                }
+            }
+        },
+        "ds_terrain": {
+            "type": "ds.search",
+            "name": "ds_terrain",
+            "options": {
+                "query": "| makeresults count=64 | streamstats count as i | eval rack=\"R\" . tostring(((i-1)%8)+1), node=\"N\" . tostring(floor((i-1)/8)+1) | eval load=38+34*sin(i/5)+22*cos(i/3)+random()%16 | table rack node load",
+                "queryParameters": {
+                    "earliest": "$global_time.earliest$",
+                    "latest": "$global_time.latest$"
+                }
+            }
+        },
+        "ds_network": {
+            "type": "ds.search",
+            "name": "ds_network",
+            "options": {
+                "query": "| makeresults format=csv data=\"src,dst,calls\nfrontend,api-gateway,42000\napi-gateway,auth-svc,18500\napi-gateway,order-svc,21300\napi-gateway,search-svc,15600\norder-svc,payment-svc,12400\norder-svc,inventory-svc,11800\npayment-svc,ledger-db,9600\ninventory-svc,inventory-db,10200\nauth-svc,user-db,17400\nsearch-svc,search-index,14900\norder-svc,notify-svc,6300\nnotify-svc,mail-relay,5800\" | table src dst calls",
+                "queryParameters": {
+                    "earliest": "$global_time.earliest$",
+                    "latest": "$global_time.latest$"
+                }
+            }
+        },
+        "ds_horizon_traffic": {
+            "type": "ds.search",
+            "name": "ds_horizon_traffic",
+            "options": {
+                "query": "| makeresults count=48 | streamstats count as i | eval _time=relative_time(now(), \"-48m\") + i*60, site=\"東京DC\", mbps=820+260*sin(i/4)+random()%140 | append [ | makeresults count=48 | streamstats count as i | eval _time=relative_time(now(), \"-48m\") + i*60, site=\"大阪DC\", mbps=640+210*sin(i/5+1)+random()%120 ] | append [ | makeresults count=48 | streamstats count as i | eval _time=relative_time(now(), \"-48m\") + i*60, site=\"名古屋拠点\", mbps=310+120*sin(i/3+2)+random()%80 ] | append [ | makeresults count=48 | streamstats count as i | eval _time=relative_time(now(), \"-48m\") + i*60, site=\"福岡拠点\", mbps=280+95*sin(i/6)+random()%70 ] | append [ | makeresults count=48 | streamstats count as i | eval _time=relative_time(now(), \"-48m\") + i*60, site=\"札幌拠点\", mbps=190+80*sin(i/4+3)+random()%60 ] | table _time site mbps",
+                "queryParameters": {
+                    "earliest": "$global_time.earliest$",
+                    "latest": "$global_time.latest$"
+                }
+            }
+        },
+        "ds_capacity": {
+            "type": "ds.search",
+            "name": "ds_capacity",
+            "options": {
+                "query": "| makeresults format=csv data=\"resource,used,limit\nvCPU コア数,860,1000\nメモリ(GB),3120,4096\nストレージ(TB),148,200\nライセンス数,742,800\n帯域(Gbps),7.4,10\nIP アドレス,412,512\"",
+                "queryParameters": {
+                    "earliest": "$global_time.earliest$",
+                    "latest": "$global_time.latest$"
+                }
+            }
+        },
+        "ds_sankey_cost": {
+            "type": "ds.search",
+            "name": "ds_sankey_cost",
+            "options": {
+                "query": "| makeresults format=csv data=\"src,dst,cost\nIT予算,本番環境,5200\nIT予算,検証環境,1400\nIT予算,共通基盤,2100\n本番環境,コンピュート,2600\n本番環境,ストレージ,1500\n本番環境,ネットワーク,1100\n検証環境,コンピュート,850\n検証環境,ストレージ,550\n共通基盤,監視SaaS,900\n共通基盤,バックアップ,700\n共通基盤,セキュリティ,500\" | table src dst cost",
+                "queryParameters": {
+                    "earliest": "$global_time.earliest$",
+                    "latest": "$global_time.latest$"
+                }
+            }
+        },
+        "ds_cost_waterfall": {
+            "type": "ds.search",
+            "name": "ds_cost_waterfall",
+            "options": {
+                "query": "| makeresults format=csv data=\"label,delta,kind\n前月合計,8700,start\n新規ノード追加,940,\nストレージ増設,620,\nリザーブド購入,-780,\n不要インスタンス削除,-410,\n契約見直し,-260,\"",
+                "queryParameters": {
+                    "earliest": "$global_time.earliest$",
+                    "latest": "$global_time.latest$"
+                }
+            }
+        },
+        "ds_storage": {
+            "type": "ds.search",
+            "name": "ds_storage",
+            "options": {
+                "query": "| makeresults format=csv data=\"tier,volume,bytes\nHot,db-primary,4200000000000\nHot,app-logs,2800000000000\nHot,index-live,3100000000000\nWarm,index-warm,5600000000000\nWarm,archive-30d,4100000000000\nCold,archive-1y,9800000000000\nCold,compliance,7200000000000\nBackup,daily-snap,3400000000000\nBackup,offsite,2600000000000\"",
+                "queryParameters": {
+                    "earliest": "$global_time.earliest$",
+                    "latest": "$global_time.latest$"
+                }
+            }
+        },
+        "ds_incidents": {
+            "type": "ds.search",
+            "name": "ds_incidents",
+            "options": {
+                "query": "| makeresults format=csv data=\"開始,severity,対象,事象,担当\n02:15,critical,db-01,レプリケーション遅延,佐藤\n01:48,critical,東京DC,回線冗長性の喪失,田中\n01:22,high,app-02,メモリ使用率の高止まり,鈴木\n00:56,high,payment-svc,決済APIのタイムアウト増加,山田\n00:34,medium,search-index,インデックス再構築の遅延,佐藤\n00:11,medium,cache-01,ヒット率の低下,田中\n23:47,medium,大阪DC,UPS の警告,鈴木\n23:20,low,batch-02,夜間バッチの遅延,山田\n22:58,low,mail-relay,送信キューの滞留,佐藤\n22:31,low,web-03,証明書の有効期限が30日以内,田中\"",
+                "queryParameters": {
+                    "earliest": "$global_time.earliest$",
+                    "latest": "$global_time.latest$"
+                }
+            }
+        }
+    },
+    "layout": {
+        "type": "absolute",
+        "globalInputs": [
+            "input_time"
+        ],
+        "options": {
+            "backgroundColor": "#04101c",
+            "display": "auto-scale",
+            "width": 1920,
+            "height": 2092
+        },
+        "structure": [
+            {
+                "type": "block",
+                "item": "viz_env_tabs",
+                "position": {
+                    "x": 20,
+                    "y": 16,
+                    "w": 1100,
+                    "h": 96
+                }
+            },
+            {
+                "type": "block",
+                "item": "viz_ops_frame",
+                "position": {
+                    "x": 1140,
+                    "y": 16,
+                    "w": 760,
+                    "h": 96
+                }
+            },
+            {
+                "type": "block",
+                "item": "viz_kpi_uptime",
+                "position": {
+                    "x": 20,
+                    "y": 128,
+                    "w": 420,
+                    "h": 200
+                }
+            },
+            {
+                "type": "block",
+                "item": "viz_kpi_tickets",
+                "position": {
+                    "x": 456,
+                    "y": 128,
+                    "w": 420,
+                    "h": 200
+                }
+            },
+            {
+                "type": "block",
+                "item": "viz_icon_db",
+                "position": {
+                    "x": 892,
+                    "y": 128,
+                    "w": 200,
+                    "h": 200
+                }
+            },
+            {
+                "type": "block",
+                "item": "viz_icon_cloud",
+                "position": {
+                    "x": 1108,
+                    "y": 128,
+                    "w": 200,
+                    "h": 200
+                }
+            },
+            {
+                "type": "block",
+                "item": "viz_marker_latency",
+                "position": {
+                    "x": 1324,
+                    "y": 128,
+                    "w": 576,
+                    "h": 200
+                }
+            },
+            {
+                "type": "block",
+                "item": "viz_japan",
+                "position": {
+                    "x": 20,
+                    "y": 344,
+                    "w": 880,
+                    "h": 640
+                }
+            },
+            {
+                "type": "block",
+                "item": "viz_link_tokyo_osaka",
+                "position": {
+                    "x": 916,
+                    "y": 344,
+                    "w": 480,
+                    "h": 170
+                }
+            },
+            {
+                "type": "block",
+                "item": "viz_link_dc_cloud",
+                "position": {
+                    "x": 916,
+                    "y": 530,
+                    "w": 480,
+                    "h": 170
+                }
+            },
+            {
+                "type": "block",
+                "item": "viz_horizon_traffic",
+                "position": {
+                    "x": 916,
+                    "y": 716,
+                    "w": 480,
+                    "h": 268
+                }
+            },
+            {
+                "type": "block",
+                "item": "viz_network",
+                "position": {
+                    "x": 1412,
+                    "y": 344,
+                    "w": 488,
+                    "h": 640
+                }
+            },
+            {
+                "type": "block",
+                "item": "viz_calendar",
+                "position": {
+                    "x": 20,
+                    "y": 1000,
+                    "w": 940,
+                    "h": 320
+                }
+            },
+            {
+                "type": "block",
+                "item": "viz_metric_terrain",
+                "position": {
+                    "x": 976,
+                    "y": 1000,
+                    "w": 924,
+                    "h": 320
+                }
+            },
+            {
+                "type": "block",
+                "item": "viz_capacity_bullet",
+                "position": {
+                    "x": 20,
+                    "y": 1336,
+                    "w": 620,
+                    "h": 380
+                }
+            },
+            {
+                "type": "block",
+                "item": "viz_sankey_cost",
+                "position": {
+                    "x": 656,
+                    "y": 1336,
+                    "w": 620,
+                    "h": 380
+                }
+            },
+            {
+                "type": "block",
+                "item": "viz_storage_treemap",
+                "position": {
+                    "x": 1292,
+                    "y": 1336,
+                    "w": 608,
+                    "h": 380
+                }
+            },
+            {
+                "type": "block",
+                "item": "viz_change_waterfall",
+                "position": {
+                    "x": 20,
+                    "y": 1732,
+                    "w": 900,
+                    "h": 340
+                }
+            },
+            {
+                "type": "block",
+                "item": "viz_incident_table",
+                "position": {
+                    "x": 936,
+                    "y": 1732,
+                    "w": 964,
+                    "h": 340
+                }
+            }
+        ]
+    }
+}

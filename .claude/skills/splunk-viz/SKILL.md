@@ -34,6 +34,15 @@ Dashboard Studio 拡張 viz の実装ナレッジを集約している:
 **WebGL を happy-dom で検証する方法**（getContext のスタブ化）をまとめてある。
 SVG で足りるものに WebGL を使う必要は無い（判断基準も同ファイルに記載）。
 
+**ダッシュボードそのものを作る依頼（Studio の JSON を書く）なら
+[references/studio-dashboard-json.md](references/studio-dashboard-json.md) を必ず読む。**
+viz 本体の実装ナレッジとは別物。特に:
+- **SPL の引用符を2重エスケープしない**（`\\\"m\\\"` と書くと Splunk に `\"m\"` が渡り、
+  文字列結合が動かない。2026-08-06 に実害。JSON としては妥当なので**気づきにくい**）
+- **カスタム viz の `type` は `<appId>.<appId>`**（アプリ ID はフォルダ名と一致しないものがある）
+- **オプション名・選択肢の値を推測で書かない**。`config.json` と突き合わせる検証スクリプトを
+  同ファイルに載せてある（2026-08-06 に推測で書いた5件が実際に無効だった）
+
 **カスタム viz には2方式ある**（classic / Studio 拡張）。どのダッシュボードで使うかで選ぶ。
 方式の取り違えは「一覧に出ない」で詰まるので、迷ったら [references/custom-viz-methods.md](references/custom-viz-methods.md) を先に読む:
 - **classic**（`SplunkVisualizationBase` + `formatter.html`、`visualizations.conf` に `framework_type` なし）
