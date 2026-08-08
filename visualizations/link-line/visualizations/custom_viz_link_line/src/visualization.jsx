@@ -50,7 +50,7 @@ import './visualization.css';
 // ---------------------------------------------------------------------------
 
 // バージョン表記（デプロイ確認用。編集モードの案内に表示）
-const VIZ_VERSION = '1.10.3';
+const VIZ_VERSION = '1.11.0';
 
 // 列挙型オプションの許容値（未知値は既定へ丸める。旧バージョンの数値コードは復元しない）
 const STYLE_MODES = ['flat', 'shadow', 'neon', 'pipe'];
@@ -75,6 +75,12 @@ const DEFAULTS = {
     valueField: '', // 値フィールド（'' = 数値を含む最後の列）
 
     linePoints: '', // 線の点列 JSON（'' = 既定の水平線。表示モードの線編集で setOptions 保存）
+    // 値ラベルの位置 JSON `[x,y]`（0..1 の相対座標。'' = 線の中央に自動追従）。
+    // ⚠ このキーは config.json の optionsSchema に**載せていない**。編集パネルに出す必要が
+    //   無い（線編集モードでドラッグして決める）ことに加え、optionsSchema を増やすと
+    //   splunkd の再起動が要るため。スキーマに無いキーもダッシュボード定義に保存され、
+    //   viz に届くことは実機で確認済み（2026-08-08）。
+    labelPos: '',
     cornerRadius: 14, // 折れ角の丸み（px）
     allowViewEdit: true, // 表示モードでの線編集（✎ボタン）を許可
 
@@ -206,6 +212,7 @@ function normalizeOptions(raw) {
         valueField: typeof o.valueField === 'string' || Array.isArray(o.valueField) ? o.valueField : '',
 
         linePoints: typeof o.linePoints === 'string' ? o.linePoints : '',
+        labelPos: typeof o.labelPos === 'string' ? o.labelPos : '',
         cornerRadius: clamp(numOr(o.cornerRadius, DEFAULTS.cornerRadius), 0, 300),
         allowViewEdit: bool(o.allowViewEdit, DEFAULTS.allowViewEdit),
 
@@ -507,6 +514,29 @@ function parsePoints(str) {
             pts.push({ x: clamp01(x), y: clamp01(y) });
         }
         return pts.length >= 2 ? pts : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+// 値ラベルの位置 `[x,y]`（0..1 相対）をパースする。
+// null を返したら「線の中央に自動追従」（＝既定の挙動）。
+// 壊れた JSON・数値でない・要素不足はすべて null に倒し、線本体の描画は巻き込まない。
+function parseLabelPos(str) {
+    if (typeof str !== 'string' || str.trim() === '') return null;
+    try {
+        const v = JSON.parse(str);
+        let x;
+        let y;
+        if (Array.isArray(v)) {
+            x = parseNum(v[0]);
+            y = parseNum(v[1]);
+        } else if (v && typeof v === 'object') {
+            x = parseNum(v.x);
+            y = parseNum(v.y);
+        }
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+        return { x: clamp01(x), y: clamp01(y) };
     } catch (e) {
         return null;
     }
@@ -852,7 +882,14 @@ function LinkLine({ mode }) {
     // 反映されていないもの。ホストによっては表示モード中の setOptions が保存対象に
     // 取り込まれないため、ここに保持しておき「編集モードに入った瞬間」に再送（flush）して確定させる。
     // ※色（colorBands）は編集画面の editor.threshold で設定するのでこの仕組みは通らない。
-    const pendingRef = useRef({}); // { linePoints? }
+    const pendingRef = useRef({}); // { linePoints?, labelPos? }
+
+    // --- 値ラベルの位置（options ⇔ 編集ドラフト）---
+    // null = 線の中央に自動追従（既定）。ドラッグで固定位置に切り替わる。
+    const optsLabelPos = useMemo(() => parseLabelPos(opts.labelPos), [opts.labelPos]);
+    const [labelDraft, setLabelDraft] = useState(null); // { x, y } ドラッグ中のローカル位置
+    const labelDragRef = useRef(null); // { work, moved } ラベルドラッグ中の状態
+    const lastSavedLabelRef = useRef(null); // 直近 setOptions した labelPos JSON（echo 判定用）
 
     // 最新の options / setOptions を effect から stale なく参照するためのミラー
     const optionsRef = useRef(options);
@@ -873,6 +910,19 @@ function LinkLine({ mode }) {
             delete pendingRef.current.linePoints;
         }
     }, [opts.linePoints]);
+
+    // labelPos も linePoints と同じく、外部変更には追従し・自分の保存の echo は消し込む
+    useEffect(() => {
+        const incoming = typeof opts.labelPos === 'string' ? opts.labelPos : '';
+        if (pendingRef.current.labelPos !== undefined && incoming === pendingRef.current.labelPos) {
+            delete pendingRef.current.labelPos; // ホストに反映された
+        }
+        if (labelDragRef.current) return;
+        if (incoming !== lastSavedLabelRef.current) {
+            setLabelDraft(null);
+            delete pendingRef.current.labelPos;
+        }
+    }, [opts.labelPos]);
 
     // 表示モードでの線編集トグル（編集モード中は iframe への入力がホストに遮断されるため、
     // 線のドラッグ編集は表示モードで行う）
@@ -898,6 +948,9 @@ function LinkLine({ mode }) {
         if (pend.linePoints !== undefined && pend.linePoints !== (typeof raw.linePoints === 'string' ? raw.linePoints : '')) {
             patch.linePoints = pend.linePoints;
         }
+        if (pend.labelPos !== undefined && pend.labelPos !== (typeof raw.labelPos === 'string' ? raw.labelPos : '')) {
+            patch.labelPos = pend.labelPos;
+        }
         if (Object.keys(patch).length > 0 && typeof setOptionsRef.current === 'function') {
             setOptionsRef.current({ ...raw, ...patch });
         }
@@ -919,6 +972,69 @@ function LinkLine({ mode }) {
         },
         [setOptions, options]
     );
+
+    // 値ラベルの位置を保存する（pos=null なら「中央に自動追従」へ戻す）
+    const saveLabelPos = useCallback(
+        (pos) => {
+            const json = pos
+                ? JSON.stringify([Math.round(pos.x * 10000) / 10000, Math.round(pos.y * 10000) / 10000])
+                : '';
+            lastSavedLabelRef.current = json;
+            pendingRef.current.labelPos = json;
+            setLabelDraft(pos ? { ...pos } : null);
+            if (typeof setOptions === 'function') {
+                setOptions({ ...(options && typeof options === 'object' ? options : {}), labelPos: json });
+            }
+        },
+        [setOptions, options]
+    );
+
+    // 値ラベルのドラッグ開始。線の点ドラッグ（startDragAt）と同じ流儀で
+    // window 捕捉し、pointer/mouse 双方に対応する
+    const startLabelDrag = useCallback(
+        (ev) => {
+            if (!lineEditActive || labelDragRef.current || dragRef.current) return;
+            if (ev) {
+                if (typeof ev.preventDefault === 'function') ev.preventDefault();
+                if (typeof ev.stopPropagation === 'function') ev.stopPropagation();
+            }
+            const w = typeof window !== 'undefined' ? window : null;
+            if (!w) return;
+            labelDragRef.current = { moved: false, work: null };
+
+            const onMove = (mv) => {
+                const st = labelDragRef.current;
+                if (!st || typeof mv.clientX !== 'number') return;
+                const el = containerRef.current;
+                if (!el || typeof el.getBoundingClientRect !== 'function') return;
+                const rect = el.getBoundingClientRect();
+                if (!rect || !rect.width || !rect.height) return;
+                // チップが枠外へ出ないよう 0.02..0.98 に収める
+                const nx = clamp((mv.clientX - rect.left) / rect.width, 0.02, 0.98);
+                const ny = clamp((mv.clientY - rect.top) / rect.height, 0.02, 0.98);
+                st.work = { x: nx, y: ny };
+                st.moved = true;
+                setLabelDraft({ x: nx, y: ny });
+            };
+            const onUp = () => {
+                const st = labelDragRef.current;
+                ['pointermove', 'mousemove'].forEach((t) => w.removeEventListener(t, onMove));
+                ['pointerup', 'mouseup'].forEach((t) => w.removeEventListener(t, onUp));
+                if (!st) return;
+                labelDragRef.current = null;
+                // 動かしていなければ何も保存しない（誤クリックで中央追従を解除しない）
+                if (st.moved && st.work) saveLabelPos(st.work);
+            };
+            ['pointermove', 'mousemove'].forEach((t) => w.addEventListener(t, onMove));
+            ['pointerup', 'mouseup'].forEach((t) => w.addEventListener(t, onUp));
+        },
+        [lineEditActive, saveLabelPos]
+    );
+
+    // ラベルをダブルクリック → 中央追従に戻す（線の折れ点削除と同じ操作感）
+    const resetLabelPos = useCallback(() => {
+        saveLabelPos(null);
+    }, [saveLabelPos]);
 
     // ドラッグ開始（点 idx を basePts から動かす）。pointer/mouse 両対応・window 捕捉
     const startDragAt = useCallback(
@@ -985,12 +1101,20 @@ function LinkLine({ mode }) {
         [savePoints]
     );
 
+    // 「初期位置に戻す」は線の形とラベル位置の両方を既定へ戻す（1回の setOptions で）
     const resetPoints = useCallback(() => {
         lastSavedRef.current = '';
+        lastSavedLabelRef.current = '';
         pendingRef.current.linePoints = '';
+        pendingRef.current.labelPos = '';
         setDraft(null);
+        setLabelDraft(null);
         if (typeof setOptions === 'function') {
-            setOptions({ ...(options && typeof options === 'object' ? options : {}), linePoints: '' });
+            setOptions({
+                ...(options && typeof options === 'object' ? options : {}),
+                linePoints: '',
+                labelPos: '',
+            });
         }
     }, [setOptions, options]);
 
@@ -998,6 +1122,10 @@ function LinkLine({ mode }) {
     const { w, h } = dims;
     const pxPts = points.map((p) => ({ x: p.x * w, y: p.y * h }));
     const geo = polylineGeometry(pxPts);
+    // 値ラベルの位置。ドラッグ中はドラフト、確定済みなら options、どちらも無ければ
+    // 線の中央（geo.mid）に自動追従する＝従来どおりの挙動
+    const labelAnchor = labelDraft || optsLabelPos;
+    const labelPt = labelAnchor ? { x: labelAnchor.x * w, y: labelAnchor.y * h } : geo.mid;
     // 色: 「色分けモード」に応じて解決する。
     //   range = 編集画面の「線の色」（editor.threshold）の範囲バンド × 数値
     //   match = 「値と色の対応」（editor.arrayOfStrings「値|色」）× 生の文字列値
@@ -1389,15 +1517,21 @@ function LinkLine({ mode }) {
                 />
             )}
 
-            {/* 値ラベル（線の中央。インク色テキスト＋色ドットのチップ。Canvas より上に置く）。
+            {/* 値ラベル（既定は線の中央。線編集モードではドラッグで任意の位置へ動かせる）。
+                インク色テキスト＋色ドットのチップ。Canvas より上に置く。
                 接続名（linkLabel）だけでも表示できる（showValue オフ＋接続名あり） */}
             {(opts.showValue || opts.linkLabel !== '') && (
                 <div
                     data-role="value-label"
+                    data-label-anchored={labelAnchor ? 'true' : 'false'}
+                    onPointerDown={lineEditActive ? startLabelDrag : undefined}
+                    onMouseDown={lineEditActive ? startLabelDrag : undefined}
+                    onDoubleClick={lineEditActive ? resetLabelPos : undefined}
+                    title={lineEditActive ? 'ドラッグで移動／ダブルクリックで中央に戻す' : undefined}
                     style={{
                         position: 'absolute',
-                        left: geo.mid.x,
-                        top: geo.mid.y,
+                        left: labelPt.x,
+                        top: labelPt.y,
                         transform: 'translate(-50%, -50%)',
                         display: 'flex',
                         alignItems: 'center',
@@ -1405,7 +1539,10 @@ function LinkLine({ mode }) {
                         padding: `${Math.round(labelFont * 0.34)}px ${Math.round(labelFont * 0.85)}px`,
                         borderRadius: 999,
                         background: chipBg,
-                        border: `1px solid ${withAlpha(color, 0.45)}`,
+                        // 編集モード中はドラッグ可能だと分かるよう枠を強調する
+                        border: lineEditActive
+                            ? `1px dashed ${withAlpha(color, 0.95)}`
+                            : `1px solid ${withAlpha(color, 0.45)}`,
                         boxShadow: mode === 'dark' ? '0 1px 4px rgba(0,0,0,0.45)' : '0 1px 4px rgba(20,30,40,0.18)',
                         opacity: opts.lineOpacity / 100,
                         fontSize: labelFont,
@@ -1413,7 +1550,11 @@ function LinkLine({ mode }) {
                         letterSpacing: 0.2,
                         color: chipInk,
                         whiteSpace: 'nowrap',
-                        pointerEvents: 'none',
+                        // 通常時はクリックを透過させ、線のドリルダウンを妨げない。
+                        // 線編集モードのときだけ掴めるようにする
+                        pointerEvents: lineEditActive ? 'auto' : 'none',
+                        cursor: lineEditActive ? 'move' : undefined,
+                        touchAction: lineEditActive ? 'none' : undefined,
                         userSelect: 'none',
                     }}
                 >
@@ -1468,7 +1609,12 @@ function LinkLine({ mode }) {
                         }}
                     >
                         {lineEditActive && (
-                            <div data-role="reset-line" onClick={resetPoints} style={chipStyle}>
+                            <div
+                                data-role="reset-line"
+                                onClick={resetPoints}
+                                title="線の形とラベル位置を初期状態に戻します"
+                                style={chipStyle}
+                            >
                                 線をリセット
                             </div>
                         )}
@@ -1506,6 +1652,7 @@ function LinkLine({ mode }) {
                             }}
                         >
                             点をドラッグ＝移動 ／ ＋＝点を追加 ／ 点をダブルクリック＝削除 ｜
+                            ラベルもドラッグで移動（ダブルクリックで中央に戻す） ｜
                             確定はダッシュボードの「編集」→「保存」
                         </div>
                     )}

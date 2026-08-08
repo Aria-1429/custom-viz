@@ -476,20 +476,87 @@ console.log('\n[6] view-mode line editing');
     fire('options', { options: state.options });
     await sleep(250);
 
-    // --- リセット ---
+    // --- リセット（線の形とラベル位置の両方が既定に戻る） ---
+    await setOpts({ labelPos: '[0.7,0.2]' });
     doc.querySelector('[data-role="reset-line"]').dispatchEvent(ev('click'));
     await sleep(250);
     check('reset → linePoints cleared', state.options.linePoints === '', JSON.stringify(state.options.linePoints));
+    check('reset → labelPos cleared too', state.options.labelPos === '', JSON.stringify(state.options.labelPos));
     fire('options', { options: state.options });
     await sleep(250);
     check('reset → default path restored', mainLine().getAttribute('d') === 'M 63 280 L 837 280',
         mainLine().getAttribute('d'));
+
+    // --- 値ラベルのドラッグ移動（線編集モード中のみ） ---
+    const label = () => doc.querySelector('[data-role="value-label"]');
+    check('label draggable in edit mode (pointerEvents auto)', label().style.pointerEvents === 'auto',
+        label().style.pointerEvents);
+    check('label starts centered (not anchored)', label().getAttribute('data-label-anchored') === 'false');
+
+    label().dispatchEvent(ev('pointerdown', { clientX: 450, clientY: 280 }));
+    await sleep(50);
+    win.dispatchEvent(ev('pointermove', { clientX: 225, clientY: 168 })); // → (0.25, 0.3)
+    await sleep(50);
+    win.dispatchEvent(ev('pointerup'));
+    await sleep(250);
+    let savedLabel = JSON.parse(state.options.labelPos || 'null');
+    check('label drag saved via setOptions', Array.isArray(savedLabel) && savedLabel.length === 2,
+        state.options.labelPos);
+    check('label position ≈ (0.25, 0.3)',
+        savedLabel && Math.abs(savedLabel[0] - 0.25) < 0.01 && Math.abs(savedLabel[1] - 0.3) < 0.01,
+        JSON.stringify(savedLabel));
+    fire('options', { options: state.options });
+    await sleep(250);
+    check('label now anchored', label().getAttribute('data-label-anchored') === 'true');
+    check('label rendered at dragged spot', label().style.left === '225px' && label().style.top === '168px',
+        `${label().style.left} / ${label().style.top}`);
+
+    // ラベル位置は線の形と独立（線を動かしてもラベルは固定されたまま）
+    const vtx = doc.querySelectorAll('[data-role="vertex"]')[0];
+    vtx.dispatchEvent(ev('pointerdown', { clientX: 450, clientY: 56 }));
+    await sleep(50);
+    win.dispatchEvent(ev('pointermove', { clientX: 90, clientY: 504 }));
+    await sleep(50);
+    win.dispatchEvent(ev('pointerup'));
+    await sleep(250);
+    fire('options', { options: state.options });
+    await sleep(250);
+    check('label stays put when line moves', label().style.left === '225px' && label().style.top === '168px',
+        `${label().style.left} / ${label().style.top}`);
+
+    // クリックしただけ（動かさない）では中央追従を解除しない
+    await setOpts({ labelPos: '' });
+    check('label back to centered', label().getAttribute('data-label-anchored') === 'false');
+    label().dispatchEvent(ev('pointerdown', { clientX: 450, clientY: 280 }));
+    await sleep(50);
+    win.dispatchEvent(ev('pointerup'));
+    await sleep(250);
+    check('click without move → labelPos untouched', !state.options.labelPos,
+        JSON.stringify(state.options.labelPos));
+
+    // ダブルクリックで中央追従へ戻す
+    await setOpts({ labelPos: '[0.8,0.9]' });
+    check('anchored from options', label().getAttribute('data-label-anchored') === 'true');
+    label().dispatchEvent(ev('dblclick'));
+    await sleep(250);
+    check('dblclick → labelPos cleared', state.options.labelPos === '', JSON.stringify(state.options.labelPos));
+    fire('options', { options: state.options });
+    await sleep(250);
+    check('dblclick → back to centered', label().getAttribute('data-label-anchored') === 'false');
+
+    // 壊れた labelPos は中央追従に倒す（線の描画も巻き込まない）
+    await setOpts({ labelPos: '{bad json' });
+    check('broken labelPos → centered fallback', label().getAttribute('data-label-anchored') === 'false');
+    check('broken labelPos → line still drawn', !!mainLine());
+    await setOpts({ labelPos: '' });
 
     // --- トグル OFF でハンドルが消える ---
     doc.querySelector('[data-role="edit-toggle"]').dispatchEvent(ev('click'));
     await sleep(250);
     check('handles gone after lock', !doc.querySelector('[data-role="edit-layer"]'));
     check('reset button gone after lock', !doc.querySelector('[data-role="reset-line"]'));
+    check('label not draggable when locked', label().style.pointerEvents === 'none',
+        label().style.pointerEvents);
 
     // --- allowViewEdit オフ → トグル自体が消える ---
     await setOpts({ allowViewEdit: false });
@@ -688,6 +755,36 @@ console.log('\n[11] pending flush on entering edit mode');
     await sleep(250);
     check('no re-flush after echo', setOptionsLog.length === callsBeforeSecond,
         `got ${setOptionsLog.length - callsBeforeSecond} extra calls`);
+
+    // --- ラベル位置も同じ経路で flush される（表示モードで動かす → 編集モードで確定） ---
+    state.mode = 'view';
+    fire('mode', { mode: 'view' });
+    await setOpts({});
+    await sleep(100);
+    doc.querySelector('[data-role="edit-toggle"]').dispatchEvent(ev('click'));
+    await sleep(250);
+    const lbl = () => doc.querySelector('[data-role="value-label"]');
+    lbl().dispatchEvent(ev('pointerdown', { clientX: 450, clientY: 280 }));
+    await sleep(50);
+    win.dispatchEvent(ev('pointermove', { clientX: 720, clientY: 448 })); // → (0.8, 0.8)
+    await sleep(50);
+    win.dispatchEvent(ev('pointerup'));
+    await sleep(250);
+    check('host ignored view-mode label save', !state.options.labelPos,
+        JSON.stringify(state.options.labelPos));
+    check('label draft still shown at dragged spot', lbl().style.left === '720px',
+        lbl().style.left);
+
+    const beforeLabelFlush = setOptionsLog.length;
+    state.mode = 'edit';
+    fire('mode', { mode: 'edit' });
+    await sleep(300);
+    check('label flush issued in edit mode',
+        setOptionsLog.slice(beforeLabelFlush).filter((c) => c.mode === 'edit').length === 1);
+    const flushedLabel = JSON.parse(state.options.labelPos || 'null');
+    check('flushed labelPos ≈ (0.8, 0.8)',
+        flushedLabel && Math.abs(flushedLabel[0] - 0.8) < 0.01 && Math.abs(flushedLabel[1] - 0.8) < 0.01,
+        JSON.stringify(flushedLabel));
 
     // 後片付け
     dropViewSetOptions = false;
