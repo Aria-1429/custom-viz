@@ -40,7 +40,7 @@ import './visualization.css';
 // 幅が狭いときはサブパネルを自動的に下へ回し、さらに狭ければ段階的に隠す。
 // ---------------------------------------------------------------------------
 
-const VIZ_VERSION = '1.3.2';
+const VIZ_VERSION = '1.4.0';
 
 // 列挙型オプションの許容値（未知値は既定へ丸める。旧バージョンの値は復元しない）
 const AGG_MODES = ['last', 'first', 'sum', 'avg', 'max', 'min', 'count'];
@@ -725,6 +725,22 @@ function buildModel(rawRows, fieldNames, opts) {
     }
     if (lo === hi) hi = lo + 1;
 
+    // --- 色帯とゲージ範囲の噛み合わせ判定 ---
+    // ★既定の色帯は 0〜100 想定（<60 緑 / 60-85 橙 / 85+ 赤）。範囲を -20〜20 などに
+    //   変えても色帯は追従しないため、「全部緑」のまま気づけないことがある
+    //   （-15℃ が安全色で塗られる、という実機で見つけた問題）。
+    //   色帯の内側の境界が範囲内に1つも無い＝実質1色でしか塗られない状態を検出する。
+    let bandMismatch = false;
+    if (opts.colorMode === 'band' && opts.colorBands.length > 1) {
+        // 内側の境界（帯と帯の切れ目）が範囲 [lo,hi] に入っているか
+        const edges = [];
+        opts.colorBands.forEach((b) => {
+            if (Number.isFinite(b.to)) edges.push(b.to);
+            if (Number.isFinite(b.from)) edges.push(b.from);
+        });
+        bandMismatch = !edges.some((e) => e > lo && e < hi);
+    }
+
     return {
         value,
         points,
@@ -737,6 +753,7 @@ function buildModel(rawRows, fieldNames, opts) {
         hi,
         valIdx,
         labelIdx,
+        bandMismatch,
     };
 }
 
@@ -798,6 +815,10 @@ function palette(mode) {
         needle: dark ? '#e6edf3' : '#2b3038',
         // タコメーターの針の軸（ハブ）の中心。針色に対して抜けて見える色
         hubInner: dark ? '#12151c' : '#f5f7fa',
+        // 設定の不整合を知らせるバッジ（琥珀系。データの色分けとは別系統にする）
+        warnInk: dark ? '#f0b429' : '#8a5a00',
+        warnBg: dark ? 'rgba(240,180,41,0.12)' : 'rgba(240,180,41,0.16)',
+        warnBorder: dark ? 'rgba(240,180,41,0.42)' : 'rgba(160,110,0,0.36)',
     };
 }
 
@@ -898,10 +919,16 @@ function useAnimatedValue(target, enabled, durationSec) {
 // ゲージ本体（SVG）
 // ---------------------------------------------------------------------------
 
-function GaugeArc({ w, h, value, shownValue, opts, pal, model, boundaryFont }) {
+function GaugeArc({ w, h, value, shownValue, opts, pal, model, boundaryFont, density }) {
     const sweep = opts.sweepAngle;
     const { lo, hi } = model;
     const isTacho = opts.gaugeStyle === 'tachometer';
+    // 狭いパネルでの退避（density は呼び出し側が実寸から決める）。
+    // 目盛りは情報量が少ないので先に消し、端の数値ラベルはぎりぎりまで残す。
+    const dense = density || { tiny: false, small: false };
+    const showTicks = opts.showTicks && !dense.small;
+    const showRangeLabels = opts.showRangeLabels && !dense.tiny;
+    const showBoundaryValues = opts.showBoundaryValues && !dense.small;
 
     // 値 → t（0..1）。範囲外は端に張り付く
     const tOf = (v) => clamp01((v - lo) / (hi - lo));
@@ -929,7 +956,7 @@ function GaugeArc({ w, h, value, shownValue, opts, pal, model, boundaryFont }) {
 
     // ラベル用の余白（弧の外側に文字を出すので、その分を上下左右に確保する）。
     // ラベルは rOuter + boundaryFont*0.75 の位置に描くので、それ以上を見込む。
-    const hasOuterLabels = opts.showRangeLabels || opts.showBoundaryValues;
+    const hasOuterLabels = showRangeLabels || showBoundaryValues;
     const labelPad = hasOuterLabels ? boundaryFont * 2.0 : 4;
     const padX = 8 + (hasOuterLabels ? boundaryFont * 1.6 : 0);
     const padY = 8;
@@ -1059,7 +1086,7 @@ function GaugeArc({ w, h, value, shownValue, opts, pal, model, boundaryFont }) {
 
     // --- 目盛り ---
     const ticks = [];
-    if (opts.showTicks) {
+    if (showTicks) {
         const n = 10;
         for (let i = 0; i <= n; i += 1) {
             const tt = i / n;
@@ -1078,7 +1105,7 @@ function GaugeArc({ w, h, value, shownValue, opts, pal, model, boundaryFont }) {
     // 弧の外側に、その角度の方向へ押し出して置く。両端（最小/最大）と近すぎるもの、
     // ラベル同士が重なるものは間引く。
     const boundaryLabels = [];
-    if (opts.showBoundaryValues && opts.colorMode === 'band') {
+    if (showBoundaryValues && opts.colorMode === 'band') {
         const seen = new Set();
         const cand = [];
         opts.colorBands.forEach((b) => {
@@ -1130,7 +1157,10 @@ function GaugeArc({ w, h, value, shownValue, opts, pal, model, boundaryFont }) {
     let needle = null;
     if (opts.showNeedle || isTacho) {
         const a = angleAt(t, sweep);
-        const tip = polar(cx, cy, rInner - 2, a);
+        // ★針は弧の内縁まで伸ばさず、少し手前で止める。内縁ぴったりだと帯に触れて
+        //   「どの色を指しているか」が読みにくく、中央の数値にも近づきすぎる。
+        const needleR = isTacho ? rInner * 0.9 : rInner - 2;
+        const tip = polar(cx, cy, needleR, a);
         // タコメーターは根元に少し幅を持たせた三角形の針にする
         const backA1 = a + 90;
         const backA2 = a - 90;
@@ -1298,7 +1328,7 @@ function GaugeArc({ w, h, value, shownValue, opts, pal, model, boundaryFont }) {
             )}
 
             {/* 最小・最大ラベル（弧の外側へ放射方向に押し出して見切れを防ぐ） */}
-            {opts.showRangeLabels && (
+            {showRangeLabels && (
                 <g fill={pal.faint} fontSize={boundaryFont} fontFamily={FONT_STACK}>
                     <text x={loLabel.x} y={loLabel.y + loLabel.dy} textAnchor={loLabel.anchor} data-role="range-lo">
                         {formatNumber(lo, opts)}
@@ -1975,27 +2005,48 @@ function GaugeArcViz({ mode }) {
     const gaugeW = Math.max(60, isSide ? w - panelPx - gap : w);
     const gaugeH = Math.max(50, layout === 'bottom' ? h - panelH - gap : h);
 
+    // --- 表示密度（狭いパネルでの段階的な退避）---
+    // ★ゲージ領域の実寸から「今どこまで出せるか」を決める。これが無いと小さいパネルで
+    //   タイトル・数値・目盛り・前回比がすべて重なって読めなくなる（v1.3.2 の不具合）。
+    //   小さい順に tiny → small → normal。抑制の順序は
+    //   「前回比 → タイトル → 目盛り → 端の数値ラベル」（情報量の少ないものから消す）。
+    // ★しきい値は実機で崩れていたサイズ（パネル 230×150 → viz は約 230×118）に
+    //   合わせてある。弧・中央の数値・目盛り・端ラベルが同居できる下限がこのあたり。
+    const gaugeMin = Math.min(gaugeW, gaugeH);
+    const density = {
+        tiny: gaugeMin < 160 || gaugeH < 150,
+        small: gaugeMin < 210 || gaugeH < 190,
+    };
+
     // --- 中央の数値サイズ ---
     // ゲージ領域に対して相対に決め、桁数が多いときは縮める
     const valueStr = formatNumber(value, opts);
     const isTachoStyle = opts.gaugeStyle === 'tachometer';
-    // タコメーターは中央下に文字を置くので、数値は少し小さめにして針と干渉させない
+    // タコメーターは針が中心から伸びるので、数値は中心を避けて置く（下記 centerTop）。
+    // 針と重ならない領域が狭いぶん、数値も一回り小さくする。
     const baseFont = isTachoStyle
-        ? Math.min(gaugeW * 0.14, gaugeH * 0.2)
+        ? Math.min(gaugeW * 0.13, gaugeH * 0.17)
         : Math.min(gaugeW * 0.19, gaugeH * 0.3);
     const lenAdjust = clamp(6 / Math.max(valueStr.length, 1), 0.5, 1);
-    const valueFont = Math.round(clamp(baseFont * (0.72 + lenAdjust * 0.38), 14, 88));
+    const valueFont = Math.round(clamp(baseFont * (0.72 + lenAdjust * 0.38), 12, 88));
     const titleFont = Math.round(clamp(valueFont * 0.26, 9, 20));
     const unitFont = Math.round(clamp(valueFont * 0.36, 10, 30));
     const bandFont = Math.round(clamp(valueFont * 0.24, 9, 18));
 
     const titleStr = opts.titleText || fieldNames[model.valIdx] || '';
-    const titleVisible = opts.showTitle && titleStr !== '' && gaugeH >= 110;
-    const bandVisible = opts.showBandLabel && curBand !== null && gaugeH >= 130;
+    // 狭いときはタイトルを落とす（数値と重なるより消す方がまし）
+    const titleVisible = opts.showTitle && titleStr !== '' && !density.tiny && gaugeH >= 110;
+    const bandVisible = opts.showBandLabel && curBand !== null && !density.small && gaugeH >= 130;
 
     // 中央テキストの縦位置：弧の中心付近に置く（開き角が大きいほど下寄り）。
-    // タコメーターは針が中心から伸びて数値と重なるため、下へずらす。
-    const centerTop = isTachoStyle ? 0.78 : opts.sweepAngle >= 280 ? 0.5 : 0.54;
+    // ★タコメーターは針が中心（cx,cy）から外周へ伸びるため、数値を中心に置くと必ず
+    //   針と重なる。針の回転円の外側＝弧の下側の空き領域に置く。
+    //   0.78 では下寄りすぎて弧の外へ出かける値があったので、開き角に応じて決める
+    //   （開き角が小さいほど弧の下が空くので、より下に置ける）。
+    // ★実機で 0.8 は下がりすぎだった（数値が最大値ラベルと重なり、下端にも張り付いた）。
+    //   針の軸（弧の中心）より下・端ラベルより上、の中間に収める。
+    const tachoCenterTop = opts.sweepAngle >= 280 ? 0.76 : opts.sweepAngle >= 240 ? 0.71 : 0.66;
+    const centerTop = isTachoStyle ? tachoCenterTop : opts.sweepAngle >= 280 ? 0.5 : 0.54;
     // 端・境界の数値ラベルのフォント（ゲージ領域の大きさに追従）
     const boundaryFont = Math.round(clamp(Math.min(gaugeW, gaugeH) * 0.042, 9, 15));
 
@@ -2012,6 +2063,70 @@ function GaugeArcViz({ mode }) {
         compact: layout === 'bottom',
     };
 
+    // --- 縦積みパネルに入り切るスロットだけを残す ---
+    // ★スロットを縮めてはいけない。縮めると各スロットの中身（「前回 …」「平均 …」）が
+    //   途中で切れて、かえって読めなくなる（実機で確認）。
+    //   入り切らないぶんは**スロットごと落とす**のが正しい。半端に切れた行を見せるより、
+    //   出ているものが全部読める方がよい。
+    // 1スロットの必要高 ≒ 固定分 + 係数 × panelFont。
+    // ★係数は**実機で実測して求めた**（panelFont=16 と 12 の2点から連立で解いた値）:
+    //   panelFont=16 → 前回比 70 / サブ指標 96 / 推移 67 / 目標 84 px
+    //   panelFont=12 → 前回比 68 / サブ指標 90 / 推移 55 / 目標 78 px
+    //   高さは font に単純比例せず**固定分が大きい**（見出しや余白）。
+    //   比例だけの式にすると小さいパネルで過大評価になり、入るものまで落としてしまう。
+    // ⚠ happy-dom は要素の高さを 0 で返すためローカル検証では確かめられない。
+    //    ここを変えたら必ず実機のスクリーンショットで確認すること。
+    const SLOT_H = {
+        delta: [62, 0.5],
+        stats: [72, 1.5],
+        breakdown: [72, 1.5],
+        ranking: [72, 1.5],
+        legend: [72, 1.5],
+        sparkline: [19, 3.0],
+        target: [60, 1.5],
+        period: [30, 0.8],
+        note: [30, 0.8],
+    };
+    const slotNeedH = (k) => {
+        const [a, b] = SLOT_H[k] || [62, 0.5];
+        return a + b * panelFont;
+    };
+    const sideSlots = (() => {
+        if (!isSide) return slots;
+        // 実際にスロットが使える高さ。パネル本体は上下に padding を持たないが、
+        // ホスト側のパネル枠（タイトル行など）が h から引かれるため、実測に合わせて
+        // 約 8% を差し引く（h=380 の実測で内寸 348 ≒ h*0.92）。
+        // ★viz に渡る h は既に「パネル枠を除いた内寸」（ホストがタイトル行ぶん約 32px を
+        //   引いた値）。実測: ダッシュボード上 300/380/460/560 → viz の h は 268/348/428/528。
+        //   ここでさらに割り引くと二重に引くことになるので、h をそのまま使う。
+        const avail = h;
+        const kept = [];
+        let used = 0;
+        for (let i = 0; i < slots.length; i += 1) {
+            const need = slotNeedH(slots[i]) + (kept.length > 0 ? gap : 0);
+            if (used + need > avail && kept.length > 0) break; // 1つ目は必ず出す
+            used += need;
+            kept.push(slots[i]);
+        }
+        return kept;
+    })();
+    // 落としたスロットの数（利用者に「隠れている」ことを伝えるため）
+    const droppedSlots = isSide ? slots.length - sideSlots.length : 0;
+    const shownSlots = isSide ? sideSlots : slots;
+
+    // 色帯がゲージ範囲と噛み合っていないときの注意表示（狭すぎるときは出さない）
+    const bandWarn = model.bandMismatch && !density.tiny;
+    const bandRangeText = (() => {
+        if (!bandWarn) return '';
+        const es = [];
+        opts.colorBands.forEach((b) => {
+            if (Number.isFinite(b.from)) es.push(b.from);
+            if (Number.isFinite(b.to)) es.push(b.to);
+        });
+        if (es.length === 0) return '';
+        return `${Math.min(...es)}〜${Math.max(...es)}`;
+    })();
+
     // パネル本体（縦積み／下配置では横並び）
     const panelInner = (
         <div
@@ -2020,6 +2135,10 @@ function GaugeArcViz({ mode }) {
                 display: 'flex',
                 flexDirection: layout === 'bottom' ? 'row' : 'column',
                 gap: layout === 'bottom' ? gap * 1.6 : gap,
+                // ★縦積みのとき center にしてはいけない。入り切らない量のスロットを
+                //   中央寄せすると上下**両方向**にはみ出し、overflow:hidden で
+                //   先頭と末尾が切れる（4スロットで「達成率」が切れた不具合）。
+                //   入り切るときだけ中央、溢れるときは上詰めにする。
                 justifyContent: layout === 'bottom' ? 'space-around' : 'center',
                 alignItems: layout === 'bottom' ? 'flex-start' : 'stretch',
                 width: '100%',
@@ -2030,15 +2149,38 @@ function GaugeArcViz({ mode }) {
                 padding: layout === 'bottom' ? `${gap}px ${gap}px 0` : `0 ${Math.round(gap * 0.6)}px`,
             }}
         >
-            {slots.map((kind, i) => {
+            {shownSlots.map((kind, i) => {
                 const node = renderSlot(kind, slotCtx);
                 if (!node) return null;
                 return (
-                    <div key={`slot${i}-${kind}`} style={{ minWidth: 0, flex: layout === 'bottom' ? '1 1 0' : 'none' }}>
+                    <div
+                        key={`slot${i}-${kind}`}
+                        // 縮めない（flex:'none'）。入り切らないものは上で除外済みなので、
+                        // ここに残っているスロットは必ず全部表示できる。
+                        style={{ minWidth: 0, flex: layout === 'bottom' ? '1 1 0' : 'none' }}
+                    >
                         {node}
                     </div>
                 );
             })}
+            {/* 高さが足りずに隠したスロットがあることを小さく知らせる */}
+            {droppedSlots > 0 && (
+                <div
+                    data-role="slots-hidden"
+                    title="パネルの高さが足りないため、一部の情報を隠しています。パネルを高くすると表示されます。"
+                    style={{
+                        flex: 'none',
+                        color: pal.faint,
+                        fontSize: Math.round(panelFont * 0.78),
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                    }}
+                >
+                    ほか {droppedSlots} 件
+                </div>
+            )}
         </div>
     );
 
@@ -2054,6 +2196,7 @@ function GaugeArcViz({ mode }) {
                 pal={pal}
                 model={model}
                 boundaryFont={boundaryFont}
+                density={density}
             />
             {/* 中央の数値（SVG の上に重ねる。ゲージの中心に合わせる） */}
             <div
@@ -2161,8 +2304,10 @@ function GaugeArcViz({ mode }) {
                     </div>
                 )}
 
-                {/* パネルを出せない狭い状況でも、比較だけは中央下に出す */}
-                {layout === 'none' && opts.showDelta && deltaObj && gaugeH >= 96 && (
+                {/* パネルを出せない狭い状況でも、比較だけは中央下に出す。
+                    ★ただし tiny では出さない。出すと弧の端の数値ラベル（0/100）と
+                    重なって両方読めなくなる（実機で確認した不具合）。 */}
+                {layout === 'none' && opts.showDelta && deltaObj && !density.tiny && gaugeH >= 96 && (
                     <div
                         data-role="delta-inline"
                         style={{
@@ -2196,6 +2341,7 @@ function GaugeArcViz({ mode }) {
             ref={setContainer}
             data-viz-version={VIZ_VERSION}
             style={{
+                position: 'relative', // 注意バッジ（絶対配置）の基準
                 width: '100%',
                 height: '100%',
                 boxSizing: 'border-box',
@@ -2219,10 +2365,45 @@ function GaugeArcViz({ mode }) {
                         minWidth: 0,
                         boxSizing: 'border-box',
                         display: 'flex',
+                        // 溢れるときは上詰め（center のままだと外枠でも上下に押し出される）
                         alignItems: 'center',
                     }}
                 >
                     {panelInner}
+                </div>
+            )}
+
+            {/* 色帯がゲージ範囲と噛み合っていないときの注意書き。
+                「範囲を変えたのに色帯が 0〜100 のまま＝全部同じ色」に気づけるようにする。
+                描画は妨げない小さなバッジで、色の設定を直せば自動的に消える。 */}
+            {bandWarn && (
+                <div
+                    data-role="band-warning"
+                    title={`色の範囲（${bandRangeText}）がゲージの範囲（${formatNumber(
+                        model.lo,
+                        opts
+                    )}〜${formatNumber(model.hi, opts)}）の外にあります。「値の範囲と色」を設定し直してください。`}
+                    style={{
+                        position: 'absolute',
+                        top: 6,
+                        right: 8,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        padding: '2px 7px',
+                        borderRadius: 6,
+                        fontSize: 10.5,
+                        fontWeight: 700,
+                        lineHeight: 1.4,
+                        color: pal.warnInk,
+                        background: pal.warnBg,
+                        border: `1px solid ${pal.warnBorder}`,
+                        pointerEvents: 'auto',
+                        zIndex: 5,
+                        whiteSpace: 'nowrap',
+                    }}
+                >
+                    色の範囲を確認
                 </div>
             )}
         </div>

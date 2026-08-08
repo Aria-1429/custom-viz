@@ -274,11 +274,28 @@ await setOpts({ aggMode: 'first' });
 check('先頭 41', valueText().includes('41'), valueText());
 
 console.log('\n=== 7. サブ情報パネルのスロット ===');
+// ★v1.4.0 から、縦積みパネルは「入り切らないスロットを落とす」ようになった。
+//   400px の高さでは 4 スロットは入らないので、まず高くしてから各スロットの描画を見る
+//   （スロット単体が描けるかと、入り切らないときの間引きは別の関心事）。
+await resize(900, 700);
 await setOpts({ slot1: 'stats', slot2: 'breakdown', slot3: 'ranking', slot4: 'legend' });
 check('サブ指標が出る', qa('[data-role="stat"]').length > 0);
 check('内訳が出る', qa('[data-role="breakdown"]').length > 0);
 check('ランキングが出る', qa('[data-role="rank"]').length > 0);
 check('凡例が出る（帯 3 段）', text().includes('凡例'));
+
+// 高さが足りないときはスロットを落とし、「ほか N 件」で知らせる
+// （中身を縮めて途中で切るより、出ているものが全部読める方がよい）
+await resize(900, 300);
+check(
+    '低いパネルではスロットを間引く',
+    qa('[data-role="slots-hidden"]').length === 1,
+    text().slice(0, 160)
+);
+check('間引いた件数を知らせる', /ほか\s*\d+\s*件/.test(text()), text().slice(0, 160));
+await resize(900, 700);
+check('高くすれば全スロットが戻る', qa('[data-role="slots-hidden"]').length === 0);
+await resize(900, 400);
 
 await setOpts({ slot1: 'sparkline', slot2: 'none', slot3: 'none', slot4: 'none' });
 check('スパークラインが出る', !!q('[data-role="sparkline"]'));
@@ -667,6 +684,57 @@ state.theme = 'dark';
 fire('theme', { theme: 'dark' });
 await settle();
 check('ダークへ戻せる', qa('svg').length > 0);
+
+// ---------------------------------------------------------------------------
+console.log('\n=== 17. v1.4.0 狭いパネルでの退避 ===');
+// ★実機で「小さいパネルだとタイトル・数値・目盛り・前回比が重なって読めない」
+//   状態になっていたための回帰テスト。狭いほど情報を落として、残ったものは読めるようにする。
+await setOpts({
+    titleText: 'CPU',
+    unitText: '%',
+    slot1: 'delta',
+    slot2: 'none',
+    slot3: 'none',
+    slot4: 'none',
+    showTicks: true,
+    showRangeLabels: true,
+});
+await resize(900, 400);
+check('通常サイズではタイトルが出る', text().includes('CPU'));
+check('通常サイズでは目盛りがある', qa('[data-role="tick"]').length > 0 || qa('line').length > 0);
+
+await resize(230, 150); // 実機で崩れていたサイズ
+const tinyText = text();
+check('極小でもゲージ自体は描かれる', qa('svg').length > 0);
+check('極小ではタイトルを消す', !tinyText.includes('CPU'), tinyText.slice(0, 120));
+check('極小では前回比を出さない', qa('[data-role="delta-inline"]').length === 0, tinyText.slice(0, 120));
+check('極小でも値は残る', valueText().length > 0, valueText());
+
+await resize(900, 400);
+check('広げればタイトルが戻る', text().includes('CPU'));
+
+console.log('\n=== 18. v1.4.0 色帯とゲージ範囲の不一致 ===');
+// ★-20〜20 の範囲に 0〜100 用の既定色帯を当てると「全部緑」になって気づけなかった問題。
+await setOpts({ minValue: 0, maxValue: 100 });
+check('範囲が噛み合っていれば警告は出ない', qa('[data-role="band-warning"]').length === 0);
+await setOpts({ minValue: -20, maxValue: 20 });
+check(
+    '範囲外の色帯なら警告を出す',
+    qa('[data-role="band-warning"]').length === 1,
+    text().slice(0, 160)
+);
+check('警告は描画を止めない', qa('svg').length > 0 && valueText().length > 0);
+await setOpts({
+    minValue: -20,
+    maxValue: 20,
+    colorBands: [
+        { from: null, to: -10, value: '#22c55e' },
+        { from: -10, to: 10, value: '#f0b429' },
+        { from: 10, to: null, value: '#ef4444' },
+    ],
+});
+check('範囲に合わせ直せば警告は消える', qa('[data-role="band-warning"]').length === 0);
+await setOpts({ minValue: 0, maxValue: 100, colorBands: undefined });
 
 console.log(`\n===== 結果: ${pass} passed, ${fail} failed =====`);
 process.exit(fail > 0 ? 1 : 0);
