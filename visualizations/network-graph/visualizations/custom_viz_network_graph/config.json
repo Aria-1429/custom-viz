@@ -1,114 +1,458 @@
 {
-  "showTitleAndDescription": true,
-  "includeInToolbar": true,
-  "includeInVizSwitcher": true,
-  "showDrilldown": false,
-  "canSetTokens": [],
-  "hasEventHandlers": false,
-  "config": {
-    "name": "Network Graph",
-    "description": "A physics-based force-directed network graph with flowing-dash edges, width-linked arrows, drag, zoom and pan",
-    "category": "Custom",
-    "icon": null,
-    "dataContract": {
-      "requiredDataSources": ["primary"],
-      "optionalDataSources": []
-    },
-    "size": {
-      "initialWidth": 800,
-      "initialHeight": 520
-    },
-    "optionsSchema": {
-      "maxNodes": { "type": "number", "default": 60 },
-      "nodeScale": { "type": "number", "default": 100 },
-      "spacing": { "type": "number", "default": 130 },
-      "linkDistance": { "type": "number", "default": 90 },
-      "repulsion": { "type": "number", "default": 100 },
-      "autoFit": { "type": "boolean", "default": true },
-      "curved": { "type": "boolean", "default": true },
-      "showArrows": { "type": "boolean", "default": true },
-      "edgeOpacity": { "type": "number", "default": 55 },
-      "edgeScale": { "type": "number", "default": 100 },
-      "showFlow": { "type": "boolean", "default": true },
-      "flowSpeed": { "type": "number", "default": 100 },
-      "flowDash": { "type": "number", "default": 60 },
-      "glow": { "type": "boolean", "default": true },
-      "showLabels": { "type": "boolean", "default": true },
-      "labelSize": { "type": "number", "default": 11 },
-      "showValues": { "type": "boolean", "default": false },
-      "showHeader": { "type": "boolean", "default": true },
-      "highlightOnHover": { "type": "boolean", "default": true },
-      "useValueColors": { "type": "boolean", "default": false },
-      "lowColor": { "type": "string", "default": "#3fb950" },
-      "midColor": { "type": "string", "default": "#f5c518" },
-      "highColor": { "type": "string", "default": "#ef4d4d" },
-      "useMidColor": { "type": "boolean", "default": true },
-      "reverse": { "type": "boolean", "default": false },
-      "seriesColors": {
-        "default": ["#7B56DB", "#009CEB", "#00CDAF", "#DD9900", "#FF677B", "#CB2196"],
-        "anyOf": [
-          { "type": "array", "items": { "type": "string" } },
-          { "type": "string", "pattern": "^>.*" }
+    "showTitleAndDescription": true,
+    "includeInToolbar": true,
+    "includeInVizSwitcher": true,
+    "showDrilldown": true,
+    "canSetTokens": [
+        "dynamic",
+        "static"
+    ],
+    "hasEventHandlers": true,
+    "config": {
+        "name": "Network Graph",
+        "description": "ノードとエッジの関係を力学レイアウトで描くネットワーク図。送信元・宛先・値の列を選べ、流れる破線・矢印・値による色分けに対応。ノードのドラッグ／ズーム／パンができ、クリックでトークンを設定できる",
+        "category": "Custom",
+        "icon": null,
+        "dataContract": {
+            "requiredDataSources": [
+                "primary"
+            ],
+            "optionalDataSources": []
+        },
+        "size": {
+            "initialWidth": 800,
+            "initialHeight": 520
+        },
+        "optionsSchema": {
+            "sourceField": {
+                "type": "string",
+                "default": ""
+            },
+            "targetField": {
+                "type": "string",
+                "default": ""
+            },
+            "valueField": {
+                "type": "string",
+                "default": ""
+            },
+            "enableDrilldown": {
+                "type": "boolean",
+                "default": true
+            },
+            "labelMaxChars": {
+                "type": "number",
+                "default": 14
+            },
+            "maxNodes": {
+                "type": "number",
+                "default": 60
+            },
+            "nodeScale": {
+                "type": "number",
+                "default": 100
+            },
+            "spacing": {
+                "type": "number",
+                "default": 95
+            },
+            "linkDistance": {
+                "type": "number",
+                "default": 90
+            },
+            "repulsion": {
+                "type": "number",
+                "default": 45
+            },
+            "autoFit": {
+                "type": "boolean",
+                "default": true
+            },
+            "curved": {
+                "type": "boolean",
+                "default": true
+            },
+            "showArrows": {
+                "type": "boolean",
+                "default": true
+            },
+            "edgeOpacity": {
+                "type": "number",
+                "default": 55
+            },
+            "edgeScale": {
+                "type": "number",
+                "default": 100
+            },
+            "showFlow": {
+                "type": "boolean",
+                "default": true
+            },
+            "flowSpeed": {
+                "type": "number",
+                "default": 100
+            },
+            "flowDash": {
+                "type": "number",
+                "default": 60
+            },
+            "glow": {
+                "type": "boolean",
+                "default": true
+            },
+            "showLabels": {
+                "type": "boolean",
+                "default": true
+            },
+            "labelSize": {
+                "type": "number",
+                "default": 11
+            },
+            "showValues": {
+                "type": "boolean",
+                "default": false
+            },
+            "showHeader": {
+                "type": "boolean",
+                "default": true
+            },
+            "highlightOnHover": {
+                "type": "boolean",
+                "default": true
+            },
+            "useValueColors": {
+                "type": "boolean",
+                "default": false
+            },
+            "lowColor": {
+                "type": "string",
+                "default": "#3fb950"
+            },
+            "midColor": {
+                "type": "string",
+                "default": "#f5c518"
+            },
+            "highColor": {
+                "type": "string",
+                "default": "#ef4d4d"
+            },
+            "useMidColor": {
+                "type": "boolean",
+                "default": true
+            },
+            "reverse": {
+                "type": "boolean",
+                "default": false
+            },
+            "seriesColors": {
+                "default": [
+                    "#7B56DB",
+                    "#009CEB",
+                    "#00CDAF",
+                    "#DD9900",
+                    "#FF677B",
+                    "#CB2196"
+                ],
+                "anyOf": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "pattern": "^>.*"
+                    }
+                ]
+            }
+        },
+        "editorConfig": [
+            {
+                "label": "データ",
+                "layout": [
+                    [
+                        {
+                            "label": "送信元の列（未指定なら1列目）",
+                            "editor": "editor.columnSelector",
+                            "option": "sourceField",
+                            "context": "valuesContext",
+                            "editorProps": {
+                                "dataSourceKey": "primary"
+                            }
+                        }
+                    ],
+                    [
+                        {
+                            "label": "宛先の列（未指定なら2列目）",
+                            "editor": "editor.columnSelector",
+                            "option": "targetField",
+                            "context": "valuesContext",
+                            "editorProps": {
+                                "dataSourceKey": "primary"
+                            }
+                        }
+                    ],
+                    [
+                        {
+                            "label": "値の列（未指定なら3列目。無ければ本数で数える）",
+                            "editor": "editor.columnSelector",
+                            "option": "valueField",
+                            "context": "valuesContext",
+                            "editorProps": {
+                                "dataSourceKey": "primary"
+                            }
+                        }
+                    ]
+                ]
+            },
+            {
+                "label": "レイアウトと物理",
+                "layout": [
+                    [
+                        {
+                            "label": "表示するノード数の上限（流量上位を残す）",
+                            "editor": "editor.number",
+                            "option": "maxNodes",
+                            "editorProps": {
+                                "min": 2,
+                                "max": 400
+                            }
+                        }
+                    ],
+                    [
+                        {
+                            "label": "ノードサイズ（%）",
+                            "editor": "editor.number",
+                            "option": "nodeScale"
+                        }
+                    ],
+                    [
+                        {
+                            "label": "ノード間隔（%。大きいほど広がる）",
+                            "editor": "editor.number",
+                            "option": "spacing"
+                        }
+                    ],
+                    [
+                        {
+                            "label": "リンク距離（px）",
+                            "editor": "editor.number",
+                            "option": "linkDistance"
+                        }
+                    ],
+                    [
+                        {
+                            "label": "反発の強さ（%）",
+                            "editor": "editor.number",
+                            "option": "repulsion"
+                        }
+                    ],
+                    [
+                        {
+                            "label": "画面に自動フィット",
+                            "editor": "editor.checkbox",
+                            "option": "autoFit"
+                        }
+                    ]
+                ]
+            },
+            {
+                "label": "エッジ",
+                "layout": [
+                    [
+                        {
+                            "label": "曲線エッジ",
+                            "editor": "editor.checkbox",
+                            "option": "curved"
+                        }
+                    ],
+                    [
+                        {
+                            "label": "方向の矢印を表示",
+                            "editor": "editor.checkbox",
+                            "option": "showArrows"
+                        }
+                    ],
+                    [
+                        {
+                            "label": "エッジ不透明度（%）",
+                            "editor": "editor.number",
+                            "option": "edgeOpacity"
+                        }
+                    ],
+                    [
+                        {
+                            "label": "エッジ太さ（%）",
+                            "editor": "editor.number",
+                            "option": "edgeScale"
+                        }
+                    ]
+                ]
+            },
+            {
+                "label": "フロー（流れる破線）",
+                "layout": [
+                    [
+                        {
+                            "label": "フローを流す",
+                            "editor": "editor.checkbox",
+                            "option": "showFlow"
+                        }
+                    ],
+                    [
+                        {
+                            "label": "フロー速度（%）",
+                            "editor": "editor.number",
+                            "option": "flowSpeed"
+                        }
+                    ],
+                    [
+                        {
+                            "label": "破線の密度（%）",
+                            "editor": "editor.number",
+                            "option": "flowDash"
+                        }
+                    ],
+                    [
+                        {
+                            "label": "グロー効果（ダークテーマ）",
+                            "editor": "editor.checkbox",
+                            "option": "glow"
+                        }
+                    ]
+                ]
+            },
+            {
+                "label": "ラベルとヘッダー",
+                "layout": [
+                    [
+                        {
+                            "label": "ノードラベルを表示",
+                            "editor": "editor.checkbox",
+                            "option": "showLabels"
+                        }
+                    ],
+                    [
+                        {
+                            "label": "ラベルサイズ（px）",
+                            "editor": "editor.number",
+                            "option": "labelSize"
+                        }
+                    ],
+                    [
+                        {
+                            "label": "ラベルの最大文字数（超える分は … で省略）",
+                            "editor": "editor.number",
+                            "option": "labelMaxChars",
+                            "editorProps": {
+                                "min": 4,
+                                "max": 40
+                            }
+                        }
+                    ],
+                    [
+                        {
+                            "label": "ラベルに流量を併記",
+                            "editor": "editor.checkbox",
+                            "option": "showValues"
+                        }
+                    ],
+                    [
+                        {
+                            "label": "サマリーヘッダーを表示",
+                            "editor": "editor.checkbox",
+                            "option": "showHeader"
+                        }
+                    ],
+                    [
+                        {
+                            "label": "ホバーで隣接をハイライト",
+                            "editor": "editor.checkbox",
+                            "option": "highlightOnHover"
+                        }
+                    ]
+                ]
+            },
+            {
+                "label": "ノードのパレット",
+                "layout": [
+                    [
+                        {
+                            "label": "ノードの色",
+                            "editor": "editor.seriesColors",
+                            "option": "seriesColors"
+                        }
+                    ]
+                ]
+            },
+            {
+                "label": "値による色分け",
+                "layout": [
+                    [
+                        {
+                            "label": "値で色分けする（低→高スケール）",
+                            "editor": "editor.checkbox",
+                            "option": "useValueColors"
+                        }
+                    ],
+                    [
+                        {
+                            "label": "低い値の色",
+                            "editor": "editor.color",
+                            "option": "lowColor"
+                        }
+                    ],
+                    [
+                        {
+                            "label": "中間色を使う",
+                            "editor": "editor.checkbox",
+                            "option": "useMidColor"
+                        }
+                    ],
+                    [
+                        {
+                            "label": "中間の色",
+                            "editor": "editor.color",
+                            "option": "midColor"
+                        }
+                    ],
+                    [
+                        {
+                            "label": "高い値の色",
+                            "editor": "editor.color",
+                            "option": "highColor"
+                        }
+                    ],
+                    [
+                        {
+                            "label": "スケールを反転",
+                            "editor": "editor.checkbox",
+                            "option": "reverse"
+                        }
+                    ]
+                ]
+            },
+            {
+                "label": "クリック操作",
+                "layout": [
+                    [
+                        {
+                            "label": "ノードのクリックでインタラクションを発火（「インタラクション」タブで設定）",
+                            "editor": "editor.checkbox",
+                            "option": "enableDrilldown"
+                        }
+                    ]
+                ]
+            }
+        ],
+        "events": {
+            "node.click": {
+                "description": "triggered when user clicks a node"
+            }
+        },
+        "supports": [
+            "events"
         ]
-      }
-    },
-    "editorConfig": [
-      {
-        "label": "レイアウトと物理",
-        "layout": [
-          [{ "label": "最大ノード数（流量上位を残す）", "editor": "editor.number", "option": "maxNodes" }],
-          [{ "label": "ノードサイズ（%）", "editor": "editor.number", "option": "nodeScale" }],
-          [{ "label": "ノード間隔（%。大きいほど広がる）", "editor": "editor.number", "option": "spacing" }],
-          [{ "label": "リンク距離（px）", "editor": "editor.number", "option": "linkDistance" }],
-          [{ "label": "反発の強さ（%）", "editor": "editor.number", "option": "repulsion" }],
-          [{ "label": "画面に自動フィット", "editor": "editor.checkbox", "option": "autoFit" }]
-        ]
-      },
-      {
-        "label": "エッジ",
-        "layout": [
-          [{ "label": "曲線エッジ", "editor": "editor.checkbox", "option": "curved" }],
-          [{ "label": "方向の矢印を表示", "editor": "editor.checkbox", "option": "showArrows" }],
-          [{ "label": "エッジ不透明度（%）", "editor": "editor.number", "option": "edgeOpacity" }],
-          [{ "label": "エッジ太さ（%）", "editor": "editor.number", "option": "edgeScale" }]
-        ]
-      },
-      {
-        "label": "フロー（流れる破線）",
-        "layout": [
-          [{ "label": "フローを流す", "editor": "editor.checkbox", "option": "showFlow" }],
-          [{ "label": "フロー速度（%）", "editor": "editor.number", "option": "flowSpeed" }],
-          [{ "label": "破線の密度（%）", "editor": "editor.number", "option": "flowDash" }],
-          [{ "label": "グロー効果（ダークテーマ）", "editor": "editor.checkbox", "option": "glow" }]
-        ]
-      },
-      {
-        "label": "ラベルとヘッダー",
-        "layout": [
-          [{ "label": "ノードラベルを表示", "editor": "editor.checkbox", "option": "showLabels" }],
-          [{ "label": "ラベルサイズ（px）", "editor": "editor.number", "option": "labelSize" }],
-          [{ "label": "ラベルに流量を併記", "editor": "editor.checkbox", "option": "showValues" }],
-          [{ "label": "サマリーヘッダーを表示", "editor": "editor.checkbox", "option": "showHeader" }],
-          [{ "label": "ホバーで隣接をハイライト", "editor": "editor.checkbox", "option": "highlightOnHover" }]
-        ]
-      },
-      {
-        "label": "ノードのパレット",
-        "layout": [
-          [{ "label": "ノードの色", "editor": "editor.seriesColors", "option": "seriesColors" }]
-        ]
-      },
-      {
-        "label": "値による色分け",
-        "layout": [
-          [{ "label": "値で色分けする（低→高スケール）", "editor": "editor.checkbox", "option": "useValueColors" }],
-          [{ "label": "低い値の色", "editor": "editor.color", "option": "lowColor" }],
-          [{ "label": "中間色を使う", "editor": "editor.checkbox", "option": "useMidColor" }],
-          [{ "label": "中間の色", "editor": "editor.color", "option": "midColor" }],
-          [{ "label": "高い値の色", "editor": "editor.color", "option": "highColor" }],
-          [{ "label": "スケールを反転", "editor": "editor.checkbox", "option": "reverse" }]
-        ]
-      }
-    ]
-  }
+    }
 }

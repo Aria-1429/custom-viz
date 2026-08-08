@@ -34,15 +34,24 @@ globalThis.requestAnimationFrame = (cb) => setTimeout(cb, 4);
 globalThis.cancelAnimationFrame = (id) => clearTimeout(id);
 
 // コンテナ実寸を固定（オートフィット系のため）
-Object.defineProperty(win.HTMLElement.prototype, 'clientWidth', { get: () => 900 });
-Object.defineProperty(win.HTMLElement.prototype, 'clientHeight', { get: () => 500 });
+// 実寸は可変にする（狭いパネルでの退避を検証するため）
+let VW = 900;
+let VH = 500;
+const ROS = [];
+Object.defineProperty(win.HTMLElement.prototype, 'clientWidth', { get: () => VW, configurable: true });
+Object.defineProperty(win.HTMLElement.prototype, 'clientHeight', { get: () => VH, configurable: true });
 win.HTMLElement.prototype.getBoundingClientRect = function () {
-    return { left: 0, top: 0, right: 900, bottom: 500, width: 900, height: 500, x: 0, y: 0 };
+    return { left: 0, top: 0, right: VW, bottom: VH, width: VW, height: VH, x: 0, y: 0 };
 };
+async function resize(w, h) {
+    VW = w; VH = h;
+    ROS.forEach((ro) => { try { ro.cb([]); } catch (e) { /* noop */ } });
+    await sleep(350);
+}
 
 // ResizeObserver 簡易モック（observe 時に即 callback）
 globalThis.ResizeObserver = class {
-    constructor(cb) { this.cb = cb; }
+    constructor(cb) { this.cb = cb; ROS.push(this); }
     observe() { setTimeout(() => this.cb([]), 0); }
     disconnect() {}
     unobserve() {}
@@ -83,6 +92,9 @@ let state = {
     theme: 'dark',
 };
 
+// ドリルダウンの記録（登録・発火）
+const drilldown = { registrations: [], fired: [] };
+
 globalThis.DashboardExtensionAPI = {
     getDataSources: () => ({
         loading: false,
@@ -104,6 +116,14 @@ globalThis.DashboardExtensionAPI = {
     getError: () => null,
     addErrorListener: () => () => {},
     drilldown: () => {},
+    // ドリルダウン：ホストは「登録されたノードの click」を見て payloadCallback を呼ぶ。
+    // 実機の挙動を真似て実際に DOM の click リスナーを張り、二重登録も検出できるようにする。
+    addDrilldownListener: ({ node, action, payloadCallback }) => {
+        drilldown.registrations.push({ node, action });
+        node.addEventListener('click', () => {
+            drilldown.fired.push({ action, payload: payloadCallback() });
+        });
+    },
 };
 win.DashboardExtensionAPI = globalThis.DashboardExtensionAPI;
 
@@ -157,10 +177,10 @@ console.log('\n[1] basic render (3 cols, dark theme, defaults)');
     check('labels include Internet', labels.some((t) => t.includes('Internet')));
     check('labels include DB-01', labels.some((t) => t.includes('DB-01')));
     const header = doc.body.textContent;
-    check('header: 6 nodes · 7 links', header.includes('6 nodes') && header.includes('7 links'), header.slice(0, 200));
-    check('header: total 17,200', header.includes('17,200'), header.slice(0, 200));
-    check('header notes self-loop', header.includes('1 self-loop'));
-    check('header notes invalid rows', header.includes('3 invalid rows'));
+    check('ヘッダー: ノード6 ・ エッジ7', header.includes('ノード 6') && header.includes('エッジ 7'), header.slice(0, 200));
+    check('ヘッダー: 合計 17,200', header.includes('17,200'), header.slice(0, 200));
+    check('注記: 自己ループ', header.includes('自己ループ 1 件'), header.slice(0, 260));
+    check('注記: 不正な行', header.includes('不正な行 3 件'), header.slice(0, 260));
     const flows = [...doc.querySelectorAll('path.ng-flow')];
     check('7 flow overlay paths (one per edge)', flows.length === 7, `got ${flows.length}`);
     check('flow paths share edge d (finite Q curve)', flows.every(
@@ -223,8 +243,8 @@ console.log('\n[4] maxNodes cap');
     const edges = [...doc.querySelectorAll('path.ng-edge')];
     check('2 links among kept nodes', edges.length === 2, `got ${edges.length}`);
     const header = doc.body.textContent;
-    check('header notes capped nodes', header.includes('3 nodes capped'), header.slice(0, 260));
-    check('header notes dropped links', header.includes('links dropped'));
+    check('注記: ノード省略', /ノード\s*3\s*件/.test(header), header.slice(0, 260));
+    check('注記: エッジ省略', /エッジ\s*\d+\s*件/.test(header), header.slice(0, 260));
     const labels = [...doc.querySelectorAll('text.ng-label')].map((t) => t.textContent).join(' ');
     check('kept nodes are the biggest hubs', labels.includes('Firewall') && labels.includes('Internet'));
 }
@@ -290,7 +310,7 @@ console.log('\n[7] guards');
     check('2-col data renders 2 edges (value=1, dup merged)',
         doc.querySelectorAll('path.ng-edge').length === 2,
         `got ${doc.querySelectorAll('path.ng-edge').length}`);
-    check('2-col total = 3', doc.body.textContent.includes('total 3'));
+    check('2列データの合計 = 3', doc.body.textContent.includes('合計 3'));
 }
 
 // ---- 8. ノードのパレット（editor.seriesColors） --------------------------------
@@ -379,6 +399,157 @@ console.log('\n[10] bidirectional edge separation & spacing option');
     const kWide = scaleOf();
     check('wider spacing zooms camera out (kWide < kTight)', kWide < kTight,
         `kTight=${kTight?.toFixed(3)} kWide=${kWide?.toFixed(3)}`);
+}
+
+// ---- v1.2.0 列選択（editor.columnSelector は DOS 文字列で届く） --------------
+console.log('\n[v1.2.0] 列選択');
+{
+    // 列順が src,dst,value でないデータ。位置固定だと壊れるので列指定で救えること。
+    state.data = {
+        fields: [{ name: 'bytes' }, { name: 'from' }, { name: 'to' }],
+        rows: [['500', 'A', 'B'], ['300', 'B', 'C'], ['200', 'A', 'C']],
+    };
+    state.options = {};
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    fire('options', { options: state.options });
+    await sleep(400);
+    // 既定（位置固定）では bytes を送信元として扱ってしまう＝意図しないグラフ
+    // ★列指定が無くても、値列は「送信元/宛先以外の最初の数値列」を自動で選ぶ。
+    //   以前は3列目固定だったため、この並び（bytes,from,to）だと文字列列を値として読み、
+    //   全行が捨てられてグラフが空になっていた（v1.2.0 で修正）。
+    // ★実機で踏んだ不具合の回帰テスト：bytes,from,to の並びだと数値列(bytes)を
+    //   送信元として扱い、ノード名が「500」「300」になっていた（v1.2.0 で修正）。
+    check('列指定なしでも描画は空にならない',
+        doc.querySelectorAll('path.ng-edge').length > 0,
+        doc.body.textContent.slice(0, 160));
+    const autoLabels = [...doc.querySelectorAll('text.ng-label')].map((t) => t.textContent).join(' ');
+    check('数値列を送信元にしない（自動判定）', /A/.test(autoLabels) && !/500|300|200/.test(autoLabels), autoLabels);
+    check('値列も自動で見つける（合計1000）', doc.body.textContent.includes('1,000'),
+        doc.body.textContent.slice(0, 160));
+
+    // DOS 文字列で列を指定する
+    state.options = {
+        sourceField: "> primary | seriesByName('from')",
+        targetField: "> primary | seriesByName('to')",
+        valueField: "> primary | seriesByName('bytes')",
+    };
+    fire('options', { options: state.options });
+    await sleep(400);
+    const labels = [...doc.querySelectorAll('text.ng-label')].map((t) => t.textContent).join(' ');
+    check('列指定するとホスト名がノードになる', /A/.test(labels) && /B/.test(labels) && /C/.test(labels), labels);
+    check('列指定後は数値がノード名にならない', !/500|300/.test(labels), labels);
+    check('合計は値の列から計算される（1000）', doc.body.textContent.includes('1,000'), doc.body.textContent.slice(0, 200));
+
+    // seriesByIndex 形式・生のフィールド名でも解決できる
+    state.options = { sourceField: '> primary | seriesByIndex(1)', targetField: 'to', valueField: 'bytes' };
+    fire('options', { options: state.options });
+    await sleep(400);
+    check('seriesByIndex と生名でも解決できる',
+        doc.querySelectorAll('path.ng-edge').length === 3,
+        `got ${doc.querySelectorAll('path.ng-edge').length}`);
+
+    // 壊れた指定は既定（位置固定）へ倒れる＝描画は止まらない
+    state.options = { sourceField: '> primary | brokenFn(1)', targetField: 'nope', valueField: '' };
+    fire('options', { options: state.options });
+    await sleep(400);
+    check('解決できない指定でも描画は続く（既定の列に倒れる）',
+        doc.querySelectorAll('path.ng-edge').length > 0,
+        doc.body.textContent.slice(0, 160));
+}
+
+// ---- v1.2.0 ラベルの省略 ----------------------------------------------------
+console.log('\n[v1.2.0] ラベルの省略');
+{
+    state.data = {
+        fields: [{ name: 'src' }, { name: 'dest' }],
+        rows: [['very-long-hostname-abcdefghij', 'short'], ['short', 'another-extremely-long-name-xyz']],
+    };
+    state.options = { labelMaxChars: 10 };
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    fire('options', { options: state.options });
+    await sleep(400);
+    const labels = [...doc.querySelectorAll('text.ng-label')].map((t) => t.textContent);
+    check('長いラベルは … で省略される', labels.some((t) => t.includes('…')), labels.join(' | '));
+    check('省略後は上限文字数を超えない',
+        labels.every((t) => t.replace(/\s[\d.,kM]+$/, '').length <= 10),
+        labels.join(' | '));
+    check('短いラベルはそのまま', labels.some((t) => t.includes('short')), labels.join(' | '));
+
+    state.options = { labelMaxChars: 40 };
+    fire('options', { options: state.options });
+    await sleep(400);
+    const full = [...doc.querySelectorAll('text.ng-label')].map((t) => t.textContent).join(' | ');
+    check('上限を上げれば省略されない', full.includes('very-long-hostname-abcdefghij'), full);
+}
+
+// ---- v1.2.0 ドリルダウン ----------------------------------------------------
+console.log('\n[v1.2.0] ドリルダウン（ノードのクリック）');
+{
+    state.data = { fields: FIELDS3, rows: ROWS3 };
+    state.options = {};
+    drilldown.registrations.length = 0;
+    drilldown.fired.length = 0;
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    fire('options', { options: state.options });
+    await sleep(500);
+
+    check('ノードがドリルダウンに登録される', drilldown.registrations.length > 0,
+        `got ${drilldown.registrations.length}`);
+    check('action は node.click',
+        drilldown.registrations.every((r) => r.action === 'node.click'),
+        JSON.stringify([...new Set(drilldown.registrations.map((r) => r.action))]));
+    // 1ノード1登録（解除手段が無いので二重登録は多重発火になる）
+    const nodes = drilldown.registrations.map((r) => r.node);
+    check('同じ要素に二重登録しない', new Set(nodes).size === nodes.length,
+        `${nodes.length} 登録 / ${new Set(nodes).size} 要素`);
+
+    // クリックで発火し、そのノードの情報が飛ぶ
+    const g = doc.querySelector('circle.ng-node')?.parentElement;
+    drilldown.fired.length = 0;
+    g.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await sleep(50);
+    check('クリックで1回だけ発火する', drilldown.fired.length === 1, `got ${drilldown.fired.length}`);
+    const p = drilldown.fired[0]?.payload || {};
+    check('payload にノード名が入る', typeof p['row.node.value'] === 'string' && p['row.node.value'].length > 0,
+        JSON.stringify(p));
+    check('payload に流量が入る', Number.isFinite(p['row.value.value']), JSON.stringify(p));
+    check('name/value も入る', p.name === 'node' && p.value === p['row.node.value'], JSON.stringify(p));
+
+    // OFF にすると発火しない（payload が空）
+    state.options = { enableDrilldown: false };
+    fire('options', { options: state.options });
+    await sleep(300);
+    drilldown.fired.length = 0;
+    doc.querySelector('circle.ng-node').parentElement.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await sleep(50);
+    const off = drilldown.fired[0]?.payload || {};
+    check('OFF ならトークンを送らない', Object.keys(off).length === 0, JSON.stringify(off));
+}
+
+// ---- v1.2.0 狭いパネルでのヘッダー退避 --------------------------------------
+console.log('\n[v1.2.0] 狭いパネルでの退避');
+{
+    state.data = { fields: FIELDS3, rows: ROWS3 };
+    state.options = {};
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    fire('options', { options: state.options });
+    await resize(900, 500);
+    check('通常サイズではヘッダーが出る', doc.body.textContent.includes('ノード 6'));
+    check('通常サイズでは操作ヒントも出る', doc.body.textContent.includes('ドラッグで移動'));
+
+    // ★実機で 240x170 にするとヘッダーが2行に折り返し、グラフが潰れていた
+    await resize(240, 170);
+    check('狭い幅では操作ヒントを消す', !doc.body.textContent.includes('ドラッグで移動'),
+        doc.body.textContent.slice(0, 120));
+    check('狭くてもグラフは描かれる', doc.querySelectorAll('path.ng-edge').length > 0);
+
+    await resize(240, 150);
+    check('低いパネルではヘッダーごと消す', !doc.body.textContent.includes('ノード 6'),
+        doc.body.textContent.slice(0, 120));
+    check('ヘッダーを消してもグラフは残る', doc.querySelectorAll('circle.ng-node').length > 0);
+
+    await resize(900, 500);
+    check('広げればヘッダーが戻る', doc.body.textContent.includes('ノード 6'));
 }
 
 console.log(`\n=== ${pass} passed, ${fail} failed ===`);

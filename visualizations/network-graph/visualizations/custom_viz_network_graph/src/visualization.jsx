@@ -4,10 +4,13 @@ import {
     useTheme,
     useOptions,
 } from '@splunk/dashboard-studio-extension/react';
+// ドリルダウン（編集画面の「インタラクション」）は /react にフックが無いので、
+// コアの /visualization から関数を直接 import する（severity-table / link-line と同じ）。
+import { addDrilldownListener } from '@splunk/dashboard-studio-extension/visualization';
 import Paragraph from '@splunk/react-ui/Paragraph';
 import WaitSpinner from '@splunk/react-ui/WaitSpinner';
 import { SplunkThemeProvider } from '@splunk/themes';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './visualization.css';
 
@@ -34,11 +37,17 @@ import './visualization.css';
 
 // オプションのデフォルト値（config.json の optionsSchema.default と一致させる）
 const DEFAULTS = {
+    // 列指定（空 = 従来どおり 0/1/2 列目を使う）
+    sourceField: '',
+    targetField: '',
+    valueField: '',
+    enableDrilldown: true, // ノードのクリックでインタラクションを発火
+    labelMaxChars: 14, // ラベルの最大文字数（超える分は … で省略）
     maxNodes: 60, // 表示ノード数上限（流量上位を残す）
     nodeScale: 100, // ノード半径スケール（%）
-    spacing: 130, // ノード間隔（%）。反発・リンク距離・衝突半径を一括スケール（大きいほど広がる）
+    spacing: 95, // ノード間隔（%）。反発・リンク距離・衝突半径を一括スケール（大きいほど広がる）
     linkDistance: 90, // スプリング自然長 px（面積由来の自動値との大きい方を使う）
-    repulsion: 100, // ノード間反発の強さ（%）
+    repulsion: 45, // ノード間反発の強さ（%）。散らばりすぎないよう既定を下げた（v1.2.1→v1.2.2 で更に）
     autoFit: true, // グラフ全体が画面に収まるようカメラを自動調整（ズーム/パンで解除）
     curved: true, // エッジを曲線にする
     showArrows: true, // 向きの矢印
@@ -74,6 +83,140 @@ const DEFAULT_PALETTE = [
 
 const MAX_LINKS = 800; // レイアウト破綻を防ぐ上限（値の大きい順に残す）
 const MIN_RADIUS = 6; // ノード最小半径 px
+
+// Barnes-Hut（反発の近似計算）のパラメータ
+//   THETA … セル幅 / 距離 がこの値より小さければ「遠い」とみなして重心1点で代用する。
+//           0 に近いほど厳密（=遅い）、大きいほど粗い。0.9 は一般的な既定値。
+//   MIN_NODES … これ以下のノード数では木を作るコストの方が高いので総当たりにする。
+const BARNES_HUT_THETA = 0.9;
+const BARNES_HUT_MIN_NODES = 24;
+
+// ドリルダウンで発火するイベント名。config.json の `events` に宣言した名前と一致させる。
+// ホストは宣言済みの名前しか認識しないので、両方を同時に直すこと。
+const NODE_CLICK_ACTION = 'node.click';
+
+// ---------------------------------------------------------------------------
+// Barnes-Hut 四分木（反発力を O(n^2) → O(n log n) にする）
+//
+// ノードを含む正方領域を再帰的に4分割し、各セルに「質量（=ノード数）」と「重心」を持たせる。
+// 力を求めるときは、十分遠いセルは中身を展開せず重心1点として扱う。
+// ※ここでの質量はすべて 1（ノードの値で重み付けはしない）。値で重み付けすると
+//   流量の大きいノードだけが極端に他を押しのけ、レイアウトが読みにくくなるため。
+// ---------------------------------------------------------------------------
+function buildQuadTree(nodes) {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (let i = 0; i < nodes.length; i += 1) {
+        const p = nodes[i];
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.y > maxY) maxY = p.y;
+    }
+    if (!Number.isFinite(minX)) return null;
+    // 正方形にそろえる（セル幅の判定を単純にするため）
+    const size = Math.max(maxX - minX, maxY - minY, 1) * 1.01;
+    const root = { x: minX, y: minY, size, mass: 0, cx: 0, cy: 0, body: null, kids: null };
+
+    const insert = (cell, p, depth) => {
+        // 深すぎる分割は打ち切る（同一座標のノードが複数あると無限に割れてしまう）
+        if (depth > 20) {
+            cell.mass += 1;
+            cell.cx += p.x;
+            cell.cy += p.y;
+            return;
+        }
+        if (cell.mass === 0 && !cell.kids) {
+            cell.mass = 1;
+            cell.cx = p.x;
+            cell.cy = p.y;
+            cell.body = p;
+            return;
+        }
+        if (!cell.kids) {
+            // 既に1点入っている葉 → 4分割して既存点を押し下げる
+            const existing = cell.body;
+            cell.kids = [null, null, null, null];
+            cell.body = null;
+            if (existing) pushDown(cell, existing, depth);
+        }
+        cell.mass += 1;
+        cell.cx += p.x;
+        cell.cy += p.y;
+        pushDown(cell, p, depth);
+    };
+
+    const pushDown = (cell, p, depth) => {
+        const half = cell.size / 2;
+        const qx = p.x >= cell.x + half ? 1 : 0;
+        const qy = p.y >= cell.y + half ? 1 : 0;
+        const idx = qy * 2 + qx;
+        if (!cell.kids[idx]) {
+            cell.kids[idx] = {
+                x: cell.x + qx * half,
+                y: cell.y + qy * half,
+                size: half,
+                mass: 0,
+                cx: 0,
+                cy: 0,
+                body: null,
+                kids: null,
+            };
+        }
+        insert(cell.kids[idx], p, depth + 1);
+    };
+
+    for (let i = 0; i < nodes.length; i += 1) {
+        const p = nodes[i];
+        if (root.mass === 0 && !root.kids) {
+            root.mass = 1;
+            root.cx = p.x;
+            root.cy = p.y;
+            root.body = p;
+        } else {
+            insert(root, p, 0);
+        }
+    }
+    return root;
+}
+
+// 四分木をたどってノード a に働く反発力を加える（strength = charge * alpha）
+function applyRepulsion(cell, a, strength) {
+    if (!cell || cell.mass === 0) return;
+    // 葉（実体1つ）は自分自身をスキップ
+    if (cell.body) {
+        if (cell.body === a) return;
+        accumulate(a, cell.body.x, cell.body.y, 1, strength);
+        return;
+    }
+    const comX = cell.cx / cell.mass;
+    const comY = cell.cy / cell.mass;
+    const dx = comX - a.x;
+    const dy = comY - a.y;
+    const d = Math.sqrt(dx * dx + dy * dy) || 0.1;
+    if (cell.size / d < BARNES_HUT_THETA) {
+        // 十分遠い → このセルはまとめて1点として扱う
+        accumulate(a, comX, comY, cell.mass, strength);
+        return;
+    }
+    if (cell.kids) {
+        for (let i = 0; i < 4; i += 1) applyRepulsion(cell.kids[i], a, strength);
+    }
+}
+
+function accumulate(a, bx, by, mass, strength) {
+    let dx = bx - a.x;
+    let dy = by - a.y;
+    let d2 = dx * dx + dy * dy;
+    if (d2 < 1) { dx = 0.5; dy = 0.5; d2 = 0.5; }
+    const d = Math.sqrt(d2);
+    // 総当たり版と同じ上限（1ノードあたり 60）を質量ぶんに拡張する
+    const f = Math.min((strength * mass) / d2, 60 * mass);
+    a.vx -= (dx / d) * f;
+    a.vy -= (dy / d) * f;
+}
 
 // ---------------------------------------------------------------------------
 // ユーティリティ
@@ -116,7 +259,14 @@ function normalizeOptions(raw) {
     };
     const color = (key) => (isHexColor(o[key]) ? o[key].trim() : DEFAULTS[key]);
     return {
-        maxNodes: num('maxNodes', 2, 300),
+        // 列指定（columnSelector の DOS 文字列 / 生名 / 配列のいずれでも来うる）
+        sourceField: o.sourceField ?? DEFAULTS.sourceField,
+        targetField: o.targetField ?? DEFAULTS.targetField,
+        valueField: o.valueField ?? DEFAULTS.valueField,
+        enableDrilldown: bool('enableDrilldown'),
+        labelMaxChars: num('labelMaxChars', 4, 40),
+        // Barnes-Hut 化で計算量が下がったため上限を 300 → 400 に引き上げ
+        maxNodes: num('maxNodes', 2, 400),
         nodeScale: num('nodeScale', 20, 300),
         spacing: num('spacing', 50, 300),
         linkDistance: num('linkDistance', 20, 400),
@@ -208,18 +358,68 @@ function fmtFull(v) {
 // グラフ構築（行 → ノード/リンク。ガードと集約はここで完結させる）
 // ---------------------------------------------------------------------------
 
-function buildGraph(rows, colCount, maxNodes) {
+// ---------------------------------------------------------------------------
+// フィールド解決（editor.columnSelector は DOS 文字列で届くのでパースする）
+//   例: "> primary | seriesByName('src')" / "> primary | seriesByIndex(2)"
+//   生のフィールド名やホスト解決済みの配列で届く場合にも耐える。
+//   未指定・解決不能なら fallbackIdx（従来の位置固定）に倒す。
+//   参照実装: severity-table / chord-flow の resolveFieldIndex()
+// ---------------------------------------------------------------------------
+function resolveFieldIndex(spec, fieldNames, sampleRows, fallbackIdx) {
+    if (spec === null || spec === undefined || spec === '') return fallbackIdx;
+    if (Array.isArray(spec)) {
+        // ホストが解決済みの列（値の配列）を渡してきた場合：中身の一致で列を特定する
+        for (let i = 0; i < fieldNames.length; i += 1) {
+            const n = Math.min(spec.length, sampleRows.length, 5);
+            let ok = n > 0;
+            for (let k = 0; k < n; k += 1) {
+                const cell = Array.isArray(sampleRows[k]) ? sampleRows[k][i] : undefined;
+                if (String(cell) !== String(spec[k])) { ok = false; break; }
+            }
+            if (ok) return i;
+        }
+        return fallbackIdx;
+    }
+    if (typeof spec !== 'string') return fallbackIdx;
+    const s = spec.trim();
+    if (s === '') return fallbackIdx;
+    let name = s;
+    if (s.startsWith('>')) {
+        const byName = s.match(/seriesByName\(\s*['"]([^'"]+)['"]\s*\)/);
+        const byIndex = s.match(/seriesByIndex\(\s*(\d+)\s*\)/);
+        if (byName) {
+            name = byName[1];
+        } else if (byIndex) {
+            const idx = Number(byIndex[1]);
+            return idx >= 0 && idx < fieldNames.length ? idx : fallbackIdx;
+        } else {
+            return fallbackIdx;
+        }
+    }
+    const idx = fieldNames.indexOf(name);
+    return idx >= 0 ? idx : fallbackIdx;
+}
+
+// ラベルを最大文字数で切り詰める（CJK も1文字として数える素朴な方式）
+function truncateLabel(text, maxChars) {
+    const s = String(text ?? '');
+    if (!Number.isFinite(maxChars) || maxChars <= 0 || s.length <= maxChars) return s;
+    return `${s.slice(0, Math.max(1, maxChars - 1))}…`;
+}
+
+function buildGraph(rows, colCount, maxNodes, idx) {
     const stats = { invalid: 0, selfLoops: 0, cappedNodes: 0, droppedLinks: 0 };
     const pairKey = (s, t) => `${s}\u0000${t}`;
     const pairs = new Map();
 
     rows.forEach((row) => {
         if (!Array.isArray(row)) { stats.invalid += 1; return; }
-        const src = String(row[0] ?? '').trim();
-        const tgt = String(row[1] ?? '').trim();
+        const src = String(row[idx.src] ?? '').trim();
+        const tgt = String(row[idx.tgt] ?? '').trim();
         let v = 1;
-        if (colCount >= 3) {
-            v = parseNum(row[2]);
+        // 値の列が解決できていれば使う。無ければ「1件=1」として本数で数える。
+        if (idx.val >= 0 && idx.val < colCount) {
+            v = parseNum(row[idx.val]);
             if (!Number.isFinite(v) || v <= 0) { stats.invalid += 1; return; }
         }
         if (!src || !tgt) { stats.invalid += 1; return; }
@@ -398,6 +598,7 @@ function NetworkGraph({ mode }) {
     const needsDrawRef = useRef(true);
     const viewRef = useRef({ k: 1, tx: 0, ty: 0 });
     const autoFitRef = useRef(true); // ユーザーがズーム/パンしたら false（dblclick で復帰）
+    const draggingRef = useRef(false); // ノードをドラッグ中（この間は力を弱めて操作しやすくする）
     const svgSizeRef = useRef({ w: 800, h: 460 }); // ヘッダー分を引いた svg 実寸
     const hoverRef = useRef({ id: null, dirty: false });
     const optsRef = useRef(opts);
@@ -467,9 +668,66 @@ function NetworkGraph({ mode }) {
         return rows.length > 0 && Array.isArray(rows[0]) ? rows[0].length : 0;
     }, [data, rows]);
 
+    // 列の解決。未指定なら従来どおり 0/1/2 列目（後方互換）。
+    const fieldNames = useMemo(
+        () => (data?.fields || []).map((f) => (f && typeof f === 'object' ? f.name : f)),
+        [data]
+    );
+    // 各列の「数値らしさ」（0..1）。先頭20行のうち数値として読めた割合。
+    // ★二値の判定にしない。実データは欠損や不正値が混ざるので、しきい値を切ると
+    //   少し汚れただけで判定が反転する（実機・テストの両方で踏んだ）。
+    //   割合として持っておき、「相対的に最も数値らしい列」を値列に選ぶ。
+    const numericScore = useMemo(() => {
+        const sample = rows.slice(0, 20);
+        const out = [];
+        for (let i = 0; i < fieldCount; i += 1) {
+            let num = 0;
+            let seen = 0;
+            sample.forEach((r) => {
+                const cell = Array.isArray(r) ? r[i] : undefined;
+                if (cell === null || cell === undefined || String(cell).trim() === '') return;
+                seen += 1;
+                if (Number.isFinite(parseNum(cell))) num += 1;
+            });
+            out.push(seen > 0 ? num / seen : 0);
+        }
+        return out;
+    }, [rows, fieldCount]);
+
+    const colIdx = useMemo(() => {
+        // ★送信元/宛先の既定は「0/1列目」ではなく「最初の2つの非数値列」。
+        //   実機で bytes,src,dst の並びを食わせたところ、数値列(bytes)を送信元として
+        //   扱ってノード名が「300」「930」になってしまった（v1.2.0 で修正）。
+        //   非数値列が2つ未満のときだけ従来の 0/1 に倒す。
+        // 数値らしさが低い順（＝名前らしい順）に2列を選ぶ。同点なら左の列を優先する
+        // ので、素直な src,dst,value の並びは従来どおり 0/1 列目になる。
+        const order = Array.from({ length: fieldCount }, (_, i) => i)
+            .sort((a, b) => (numericScore[a] - numericScore[b]) || (a - b));
+        const defSrc = order.length >= 2 ? order[0] : 0;
+        const defTgt = order.length >= 2 ? order[1] : 1;
+        const src = resolveFieldIndex(opts.sourceField, fieldNames, rows, defSrc);
+        const tgt = resolveFieldIndex(opts.targetField, fieldNames, rows, defTgt);
+        // 値列。明示指定があればそれを優先し、無ければ「送信元/宛先以外の最初の数値列」を探す。
+        // ★単純に「3列目」に固定してはいけない。列を入れ替えた指定（例 bytes,from,to で
+        //   送信元=from・宛先=to）のとき、残りは 0 列目なのに 2 列目（＝宛先と同じ文字列列）を
+        //   値として読んでしまい、全行が「非数値」で捨てられてグラフが空になる。
+        let val = -1;
+        if (opts.valueField) {
+            val = resolveFieldIndex(opts.valueField, fieldNames, rows, -1);
+        } else {
+            // 値列は「送信元/宛先以外の最初の数値列」。位置（3列目）に固定しない。
+            for (let i = 0; i < fieldCount; i += 1) {
+                if (i === src || i === tgt) continue;
+                // 残りのうち最も数値らしい列を値列にする（0.5 未満なら値なしとみなす）
+                if (numericScore[i] >= 0.5 && (val < 0 || numericScore[i] > numericScore[val])) val = i;
+            }
+        }
+        return { src, tgt, val };
+    }, [opts.sourceField, opts.targetField, opts.valueField, fieldNames, rows, fieldCount, numericScore]);
+
     const graph = useMemo(
-        () => buildGraph(rows, fieldCount, opts.maxNodes),
-        [rows, fieldCount, opts.maxNodes]
+        () => buildGraph(rows, fieldCount, opts.maxNodes, colIdx),
+        [rows, fieldCount, opts.maxNodes, colIdx]
     );
 
     // 本表示がマウントされているか（ガード → 本表示への切替でリスナーを張り直す）
@@ -483,18 +741,23 @@ function NetworkGraph({ mode }) {
         }
         return opts.palette[n.rank % opts.palette.length];
     };
-    const linkColors = useMemo(() => graph.links.map((l) => {
+    const linkColors = useMemo(() => {
+        // ★v1.2.0：以前は links.map の中で nodes.find() を呼んでおり O(ノード数×エッジ数)
+        //   だった（60ノード×800エッジで約4.8万回の走査）。id → ノードの Map を先に作る。
+        const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+        return graph.links.map((l) => {
         if (opts.useValueColors) {
             const span = graph.maxL - graph.minL;
             return scaleColorFor(span > 0 ? (l.value - graph.minL) / span : 0.5, opts);
         }
-        const sN = graph.nodes.find((n) => n.id === l.sId);
-        const tN = graph.nodes.find((n) => n.id === l.tId);
+        const sN = byId.get(l.sId);
+        const tN = byId.get(l.tId);
         const cA = sN ? opts.palette[sN.rank % opts.palette.length] : colors.edgeBase;
         const cB = tN ? opts.palette[tN.rank % opts.palette.length] : colors.edgeBase;
         return lerpColor(cA, cB, 0.5);
+        });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }), [graph, opts]);
+    }, [graph, opts]);
 
     // ---- シミュレーション構築（位置は id で引き継ぎ、初期配置は決定的な円周+ジッタ）
     useEffect(() => {
@@ -568,7 +831,12 @@ function NetworkGraph({ mode }) {
         const sim = simRef.current;
         if (!sim) return;
         const o = optsRef.current;
-        const alpha = alphaRef.current;
+        // ★ドラッグ中は力を大きく弱める（0.15倍）。
+        //   重なり回避（反発・衝突）は本来ありがたい力だが、掴んでいる間もフルに効くと
+        //   周囲のノードが逃げ回り、掴んだノードも押し返されて「狙った場所に置けない」。
+        //   0.35→0.15 でもまだ動きすぎたので 0.07 倍まで下げた（v1.2.2）。
+        //   これで「置いた場所にとどまり、周囲はほとんど動かない」挙動になる。
+        const alpha = alphaRef.current * (draggingRef.current ? 0.07 : 1);
         const { w, h } = sizeRef.current;
         const cx = (w || 800) / 2;
         const cy = (h || 500) / 2;
@@ -585,22 +853,31 @@ function NetworkGraph({ mode }) {
         // ラベルの分まで衝突半径に含める。実ラベル幅の推定も使い、横方向の重なりを抑える。
         const labelPad = o.showLabels ? o.labelSize + 8 : 4;
 
-        // 反発（力の上限を 30→60 に引き上げ、近接ノードをよりしっかり離す）
-        for (let i = 0; i < n; i += 1) {
-            const a = nodes[i];
-            for (let j = i + 1; j < n; j += 1) {
-                const b = nodes[j];
-                let dx = b.x - a.x;
-                let dy = b.y - a.y;
-                let d2 = dx * dx + dy * dy;
-                if (d2 < 1) { dx = 0.5; dy = 0.5; d2 = 0.5; }
-                const d = Math.sqrt(d2);
-                const f = Math.min((charge * alpha) / d2, 60);
-                const fx = (dx / d) * f;
-                const fy = (dy / d) * f;
-                a.vx -= fx; a.vy -= fy;
-                b.vx += fx; b.vy += fy;
+        // --- 反発 ---
+        // ★v1.2.0：総当たり O(n^2) から Barnes-Hut 近似 O(n log n) に置き換えた。
+        //   遠くのノード群は「重心1点」にまとめて扱う（四分木のセル幅 / 距離 < THETA なら近似）。
+        //   これでノード数の上限を上げても破綻しない。少数のときは木を作る方が高くつくので
+        //   従来どおり総当たりにする（分岐点は実測ではなく一般的な目安）。
+        if (n <= BARNES_HUT_MIN_NODES) {
+            for (let i = 0; i < n; i += 1) {
+                const a = nodes[i];
+                for (let j = i + 1; j < n; j += 1) {
+                    const b = nodes[j];
+                    let dx = b.x - a.x;
+                    let dy = b.y - a.y;
+                    let d2 = dx * dx + dy * dy;
+                    if (d2 < 1) { dx = 0.5; dy = 0.5; d2 = 0.5; }
+                    const d = Math.sqrt(d2);
+                    const f = Math.min((charge * alpha) / d2, 60);
+                    const fx = (dx / d) * f;
+                    const fy = (dy / d) * f;
+                    a.vx -= fx; a.vy -= fy;
+                    b.vx += fx; b.vy += fy;
+                }
             }
+        } else {
+            const tree = buildQuadTree(nodes);
+            for (let i = 0; i < n; i += 1) applyRepulsion(tree, nodes[i], charge * alpha);
         }
         // スプリング（次数の大きいノードは動きにくくする）
         sim.links.forEach((l) => {
@@ -623,26 +900,53 @@ function NetworkGraph({ mode }) {
         }
         // 衝突（重なりを直接ほどく。alpha 非依存でしっかり離すため 2 回反復。
         // ラベル込みの矩形的な最小間隔を「縦=半径+ラベル高、横=半径+ラベル半幅」で近似する）
+        // ★v1.2.0：総当たりから格子（空間ハッシュ）に変更した。
+        //   衝突は「近くにあるノード同士」しか起きないので、セル幅を最大の必要間隔にすると
+        //   自分のセルと隣接8セルだけ見れば十分。ノードが増えても計算量が線形に近くなる。
+        const maxLabelHalf = nodes.reduce((m, p) => Math.max(m, p.labelHalf || 0), 0);
+        const maxR = nodes.reduce((m, p) => Math.max(m, p.r), 0);
+        const cellSize = Math.max(2 * maxR + Math.max(labelPad, maxLabelHalf), 8);
         for (let pass = 0; pass < 2; pass += 1) {
+            const grid = new Map();
+            for (let i = 0; i < n; i += 1) {
+                const p = nodes[i];
+                const key = `${Math.floor(p.x / cellSize)},${Math.floor(p.y / cellSize)}`;
+                const bucket = grid.get(key);
+                if (bucket) bucket.push(i);
+                else grid.set(key, [i]);
+            }
             for (let i = 0; i < n; i += 1) {
                 const a = nodes[i];
-                for (let j = i + 1; j < n; j += 1) {
-                    const b = nodes[j];
-                    let dx = b.x - a.x;
-                    let dy = b.y - a.y;
-                    let d = Math.hypot(dx, dy);
-                    if (d < 0.01) { dx = (i % 2 ? 0.6 : -0.6); dy = 0.6; d = 0.85; }
-                    // 縦方向はラベル高さ、横方向はラベル半幅ぶん余分に離す
-                    const minX = a.r + b.r + (o.showLabels ? (a.labelHalf + b.labelHalf) * 0.5 : 6);
-                    const minY = a.r + b.r + labelPad;
-                    const nx = dx / d;
-                    const ny = dy / d;
-                    const minD = Math.abs(nx) * minX + Math.abs(ny) * minY;
-                    const overlap = minD - d;
-                    if (overlap > 0) {
-                        const push = (overlap / d) * 0.5;
-                        a.vx -= dx * push; a.vy -= dy * push;
-                        b.vx += dx * push; b.vy += dy * push;
+                const gx = Math.floor(a.x / cellSize);
+                const gy = Math.floor(a.y / cellSize);
+                for (let ox = -1; ox <= 1; ox += 1) {
+                    for (let oy = -1; oy <= 1; oy += 1) {
+                        const bucket = grid.get(`${gx + ox},${gy + oy}`);
+                        if (!bucket) continue;
+                        for (let bi = 0; bi < bucket.length; bi += 1) {
+                            const j = bucket[bi];
+                            if (j <= i) continue; // 各ペアを1回だけ処理する
+                            const b = nodes[j];
+                            let dx = b.x - a.x;
+                            let dy = b.y - a.y;
+                            let d = Math.hypot(dx, dy);
+                            if (d < 0.01) { dx = (i % 2 ? 0.6 : -0.6); dy = 0.6; d = 0.85; }
+                            // 縦方向はラベル高さ、横方向はラベル半幅ぶん余分に離す
+                            const minX = a.r + b.r + (o.showLabels ? (a.labelHalf + b.labelHalf) * 0.5 : 6);
+                            const minY = a.r + b.r + labelPad;
+                            const nx = dx / d;
+                            const ny = dy / d;
+                            const minD = Math.abs(nx) * minX + Math.abs(ny) * minY;
+                            const overlap = minD - d;
+                            if (overlap > 0) {
+                                // 衝突は alpha に依存させず常に効かせる（重なりを確実にほどくため）が、
+                                // ドラッグ中だけは弱める。掴んだノードを押し返すと狙った場所に置けない。
+                                // ※掴んでいるノード自体は積分側で fx/fy に固定されるので動かない。
+                                const push = (overlap / d) * (draggingRef.current ? 0.03 : 0.5);
+                                a.vx -= dx * push; a.vy -= dy * push;
+                                b.vx += dx * push; b.vy += dy * push;
+                            }
+                        }
                     }
                 }
             }
@@ -863,21 +1167,79 @@ function NetworkGraph({ mode }) {
         };
     };
 
+    // ---- ドリルダウン（編集画面の「インタラクション」）
+    // 発火するのは addDrilldownListener に登録した DOM ノードのクリックだけ。
+    // ★登録は「ノード1つにつき1回」。API に解除手段が無いため、再レンダリングのたびに
+    //   登録し直すと同じ要素にリスナーが積み上がり1クリックで多重発火する。
+    //   payload は WeakMap に毎回入れ直し、クリック時にそこから読む。
+    // ★ドラッグとクリックの区別：ノードは掴んで動かせるので、動かした後に指を離した場合は
+    //   ドリルダウンを発火させない（movedRef を見て抑制する）。
+    const drillPayloads = useRef(new WeakMap());
+    const drillRegistered = useRef(new WeakSet());
+    const dragMovedRef = useRef(false);
+
+    const attachDrill = useCallback((el, node) => {
+        if (!el || typeof addDrilldownListener !== 'function') return;
+        drillPayloads.current.set(el, {
+            'row.node.value': node.name,
+            'row.value.value': node.value,
+            'row.in.value': node.inV,
+            'row.out.value': node.outV,
+            name: 'node',
+            value: node.name,
+        });
+        if (drillRegistered.current.has(el)) return;
+        drillRegistered.current.add(el);
+        try {
+            addDrilldownListener({
+                node: el,
+                action: NODE_CLICK_ACTION,
+                payloadCallback: () => {
+                    // ドラッグ直後のクリックは無視する（位置を動かしただけのつもりで
+                    // トークンが変わると操作が予測できなくなる）
+                    if (dragMovedRef.current) return {};
+                    if (!optsRef.current.enableDrilldown) return {};
+                    return drillPayloads.current.get(el) || {};
+                },
+            });
+        } catch (e) {
+            /* ドリルダウン未対応のホストでも描画は続ける */
+        }
+    }, []);
+
     const onNodeMouseDown = (id) => (e) => {
         e.preventDefault();
         e.stopPropagation();
         const node = simRef.current?.byId.get(id);
         if (!node) return;
+        // ★v1.2.0：ドラッグ中の操作性を優先する。
+        //   従来は mousemove のたびに alpha を 0.35 へ再加熱していたため、
+        //   1つ掴んだだけでグラフ全体が動き出し、掴んだノードも指から逃げていた。
+        //   ここでは「掴んだノードは指に完全追従」「周囲はゆっくり譲る」を狙い、
+        //   ・再加熱は控えめ（0.12）で、毎フレーム上書きせず下限としてだけ効かせる
+        //   ・自動フィットを止める（カメラが追いかけると余計に逃げて見える）
+        //   ・離した瞬間に飛び散らないよう、速度を落としてから解放する
+        draggingRef.current = true;
+        dragMovedRef.current = false; // 動かさずに離せばクリック扱い
+        autoFitRef.current = false;
         const move = (ev) => {
+            dragMovedRef.current = true; // 1px でも動かしたらドラッグ
             const p = screenToWorld(ev.clientX, ev.clientY);
             node.fx = p.x;
             node.fy = p.y;
-            alphaRef.current = Math.max(alphaRef.current, 0.35);
+            node.x = p.x; // 追従を1フレーム待たせない（指とのズレを無くす）
+            node.y = p.y;
+            node.vx = 0;
+            node.vy = 0;
+            if (alphaRef.current < 0.12) alphaRef.current = 0.12;
             needsDrawRef.current = true;
         };
         const up = () => {
             node.fx = null;
             node.fy = null;
+            node.vx = 0; // 離した瞬間に弾かれないように速度を消す
+            node.vy = 0;
+            draggingRef.current = false;
             window.removeEventListener('mousemove', move);
             window.removeEventListener('mouseup', up);
         };
@@ -963,10 +1325,10 @@ function NetworkGraph({ mode }) {
 
     // ---- ヘッダー
     const notes = [];
-    if (graph.stats.selfLoops > 0) notes.push(`${graph.stats.selfLoops} self-loop${graph.stats.selfLoops > 1 ? 's' : ''}`);
-    if (graph.stats.invalid > 0) notes.push(`${graph.stats.invalid} invalid row${graph.stats.invalid > 1 ? 's' : ''}`);
-    if (graph.stats.cappedNodes > 0) notes.push(`${graph.stats.cappedNodes} nodes capped`);
-    if (graph.stats.droppedLinks > 0) notes.push(`${graph.stats.droppedLinks} links dropped`);
+    if (graph.stats.selfLoops > 0) notes.push(`自己ループ ${graph.stats.selfLoops} 件`);
+    if (graph.stats.invalid > 0) notes.push(`不正な行 ${graph.stats.invalid} 件`);
+    if (graph.stats.cappedNodes > 0) notes.push(`ノード ${graph.stats.cappedNodes} 件`);
+    if (graph.stats.droppedLinks > 0) notes.push(`エッジ ${graph.stats.droppedLinks} 件`);
 
     const legendGradient = opts.useMidColor
         ? `linear-gradient(to right, ${opts.reverse ? opts.highColor : opts.lowColor}, ${opts.midColor}, ${opts.reverse ? opts.lowColor : opts.highColor})`
@@ -1001,7 +1363,11 @@ function NetworkGraph({ mode }) {
 
     // svg 実寸（ヘッダー分を差し引く）。自動フィットのビューポート計算と共有する
     const svgW = Math.max(size.w - 16, 0);
-    const svgH = Math.max(size.h - (opts.showHeader ? 40 : 16), 0);
+    // ★ヘッダーは狭いパネルでは出さない／操作ヒントは幅が足りるときだけ出す。
+    //   実機で 240x170 のパネルにするとヘッダーが2行に折り返してグラフが消えていた。
+    const headerVisible = opts.showHeader && size.h >= 170;
+    const hintVisible = headerVisible && size.w >= 460;
+    const svgH = Math.max(size.h - (headerVisible ? 34 : 12), 0);
     svgSizeRef.current = { w: svgW, h: svgH };
 
     return (
@@ -1018,22 +1384,34 @@ function NetworkGraph({ mode }) {
                 position: 'relative',
             }}
         >
-            {opts.showHeader && (
+            {headerVisible && (
                 <div
                     style={{
                         display: 'flex',
                         alignItems: 'center',
                         gap: 12,
-                        flexWrap: 'wrap',
-                        padding: '2px 6px 8px',
+                        // ★折り返さない。折り返すとヘッダーが2行になり、狭いパネルでは
+                        //   グラフの領域を食い潰してしまう（実機で確認）。
+                        flexWrap: 'nowrap',
+                        overflow: 'hidden',
+                        whiteSpace: 'nowrap',
+                        padding: '2px 6px 6px',
                         fontSize: 12,
                         color: colors.muted,
+                        flex: 'none',
                     }}
                 >
-                    <span style={{ color: colors.text, fontWeight: 600 }}>
-                        {graph.nodes.length} nodes · {graph.links.length} links · total {fmtFull(graph.totalFlow)}
+                    <span style={{ color: colors.text, fontWeight: 600, flex: 'none' }}>
+                        ノード {graph.nodes.length} ・ エッジ {graph.links.length} ・ 合計 {fmtFull(graph.totalFlow)}
                     </span>
-                    {notes.length > 0 && <span>dropped: {notes.join(', ')}</span>}
+                    {notes.length > 0 && (
+                        <span
+                            style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                            title={`省略: ${notes.join('、')}`}
+                        >
+                            省略: {notes.join('、')}
+                        </span>
+                    )}
                     <span style={{ flex: 1 }} />
                     {opts.useValueColors ? (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -1050,7 +1428,11 @@ function NetworkGraph({ mode }) {
                             <span>{fmtCompact(graph.maxL)}</span>
                         </span>
                     ) : (
-                        <span>drag nodes · scroll to zoom · double-click to reset</span>
+                        hintVisible && (
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                ドラッグで移動 ／ ホイールで拡大縮小 ／ ダブルクリックで元に戻す
+                            </span>
+                        )
                     )}
                 </div>
             )}
@@ -1134,8 +1516,10 @@ function NetworkGraph({ mode }) {
                                     <g
                                         key={n.id}
                                         ref={(el) => {
-                                            if (el) nodeEls.current.set(n.id, el);
-                                            else nodeEls.current.delete(n.id);
+                                            if (el) {
+                                                nodeEls.current.set(n.id, el);
+                                                attachDrill(el, n);
+                                            } else nodeEls.current.delete(n.id);
                                         }}
                                         style={{ cursor: 'pointer' }}
                                         onMouseDown={onNodeMouseDown(n.id)}
@@ -1170,7 +1554,7 @@ function NetworkGraph({ mode }) {
                                                 fill={colors.text}
                                                 style={{ pointerEvents: 'none' }}
                                             >
-                                                {n.name}
+                                                {truncateLabel(n.name, opts.labelMaxChars)}
                                                 {opts.showValues && (
                                                     <tspan fill={colors.muted} fontSize={Math.max(opts.labelSize - 1, 6)}>
                                                         {` ${fmtCompact(n.value)}`}
