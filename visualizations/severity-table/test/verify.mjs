@@ -108,8 +108,11 @@ globalThis.DashboardExtensionAPI = {
     getDataSources: () => ({ loading: false, dataSources: { primary: { data: state.data } } }),
     addDataSourcesListener: mkListener('dataSources'),
     getOptions: () => ({ options: state.options }),
+    // 実機のホストは viz からの setOptions を受けて options リスナーに流し返す。
+    // この echo が無いと「viz が保存した値で再描画される」経路を検証できない。
     setOptions: (o) => {
         state.options = { ...state.options, ...o };
+        setTimeout(() => listeners.options.forEach((cb) => cb({ options: state.options })), 0);
     },
     addOptionsListener: mkListener('options'),
     getTheme: () => ({ theme: state.theme }),
@@ -741,6 +744,214 @@ console.log('\n[10] drilldown / interactions');
 
     // triggerDrilldown は使わない（実機で効かないことが分かっている）
     check('triggerDrilldown is never called', drilldown.triggered.length === 0, `got ${drilldown.triggered.length}`);
+}
+
+// ---- 11. 列幅のドラッグ変更（v2.2.0） ---------------------------------------
+// 実機では「見出しの境界を掴んで動かす」操作。happy-dom には実レイアウトが無いので
+// getBoundingClientRect を固定値でスタブし、pointer イベントを手で流して検証する。
+console.log('\n[11] column resize');
+{
+    const TABLE_PX = 800; // 表(カード)の幅として振る舞わせる値
+    Object.defineProperty(win.HTMLElement.prototype, 'getBoundingClientRect', {
+        configurable: true,
+        value() {
+            return {
+                x: 0,
+                y: 0,
+                left: 0,
+                top: 0,
+                width: TABLE_PX,
+                height: 400,
+                right: TABLE_PX,
+                bottom: 400,
+            };
+        },
+    });
+
+    const resizers = () => [...doc.querySelectorAll('[data-role="col-resizer"]')];
+    const colWidthPercents = () =>
+        [...doc.querySelectorAll('colgroup col')]
+            .map((c) => /width:\s*([\d.]+)%/.exec(c.getAttribute('style') || ''))
+            .filter(Boolean)
+            .map((m) => Number(m[1]));
+
+    // 掴み代を pos 番目から dxPx だけ動かす（pointerdown → move → up）
+    const dragResizer = async (pos, dxPx) => {
+        const el = resizers()[pos];
+        if (!el) return;
+        el.dispatchEvent(new win.MouseEvent('pointerdown', { bubbles: true, clientX: 400 }));
+        win.dispatchEvent(new win.MouseEvent('pointermove', { bubbles: true, clientX: 400 + dxPx }));
+        win.dispatchEvent(new win.MouseEvent('pointerup', { bubbles: true }));
+        await sleep(120);
+    };
+
+    await setOptions({ maxRows: 0, rowBar: false, sortMode: 'none' }, { fields: FIELDS, rows: ROWS });
+
+    // 既定では全列が等分（幅を指定していないので resolveColumnWidths が等分する）
+    const even = colWidthPercents();
+    check('colgroup gets explicit widths', even.length === 4, `got ${even.length}`);
+    check(
+        'default widths are even',
+        even.every((v) => Math.abs(v - 25) < 0.5),
+        JSON.stringify(even)
+    );
+
+    // 掴み代は「右隣がある列」にだけ出る = 列数-1 個
+    check('one resizer per column boundary', resizers().length === 3, `got ${resizers().length}`);
+    check(
+        'resizer uses col-resize cursor',
+        /cursor:\s*col-resize/.test(resizers()[0].getAttribute('style') || ''),
+        resizers()[0].getAttribute('style')
+    );
+
+    // 既定では「列幅をリセット」は出ない（幅を変えていないため）
+    check('no reset chip before any resize', !doc.querySelector('[data-role="reset-widths"]'));
+
+    // ★実機で踏んだ不具合の回帰テスト：
+    //   掴み代を置く th が overflow:hidden だと、掴み代がクリップされて
+    //   mousedown が届かず「掴めるように見えて動かない」状態になる。
+    //   happy-dom には実レイアウトが無く「動かない」ことを検出できないので、
+    //   原因となるスタイルの組み合わせを直接禁止する形で押さえる。
+    {
+        const grabTh = [...doc.querySelectorAll('thead th')].filter(
+            (th) => th.querySelector('[data-role="col-resizer"]')
+        );
+        check('resizer th exists', grabTh.length === 3, `got ${grabTh.length}`);
+        check(
+            'resizer th is not overflow:hidden (would clip the handle)',
+            grabTh.every((th) => !/overflow:\s*hidden/.test(th.getAttribute('style') || '')),
+            grabTh[0] ? grabTh[0].getAttribute('style') : ''
+        );
+        // 掴み代は th の内側に収める（はみ出すと親の切り取り対象になる）
+        check(
+            'resizer stays inside the th (right:0)',
+            resizers().every((r) => /right:\s*0/.test(r.getAttribute('style') || '')),
+            resizers()[0].getAttribute('style')
+        );
+        // th を overflow:visible にしたぶん、見出し文字は内側の span で省略する
+        check(
+            'header label still ellipsizes via inner span',
+            grabTh.every((th) => {
+                const s = th.querySelector('span[style*="ellipsis"]');
+                return !!s && /overflow:\s*hidden/.test(s.getAttribute('style') || '');
+            })
+        );
+    }
+
+    // 1本目の境界を右へ 80px = 表幅の 10% ぶん動かす
+    await dragResizer(0, 80);
+    const after = colWidthPercents();
+    check('1st column widened', after[0] > even[0] + 5, JSON.stringify(after));
+    check('2nd column narrowed by the same amount', after[1] < even[1] - 5, JSON.stringify(after));
+    check(
+        'other columns untouched',
+        Math.abs(after[2] - even[2]) < 0.5 && Math.abs(after[3] - even[3]) < 0.5,
+        JSON.stringify(after)
+    );
+    check(
+        'widths still total 100%',
+        Math.abs(after.reduce((s, v) => s + v, 0) - 100) < 0.5,
+        String(after.reduce((s, v) => s + v, 0))
+    );
+    check('drag moved the boundary by ~10%', Math.abs(after[0] - (even[0] + 10)) < 1.5, JSON.stringify(after));
+
+    // options に保存された（キーはフィールド名。スキーマ外キーだが永続化される）
+    const savedJson = state.options.colWidths;
+    check('colWidths persisted to options', typeof savedJson === 'string' && savedJson.length > 0, String(savedJson));
+    const saved = JSON.parse(savedJson || '{}');
+    check('saved keys are field names', 'severity' in saved && '_time_str' in saved, JSON.stringify(Object.keys(saved)));
+    check('saved values are fractions', Object.values(saved).every((v) => v > 0 && v < 1), JSON.stringify(saved));
+
+    // 触った直後は「列幅をリセット」が出る
+    check('reset chip appears after resize', !!doc.querySelector('[data-role="reset-widths"]'));
+
+    // 並べ替えても幅は列に付いたまま（位置ではなくフィールド名で保存しているため）
+    const beforeSort = colWidthPercents();
+    await setOptions({ ...state.options, sortMode: 'desc' });
+    check('widths survive re-sort', JSON.stringify(colWidthPercents()) === JSON.stringify(beforeSort), JSON.stringify(colWidthPercents()));
+
+    // 下限を割る移動をしても潰れない（左へ大きく引く）
+    await dragResizer(0, -700);
+    const clamped = colWidthPercents();
+    check('min width is enforced', clamped[0] >= 3.5, JSON.stringify(clamped));
+    check('still totals 100% after clamping', Math.abs(clamped.reduce((s, v) => s + v, 0) - 100) < 0.5, JSON.stringify(clamped));
+
+    // 掴み代のダブルクリックで左右2列を等分に戻す
+    await dragResizer(0, 120);
+    const uneven = colWidthPercents();
+    resizers()[0].dispatchEvent(new win.MouseEvent('dblclick', { bubbles: true }));
+    await sleep(120);
+    const evened = colWidthPercents();
+    check('double click evens the pair', Math.abs(evened[0] - evened[1]) < 0.5, JSON.stringify(evened));
+    check(
+        'double click keeps the pair total',
+        Math.abs(evened[0] + evened[1] - (uneven[0] + uneven[1])) < 0.5,
+        `${JSON.stringify(uneven)} → ${JSON.stringify(evened)}`
+    );
+
+    // リセットで等分に戻り、options からも消える
+    doc.querySelector('[data-role="reset-widths"]').dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await sleep(150);
+    const reset = colWidthPercents();
+    check('reset restores even widths', reset.every((v) => Math.abs(v - 25) < 0.5), JSON.stringify(reset));
+    check('reset clears colWidths option', !state.options.colWidths, String(state.options.colWidths));
+    check('reset chip disappears', !doc.querySelector('[data-role="reset-widths"]'));
+
+    // 壊れた JSON / 異常値でも落ちず、等分にフォールバックする
+    await setOptions({ maxRows: 0, rowBar: false, sortMode: 'none', colWidths: '{{{broken' });
+    check('broken JSON → falls back to even', colWidthPercents().every((v) => Math.abs(v - 25) < 0.5), JSON.stringify(colWidthPercents()));
+    check('table still renders with broken colWidths', !!doc.querySelector('table'));
+
+    await setOptions({ maxRows: 0, rowBar: false, sortMode: 'none', colWidths: JSON.stringify({ severity: -5, host: 'x', event: 999 }) });
+    check('invalid width values do not break rendering', !!doc.querySelector('table'));
+    check(
+        'invalid values still total 100%',
+        Math.abs(colWidthPercents().reduce((s, v) => s + v, 0) - 100) < 0.5,
+        JSON.stringify(colWidthPercents())
+    );
+
+    // ★「列幅をリセット」は "この画面で幅を触ったとき" だけ出す。
+    //   保存済みの幅があるだけ（ダッシュボードを開いただけ）では出さない。
+    await setOptions({
+        maxRows: 0,
+        rowBar: false,
+        sortMode: 'none',
+        colWidths: JSON.stringify({ time: 0.4, severity: 0.2, event: 0.25, host: 0.15 }),
+    });
+    check(
+        'saved widths alone do NOT show the reset chip',
+        !doc.querySelector('[data-role="reset-widths"]')
+    );
+    check(
+        'saved widths are still applied without the chip',
+        Math.abs(colWidthPercents()[0] - 40) < 1.5,
+        JSON.stringify(colWidthPercents())
+    );
+    // 触れば出る → 押せば消える
+    await dragResizer(0, 60);
+    check('reset chip appears once the user drags', !!doc.querySelector('[data-role="reset-widths"]'));
+    doc.querySelector('[data-role="reset-widths"]').dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await sleep(150);
+    check('reset chip hides itself after being pressed', !doc.querySelector('[data-role="reset-widths"]'));
+
+    // 未設定の列が混ざっていても全体は 100% に収まる
+    await setOptions({ maxRows: 0, rowBar: false, sortMode: 'none', colWidths: JSON.stringify({ severity: 0.5 }) });
+    const partial = colWidthPercents();
+    check('partially specified widths total 100%', Math.abs(partial.reduce((s, v) => s + v, 0) - 100) < 0.5, JSON.stringify(partial));
+    check('specified column is the widest', partial[1] > partial[0] && partial[1] > partial[2], JSON.stringify(partial));
+
+    // 行頭カラーバーがあっても、データ列ぶんの col だけに幅が付く
+    await setOptions({ maxRows: 0, rowBar: true, sortMode: 'none', colWidths: '' });
+    check('row bar does not consume a data column width', colWidthPercents().length === 4, JSON.stringify(colWidthPercents()));
+
+    // 編集モードでは掴み代を出さない（ホストが iframe への入力を遮断するため動かない）
+    fire('mode', { mode: 'edit' });
+    await sleep(150);
+    check('no resizers in edit mode', resizers().length === 0, `got ${resizers().length}`);
+    check('table still renders in edit mode', !!doc.querySelector('table'));
+    fire('mode', { mode: 'view' });
+    await sleep(150);
+    check('resizers return in view mode', resizers().length > 0, `got ${resizers().length}`);
 }
 
 console.log(`\n=== ${pass} passed, ${fail} failed ===`);

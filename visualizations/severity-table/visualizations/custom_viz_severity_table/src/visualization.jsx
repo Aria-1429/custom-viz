@@ -2,6 +2,7 @@ import {
     useDataSources,
     useTheme,
     useOptions,
+    useMode,
 } from '@splunk/dashboard-studio-extension/react';
 // ドリルダウン（編集画面の「インタラクション」）は /react にフックが無いので、
 // コアの /visualization から関数を直接 import する。
@@ -9,7 +10,7 @@ import { addDrilldownListener } from '@splunk/dashboard-studio-extension/visuali
 import Paragraph from '@splunk/react-ui/Paragraph';
 import WaitSpinner from '@splunk/react-ui/WaitSpinner';
 import { SplunkThemeProvider } from '@splunk/themes';
-import { Component, useCallback, useMemo, useRef, useState } from 'react';
+import { Component, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './visualization.css';
 import chartIcon from './assets/ChartColumnSquare.svg';
@@ -29,9 +30,19 @@ import chartIcon from './assets/ChartColumnSquare.svg';
 //       ★データの中身によって同じ値の色が変わることは無い（v1 系はあった）
 //   - 数値モード  ：severityBands(editor.threshold) の範囲と色をそのまま使う
 //   - どちらでも一覧/範囲に当たらない値は「一覧にない値」の設定に従う
+//
+// ★v2.2.0：列幅をドラッグで自由に変えられるようにした（保存の仕組みは link-line と同じ）。
+//   - 列見出しの境界をドラッグして決める。★モードの切替は無く、表示画面で常に掴める。
+//     （編集モード中はホストが iframe への入力を遮断するのでドラッグは効かない。
+//     　これは仕様上の制約で、表示モードで調整して編集モードで保存する流れになる）
+//   - 保存先は options の `colWidths`（フィールド名 → 幅の割合の JSON）。
+//     ★このキーは config.json の optionsSchema に載せていない。スキーマ外のキーも
+//     ダッシュボード定義に永続化されて viz に届くことは実機確認済みで、
+//     config.json を触らなければ splunkd の再起動なしで反映できるため
+//     （編集パネルに出す必要が無い＝ドラッグでしか決まらない値なので載せる意味も無い）。
 // -----------------------------------------------------------------------------
 
-const VIZ_VERSION = '2.1.0';
+const VIZ_VERSION = '2.2.1';
 
 // ドリルダウンで発火するイベント名。config.json の `events` に宣言した名前と一致させる。
 // ホストは宣言済みの名前しか認識しないので、両方を同時に直すこと。
@@ -217,6 +228,81 @@ function bandRangeLabel(b) {
 }
 
 // -----------------------------------------------------------------------------
+// 列幅（colWidths）
+//   保存形式: {"<フィールド名>": <割合>, …} の JSON 文字列。
+//   ・値は「その列が表全体のうち占める割合」。全列ぶんの合計が 1 である必要は無く、
+//     描画時に「表示中の列だけ」で正規化して % に落とす。列の表示/非表示が
+//     変わっても他の列の相対比が保たれる。
+//   ・フィールド名をキーにするのは、並べ替えや列の自動省略で位置が変わっても
+//     幅が別の列に付け替わらないようにするため。
+//   ・未設定の列は「残り幅の等分」を受け取る（＝既定の見た目のまま）。
+// -----------------------------------------------------------------------------
+
+// 1列が取れる幅の下限・上限（表全体に対する割合）。潰れて操作不能になるのを防ぐ。
+const MIN_COL_FRACTION = 0.04;
+const MAX_COL_FRACTION = 0.9;
+
+// 列境界の掴み代の幅(px)。細い縦線そのものは 2px だが、掴める範囲は広めに取る。
+const RESIZER_HIT = 11;
+
+function parseColWidths(json) {
+    if (!json || typeof json !== 'string') return {};
+    try {
+        const obj = JSON.parse(json);
+        if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return {};
+        const out = {};
+        Object.keys(obj).forEach((k) => {
+            const n = Number(obj[k]);
+            if (Number.isFinite(n) && n > 0) {
+                out[k] = Math.min(MAX_COL_FRACTION, Math.max(MIN_COL_FRACTION, n));
+            }
+        });
+        return out;
+    } catch (e) {
+        return {}; // 壊れた JSON は「未設定」として扱う（既定の等分に戻る）
+    }
+}
+
+function serializeColWidths(map) {
+    const keys = Object.keys(map || {});
+    if (keys.length === 0) return '';
+    const out = {};
+    keys.forEach((k) => {
+        const n = Number(map[k]);
+        if (Number.isFinite(n) && n > 0) out[k] = Math.round(n * 10000) / 10000;
+    });
+    return Object.keys(out).length > 0 ? JSON.stringify(out) : '';
+}
+
+// 表示中の列に対して実際の幅(%)を割り当てる。
+//   ・幅が指定済みの列はその割合を使う（合計が 1 を超える場合は比例縮小）
+//   ・未指定の列は残りを等分する（最低 MIN_COL_FRACTION は確保）
+//   ・最後に合計 100% へ正規化する（tableLayout:fixed の colgroup に渡す前提）
+function resolveColumnWidths(shownFieldNames, widthMap) {
+    const n = shownFieldNames.length;
+    if (n === 0) return [];
+    const fixed = shownFieldNames.map((f) => {
+        const v = widthMap[f];
+        return Number.isFinite(v) && v > 0 ? v : null;
+    });
+    const fixedSum = fixed.reduce((s, v) => s + (v || 0), 0);
+    const freeCount = fixed.filter((v) => v === null).length;
+
+    let scale = 1;
+    // 指定済みだけで場所を使い切っている場合は、未指定の列ぶんを残せるよう縮める
+    const reserve = freeCount > 0 ? MIN_COL_FRACTION * freeCount : 0;
+    if (fixedSum + reserve > 1 && fixedSum > 0) {
+        scale = Math.max(0.0001, (1 - reserve) / fixedSum);
+    }
+    const freeShare =
+        freeCount > 0 ? Math.max(MIN_COL_FRACTION, (1 - fixedSum * scale) / freeCount) : 0;
+
+    const raw = fixed.map((v) => (v === null ? freeShare : v * scale));
+    const total = raw.reduce((s, v) => s + v, 0) || 1;
+    return raw.map((v) => (v / total) * 100);
+}
+
+// -----------------------------------------------------------------------------
 // オプション既定値と正規化(未設定・型不一致に耐える)
 // -----------------------------------------------------------------------------
 const SORT_MODES = ['none', 'desc', 'asc'];
@@ -253,6 +339,9 @@ const DEFAULT_OPTIONS = {
     topIcon: 'highest', // highest(データ内で最も重大) | top(順位一覧の1行目) | none
     autoHideColumns: true,
     title: '',
+    // 列幅（フィールド名→割合の JSON。'' = 全列を等分＝従来どおり）。
+    // ★編集パネルには出さない（optionsSchema に無い）。ドラッグでのみ決まる値。
+    colWidths: '',
     // インタラクション（クリックでトークンを設定する等）
     enableDrilldown: true,
 };
@@ -288,6 +377,7 @@ function normalizeOptions(raw) {
         topIcon: asEnum(o.topIcon, TOP_ICON_MODES, d.topIcon),
         autoHideColumns: asBool(o.autoHideColumns, d.autoHideColumns),
         title: typeof o.title === 'string' ? o.title : d.title,
+        colWidths: typeof o.colWidths === 'string' ? o.colWidths : d.colWidths,
         enableDrilldown: asBool(o.enableDrilldown, d.enableDrilldown),
     };
 }
@@ -504,6 +594,9 @@ function HoverStyle({ palette }) {
     const css = `
         .sviz-row { transition: background-color 0.12s ease; }
         .sviz-row:hover { background-color: ${palette.rowHover} !important; }
+        /* 列幅の掴み代：普段は控えめに、ホバー中だけはっきり見せる */
+        .sviz-resizer-line { opacity: 0.28; transition: opacity 0.12s ease, background-color 0.12s ease; }
+        .sviz-resizer:hover .sviz-resizer-line { opacity: 1; background-color: ${palette.accent} !important; }
     `;
     return <style>{css}</style>;
 }
@@ -765,7 +858,20 @@ function SeveritySummary({ items, palette, density }) {
     );
 }
 
-function AlertTable({ fieldNames, rows, severityIndex, colorScheme, opts, order, width, height }) {
+function AlertTable({
+    fieldNames,
+    rows,
+    severityIndex,
+    colorScheme,
+    opts,
+    order,
+    width,
+    height,
+    colWidths,
+    onResizeColumns,
+    onResetColumns,
+    resizable,
+}) {
     const palette = getPalette(colorScheme);
 
     // 実寸から密度パラメータを導出(width<=0 は通常サイズ扱い)
@@ -795,6 +901,131 @@ function AlertTable({ fieldNames, rows, severityIndex, colorScheme, opts, order,
     );
     const shownCols = visibleCols || fieldNames.map((_f, i) => i);
     const hiddenCount = fieldNames.length - shownCols.length;
+
+    // -------------------------------------------------------------------------
+    // 列幅のドラッグ変更
+    //
+    // 見出しの右端に掴み代（縦線）を置き、押した位置からの移動量を「表全体に対する
+    // 割合」に直して、掴んだ列と右隣の列で分け合う（合計は変わらないので他の列は動かない）。
+    // ドラッグ中はローカルの draft を描画し、離した時点で親に保存を依頼する。
+    // -------------------------------------------------------------------------
+    // ドラッグ中と「保存したが options がまだ echo されていない間」の見た目を持つ。
+    // ★離した瞬間に null へ戻すと、ホストの反映が1フレーム遅れる環境で列が一瞬
+    //   元の幅へ戻って見える。options が追いついたら下の effect で破棄する。
+    const [widthDraft, setWidthDraft] = useState(null);
+    const resizeRef = useRef(null); // { work, moved }
+    const tableWrapRef = useRef(null);
+
+    // options 由来の幅が更新されたらドラフトを捨てて options を正とする
+    useEffect(() => {
+        if (!resizeRef.current) setWidthDraft(null);
+    }, [colWidths]);
+
+    const shownFieldNames = useMemo(
+        () => shownCols.map((i) => String(fieldNames[i])),
+        [shownCols, fieldNames]
+    );
+
+    // 実際に colgroup へ渡す幅(%)。ドラッグ中はドラフト、それ以外は options 由来。
+    const activeWidths = widthDraft || colWidths;
+    const colPercents = useMemo(
+        () => resolveColumnWidths(shownFieldNames, activeWidths),
+        [shownFieldNames, activeWidths]
+    );
+
+    // 「列幅をリセット」を出すかの判定。
+    // ★この画面で実際に幅を触ったときだけ出す。保存済みの幅があるだけの状態
+    //   （ダッシュボードを開いただけ）では出さない＝普段は表を邪魔しない。
+    //   リセットを押したら false に戻り、また触れば true になる。
+    const [widthsTouched, setWidthsTouched] = useState(false);
+
+    const startResize = useCallback(
+        (posInShown) => (ev) => {
+            // 右隣が無い（最終列）の掴み代は出さないので通常は来ないが、防御的に弾く
+            if (!resizable || resizeRef.current) return;
+            if (posInShown < 0 || posInShown >= shownFieldNames.length - 1) return;
+            if (ev) {
+                if (typeof ev.preventDefault === 'function') ev.preventDefault();
+                if (typeof ev.stopPropagation === 'function') ev.stopPropagation();
+            }
+            const w = typeof window !== 'undefined' ? window : null;
+            const el = tableWrapRef.current;
+            if (!w || !el || typeof el.getBoundingClientRect !== 'function') return;
+            const rect = el.getBoundingClientRect();
+            const totalPx = rect && rect.width ? rect.width : 0;
+            if (!totalPx) return;
+
+            // 掴んだ時点の実効幅（割合）を全列ぶん確定させる。以後はこれを基準に増減する。
+            // ★未指定だった列もここで数値になるので、ドラッグ後は「見えているとおり」に固定される。
+            const basePct = resolveColumnWidths(shownFieldNames, activeWidths);
+            const base = {};
+            shownFieldNames.forEach((f, i) => {
+                base[f] = basePct[i] / 100;
+            });
+            const startX = typeof ev.clientX === 'number' ? ev.clientX : 0;
+            const leftName = shownFieldNames[posInShown];
+            const rightName = shownFieldNames[posInShown + 1];
+            const pairSum = base[leftName] + base[rightName];
+
+            resizeRef.current = { work: { ...activeWidths, ...base }, moved: false };
+            setWidthDraft({ ...activeWidths, ...base });
+
+            const onMove = (mv) => {
+                const st = resizeRef.current;
+                if (!st || typeof mv.clientX !== 'number') return;
+                const deltaFrac = (mv.clientX - startX) / totalPx;
+                // 2列の合計は保存したまま、境界だけを動かす
+                let left = base[leftName] + deltaFrac;
+                const lo = MIN_COL_FRACTION;
+                const hi = pairSum - MIN_COL_FRACTION;
+                if (hi <= lo) return; // 2列とも下限に張り付いていて動かす余地が無い
+                left = Math.min(hi, Math.max(lo, left));
+                st.work = { ...st.work, [leftName]: left, [rightName]: pairSum - left };
+                st.moved = true;
+                setWidthDraft({ ...st.work });
+            };
+            const onUp = () => {
+                const st = resizeRef.current;
+                ['pointermove', 'mousemove'].forEach((t) => w.removeEventListener(t, onMove));
+                ['pointerup', 'mouseup'].forEach((t) => w.removeEventListener(t, onUp));
+                resizeRef.current = null;
+                // 動かしていなければ保存しない（誤クリックで全列の幅を固定化しない）
+                if (st && st.moved && typeof onResizeColumns === 'function') {
+                    // ドラフトは残したまま保存する。options が echo された時点で
+                    // 上の effect が破棄し、以後は options が正になる。
+                    setWidthDraft({ ...st.work });
+                    setWidthsTouched(true); // これ以降「列幅をリセット」を出す
+                    onResizeColumns(st.work);
+                } else {
+                    setWidthDraft(null);
+                }
+            };
+            ['pointermove', 'mousemove'].forEach((t) => w.addEventListener(t, onMove));
+            ['pointerup', 'mouseup'].forEach((t) => w.addEventListener(t, onUp));
+        },
+        [resizable, shownFieldNames, activeWidths, onResizeColumns]
+    );
+
+    // 掴み代のダブルクリック＝その2列を等分に戻す（線の折れ点削除と同じ操作感）
+    const evenOutPair = useCallback(
+        (posInShown) => () => {
+            if (!resizable || typeof onResizeColumns !== 'function') return;
+            if (posInShown < 0 || posInShown >= shownFieldNames.length - 1) return;
+            const basePct = resolveColumnWidths(shownFieldNames, activeWidths);
+            const base = {};
+            shownFieldNames.forEach((f, i) => {
+                base[f] = basePct[i] / 100;
+            });
+            const leftName = shownFieldNames[posInShown];
+            const rightName = shownFieldNames[posInShown + 1];
+            const half = (base[leftName] + base[rightName]) / 2;
+            const next = { ...activeWidths, ...base, [leftName]: half, [rightName]: half };
+            setWidthDraft(next); // options の echo までの見た目を保つ
+            setWidthsTouched(true); // これ以降「列幅をリセット」を出す
+            onResizeColumns(next);
+        },
+        [resizable, shownFieldNames, activeWidths, onResizeColumns]
+    );
 
     // 行ごとに深刻度を算出 → サマリ集計・ソート・表示制限
     const prepared = useMemo(() => {
@@ -911,8 +1142,10 @@ function AlertTable({ fieldNames, rows, severityIndex, colorScheme, opts, order,
     const rowPadH = `${density.padH}px`;
     const title = opts.title.trim();
     const truncated = prepared.total > prepared.shown;
-    // タイトル行はタイトルが空でも「件数が省略されている」ときだけは出す
-    const showTitleRow = title !== '' || truncated;
+    // 「列幅をリセット」はこの画面で幅を触ったときだけ出す（普段は表を邪魔しない）
+    const showResetWidths = resizable && widthsTouched;
+    // タイトル行はタイトルが空でも「件数が省略されている」「列幅リセットを出す」ときは出す
+    const showTitleRow = title !== '' || truncated || showResetWidths;
 
     // コンテナ:実コンテンツ。ここで縦横スクロールを担う(到達性の最終担保)。
     const containerStyle = {
@@ -1022,6 +1255,32 @@ function AlertTable({ fieldNames, rows, severityIndex, colorScheme, opts, order,
                             {prepared.shown.toLocaleString()} / {prepared.total.toLocaleString()}
                         </span>
                     ) : null}
+                    {showResetWidths ? (
+                        <span
+                            data-role="reset-widths"
+                            onClick={() => {
+                                setWidthDraft(null); // ドラフトが残っていると等分に戻らない
+                                setWidthsTouched(false); // 押したら自身も引っ込む
+                                if (typeof onResetColumns === 'function') onResetColumns();
+                            }}
+                            title="列幅を既定（等分）に戻します"
+                            style={{
+                                fontSize: `${Math.max(9, density.titleFont - 2)}px`,
+                                letterSpacing: '0.02em',
+                                textTransform: 'none',
+                                fontWeight: 600,
+                                color: palette.mutedText,
+                                border: `1px solid ${palette.border}`,
+                                borderRadius: '6px',
+                                padding: '2px 8px',
+                                cursor: 'pointer',
+                                userSelect: 'none',
+                                flexShrink: 0,
+                            }}
+                        >
+                            列幅をリセット
+                        </span>
+                    ) : null}
                 </div>
             ) : null}
 
@@ -1033,15 +1292,18 @@ function AlertTable({ fieldNames, rows, severityIndex, colorScheme, opts, order,
                 />
             ) : null}
 
-            <div style={cardStyle}>
+            <div style={cardStyle} ref={tableWrapRef}>
                 <table style={tableStyle}>
                     {/* tableLayout:fixed は列幅を colgroup（無ければ先頭行）から決める。
                         行頭カラーバー列に明示幅を与えないと、その列が等分の 1 枠を
                         丸取りして左に巨大な余白ができ、右側の列が見切れる。 */}
                     <colgroup>
                         {hasRowBar ? <col style={{ width: '4px' }} /> : null}
-                        {shownCols.map((cellIndex) => (
-                            <col key={`col-${fieldNames[cellIndex]}`} />
+                        {shownCols.map((cellIndex, pos) => (
+                            <col
+                                key={`col-${fieldNames[cellIndex]}`}
+                                style={{ width: `${colPercents[pos].toFixed(3)}%` }}
+                            />
                         ))}
                     </colgroup>
                     <thead>
@@ -1055,28 +1317,97 @@ function AlertTable({ fieldNames, rows, severityIndex, colorScheme, opts, order,
                                     }}
                                 />
                             ) : null}
-                            {shownCols.map((cellIndex) => (
-                                <th key={fieldNames[cellIndex]} style={thStyle}>
-                                    {toFieldLabel(fieldNames[cellIndex])}
-                                    {/* 末尾の見出しに省略列のヒントを添える(狭い時のみ) */}
-                                    {hiddenCount > 0 &&
-                                    cellIndex === shownCols[shownCols.length - 1] ? (
+                            {shownCols.map((cellIndex, pos) => {
+                                // 掴み代は「右隣の列がある見出し」にだけ置く。
+                                // 最終列に置いても分け合う相手が居らず、動かせないため。
+                                const canGrab = resizable && pos < shownCols.length - 1;
+                                return (
+                                    <th
+                                        key={fieldNames[cellIndex]}
+                                        style={{
+                                            ...thStyle,
+                                            position: 'relative',
+                                            // 掴み代を置く見出しは切り取らない（overflow:hidden だと
+                                            // 掴み代がクリップされて押せなくなる）。見出し文字の
+                                            // 省略は下の内側 span が担当する。
+                                            ...(canGrab
+                                                ? { overflow: 'visible', paddingRight: `${RESIZER_HIT}px` }
+                                                : null),
+                                        }}
+                                    >
+                                        {/* 見出し文字はここで省略する（th 側は掴み代のために
+                                            overflow:visible にしてあるので切り取れない） */}
                                         <span
                                             style={{
-                                                marginLeft: '6px',
-                                                fontSize: `${Math.max(9, density.thFont - 1)}px`,
-                                                fontWeight: 600,
-                                                letterSpacing: 'normal',
-                                                textTransform: 'none',
-                                                opacity: 0.75,
+                                                display: 'inline-block',
+                                                maxWidth: '100%',
+                                                verticalAlign: 'bottom',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                whiteSpace: 'nowrap',
                                             }}
-                                            title="横スクロールで残りの列を表示できます"
+                                            title={toFieldLabel(fieldNames[cellIndex])}
                                         >
-                                            +{hiddenCount}列
+                                            {toFieldLabel(fieldNames[cellIndex])}
                                         </span>
-                                    ) : null}
-                                </th>
-                            ))}
+                                        {/* 末尾の見出しに省略列のヒントを添える(狭い時のみ) */}
+                                        {hiddenCount > 0 &&
+                                        cellIndex === shownCols[shownCols.length - 1] ? (
+                                            <span
+                                                style={{
+                                                    marginLeft: '6px',
+                                                    fontSize: `${Math.max(9, density.thFont - 1)}px`,
+                                                    fontWeight: 600,
+                                                    letterSpacing: 'normal',
+                                                    textTransform: 'none',
+                                                    opacity: 0.75,
+                                                }}
+                                                title="横スクロールで残りの列を表示できます"
+                                            >
+                                                +{hiddenCount}列
+                                            </span>
+                                        ) : null}
+                                        {canGrab ? (
+                                            <span
+                                                data-role="col-resizer"
+                                                className="sviz-resizer"
+                                                onPointerDown={startResize(pos)}
+                                                onMouseDown={startResize(pos)}
+                                                onDoubleClick={evenOutPair(pos)}
+                                                title="ドラッグで列幅を変更／ダブルクリックで左右を等分"
+                                                style={{
+                                                    position: 'absolute',
+                                                    top: 0,
+                                                    // ★見出しの外へはみ出させない。th は overflow:hidden
+                                                    //   なので、はみ出した部分は切り取られてクリックが
+                                                    //   届かなくなる（実機で掴めない不具合になった）。
+                                                    right: 0,
+                                                    width: `${RESIZER_HIT}px`,
+                                                    height: '100%',
+                                                    cursor: 'col-resize',
+                                                    userSelect: 'none',
+                                                    touchAction: 'none',
+                                                    zIndex: 3,
+                                                }}
+                                            >
+                                                {/* 掴み代の中央に出る細い縦線（ホバー時のみ濃くする） */}
+                                                <span
+                                                    className="sviz-resizer-line"
+                                                    style={{
+                                                        position: 'absolute',
+                                                        top: '18%',
+                                                        left: `${RESIZER_HIT / 2 - 1}px`,
+                                                        width: '2px',
+                                                        height: '64%',
+                                                        borderRadius: '1px',
+                                                        backgroundColor: palette.mutedText,
+                                                    }}
+                                                />
+                                            </span>
+                                        ) : null}
+                                    </th>
+                                );
+                            })}
                         </tr>
                     </thead>
                     {/* ★ key に clickable を混ぜて、オプションを切り替えたら行を作り直す。
@@ -1188,7 +1519,11 @@ function AlertTable({ fieldNames, rows, severityIndex, colorScheme, opts, order,
 
 function AlertVisualization({ colorScheme }) {
     const { dataSources, loading } = useDataSources();
-    const { options } = useOptions();
+    const optionsApi = useOptions();
+    const options = optionsApi?.options;
+    const setOptions = optionsApi?.setOptions;
+    const modeApi = useMode();
+    const isEdit = modeApi?.mode === 'edit';
     const data = dataSources?.primary?.data || null;
 
     // ★パネル実寸を計測(この要素はパネルと同寸・overflow:hidden で不変)
@@ -1209,6 +1544,68 @@ function AlertVisualization({ colorScheme }) {
             ? autoSeverityIndex(fieldNames, opts.severityFieldCandidates)
             : resolved;
     }, [opts.severityField, opts.severityFieldCandidates, fieldNames, rows]);
+
+    // -------------------------------------------------------------------------
+    // 列幅の保存（link-line の線編集と同じ流儀）
+    //
+    // ・保存先は options の `colWidths`（optionsSchema には載せない。→ ファイル冒頭の注記）
+    // ・表示モード中の setOptions はホストによってダッシュボード定義に取り込まれないため、
+    //   未確定ぶんを pendingRef に持っておき「編集モードに入った瞬間」に再送して確定させる。
+    // -------------------------------------------------------------------------
+    const colWidths = useMemo(() => parseColWidths(opts.colWidths), [opts.colWidths]);
+
+    const lastSavedRef = useRef(null); // 直近 setOptions した colWidths JSON（echo 判定用）
+    const pendingRef = useRef({}); // { colWidths? } 未確定の変更
+    const optionsRef = useRef(options);
+    optionsRef.current = options;
+    const setOptionsRef = useRef(setOptions);
+    setOptionsRef.current = setOptions;
+
+    // 外部で colWidths が変わったら（undo・他画面での編集）追従する。
+    // 自分の保存の echo なら pending を消し込む
+    useEffect(() => {
+        const incoming = typeof opts.colWidths === 'string' ? opts.colWidths : '';
+        if (pendingRef.current.colWidths !== undefined && incoming === pendingRef.current.colWidths) {
+            delete pendingRef.current.colWidths; // ホストに反映された
+        } else if (incoming !== lastSavedRef.current) {
+            delete pendingRef.current.colWidths; // 外部からの変更が勝つ
+        }
+    }, [opts.colWidths]);
+
+    // ★編集モードに入った瞬間、表示モードでの未確定の変更を setOptions で再送する
+    useEffect(() => {
+        if (!isEdit) return;
+        const raw = optionsRef.current && typeof optionsRef.current === 'object' ? optionsRef.current : {};
+        const pend = pendingRef.current;
+        if (
+            pend.colWidths !== undefined &&
+            pend.colWidths !== (typeof raw.colWidths === 'string' ? raw.colWidths : '') &&
+            typeof setOptionsRef.current === 'function'
+        ) {
+            setOptionsRef.current({ ...raw, colWidths: pend.colWidths });
+        }
+    }, [isEdit]);
+
+    const saveColWidths = useCallback(
+        (map) => {
+            const json = serializeColWidths(map);
+            lastSavedRef.current = json;
+            pendingRef.current.colWidths = json;
+            if (typeof setOptions === 'function') {
+                setOptions({
+                    ...(options && typeof options === 'object' ? options : {}),
+                    colWidths: json,
+                });
+            }
+        },
+        [setOptions, options]
+    );
+
+    const resetColWidths = useCallback(() => saveColWidths({}), [saveColWidths]);
+
+    // 編集モード中はホストが iframe への入力を遮断するのでドラッグは成立しない。
+    // 掴み代を出しても動かないだけなので、その間は出さない（誤解を招かないため）。
+    const resizable = !isEdit && typeof setOptions === 'function';
 
     // 計測ラッパは常に描画する(loading/nodata でも寸法を得られるように)
     const measuredWrapperStyle = {
@@ -1234,6 +1631,10 @@ function AlertVisualization({ colorScheme }) {
                 order={order}
                 width={size.width}
                 height={size.height}
+                colWidths={colWidths}
+                onResizeColumns={saveColWidths}
+                onResetColumns={resetColWidths}
+                resizable={resizable}
             />
         );
     }
