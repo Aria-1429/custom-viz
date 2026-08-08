@@ -557,6 +557,19 @@ function normalizeOptions(options) {
         showTotals: bool(o.showTotals, true),
         // 凡例の各カテゴリ行に件数を併記する
         showCategoryCounts: bool(o.showCategoryCounts, true),
+        // --- フロー一覧テーブル（v2.0.0） ---
+        // マップの右下に、表示中のフロー一覧（送信元/宛先/カテゴリ/値）を重ねて表示する
+        showTable: bool(o.showTable, false),
+        // テーブルの最大高さ（パネルの高さに対する%。内容が少なければ縮む）
+        tableHeight: clamp(num(o.tableHeight, 35), 15, 60),
+        // テーブルを折りたたんだ状態で初期表示する（ヘッダーバーのクリックで展開）
+        tableCollapsed: bool(o.tableCollapsed, false),
+        // count 列の値の単位（凡例・HUD・ツールチップ・テーブル見出しに使う表示上のラベル）。
+        // count は「件数」とは限らない（バイト数・接続数などの量でもよい）
+        countLabel:
+            typeof o.countLabel === 'string' && o.countLabel.trim() !== ''
+                ? o.countLabel.trim()
+                : '件',
         // --- 地図の詳細度（国境の解像度） ---
         // auto: ズームに応じて 110m → 50m へ切り替え / low: 常に 110m / high: 常に 50m
         mapDetail: MAP_DETAILS.includes(o.mapDetail) ? o.mapDetail : 'auto',
@@ -710,8 +723,18 @@ function parseThreats(fieldNames, rows, opts) {
     const iSrcName = resolveFieldIndex(opts.srcNameField, fieldNames, rows, auto.srcName);
     const iDstName = resolveFieldIndex(opts.dstNameField, fieldNames, rows, auto.dstName);
 
-    if (iSrcLat < 0 || iSrcLon < 0 || iDstLat < 0 || iDstLon < 0) {
-        return { threats: [], missingFields: true, hasCount: false };
+    // 見つからなかった必須列「だけ」を報告する（存在する列まで「見つからない」と
+    // 列挙すると、ユーザーがデータ側を疑って時間を失う。2026-08-08 実機で確認した実害）
+    const missing = [
+        ['src_lat', iSrcLat],
+        ['src_lon', iSrcLon],
+        ['dst_lat', iDstLat],
+        ['dst_lon', iDstLon],
+    ]
+        .filter(([, idx]) => idx < 0)
+        .map(([name]) => name);
+    if (missing.length > 0) {
+        return { threats: [], missingFields: missing, hasCount: false };
     }
 
     // 表記ゆれ（high / High / HIGH）を同一カテゴリに束ねる。
@@ -746,7 +769,7 @@ function parseThreats(fieldNames, rows, opts) {
         });
     });
     // count 列が解決できたかを返す（件数サマリーの単位を「件」/「本」で切り替えるため）
-    return { threats, missingFields: false, hasCount: iCount >= 0 };
+    return { threats, missingFields: [], hasCount: iCount >= 0 };
 }
 
 /**
@@ -914,6 +937,29 @@ function geomEnd(geom) {
     return last ? { x: last.x, y: last.y } : null;
 }
 
+// ジオメトリの画面上の長さ（px 近似）。
+// 光の帯の「速度の正規化」と「サンプル数の調整」に使う（毎フレームではなく生成時に1回）
+function geomLength(geom) {
+    if (geom.kind === 'bezier') {
+        const { sx, sy, cx, cy, tx, ty } = geom;
+        let len = 0;
+        let prev = { x: sx, y: sy };
+        for (let i = 1; i <= 12; i += 1) {
+            const p = bezierPoint(sx, sy, cx, cy, tx, ty, i / 12);
+            len += Math.hypot(p.x - prev.x, p.y - prev.y);
+            prev = p;
+        }
+        return len;
+    }
+    let len = 0;
+    for (let i = 1; i < geom.pts.length; i += 1) {
+        const a = geom.pts[i - 1];
+        const b = geom.pts[i];
+        if (!a.brk) len += Math.hypot(b.x - a.x, b.y - a.y);
+    }
+    return len;
+}
+
 // ツールチップ用の地点表記（名前が無ければ緯度経度で代替）
 function pointLabel(name, lat, lon) {
     return name || `${lat.toFixed(1)}, ${lon.toFixed(1)}`;
@@ -1032,13 +1078,18 @@ function applyTooltipPos(el, x, y, w, h) {
     el.style.top = `${top}px`;
 }
 
-// 件数の桁区切り表記（8432 → "8,432"）。
+// 値の桁区切り表記（8432 → "8,432"）。
 // toLocaleString はロケール依存で happy-dom / 実機の差が出るため自前で整形する。
+// count 列は件数とは限らず量（バイト数・帯域など）でもあるため、
+// 整数でない値は小数1桁まで残す（丸め殺して 12.5 MB を 13 にしない）
 function formatCount(n) {
     if (!Number.isFinite(n)) return '0';
-    const v = Math.round(n);
+    const isInt = Math.abs(n - Math.round(n)) < 1e-9;
+    const v = isInt ? Math.round(n) : Math.round(n * 10) / 10;
     const sign = v < 0 ? '-' : '';
-    return sign + String(Math.abs(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const [intPart, fracPart] = String(Math.abs(v)).split('.');
+    const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return sign + grouped + (fracPart ? `.${fracPart}` : '');
 }
 
 // ツールチップ用のカテゴリ表記。末尾に区切りを含めて返す（呼び出し側は
@@ -1123,7 +1174,6 @@ function ArcFlowCanvas({ arcs, width, height, duration, hoverKey }) {
         canvas.height = Math.max(1, Math.round(height * dpr));
 
         let raf = 0;
-        let start = 0;
 
         // 光の帯1本を描く。head は帯の先頭位置(0..1)。帯は head から後方へ
         // FLOW_LEN ぶんの区間を占め、幅・不透明度とも sin エンベロープで
@@ -1131,10 +1181,12 @@ function ArcFlowCanvas({ arcs, width, height, duration, hoverKey }) {
         // 軌道の形状（ベジェ / 大円折れ線）は geomPoint が吸収する。
         const drawFlow = (a, head, k) => {
             const { geom, color, w } = a;
-            // 帯の中心線サンプル（座標＋法線＋エンベロープ）を先に集める
+            // 帯の中心線サンプル（座標＋法線＋エンベロープ）を先に集める。
+            // サンプル数は弧の画面長に応じて増やす（長い帯が折れ線に見えないように）
+            const samples = a.samples || FLOW_SAMPLES;
             const pts = [];
-            for (let s = 0; s <= FLOW_SAMPLES; s += 1) {
-                const u = s / FLOW_SAMPLES; // 0=帯の先頭, 1=帯の末尾
+            for (let s = 0; s <= samples; s += 1) {
+                const u = s / samples; // 0=帯の先頭, 1=帯の末尾
                 const p = geomPoint(geom, head - u * FLOW_LEN);
                 if (!p) continue; // パス外（出発前/到達後）・投影の継ぎ目は描かない
                 pts.push({ x: p.x, y: p.y, nx: p.nx, ny: p.ny, env: Math.sin(Math.PI * u) });
@@ -1181,20 +1233,41 @@ function ArcFlowCanvas({ arcs, width, height, duration, hoverKey }) {
             ctx.restore();
         };
 
+        // 描画は最大30fpsに間引く（負荷も半減）。
+        let lastDraw = 0;
+        const FRAME_MIN_MS = 32;
+        // アニメーションの時刻は実時間（wall clock）ではなく、
+        // 「描画したフレームごとに一定量」進める（固定ステップ方式）。
+        // 実時間追従だと、描画が遅れたフレームで遅れたぶん光が大きく跳び、
+        // それが「ガクつき」に見える（特に画面上の速度が高い遠距離の弧で顕著）。
+        // 固定ステップなら移動量が毎フレーム等しく、負荷でフレームが落ちても
+        // 「全体がわずかにゆっくりになる」だけで、跳びは原理的に発生しない。
+        // 装飾アニメーションであり実時間との同期に意味は無いので、滑らかさを優先する
+        let animT = 0;
+
         const frame = (now) => {
+            raf = requestAnimationFrame(frame);
+            if (now - lastDraw < FRAME_MIN_MS) return;
+            lastDraw = now;
             const st = stateRef.current;
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             ctx.clearRect(0, 0, st.width, st.height);
             if (st.duration > 0 && st.arcs.length > 0) {
-                if (!start) start = now;
+                animT += FRAME_MIN_MS / 1000;
                 // 帯の先頭は 0→1 を周回。帯の末尾が終点を過ぎてから次周が始点に
                 // 入るよう、1+FLOW_LEN 周期で動かして「到達 → リップル → 再出発」を
                 // 途切れなくループさせる。弧ごとに固有の位相オフセット（a.off）を
                 // 足すことで、全弧が同時に出発・到達する単調さを崩し、常に
                 // どこかでトラフィックが流れている画にする。
-                const phase = ((now - start) / (st.duration * 1000)) % 1;
+                // 速度の基準となる弧の長さ（パネル対角の約半分）。
+                // これより長い弧は周期を伸ばし（＝画面上の速度を頭打ちにし）、
+                // 遠距離の光だけが高速に飛ぶのを防ぐ。
+                // 短い弧は従来どおり duration 秒で走る（これ以上速くはしない）
+                const refLen = Math.hypot(st.width, st.height) * 0.5;
                 const dims = dimRef.current;
                 st.arcs.forEach((a) => {
+                    const durScale = Math.min(Math.max((a.len || refLen) / refLen, 1), 4);
+                    const phase = (animT / (st.duration * durScale)) % 1;
                     const head = ((phase + a.off) % 1) * (1 + FLOW_LEN);
                     const target =
                         st.hoverKey && a.srcKey !== st.hoverKey && a.dstKey !== st.hoverKey
@@ -1207,7 +1280,6 @@ function ArcFlowCanvas({ arcs, width, height, duration, hoverKey }) {
                     drawRipple(a, head, k);
                 });
             }
-            raf = requestAnimationFrame(frame);
         };
         raf = requestAnimationFrame(frame);
         return () => cancelAnimationFrame(raf);
@@ -1254,6 +1326,254 @@ function MessageState({ message }) {
 // ---------------------------------------------------------------------------
 // マップ本体
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// フロー一覧テーブル（v2.0.0）
+//   マップ右下に浮かぶオーバーレイパネル（凡例・フィルタと同じガラス調 HUD）。
+//   マップは常にパネル全域へ描画されるため、テーブルを出しても地図は縮まない
+//   （見切れない）。高さは内容にフィットし、上限（heightPct）を超えるとスクロール。
+//   表示中の弧（凡例フィルタ・maxArcs 適用後）と同じデータを count の多い順に出す。
+//   行ホバーで該当する送信元に繋がる弧を強調し、行クリックは弧クリックと同じ
+//   ドリルダウン（link.click）を発火する（登録は ThreatMap 側の effect）。
+//   data-viz-ui="1" により、テーブル上のホイール／ドラッグは地図のズーム・パンにならない。
+// ---------------------------------------------------------------------------
+// 一度に描画する行数の上限。visibleData が数千行でも DOM を溢れさせない。
+// 切り捨てが起きたときはフッターに「上位 N 行を表示（全 M 行）」と明示する
+const TABLE_MAX_ROWS = 200;
+
+// 表示名が無い地点は座標で示す（テーブルの表示とソートの両方で同じ表記を使う）
+function endpointText(name, lat, lon) {
+    return name || `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+}
+
+function FlowTable({ rows, totalRows, colorOf, showCategory, categoryHeader, countHeader, hasCount, mode, heightPct, collapsedInit, sort, onSort, onRowHover, registerRow }) {
+    const [hoverId, setHoverId] = useState(null);
+    // 折りたたみ状態。ヘッダーバーのクリックで切り替える（地図が見たいときに
+    // ワンクリックでピル状に最小化できる）。初期状態はオプションに従い、
+    // オプションが変わったら（編集画面のチェック操作）表示へ反映する
+    const [collapsed, setCollapsed] = useState(!!collapsedInit);
+    useEffect(() => {
+        setCollapsed(!!collapsedInit);
+    }, [collapsedInit]);
+    const dark = mode === 'dark';
+    const palette = dark
+        ? {
+              bg: 'rgba(10, 24, 46, 0.85)',
+              border: '1px solid rgba(90, 140, 200, 0.35)',
+              headBg: 'rgba(10, 24, 46, 0.92)',
+              headText: 'rgba(160, 200, 255, 0.85)',
+              text: '#e8eef6',
+              subText: 'rgba(160, 185, 220, 0.75)',
+              rowBorder: 'rgba(120, 180, 255, 0.10)',
+              hoverBg: 'rgba(56, 166, 255, 0.14)',
+              shadow: '0 6px 24px rgba(0, 0, 0, 0.35)',
+          }
+        : {
+              bg: 'rgba(255, 255, 255, 0.88)',
+              border: '1px solid rgba(90, 140, 200, 0.45)',
+              headBg: 'rgba(255, 255, 255, 0.95)',
+              headText: '#5a6672',
+              text: '#24354a',
+              subText: '#6b7684',
+              rowBorder: 'rgba(90, 140, 200, 0.15)',
+              hoverBg: 'rgba(56, 166, 255, 0.10)',
+              shadow: '0 6px 24px rgba(30, 60, 100, 0.15)',
+          };
+    const th = {
+        position: 'sticky',
+        top: 0,
+        background: palette.headBg,
+        color: palette.headText,
+        textAlign: 'left',
+        fontWeight: 600,
+        fontSize: 11,
+        letterSpacing: '0.06em',
+        padding: '5px 8px',
+        borderBottom: `1px solid ${palette.border}`,
+        whiteSpace: 'nowrap',
+    };
+    const td = {
+        padding: '4px 8px',
+        fontSize: 12,
+        color: palette.text,
+        borderBottom: `1px solid ${palette.rowBorder}`,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        maxWidth: 200,
+    };
+    const leave = () => {
+        setHoverId(null);
+        onRowHover(null);
+    };
+    // ソート状態の表示（アクティブな列に ▲ / ▼ を付ける）
+    const arrow = (key) => (sort.key === key ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '');
+    return (
+        <div
+            data-viz-ui="1"
+            onDoubleClick={(e) => e.stopPropagation()}
+            onMouseLeave={leave}
+            style={{
+                position: 'absolute',
+                // 【展開時】右下・最下部（右側を約190px空けて Splunk のホバー
+                // ツールバーと水平方向に共存）。
+                // 【折りたたみ時】ピルは右上・カテゴリフィルタの左隣へ移動し、
+                // 地図の下部を完全に空ける（2026-08-09 ユーザー指定）
+                ...(collapsed
+                    ? { top: 12, right: 160 }
+                    : { bottom: 12, right: 190 }),
+                // 幅はコンパクトに（パネルの約38%・最低280px）。
+                // それも入らなければ残り幅いっぱいまで縮む。
+                // 折りたたみ中はヘッダーバーだけのピルに縮む
+                width: collapsed ? 'auto' : 'clamp(280px, 38%, calc(100% - 202px))',
+                // 内容が少なければ縮み、上限を超えると中身がスクロール（下の余白を作らない）
+                maxHeight: `${heightPct}%`,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                background: palette.bg,
+                border: palette.border,
+                borderRadius: 10,
+                backdropFilter: 'blur(10px)',
+                WebkitBackdropFilter: 'blur(10px)',
+                boxShadow: palette.shadow,
+                zIndex: 4,
+            }}
+        >
+            {/* ヘッダーバー: クリックで折りたたみ／展開。
+                地図がテーブルに隠れて見たいときに、ワンクリックでどかせる */}
+            <div
+                data-gtm="flow-table-toggle"
+                onClick={() => setCollapsed((c) => !c)}
+                title={collapsed ? 'クリックで展開' : 'クリックで折りたたむ'}
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '6px 10px',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    flex: '0 0 auto',
+                    color: palette.headText,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: '0.06em',
+                    borderBottom: collapsed ? 'none' : `1px solid ${palette.rowBorder}`,
+                }}
+            >
+                <span
+                    aria-hidden="true"
+                    style={{
+                        display: 'inline-block',
+                        transform: collapsed ? 'rotate(-90deg)' : 'none',
+                        transition: 'transform 0.15s',
+                        fontSize: 10,
+                    }}
+                >
+                    ▼
+                </span>
+                フロー一覧
+                <span style={{ marginLeft: 4, color: palette.subText, fontWeight: 400 }}>
+                    {`${formatCount(totalRows)} 行`}
+                </span>
+            </div>
+            {collapsed ? null : (
+            <div style={{ overflow: 'auto', minHeight: 0, flex: '0 1 auto' }}>
+            {rows.length === 0 ? (
+                <div style={{ padding: '10px 12px', fontSize: 12, color: palette.subText }}>
+                    表示できるフローがありません（絞り込みで全件が除外されています）
+                </div>
+            ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                        {/* 列ヘッダーのクリックでソート（同じ列をもう一度でクリックで昇降反転） */}
+                        <tr>
+                            <th style={{ ...th, cursor: 'pointer' }} onClick={() => onSort('src')}>
+                                {`送信元${arrow('src')}`}
+                            </th>
+                            <th style={{ ...th, cursor: 'pointer' }} onClick={() => onSort('dst')}>
+                                {`宛先${arrow('dst')}`}
+                            </th>
+                            {showCategory && (
+                                <th style={{ ...th, cursor: 'pointer' }} onClick={() => onSort('category')}>
+                                    {`${categoryHeader}${arrow('category')}`}
+                                </th>
+                            )}
+                            {hasCount && (
+                                <th
+                                    style={{ ...th, textAlign: 'right', cursor: 'pointer' }}
+                                    onClick={() => onSort('count')}
+                                >
+                                    {`${countHeader}${arrow('count')}`}
+                                </th>
+                            )}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.map((r) => (
+                            <tr
+                                key={r.id}
+                                ref={(node) => registerRow(r.id, node)}
+                                onMouseEnter={() => {
+                                    setHoverId(r.id);
+                                    onRowHover(r);
+                                }}
+                                style={{
+                                    cursor: 'pointer',
+                                    background: hoverId === r.id ? palette.hoverBg : 'transparent',
+                                }}
+                            >
+                                <td style={td}>{endpointText(r.srcName, r.srcLat, r.srcLon)}</td>
+                                <td style={td}>{endpointText(r.dstName, r.dstLat, r.dstLon)}</td>
+                                {showCategory && (
+                                    <td style={td}>
+                                        <span
+                                            style={{
+                                                display: 'inline-block',
+                                                width: 10,
+                                                height: 10,
+                                                borderRadius: 2,
+                                                background: colorOf(r.category),
+                                                marginRight: 6,
+                                                verticalAlign: 'baseline',
+                                            }}
+                                        />
+                                        {r.category}
+                                    </td>
+                                )}
+                                {hasCount && (
+                                    <td
+                                        style={{
+                                            ...td,
+                                            textAlign: 'right',
+                                            fontVariantNumeric: 'tabular-nums',
+                                        }}
+                                    >
+                                        {formatCount(r.count)}
+                                    </td>
+                                )}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
+            {totalRows > rows.length && (
+                <div
+                    style={{
+                        padding: '5px 10px',
+                        fontSize: 11,
+                        color: palette.subText,
+                        borderTop: `1px solid ${palette.rowBorder}`,
+                    }}
+                >
+                    {`上位 ${rows.length} 行を表示（全 ${formatCount(totalRows)} 行）`}
+                </div>
+            )}
+            </div>
+            )}
+        </div>
+    );
+}
+
 function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, explicit, customBg, customLand, opts }) {
     const [categoryFilter, setCategoryFilter] = useState('all');
     // ホバー中の地点キー（"x,y"）。その地点に繋がる弧だけを強調する
@@ -1793,10 +2113,12 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
             all: sum(threats),
             // 絞り込み（凡例クリック）や maxArcs で実際に減っているか
             truncated: visibleData.length < threats.length,
-            unit: hasCount ? '件' : '本',
+            // count 列がある → ユーザー指定の単位（既定「件」。バイト数等の量でもよい）。
+            // 無い → 弧の本数を数えているので「本」
+            unit: hasCount ? opts.countLabel : '本',
             byCategory,
         };
-    }, [threats, visibleData, hasCount]);
+    }, [threats, visibleData, hasCount, opts.countLabel]);
 
     // ホバー強調が有効なときだけ実際に適用する
     const activeHoverKey = opts.highlightOnHover ? hoverKey : null;
@@ -1936,19 +2258,28 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
     // Canvas の光の帯用の弧データ（ジオメトリ・色・線幅を事前計算して rAF から使う）
     const flowArcs = useMemo(
         () =>
-            arcGeoms.map(({ t, geom }) => ({
-                geom,
-                end: geomEnd(geom), // 到達リップルの中心
-                color: derived[t.category]?.css || 'rgb(56, 166, 255)',
-                w: arcWidth(t.count),
-                // ホバー強調時に「関係ない弧」を薄くするための識別子
-                id: t.id,
-                // 弧ごとの位相オフセット（0..1）。id から決定的に散らし、
-                // 全弧が同時に出発・到達する単調さを崩す
-                off: (Math.imul(t.id + 1, 2654435761) >>> 0) / 4294967296,
-                srcKey: `${t.sx.toFixed(1)},${t.sy.toFixed(1)}`,
-                dstKey: `${t.tx.toFixed(1)},${t.ty.toFixed(1)}`,
-            })),
+            arcGeoms.map(({ t, geom }) => {
+                // 画面上の長さ（px）。速度の正規化（長い弧ほど速く動いてガクつくのを
+                // 防ぐ）と、帯のサンプル数の調整（長い帯が折れ線に見えるのを防ぐ）に使う
+                const len = geomLength(geom);
+                return {
+                    geom,
+                    end: geomEnd(geom), // 到達リップルの中心
+                    color: derived[t.category]?.css || 'rgb(56, 166, 255)',
+                    w: arcWidth(t.count),
+                    len,
+                    // 帯の中心線サンプル数。帯の画面長 ≒ len×FLOW_LEN に対して
+                    // 約6pxに1点。短い弧は従来どおり16点、長い弧は最大72点まで増やす
+                    samples: Math.min(72, Math.max(16, Math.round((len * FLOW_LEN) / 6))),
+                    // ホバー強調時に「関係ない弧」を薄くするための識別子
+                    id: t.id,
+                    // 弧ごとの位相オフセット（0..1）。id から決定的に散らし、
+                    // 全弧が同時に出発・到達する単調さを崩す
+                    off: (Math.imul(t.id + 1, 2654435761) >>> 0) / 4294967296,
+                    srcKey: `${t.sx.toFixed(1)},${t.sy.toFixed(1)}`,
+                    dstKey: `${t.tx.toFixed(1)},${t.ty.toFixed(1)}`,
+                };
+            }),
         [arcGeoms, derived, arcWidth]
     );
 
@@ -2106,6 +2437,97 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
             /* ドリルダウン未対応環境でも描画は続ける */
         }
     }, [arcs, sources, targets]);
+
+    // --- フロー一覧テーブル（v2.0.0） -------------------------------------
+    // 表示中の弧（凡例フィルタ・maxArcs 適用後）と同じデータを出す。
+    // 地図と食い違う一覧を出さない（絞り込んだら表も絞る）。
+    // 並び順は列ヘッダーのクリックで変更できる（既定は値の大きい順）
+    const [tableSort, setTableSort] = useState({ key: 'count', dir: 'desc' });
+    const onTableSort = useCallback((key) => {
+        setTableSort((s) =>
+            s.key === key
+                ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' }
+                // 新しい列: 数値（値）は大きい順、文字列は昇順から始める
+                : { key, dir: key === 'count' ? 'desc' : 'asc' }
+        );
+    }, []);
+    const tableRowsAll = useMemo(() => {
+        if (!opts.showTable) return [];
+        const { key, dir } = tableSort;
+        const sign = dir === 'asc' ? 1 : -1;
+        const val = (t) => {
+            if (key === 'count') return t.count;
+            if (key === 'src') return endpointText(t.srcName, t.srcLat, t.srcLon);
+            if (key === 'dst') return endpointText(t.dstName, t.dstLat, t.dstLon);
+            return t.category || '';
+        };
+        return [...visibleData].sort((a, b) => {
+            const va = val(a);
+            const vb = val(b);
+            const cmp = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb), 'ja');
+            // 同値は id（元データの行順）で安定化する
+            return cmp !== 0 ? sign * cmp : a.id - b.id;
+        });
+    }, [opts.showTable, visibleData, tableSort]);
+    // DOM を溢れさせない描画上限。ソートを変えると「上位200行」の中身も変わるため、
+    // スライスはここで行い、下のドリルダウン登録 effect が新しい行に追従できるようにする
+    const tableRows = useMemo(() => tableRowsAll.slice(0, TABLE_MAX_ROWS), [tableRowsAll]);
+    // カテゴリ列は「意味のあるカテゴリがある」ときだけ出す（全行 (未分類) なら省く）
+    const tableShowCategory = useMemo(
+        () => categoryList.some((c) => c !== UNCATEGORIZED),
+        [categoryList]
+    );
+    // 行ホバーで、その行の送信元クラスタに繋がる弧を強調する（地点ホバーと同じ機構）
+    const onTableRowHover = useCallback(
+        (t) => {
+            if (!t) {
+                setHoverKey(null);
+                return;
+            }
+            const spot = arcEnds.src.get(t.id);
+            setHoverKey(spot ? `${spot.x.toFixed(1)},${spot.y.toFixed(1)}` : null);
+        },
+        [arcEnds]
+    );
+    const tableRowRefs = useRef(new Map());
+    const registerTableRow = useCallback((id, node) => {
+        if (node) tableRowRefs.current.set(id, node);
+        else tableRowRefs.current.delete(id);
+    }, []);
+    const tableColorOf = useCallback(
+        (category) => derived[category]?.css || 'rgb(56, 166, 255)',
+        [derived]
+    );
+
+    // テーブル行をドリルダウン対象として登録する（弧クリックと同じ link.click・同じ payload）。
+    // 行は再描画で作り直されるため、データが変わるたびに登録し直す。
+    useEffect(() => {
+        if (typeof addDrilldownListener !== 'function') return;
+        try {
+            tableRows.forEach((t) => {
+                const node = tableRowRefs.current.get(t.id);
+                if (!node) return;
+                addDrilldownListener({
+                    node,
+                    action: 'link.click',
+                    payloadCallback: () => ({
+                        'row.src_name.value': t.srcName,
+                        'row.dst_name.value': t.dstName,
+                        'row.src_lat.value': t.srcLat,
+                        'row.src_lon.value': t.srcLon,
+                        'row.dst_lat.value': t.dstLat,
+                        'row.dst_lon.value': t.dstLon,
+                        'row.category.value': t.category,
+                        'row.count.value': t.count,
+                        name: 'src_name',
+                        value: t.srcName || `${t.srcLat},${t.srcLon}`,
+                    }),
+                });
+            });
+        } catch (e) {
+            /* ドリルダウン未対応環境でも描画は続ける */
+        }
+    }, [tableRows]);
 
     // パネル実サイズに応じたオーバーレイのレイアウト計算
     // （小パネルで文字がはみ出したり要素同士が重ならないよう、
@@ -2314,7 +2736,7 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                         const base = Math.min(26 + Math.sqrt(s.count) * 1.5, 44);
                         // 集約された地点は「代表名 ほか N 地点」と示す（何が畳まれたか分かるように）
                         const tipHead = `Source: ${s.name || 'unknown'}${s.size > 1 ? ` ほか ${s.size - 1} 地点` : ''}`;
-                        const tipSub = `${describeCategory(s.category)}count ${s.count}`;
+                        const tipSub = `${describeCategory(s.category)}${formatCount(s.count)} ${totals.unit}`;
                         return (
                             <g key={`src-${i}`}>
                                 <circle
@@ -2379,7 +2801,7 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                     {/* 攻撃先（線の色に対応） */}
                     {targets.map((t, i) => {
                         const tipHead = `Target: ${t.name || 'unknown'}${t.size > 1 ? ` ほか ${t.size - 1} 地点` : ''}`;
-                        const tipSub = `${describeCategory(t.category)}count ${t.count}`;
+                        const tipSub = `${describeCategory(t.category)}${formatCount(t.count)} ${totals.unit}`;
                         return (
                         <g key={`dst-${i}`}>
                             <circle
@@ -2439,7 +2861,7 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                             dstKey !== activeHoverKey;
                         const k = dim ? 0.22 : 1;
                         const tipHead = `${pointLabel(t.srcName, t.srcLat, t.srcLon)} → ${pointLabel(t.dstName, t.dstLat, t.dstLon)}`;
-                        const tipSub = `${describeCategory(t.category)}count ${t.count}`;
+                        const tipSub = `${describeCategory(t.category)}${formatCount(t.count)} ${totals.unit}`;
                         return (
                             <g key={`arc-${t.id}`}>
                                 <path
@@ -2677,7 +3099,8 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                 </div>
             )}
 
-            {/* ズーム倍率の表示とリセット（右下）。
+            {/* ズーム倍率の表示とリセット（常に右上＝フィルタの下）。
+                右下は Splunk のホバーツールバーとテーブルの場所なので使わない。
                 ズーム中だけ出し、押すと初期表示（オプションの中心・ズーム）へ戻る。
                 編集モードでは iframe への入力が遮断されるため表示モードでのみ機能する。 */}
             {opts.enableZoom && Math.abs(camera.zoom - opts.initialZoom) > 0.01 && size && size.w >= 200 && (
@@ -2689,7 +3112,7 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                     style={{
                         position: 'absolute',
                         right: 16,
-                        bottom: 14,
+                        top: overlay.showFilter ? 64 : 12,
                         background: palette.panelBg,
                         border: palette.panelBorder,
                         borderRadius: 8,
@@ -2836,6 +3259,28 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                     })}
                 </div>
             )}
+
+            {/* フロー一覧テーブル（v2.0.0）。右下に浮かぶオーバーレイで、
+                マップは常に全域へ描画される（テーブルで地図が縮まない・見切れない）。
+                マップと同じ絞り込み結果を count の多い順に表示する */}
+            {opts.showTable && (
+                <FlowTable
+                    rows={tableRows}
+                    totalRows={tableRowsAll.length}
+                    colorOf={tableColorOf}
+                    showCategory={tableShowCategory}
+                    categoryHeader={opts.categoryLabel || 'カテゴリ'}
+                    countHeader={opts.countLabel === '件' ? '件数' : opts.countLabel}
+                    hasCount={hasCount}
+                    mode={mode}
+                    heightPct={opts.tableHeight}
+                    collapsedInit={opts.tableCollapsed}
+                    sort={tableSort}
+                    onSort={onTableSort}
+                    onRowHover={onTableRowHover}
+                    registerRow={registerTableRow}
+                />
+            )}
         </div>
     );
 }
@@ -2905,9 +3350,11 @@ function ThreatMapVisualization({ mode }) {
 
     if (loading) return <LoadingState />;
     if (!data || rows.length === 0) return <MessageState message="データがありません。サーチ結果を確認してください。" />;
-    if (missingFields) {
+    if (missingFields.length > 0) {
         return (
-            <MessageState message="必須フィールドが見つかりません: src_lat, src_lon, dst_lat, dst_lon（編集画面の「データフィールド」で列を指定することもできます。任意: 色分けカテゴリ, count, src_name, dst_name）" />
+            <MessageState
+                message={`必須フィールドが見つかりません: ${missingFields.join(', ')}（編集画面の「データフィールド」で列を指定することもできます。任意: 色分けカテゴリ, count, src_name, dst_name）`}
+            />
         );
     }
     if (threats.length === 0) {

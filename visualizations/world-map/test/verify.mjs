@@ -480,7 +480,9 @@ console.log('\n[10] wheel zoom changes scale');
         return p ? (p.getAttribute('d') || '').length : 0;
     };
     const before = landLen();
-    const container = doc.querySelector('#root div');
+    // v2.0.0 で外枠（マップ＋テーブルの縦積み）が増えたため、「#root 直下の div」は
+    // wheel リスナーを持たない。リスナーを持つ地図ビューポート＝ svg の親を掴む
+    const container = doc.querySelector('#root svg')?.parentElement;
     check('container present for wheel events', !!container);
 
     // ホイールを手前→奥（deltaY 負）に回して拡大
@@ -507,7 +509,7 @@ console.log('\n[11] labels and zoom can be turned off');
     fire('options', { options: state.options });
     await sleep(320);
     const before = (doc.querySelector('svg path[fill="#0d2b52"]').getAttribute('d') || '').length;
-    doc.querySelector('#root div').dispatchEvent(
+    doc.querySelector('#root svg').parentElement.dispatchEvent(
         new win.WheelEvent('wheel', { deltaY: -600, clientX: 450, clientY: 250, bubbles: true, cancelable: true })
     );
     await sleep(300);
@@ -1031,7 +1033,7 @@ console.log('\n[24] custom tooltip appears on hover and follows the cursor');
     await sleep(300);
 
     // ホバー前はツールチップの中身が DOM に無い（aria-label は属性なので textContent に出ない）
-    check('no tooltip text before hover', !doc.body.textContent.includes('count 300'),
+    check('no tooltip text before hover', !doc.body.textContent.includes('300 件'),
         doc.body.textContent.slice(0, 120));
 
     // Shanghai の弧（count 300）の当たり判定にホバー
@@ -1044,7 +1046,7 @@ console.log('\n[24] custom tooltip appears on hover and follows the cursor');
         await sleep(250);
         const body = doc.body.textContent;
         check('tooltip shows the route', body.includes('Shanghai → Tokyo'), body.slice(0, 200));
-        check('tooltip shows category and count', body.includes('count 300'), body.slice(0, 200));
+        check('tooltip shows category and count', body.includes('300 件'), body.slice(0, 200));
 
         hit.dispatchEvent(new win.MouseEvent('mouseout', { bubbles: true }));
         await sleep(250);
@@ -1149,7 +1151,7 @@ console.log('\n[26] nearby points cluster by screen distance');
         /ほか 4 地点/.test(clusterLabel || ''), clusterLabel);
     // count は合算される（10+20+30+40+50 = 150）
     check('cluster sums the counts of its members',
-        /count 150/.test(clusterLabel || ''), clusterLabel);
+        /150 件/.test(clusterLabel || ''), clusterLabel);
 
     // 十分にズームすると同じ radius でもクラスタが分離する（地図アプリと同じ挙動）
     state.options = { clusterRadius: 18, initialZoom: 30, centerLon: 139.69, centerLat: 35.68 };
@@ -1354,6 +1356,205 @@ console.log('\n[28] v1.10.0 design refinements');
     // 後片付け
     state.options = {};
     fire('options', { options: state.options });
+    await sleep(250);
+}
+
+// ---- 29. マップ下のテーブル（v2.0.0） -----------------------------------------
+console.log('\n[29] flow table below the map');
+{
+    state.data = { fields: FIELDS, rows: ROWS };
+    state.options = {};
+    fire('options', { options: state.options });
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(350);
+
+    // 既定ではテーブルは出ない
+    check('no table by default', !doc.querySelector('table'));
+
+    state.options = { showTable: true };
+    fire('options', { options: state.options });
+    await sleep(300);
+
+    const table = doc.querySelector('table');
+    check('table appears with showTable=true', !!table);
+    const headers = [...doc.querySelectorAll('th')].map((el) => el.textContent);
+    check('table headers present',
+        // ソート中の列は「件数 ▼」のように矢印が付くため前方一致で見る
+        ['送信元', '宛先', 'カテゴリ', '件数'].every((h) => headers.some((x) => x.startsWith(h))),
+        JSON.stringify(headers));
+    const bodyRows = [...doc.querySelectorAll('tbody tr')];
+    check('table lists all 6 visible flows', bodyRows.length === 6, `got ${bodyRows.length}`);
+    const firstRow = bodyRows[0] ? bodyRows[0].textContent : '';
+    const lastRow = bodyRows[5] ? bodyRows[5].textContent : '';
+    check('rows sorted by count desc (first=Shanghai 300)',
+        firstRow.includes('Shanghai') && firstRow.includes('300'), firstRow.slice(0, 80));
+    check('rows sorted by count desc (last=New York 10)',
+        lastRow.includes('New York') && lastRow.includes('10'), lastRow.slice(0, 80));
+
+    // カテゴリ列が意味を持たないデータ（severity 列なし）ではカテゴリ列を省く
+    state.data = {
+        fields: ['src_lat', 'src_lon', 'dst_lat', 'dst_lon', 'src_name', 'dst_name'],
+        rows: ROWS_VALID.map((r) => [r[0], r[1], r[2], r[3], r[6], r[7]]),
+    };
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(300);
+    const headers2 = [...doc.querySelectorAll('th')].map((el) => el.textContent);
+    check('category column omitted when data has no category',
+        !headers2.includes('カテゴリ'), JSON.stringify(headers2));
+    check('count column omitted when data has no count column',
+        !headers2.includes('件数'), JSON.stringify(headers2));
+
+    // オーバーレイ配置: テーブルは右下に浮かぶ（マップは全域描画のまま）。
+    // data-viz-ui="1" によりテーブル上のホイール／ドラッグは地図操作にならない
+    const tableBox = doc.querySelector('table').closest('[data-viz-ui]');
+    check('table floats as an overlay (absolute + data-viz-ui)',
+        !!tableBox && tableBox.style.position === 'absolute',
+        tableBox ? tableBox.style.position : 'no box');
+
+    // 位置: 展開時は右下・最下部（bottom:12 / right:190。ホバーツールバーと水平共存）
+    check('expanded table sticks to the bottom (12px)',
+        tableBox.style.bottom === '12px', tableBox.style.bottom);
+    check('expanded table leaves the right corner open (right: 190px)',
+        tableBox.style.right === '190px', tableBox.style.right);
+
+    // ソート: 列ヘッダーのクリックで並び替え。同じ列をもう一度でクリックで昇降反転
+    // （直前のテストが count 列なしデータに差し替えているため、全列データへ戻す）
+    state.data = { fields: FIELDS, rows: ROWS };
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(300);
+    const clickTh = (label) => {
+        const el = [...doc.querySelectorAll('th')].find((t) => t.textContent.startsWith(label));
+        el.dispatchEvent(new win.MouseEvent('click', { bubbles: true, cancelable: true }));
+    };
+    clickTh('送信元');
+    await sleep(200);
+    let first = doc.querySelector('tbody tr').textContent;
+    check('clicking 送信元 sorts ascending (first=London)', first.includes('London'), first.slice(0, 60));
+    clickTh('送信元');
+    await sleep(200);
+    first = doc.querySelector('tbody tr').textContent;
+    check('second click reverses to descending (first=Shanghai)', first.includes('Shanghai'), first.slice(0, 60));
+    clickTh('件数');
+    await sleep(200);
+    first = doc.querySelector('tbody tr').textContent;
+    check('clicking 件数 starts descending (first=Shanghai 300)',
+        first.includes('Shanghai') && first.includes('300'), first.slice(0, 60));
+    clickTh('件数');
+    await sleep(200);
+    first = doc.querySelector('tbody tr').textContent;
+    check('second click on 件数 gives ascending (first=New York 10)',
+        first.includes('New York') && first.includes('10'), first.slice(0, 60));
+    // 既定（値の大きい順）に戻して以降のテストへ
+    clickTh('件数');
+    await sleep(200);
+
+    // 行数キャップ: 大量データでも DOM を溢れさせず、切り捨てをフッターで明示する
+    const manyRows = Array.from({ length: 250 }, (_, i) => [
+        String(10 + (i % 60)), String(-150 + (i % 300)), '35.68', '139.69',
+        'high', String(1000 - i), `S${i}`, 'Tokyo',
+    ]);
+    state.data = { fields: FIELDS, rows: manyRows };
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(400);
+    const capRows = doc.querySelectorAll('tbody tr').length;
+    check('rows capped at 200', capRows === 200, `got ${capRows}`);
+    check('cap footer shows totals',
+        doc.body.textContent.includes('上位 200 行を表示（全 250 行）'),
+        doc.body.textContent.slice(-200));
+
+    // 折りたたみ: ヘッダーバーのクリックでテーブル本体が畳まれ、もう一度で戻る
+    const toggle = doc.querySelector('[data-gtm="flow-table-toggle"]');
+    check('collapse toggle header present', !!toggle);
+    toggle.dispatchEvent(new win.MouseEvent('click', { bubbles: true, cancelable: true }));
+    await sleep(200);
+    check('click collapses the table body', !doc.querySelector('table'));
+    check('toggle header remains while collapsed', !!doc.querySelector('[data-gtm="flow-table-toggle"]'));
+    // 折りたたみ中のピルは右上（カテゴリフィルタの左隣）へ移動する
+    const pillBox = doc.querySelector('[data-gtm="flow-table-toggle"]').closest('[data-viz-ui]');
+    check('collapsed pill docks top-right beside the filter (top:12 / right:160)',
+        pillBox.style.top === '12px' && pillBox.style.right === '160px',
+        `top=${pillBox.style.top} right=${pillBox.style.right}`);
+    doc.querySelector('[data-gtm="flow-table-toggle"]')
+        .dispatchEvent(new win.MouseEvent('click', { bubbles: true, cancelable: true }));
+    await sleep(200);
+    check('second click expands the table again', !!doc.querySelector('table'));
+
+    // ズームリセットボタンは、テーブル表示中は右下（テーブルの位置）ではなく
+    // 右上（フィルタの下）へ退避する
+    doc.querySelector('#root svg').parentElement.dispatchEvent(
+        new win.WheelEvent('wheel', { deltaY: -600, clientX: 450, clientY: 250, bubbles: true, cancelable: true })
+    );
+    await sleep(300);
+    const pill = [...doc.querySelectorAll('div[data-viz-ui]')].find((el) => /^×\d/.test(el.textContent.trim()));
+    check('zoom pill appears after wheel zoom', !!pill);
+    check('zoom pill docks top-right while table is shown',
+        !!pill && pill.style.top !== '' && pill.style.bottom === '',
+        pill ? `top=${pill.style.top} bottom=${pill.style.bottom}` : 'no pill');
+
+    // 後片付け
+    state.data = { fields: FIELDS, rows: ROWS };
+    state.options = {};
+    fire('options', { options: state.options });
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(250);
+}
+
+// ---- 29b. count は件数とは限らない（countLabel と小数値） -----------------------
+console.log('\n[29b] count can be a quantity (countLabel + decimals)');
+{
+    state.data = { fields: FIELDS, rows: ROWS };
+    state.options = { showTable: true, countLabel: 'MB' };
+    fire('options', { options: state.options });
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(350);
+
+    check('legend/HUD totals use the custom unit',
+        doc.body.textContent.includes('全 600 MB'), doc.body.textContent.slice(0, 200));
+    const headers = [...doc.querySelectorAll('th')].map((el) => el.textContent);
+    check('table count header shows the unit',
+        headers.some((x) => x.startsWith('MB')), JSON.stringify(headers));
+
+    // 小数の量（12.5 など）は丸め殺さず、小数1桁まで表示する
+    state.data = {
+        fields: FIELDS,
+        rows: [
+            ['51.5', '-0.12', '35.68', '139.69', 'low', '12.5', 'London', 'Tokyo'],
+            ['31.2', '121.47', '35.68', '139.69', 'high', '7.5', 'Shanghai', 'Tokyo'],
+        ],
+    };
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(300);
+    const cells = [...doc.querySelectorAll('tbody td')].map((el) => el.textContent);
+    check('decimal quantities keep one decimal place', cells.includes('12.5'), JSON.stringify(cells));
+    check('decimal totals are summed and formatted',
+        doc.body.textContent.includes('全 20 MB'), doc.body.textContent.slice(0, 200));
+
+    // 後片付け
+    state.data = { fields: FIELDS, rows: ROWS };
+    state.options = {};
+    fire('options', { options: state.options });
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(250);
+}
+
+// ---- 30. 欠損フィールドは「実際に無い列だけ」報告する（v2.0.0 修正） ------------
+console.log('\n[30] missing-field message lists only the missing columns');
+{
+    state.data = {
+        fields: ['src_lat', 'src_lon', 'src_name'],
+        rows: [['51.5', '-0.12', 'London']],
+    };
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(300);
+    const body = doc.body.textContent;
+    check('message lists dst_lat and dst_lon',
+        body.includes('必須フィールドが見つかりません: dst_lat, dst_lon'), body.slice(0, 160));
+    check('message does not blame existing src_lat',
+        !body.includes('src_lat,'), body.slice(0, 160));
+
+    // 後片付け
+    state.data = { fields: FIELDS, rows: ROWS };
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
     await sleep(250);
 }
 
