@@ -50,7 +50,7 @@ import './visualization.css';
 // ---------------------------------------------------------------------------
 
 // バージョン表記（デプロイ確認用。編集モードの案内に表示）
-const VIZ_VERSION = '1.10.1';
+const VIZ_VERSION = '1.10.3';
 
 // 列挙型オプションの許容値（未知値は既定へ丸める。旧バージョンの数値コードは復元しない）
 const STYLE_MODES = ['flat', 'shadow', 'neon', 'pipe'];
@@ -997,7 +997,6 @@ function LinkLine({ mode }) {
     // --- 幾何・色の算出 ---
     const { w, h } = dims;
     const pxPts = points.map((p) => ({ x: p.x * w, y: p.y * h }));
-    const pathD = roundedPathD(pxPts, opts.cornerRadius);
     const geo = polylineGeometry(pxPts);
     // 色: 「色分けモード」に応じて解決する。
     //   range = 編集画面の「線の色」（editor.threshold）の範囲バンド × 数値
@@ -1052,7 +1051,11 @@ function LinkLine({ mode }) {
     const arrowLen = Math.max(11, lw * 2.3);
     const cosA = Math.cos(geo.endAngle);
     const sinA = Math.sin(geo.endAngle);
-    const arrowW = arrowLen * 0.5;
+    // 羽の半幅。線の実体（pipe の暗い縁 lw*1.45 が最大）より必ず広くして、
+    // 線の左右が羽からはみ出さないようにする。ネオンのハロー（ぼかし）は
+    // 実体ではないので基準に含めない（含めると矢印が過大になる）
+    const solidHalfW = (opts.styleMode === 'pipe' ? lw * 1.45 : lw) * 0.5;
+    const arrowW = Math.max(arrowLen * 0.5, solidHalfW + Math.max(2, lw * 0.3));
     const arrowBx = endPt.x - cosA * arrowLen;
     const arrowBy = endPt.y - sinA * arrowLen;
     // シェブロン（凧型）矢印: 先端 → 左羽 → 内側ノッチ → 右羽
@@ -1061,6 +1064,32 @@ function LinkLine({ mode }) {
         `L ${arrowBx - sinA * arrowW} ${arrowBy + cosA * arrowW} ` +
         `L ${endPt.x - cosA * arrowLen * 0.72} ${endPt.y - sinA * arrowLen * 0.72} ` +
         `L ${arrowBx + sinA * arrowW} ${arrowBy - cosA * arrowW} Z`;
+
+    // 矢印ON時は線の終端を矢印の内側ノッチ付近で止める（丸キャップの半円が
+    // 矢印から飛び出すのを防ぐ）。ノッチ（arrowLen*0.72）より少しだけ内側に
+    // 残して重ねる＝隙間が空かず、キャップは矢印の下に隠れる。
+    // 戻し量を halo 幅で決めると neon（lw*2.6）で戻し過ぎて隙間が見えるため、
+    // 基準はあくまでノッチ位置にする。短い線で線が消えないよう全長の45%で制限。
+    const trimBack = opts.arrowHead ? Math.min(arrowLen * 0.62, geo.total * 0.45) : 0;
+    // 終端セグメントを trimBack だけ縮めた点列（角丸・光の帯もこれに従う）
+    const strokePts = (() => {
+        if (trimBack <= 0.01 || pxPts.length < 2) return pxPts;
+        const out = pxPts.slice();
+        const last = out[out.length - 1];
+        const prev = out[out.length - 2];
+        const segLen = Math.hypot(last.x - prev.x, last.y - prev.y);
+        if (segLen < 1e-6) return pxPts;
+        // 最終セグメントより長く戻す必要はまず無いが、あってもセグメント内に収める
+        const back = Math.min(trimBack, segLen * 0.98);
+        out[out.length - 1] = {
+            x: last.x - ((last.x - prev.x) / segLen) * back,
+            y: last.y - ((last.y - prev.y) / segLen) * back,
+        };
+        return out;
+    })();
+    const pathD = roundedPathD(strokePts, opts.cornerRadius);
+    // 当たり判定は矢印の先端まで欲しいので trim しない全長パスを使う
+    const hitPathD = trimBack > 0 ? roundedPathD(pxPts, opts.cornerRadius) : pathD;
 
     // 値の表示テキスト。
     //   range モード: 数値はカンマ区切り＋小数桁でフォーマット（単位は別スパンで付加）
@@ -1137,7 +1166,8 @@ function LinkLine({ mode }) {
     // 流れる光の帯・端点パルス（Canvas）。どちらも無ければ Canvas 自体をマウントしない
     const pulseActive = opts.pulseCaps && opts.showEndCaps;
     const animActive = opts.flowSpeed > 0 || pulseActive;
-    const flowTrack = opts.flowSpeed > 0 ? buildFlowTrack(pxPts, opts.cornerRadius) : null;
+    // 光の帯も矢印を突き抜けないよう、線本体と同じ trim 済み点列を使う
+    const flowTrack = opts.flowSpeed > 0 ? buildFlowTrack(strokePts, opts.cornerRadius) : null;
     const pulseCapPts = pulseActive ? [startPt, ...(opts.arrowHead ? [] : [endPt])] : [];
 
     return (
@@ -1274,7 +1304,7 @@ function LinkLine({ mode }) {
                 {!lineEditActive && (
                     <path
                         ref={drillRef}
-                        d={pathD}
+                        d={hitPathD}
                         fill="none"
                         stroke="transparent"
                         strokeWidth={Math.max(lw * 2.5, 14)}
