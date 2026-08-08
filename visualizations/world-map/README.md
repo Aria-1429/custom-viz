@@ -3,8 +3,7 @@
 
 ![表示例](examples/example2.png)
 
-
-https://github.com/user-attachments/assets/eb299dd9-5c77-4113-a31a-c9b2e8e7cd24
+https://github.com/user-attachments/assets/e77522bf-1682-442c-be15-05be8109e93e
 
 Splunk Dashboard Studio 向けのカスタムビジュアライゼーション（世界地図＋アタックマップ）。
 
