@@ -448,36 +448,6 @@
                 "backgroundColor": "transparent"
             }
         },
-        "viz_network": {
-            "type": "custom_viz_network_graph.custom_viz_network_graph",
-            "title": "サービス依存関係",
-            "description": "力学ベースのフォースダイレクテッド図。ドラッグ／ズーム／パンで探索できる。列は「送信元・宛先・値」の順で渡す（この viz はフィールド選択オプションを持たない）。",
-            "dataSources": {
-                "primary": "ds_network"
-            },
-            "options": {
-                "maxNodes": 60,
-                "spacing": 140,
-                "linkDistance": 95,
-                "repulsion": 110,
-                "autoFit": true,
-                "curved": true,
-                "showArrows": true,
-                "showFlow": true,
-                "flowSpeed": 100,
-                "glow": true,
-                "showLabels": true,
-                "labelSize": 11,
-                "showHeader": true,
-                "highlightOnHover": true,
-                "useValueColors": true,
-                "lowColor": "#2dd4bf",
-                "midColor": "#f5c518",
-                "highColor": "#ef4d4d",
-                "useMidColor": true,
-                "backgroundColor": "transparent"
-            }
-        },
         "viz_horizon_traffic": {
             "type": "custom_viz_horizon_chart.custom_viz_horizon_chart",
             "title": "拠点別 回線トラフィック",
@@ -536,7 +506,6 @@
             "options": {
                 "useGradientLinks": true,
                 "linkOpacity": 45,
-                "useValueColors": true,
                 "lowColor": "#2dd4bf",
                 "midColor": "#f5c518",
                 "highColor": "#ef4d4d",
@@ -547,7 +516,8 @@
                 "showValues": true,
                 "showHeader": true,
                 "highlightOnHover": true,
-                "backgroundColor": "transparent"
+                "backgroundColor": "transparent",
+                "colorMode": "scale"
             }
         },
         "viz_change_waterfall": {
@@ -734,17 +704,6 @@
             "name": "ds_terrain",
             "options": {
                 "query": "| makeresults count=64 | streamstats count as i | eval rack=\"R\" . tostring(((i-1)%8)+1), node=\"N\" . tostring(floor((i-1)/8)+1) | eval load=38+34*sin(i/5)+22*cos(i/3)+random()%16 | table rack node load",
-                "queryParameters": {
-                    "earliest": "$global_time.earliest$",
-                    "latest": "$global_time.latest$"
-                }
-            }
-        },
-        "ds_network": {
-            "type": "ds.search",
-            "name": "ds_network",
-            "options": {
-                "query": "| makeresults format=csv data=\"src,dst,calls\nfrontend,api-gateway,42000\napi-gateway,auth-svc,18500\napi-gateway,order-svc,21300\napi-gateway,search-svc,15600\norder-svc,payment-svc,12400\norder-svc,inventory-svc,11800\npayment-svc,ledger-db,9600\ninventory-svc,inventory-db,10200\nauth-svc,user-db,17400\nsearch-svc,search-index,14900\norder-svc,notify-svc,6300\nnotify-svc,mail-relay,5800\" | table src dst calls",
                 "queryParameters": {
                     "earliest": "$global_time.earliest$",
                     "latest": "$global_time.latest$"
@@ -938,16 +897,6 @@
                     "y": 716,
                     "w": 480,
                     "h": 268
-                }
-            },
-            {
-                "type": "block",
-                "item": "viz_network",
-                "position": {
-                    "x": 1412,
-                    "y": 344,
-                    "w": 488,
-                    "h": 640
                 }
             },
             {

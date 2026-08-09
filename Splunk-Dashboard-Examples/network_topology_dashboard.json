@@ -554,36 +554,6 @@
                 "backgroundColor": "transparent"
             }
         },
-        "viz_topology_graph": {
-            "type": "custom_viz_network_graph.custom_viz_network_graph",
-            "title": "サービス依存の全体像",
-            "description": "力学ベースの自動配置。上の手描きトポロジと違い、依存の多さで自然に階層が現れる。列は「送信元・宛先・値」の順。",
-            "dataSources": {
-                "primary": "ds_topology"
-            },
-            "options": {
-                "maxNodes": 60,
-                "spacing": 140,
-                "linkDistance": 95,
-                "repulsion": 115,
-                "autoFit": true,
-                "curved": true,
-                "showArrows": true,
-                "showFlow": true,
-                "flowSpeed": 100,
-                "glow": true,
-                "showLabels": true,
-                "labelSize": 11,
-                "showHeader": true,
-                "highlightOnHover": true,
-                "useValueColors": true,
-                "lowColor": "#3fb950",
-                "midColor": "#f5c518",
-                "highColor": "#ef4d4d",
-                "useMidColor": true,
-                "backgroundColor": "transparent"
-            }
-        },
         "viz_iface_horizon": {
             "type": "custom_viz_horizon_chart.custom_viz_horizon_chart",
             "title": "インタフェース別トラフィック",
@@ -810,17 +780,6 @@
                 }
             }
         },
-        "ds_topology": {
-            "type": "ds.search",
-            "name": "ds_topology",
-            "options": {
-                "query": "| makeresults format=csv data=\"src,dst,calls\ninternet,fw-01,88000\nfw-01,core-sw,86500\ncore-sw,lb-01,52000\ncore-sw,lb-02,31000\nlb-01,web-01,26000\nlb-01,web-02,25500\nlb-02,web-03,16000\nlb-02,web-04,15200\nweb-01,app-01,21000\nweb-02,app-02,20400\nweb-03,app-01,13500\nweb-04,app-02,12800\napp-01,db-01,18200\napp-02,db-01,17600\napp-01,cache-01,9400\napp-02,cache-01,9100\ncore-sw,cloud-gw,24000\ncloud-gw,object-store,15800\" | table src dst calls",
-                "queryParameters": {
-                    "earliest": "$global_time.earliest$",
-                    "latest": "$global_time.latest$"
-                }
-            }
-        },
         "ds_iface": {
             "type": "ds.search",
             "name": "ds_iface",
@@ -1006,16 +965,6 @@
                     "y": 552,
                     "w": 230,
                     "h": 230
-                }
-            },
-            {
-                "type": "block",
-                "item": "viz_topology_graph",
-                "position": {
-                    "x": 1160,
-                    "y": 176,
-                    "w": 740,
-                    "h": 350
                 }
             },
             {

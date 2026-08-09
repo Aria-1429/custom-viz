@@ -227,41 +227,6 @@
             "showProgressBar": false,
             "showLastUpdated": false
         },
-        "network": {
-            "dataSources": {
-                "primary": "ds_network"
-            },
-            "description": "ホスト間通信を流れる矢印で。太さ=通信量。",
-            "options": {
-                "autoFit": true,
-                "curved": true,
-                "edgeOpacity": 80,
-                "edgeScale": 110,
-                "flowDash": 60,
-                "flowSpeed": 110,
-                "glow": true,
-                "highColor": "#ef4d6a",
-                "highlightOnHover": true,
-                "labelSize": 12,
-                "lowColor": "#1e5f8c",
-                "maxNodes": 50,
-                "midColor": "#f5c518",
-                "nodeScale": 110,
-                "showArrows": true,
-                "showFlow": true,
-                "showHeader": true,
-                "showLabels": true,
-                "showValues": true,
-                "spacing": 140,
-                "useMidColor": true,
-                "useValueColors": true,
-                "backgroundColor": "transparent"
-            },
-            "title": "ラテラルムーブメント 通信グラフ",
-            "type": "custom_viz_network_graph.custom_viz_network_graph",
-            "showProgressBar": false,
-            "showLastUpdated": false
-        },
         "radar": {
             "dataSources": {
                 "primary": "ds_radar"
@@ -315,8 +280,8 @@
                 "showValues": true,
                 "useGradientLinks": true,
                 "useMidColor": true,
-                "useValueColors": true,
-                "backgroundColor": "transparent"
+                "backgroundColor": "transparent",
+                "colorMode": "scale"
             },
             "title": "キルチェーン ステージ遷移",
             "type": "custom_viz_sankey_flow.custom_viz_sankey_flow",
@@ -583,17 +548,6 @@
             },
             "type": "ds.search"
         },
-        "ds_network": {
-            "name": "ds_network",
-            "options": {
-                "query": "| makeresults format=csv data=\"src,dst,weight\nattacker-ext,vpn-gw-02,90\nvpn-gw-02,jump-host-01,70\njump-host-01,dc01,120\njump-host-01,file-srv-07,45\ndc01,db-prod-03,80\ndc01,web-front-01,30\ndb-prod-03,exfil-node,110\nweb-front-01,mail-relay-01,20\nfile-srv-07,exfil-node,60\nmail-relay-01,attacker-ext,35\" | table src dst weight",
-                "queryParameters": {
-                    "earliest": "-24h@h",
-                    "latest": "now"
-                }
-            },
-            "type": "ds.search"
-        },
         "ds_radar": {
             "name": "ds_radar",
             "options": {
@@ -802,16 +756,6 @@
                             "y": 1276,
                             "w": 708,
                             "h": 340
-                        }
-                    },
-                    {
-                        "type": "block",
-                        "item": "network",
-                        "position": {
-                            "x": 16,
-                            "y": 1632,
-                            "w": 468,
-                            "h": 420
                         }
                     },
                     {

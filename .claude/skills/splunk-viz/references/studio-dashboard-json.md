@@ -20,7 +20,7 @@ JSON を作る**ときに読む。viz 本体の実装ナレッジは
 ### パネルを組み合わせて「図」を作る（network_topology の手法）
 
 **Icon Status（機器）と Link Line（線）を格子状に並べると、パネル配置そのものが
-ネットワーク構成図になる。** network-graph の自動配置と違い、**意図した位置に機器を置ける**。
+ネットワーク構成図になる。** 力学配置の viz と違い、**意図した位置に機器を置ける**。
 
 > ⚠ **2026-08-08 追記：溝（gutter）に線を押し込む下の書き方より、
 > 「線のパネルを機器のパネルに重ねる」ほうがきれいに組める**（ユーザー確認済み）。
@@ -35,8 +35,8 @@ JSON を作る**ときに読む。viz 本体の実装ナレッジは
   - 空文字なら既定の水平線。表示画面の「✎ 線を編集」でドラッグ調整もできる
 - 機器の中心と線の中心の **y（横線）／x（縦線）を揃える**と繋がって見える
   （例: 機器 y=176 h=230 → 中心 291。線 h=120 なら y=231）
-- 自動配置の network-graph を**併置**すると、手描き図（意図した構成）と
-  力学配置（実際の依存の重み）を見比べられる
+  （※ かつては自動配置の network-graph を併置して「手描き図 vs 力学配置」を
+  見比べる手が使えたが、**network-graph は 2026-08-09 にリポジトリから削除済み**）
 
 ---
 
@@ -181,7 +181,6 @@ viz 側はこれをパースして列を解決する（各 viz の `resolveField
 
 | viz | フィールド指定 | データの渡し方 |
 |---|---|---|
-| **network-graph** | **無し** | 列を「送信元・宛先・値」の順で渡す |
 | **sankey-flow** | **無し** | 列を「送信元・宛先・値」の順で渡す |
 | **country-graph** | **無し** | 列を「国名・値」の順で渡す |
 | tab-selector | 無し | そもそもデータを使わない |
@@ -316,7 +315,7 @@ for (const n of fs.readdirSync('visualizations')) {
 // ホストが解釈する共通オプション（viz の optionsSchema には無いが正当）
 const HOST_OPTS = new Set(['backgroundColor']);
 // 列順で判定する viz（SPL に | table が必要。§1 参照）
-const ORDER_DEP = new Set(['custom_viz_network_graph', 'custom_viz_sankey_flow', 'custom_viz_country_graph']);
+const ORDER_DEP = new Set(['custom_viz_sankey_flow', 'custom_viz_country_graph']);
 
 let e = 0;
 // ① type が実在し <app>.<app> 記法か  ② オプションキーが実在  ③ 選択値が有効

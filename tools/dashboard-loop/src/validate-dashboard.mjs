@@ -28,7 +28,6 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 const HOST_OPTS = new Set(['backgroundColor']);
 // 列順で判定する viz（SPL に `| table` が要る）
 const ORDER_DEP = new Set([
-    'custom_viz_network_graph',
     'custom_viz_sankey_flow',
     'custom_viz_country_graph',
 ]);
