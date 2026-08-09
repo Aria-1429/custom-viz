@@ -698,6 +698,58 @@ const matchMode = MATCH_MODES.includes(o.matchMode) ? o.matchMode : 'auto';
 **「0＝特別値」の数値は数値のままでよい**（`maxCellSize`（0=無制限）、`labelWidth`（0=自動）など）。
 選択肢ではなく連続量なので `editor.number` が正しい。
 
+### ⭐ チェックボックス／トグルのラベルは短くする（10文字前後・実機で実害）
+
+**`editor.checkbox` / `editor.toggle` のラベルが長いと、編集パネルで文字が重なって
+判読不能になる**（2026-08-09 にユーザーが実機で発見。world-map・sankey-flow の両方で発生）。
+
+**原因**：チェックボックスとトグルは**ラベルがコントロールの右に横並びで置かれ、
+`white-space: nowrap` + `overflow: hidden` が効いている**（実機の DOM で確認）。
+折り返されないため、幅を超えた分が隣の要素と重なる。
+一方 **`editor.number` / `editor.select` / `editor.slider` などはラベルが
+コントロールの「上」に置かれる**ので、多少長くても壊れない。
+→ **同じ長さでも editor 型によって壊れるかどうかが違う**のがハマりどころ。
+
+**守ること**:
+
+- チェックボックス／トグルのラベルは **動詞止めの短文（目安10文字前後、最大12文字）**。
+  「〜を表示」「〜を反転」「グラデーション」のように**何をするか**だけ書く。
+- **括弧書きの補足・例示・条件をラベルに詰め込まない。**
+  ❌ `グラデーションリンク（送信元色→送信先色）` / `数値を省略表記（1.5M など）`
+  ✅ `グラデーション` / `数値を省略表記`
+- **説明は README に書く**。編集パネルのラベルは「見出し」であって説明文ではない。
+- 他の editor 型（number / select / text 等）は**上にラベルが出るので長くてよい**
+  （`ラベル文字サイズ（px、0で自動）` などはそのままで問題ない）。
+
+**横断チェック**（新規・改修のたびに回す。12文字超が出たら短縮する）:
+
+```bash
+python3 - <<'PY'
+import json,glob
+rows=[]
+for p in sorted(glob.glob('visualizations/*/visualizations/*/config.json')):
+    viz=p.split('/')[1]
+    if viz=='editor-probe': continue
+    try: d=json.load(open(p,encoding='utf-8'))
+    except Exception: continue
+    for sec in d.get('config',{}).get('editorConfig') or []:
+        for row in sec.get('layout',[]) or []:
+            for it in row:
+                if it.get('editor') in ('editor.checkbox','editor.toggle'):
+                    l=it.get('label','')
+                    if len(l)>12: rows.append((len(l),viz,l))
+rows.sort(reverse=True)
+print(f"要短縮: {len(rows)}件")
+for n,v,l in rows: print(f"{n:3d}\t{v}\t{l}")
+PY
+```
+
+**2026-08-09 に全 viz へ横展開済み**（22 viz・64 ラベルを短縮し、12文字超を 0 件にした）。
+それ以前は world-map だけを直して「他 viz は未チェック」の状態が残っていた。
+
+⚠ **ラベル変更は `config.json` なので、編集パネルへの反映に splunkd 再起動が要る**（§7.1）。
+描画には影響しないため、**再起動できないなら次回の再起動時に反映される**（急がなくてよい）。
+
 > **`editor.select` は実機確認済み**（2026-07-25、kpi-tile v1.3.0）。編集画面にドロップダウンとして
 > 正しく表示され、選択値も `useOptions()` に届く。セクションが消える症状も出ない。
 > `editor.radioBar` は同じ `editorProps.values` 形状なので通る見込みだが未検証。
