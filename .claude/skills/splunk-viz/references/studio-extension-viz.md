@@ -1364,6 +1364,24 @@ node tools/dashboard-loop/src/click-check.mjs <dashboard-name> <出力先> <押�
 - ローカル検証（§6）では `DashboardExtensionAPI` モックに
   `addDrilldownListener` / `triggerDrilldown` を生やしておくと、発火の有無を検査できる。
 
+### ⭐ トークンは viz 間のメッセージバスとして使える（2026-08-09 実機確認済み）
+
+**クリックで設定した動的トークンは、別パネル（別 iframe）のカスタム viz の
+`useTokens` にもリアルタイムで届く。** つまり
+「viz A のクリック → `drilldown.setToken` → viz B が `useTokens` で受信 → 描画だけ変える」
+という **サーチ再実行なしの viz 間連携（リンクドハイライト）** が成立する。
+実機で before/after の DOM 属性まで確認済み（`viz_check_vu_link`、vu-console v1.1.0）。
+
+- 受信側は**トークン名で入れ子（env / default / submitted）を再帰走査**して値を取る
+  （どの階層に入るかは名前次第。クリック設定分も届いた）。
+- 受信側のオプション（購読するトークン名）は **optionsSchema に載せない**方式にすると、
+  config.json 無変更＝**splunkd 再起動なしで既存 viz に横展開できる**
+  （スキーマ外キーの永続化は実機確認済み）。
+- 一致ゼロのトークン値では何も変えない実装にする（他パネル向けの値で
+  全要素が沈む誤動作を避ける）。
+- 参照実装: **ローカルブランチ `experiment/vu-console-token-bus`**（vu-console v1.1.0 の
+  `findTokenValue()` / `highlightToken`。実機検証済み・main 未マージ）。
+
 ---
 
 ## 6. ローカル検証（happy-dom で実機なしにバンドルを叩く）

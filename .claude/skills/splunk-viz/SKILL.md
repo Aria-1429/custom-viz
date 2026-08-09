@@ -36,6 +36,14 @@ Dashboard Studio 拡張 viz の実装ナレッジを集約している:
 **WebGL を happy-dom で検証する方法**（getContext のスタブ化）をまとめてある。
 SVG で足りるものに WebGL を使う必要は無い（判断基準も同ファイルに記載）。
 
+**「viz 間の連携」「再起動なしの機能追加」「バックエンド無しの状態保存」のような
+プラットフォームの隙間を突く要件なら [references/studio-hacks.md](references/studio-hacks.md) を読む**
+（2026-08-09 実機検証）。トークンバス（クリック→別パネルの useTokens にリアルタイム配信＝
+リンクドハイライト、実機確認済み）などの**成立したハック**と、
+**不成立と確定したハック**（iframe は `sandbox="allow-scripts"` のみ＝opaque origin で、
+BroadcastChannel / localStorage / cookie / 認証付き fetch は全滅）の両方を記録してある。
+**viz 間連携はトークンバスが上限**なので、ホバー同期のような要件は受ける前にこのファイルを見る。
+
 **ダッシュボードそのものを作る依頼（Studio の JSON を書く）なら
 [references/studio-dashboard-json.md](references/studio-dashboard-json.md) を必ず読む。**
 viz 本体の実装ナレッジとは別物。特に:
