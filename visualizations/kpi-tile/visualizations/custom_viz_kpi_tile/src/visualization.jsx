@@ -641,6 +641,11 @@ function KpiTile({ mode }) {
     }, []);
     const setContainer = useCallback(
         (el) => {
+            const prev = containerRef.current;
+            if (prev && prev.__ro) {
+                prev.__ro.disconnect();
+                delete prev.__ro;
+            }
             containerRef.current = el;
             if (!el) return;
             measure(el);
@@ -684,21 +689,32 @@ function KpiTile({ mode }) {
     const accent = opts.accentColor;
 
     // --- サイズ計算（スケール clamp + 段階退避） ---
-    const s = clamp(Math.min(w / 230, h / 175), 0.55, 2.4);
-    const pad = Math.round(clamp(16 * s, 8, 36));
-    const titleFont = Math.round(clamp(13.5 * s, 10, 27));
-    const deltaFont = Math.round(clamp(11.5 * s, 9, 23));
-    const badge = Math.round(clamp(34 * s, 22, 60));
+    // 上限 3.0 と各上限値は大パネル（900x620 程度）でも余白が目立たないよう設定
+    const s = clamp(Math.min(w / 230, h / 175), 0.55, 3.0);
+    const pad = Math.round(clamp(16 * s, 8, 48));
+    let titleFont = Math.round(clamp(13.5 * s, 10, 40));
+    const deltaFont = Math.round(clamp(11.5 * s, 9, 34));
+    const badge = Math.round(clamp(34 * s, 22, 84));
 
     const titleVisible = opts.showTitle && h >= 64;
     const iconVisible = opts.showIcon && h >= 64 && w >= 120;
+    const titleStr = opts.titleText || fieldNames[series.valIdx] || 'KPI';
+    // タイトルが収まらないときは 0.7 倍までフォントを縮小し、それでも溢れる分は ellipsis
+    if (titleVisible) {
+        // 実フォントの advance と letterSpacing のぶん、見積もりへ 6% の安全率を掛ける
+        const availT = Math.max(40, w - pad * 2 - (iconVisible ? badge + 8 : 0));
+        const estT = estimateTextWidth(titleStr, titleFont) * 1.06;
+        if (estT > availT) {
+            titleFont = Math.max(10, Math.round(titleFont * 0.7), Math.floor((titleFont * availT) / estT));
+        }
+    }
     const deltaVisible = opts.showDelta && series.prev !== null && h >= 96;
     const sparkVisible = opts.sparkMode !== 'none' && series.points.length >= 2 && h >= 140;
-    const sparkH = Math.round(clamp(h * 0.28, 22, 96));
+    const sparkH = Math.round(clamp(h * 0.28, 22, 240));
 
     // 大数値：まず基準サイズ、収まらなければ幅に合わせて縮小
     const valueStr = fmtValue(dispValue, opts.valueDecimals, opts.abbreviateValue);
-    let valueFont = Math.round(clamp(34 * s, 16, 76));
+    let valueFont = Math.round(clamp(34 * s, 16, 102));
     {
         const avail = Math.max(40, w - pad * 2 - (iconVisible && !titleVisible ? badge + 8 : 0));
         const est = estimateTextWidth(valueStr, valueFont);
@@ -739,6 +755,9 @@ function KpiTile({ mode }) {
     const vMax = Math.max(...vals, 0);
     const vMin = Math.min(...vals, 0);
     const range = vMax - vMin || 1;
+    // ゼロ基準線の位置（0〜1）。全て正の値なら 0（＝下端）で従来と同じ描画になる
+    const zeroFrac = clamp01((0 - vMin) / range);
+    const hasNegative = vMin < 0;
 
     const iconIdx = Math.max(0, ICONS.findIndex((ic) => ic.name === opts.iconName));
     const icon = ICONS[iconIdx];
@@ -800,9 +819,9 @@ function KpiTile({ mode }) {
                                 whiteSpace: 'nowrap',
                                 paddingTop: iconVisible ? Math.round(badge * 0.12) : 0,
                             }}
-                            title={opts.titleText || fieldNames[series.valIdx] || ''}
+                            title={titleStr}
                         >
-                            {opts.titleText || fieldNames[series.valIdx] || 'KPI'}
+                            {titleStr}
                         </div>
                     )}
                     {iconVisible && (
@@ -852,6 +871,10 @@ function KpiTile({ mode }) {
                         color: deltaColor,
                         fontSize: deltaFont,
                         fontWeight: 600,
+                        // overflow:hidden と併用するため行高を明示する。未指定（normal）だと
+                        // CJK グリフのアセントが行ボックスを超え、「前」の点や「日」の上辺が
+                        // 欠ける（実機で確認済みの見切れ）。
+                        lineHeight: 1.35,
                         marginTop: Math.round(3 * s),
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
@@ -881,17 +904,20 @@ function KpiTile({ mode }) {
                               const dotR = clamp(2.6 * s, 2, 5);
                               const topPad = dotR + 1;
                               const lineW = clamp(1.7 * s, 1.2, 3);
+                              const yOf = (frac) => topPad + (1 - frac) * (sparkH - topPad - 1);
                               const pts = barPoints.map((p, i) => {
-                                  const frac = clamp01((p.value - Math.min(0, vMin)) / range);
+                                  const frac = clamp01((p.value - vMin) / range);
                                   return {
                                       x: i * pitch + pitch / 2,
-                                      y: topPad + (1 - frac) * (sparkH - topPad - 1),
+                                      y: yOf(frac),
                                   };
                               });
+                              // 面グラデーションはゼロ基準線で閉じる（負値が下端まで塗られないように）
+                              const yBase = yOf(zeroFrac);
                               const lineD = pts.map((pt, i) => `${i === 0 ? 'M' : 'L'}${pt.x},${pt.y}`).join(' ');
-                              const areaD = `M${pts[0].x},${sparkH} ${pts
+                              const areaD = `M${pts[0].x},${yBase} ${pts
                                   .map((pt) => `L${pt.x},${pt.y}`)
-                                  .join(' ')} L${pts[n - 1].x},${sparkH} Z`;
+                                  .join(' ')} L${pts[n - 1].x},${yBase} Z`;
                               const last = pts[n - 1];
                               return (
                                   <>
@@ -903,6 +929,18 @@ function KpiTile({ mode }) {
                                           </linearGradient>
                                       </defs>
                                       <path d={areaD} fill="url(#spark-line-grad)" stroke="none" />
+                                      {hasNegative && (
+                                          <line
+                                              data-role="spark-baseline"
+                                              x1={0}
+                                              x2={sparkW}
+                                              y1={yBase}
+                                              y2={yBase}
+                                              stroke={withAlpha(accent, 0.35)}
+                                              strokeWidth={1}
+                                              strokeDasharray="3 3"
+                                          />
+                                      )}
                                       <path
                                           d={lineD}
                                           fill="none"
@@ -928,30 +966,53 @@ function KpiTile({ mode }) {
                                   </>
                               );
                           })()
-                        : barPoints.map((p, i) => {
+                        : (() => {
                               const n = barPoints.length;
                               const pitch = sparkW / n;
-                              const bw = clamp(pitch * 0.62, 2, 14);
-                              const x = i * pitch + (pitch - bw) / 2;
-                              const frac = clamp01((p.value - Math.min(0, vMin)) / range);
-                              const bh = Math.max(2, frac * (sparkH - 2));
-                              const y = sparkH - bh;
-                              const opacity = n > 1 ? 0.4 + 0.6 * (i / (n - 1)) : 1;
+                              const scaleH = sparkH - 2;
+                              const yBase = sparkH - zeroFrac * scaleH;
                               return (
-                                  <rect
-                                      key={`b${i}`}
-                                      x={x}
-                                      y={y}
-                                      width={bw}
-                                      height={bh}
-                                      rx={Math.min(2, bw / 2)}
-                                      fill={pal.bar}
-                                      opacity={opacity}
-                                  >
-                                      <title>{`${p.label}: ${fmtValue(p.value, opts.valueDecimals, false)}`}</title>
-                                  </rect>
+                                  <>
+                                      {hasNegative && (
+                                          <line
+                                              data-role="spark-baseline"
+                                              x1={0}
+                                              x2={sparkW}
+                                              y1={yBase}
+                                              y2={yBase}
+                                              stroke={withAlpha(accent, 0.35)}
+                                              strokeWidth={1}
+                                              strokeDasharray="3 3"
+                                          />
+                                      )}
+                                      {barPoints.map((p, i) => {
+                                          const bw = clamp(pitch * 0.62, 2, 14);
+                                          const x = i * pitch + (pitch - bw) / 2;
+                                          // ゼロ基準線から上下へ描く（全て正なら基準線＝下端で従来どおり）
+                                          const frac = clamp01((p.value - vMin) / range);
+                                          const hi = Math.max(frac, zeroFrac);
+                                          const lo = Math.min(frac, zeroFrac);
+                                          const bh = Math.max(2, (hi - lo) * scaleH);
+                                          const y = sparkH - lo * scaleH - bh;
+                                          const opacity = n > 1 ? 0.4 + 0.6 * (i / (n - 1)) : 1;
+                                          return (
+                                              <rect
+                                                  key={`b${i}`}
+                                                  x={x}
+                                                  y={y}
+                                                  width={bw}
+                                                  height={bh}
+                                                  rx={Math.min(2, bw / 2)}
+                                                  fill={pal.bar}
+                                                  opacity={opacity}
+                                              >
+                                                  <title>{`${p.label}: ${fmtValue(p.value, opts.valueDecimals, false)}`}</title>
+                                              </rect>
+                                          );
+                                      })}
+                                  </>
                               );
-                          })}
+                          })()}
                 </svg>
             )}
 
