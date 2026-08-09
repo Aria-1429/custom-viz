@@ -1,0 +1,187 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": true,
+  "canSetTokens": ["dynamic", "static"],
+  "hasEventHandlers": true,
+  "config": {
+    "name": "VU Console",
+    "description": "複数のメトリクスをアナログ VU メーター（針の計器）として並べるコンソール。針はバネ物理で振れ、ピークホールド針・しきい値の色帯・過大入力ランプを備える。メーターのクリックでトークンを設定できる",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 780,
+      "initialHeight": 360
+    },
+    "events": {
+      "value.click": { "description": "triggered when user clicks a meter" }
+    },
+    "supports": ["events"],
+    "optionsSchema": {
+      "fields": {
+        "default": [],
+        "anyOf": [
+          { "type": "array", "items": { "type": "string" } },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      },
+      "dataShape": { "type": "string", "default": "auto" },
+      "aggMode": { "type": "string", "default": "last" },
+
+      "rangeMin": { "type": "number", "default": 0 },
+      "rangeMax": { "type": "number", "default": 100 },
+      "autoScale": { "type": "boolean", "default": false },
+
+      "colorBands": {
+        "default": [
+          { "from": null, "to": 70, "value": "#4b8f5f" },
+          { "from": 70, "to": 85, "value": "#e0a63c" },
+          { "from": 85, "to": null, "value": "#d3413b" }
+        ],
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": { "type": ["number", "null"] },
+                "to": { "type": ["number", "null"] },
+                "value": { "type": "string" }
+              },
+              "required": ["value"],
+              "additionalProperties": false
+            }
+          },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      },
+      "faceStyle": { "type": "string", "default": "auto" },
+
+      "sweepAngle": { "type": "number", "default": 90 },
+      "unitText": { "type": "string", "default": "" },
+      "decimals": { "type": "number", "default": 0 },
+      "showValue": { "type": "boolean", "default": true },
+      "showTickLabels": { "type": "boolean", "default": true },
+      "showLamp": { "type": "boolean", "default": true },
+
+      "showPeak": { "type": "boolean", "default": true },
+      "peakHoldSec": { "type": "number", "default": 2.5 },
+      "animate": { "type": "boolean", "default": true },
+
+      "maxColumns": { "type": "number", "default": 0 },
+      "maxMeters": { "type": "number", "default": 12 }
+    },
+    "editorConfig": [
+      {
+        "label": "データ",
+        "layout": [
+          [{ "label": "対象フィールド（空欄で数値列すべて）", "editor": "editor.columnMultiSelectionByFieldNameEditor", "option": "fields" }],
+          [
+            {
+              "label": "データの形",
+              "editor": "editor.select",
+              "option": "dataShape",
+              "editorProps": {
+                "values": [
+                  { "label": "自動判定", "value": "auto" },
+                  { "label": "横持ち（1列 = 1メーター）", "value": "wide" },
+                  { "label": "縦持ち（1行 = 1メーター）", "value": "long" }
+                ]
+              }
+            }
+          ],
+          [
+            {
+              "label": "値の決め方（横持ちで複数行のとき）",
+              "editor": "editor.select",
+              "option": "aggMode",
+              "editorProps": {
+                "values": [
+                  { "label": "最終行の値", "value": "last" },
+                  { "label": "先頭行の値", "value": "first" },
+                  { "label": "平均", "value": "avg" },
+                  { "label": "最大", "value": "max" },
+                  { "label": "最小", "value": "min" },
+                  { "label": "合計", "value": "sum" }
+                ]
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "label": "目盛りの範囲",
+        "layout": [
+          [{ "label": "最小値", "editor": "editor.number", "option": "rangeMin" }],
+          [{ "label": "最大値", "editor": "editor.number", "option": "rangeMax" }],
+          [{ "label": "範囲を自動決定", "editor": "editor.checkbox", "option": "autoScale" }]
+        ]
+      },
+      {
+        "label": "色と質感",
+        "layout": [
+          [{ "label": "値の範囲と色（＋で段を追加）", "editor": "editor.threshold", "option": "colorBands", "editorProps": { "openRanges": true, "isTogglable": false } }],
+          [
+            {
+              "label": "文字盤の質感",
+              "editor": "editor.select",
+              "option": "faceStyle",
+              "editorProps": {
+                "values": [
+                  { "label": "テーマに合わせる", "value": "auto" },
+                  { "label": "ビンテージ（クリーム）", "value": "vintage" },
+                  { "label": "ダーク（黒文字盤）", "value": "dark" }
+                ]
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "label": "計器の表示",
+        "layout": [
+          [
+            {
+              "label": "針の振れ幅（弧の角度）",
+              "editor": "editor.select",
+              "option": "sweepAngle",
+              "editorProps": {
+                "values": [
+                  { "label": "VU 標準（90°）", "value": 90 },
+                  { "label": "広め（120°）", "value": 120 },
+                  { "label": "ワイド（150°）", "value": 150 }
+                ]
+              }
+            }
+          ],
+          [{ "label": "単位ラベル（例: %, ms, VU）", "editor": "editor.text", "option": "unitText" }],
+          [{ "label": "小数点以下の桁数", "editor": "editor.number", "option": "decimals" }],
+          [{ "label": "値を表示", "editor": "editor.checkbox", "option": "showValue" }],
+          [{ "label": "目盛り数値を表示", "editor": "editor.checkbox", "option": "showTickLabels" }],
+          [{ "label": "ピークランプ", "editor": "editor.checkbox", "option": "showLamp" }]
+        ]
+      },
+      {
+        "label": "針の動き",
+        "layout": [
+          [{ "label": "ピーク針を表示", "editor": "editor.checkbox", "option": "showPeak" }],
+          [{ "label": "ピーク保持（秒）", "editor": "editor.number", "option": "peakHoldSec" }],
+          [{ "label": "針を物理で振る", "editor": "editor.checkbox", "option": "animate" }]
+        ]
+      },
+      {
+        "label": "レイアウト",
+        "layout": [
+          [{ "label": "列数の上限（0で自動）", "editor": "editor.number", "option": "maxColumns" }],
+          [{ "label": "メーター数の上限", "editor": "editor.number", "option": "maxMeters" }]
+        ]
+      }
+    ],
+    "defaultContext": {}
+  }
+}
