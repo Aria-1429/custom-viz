@@ -828,22 +828,62 @@ drilldown 項目は無い（※未知の型が存在する可能性は否定で�
   全ケースで壊れない。optionsSchema は `{ "type": "string", "default": "" }`。
 - 参照実装: chord-flow の `resolveFieldIndex()`。
 
-### 編集モード中は viz 内のマウス操作 UI が効かない（iframe への入力遮断）
+### 編集モード中の入力遮断は【iframe 拡張 viz 限定】（標準 viz は編集モードでも操作できる）
 
-Studio 編集モードのイベント設計:
-- パネル移動はホバー時に上部中央へ出るピル型ドラッグハンドルから（`useDragHandleComponent`,
-  `EVENT_MOUSE_DOWN_ON_HANDLE` でのみ `isMovingRef=true`）。
-- **viz 本体への mousedown はパネル選択に消費**される（`SelectableContainer.onMouseDown` →
-  `EVENT_MOUSE_DOWN_ON_VIZ_WITH_HANDLE`）。これを iframe 拡張 viz でも成立させるため、編集モード中は
-  ホストが拡張 iframe への入力を遮断する。
-- → **編集モード中に viz 内へ描いたクリック/ドラッグ UI（アイコンピッカー・編集ハンドル等）は実機では
-  動かない**。
+> **【訂正 2026-08-09】** 以前この節は「編集モードでは viz 内のマウス操作が効かない」と
+> 標準 viz にも当てはまるように読める書き方だったが、**それは誤り**。ユーザーの
+> 「networkGraph は編集モード中もドラッグで viz 内を直接いじれる」という指摘を受けて
+> 実機で再検証し、以下のとおり**遮断は iframe 拡張 viz だけ**と確定した。
+
+実機検証（Splunk 10.4.2、world-map と splunk.networkGraph を並べた編集モードで実測）:
+
+- **標準 viz（Studio の DOM に直接描画）… 編集モードでも入力が届く**。
+  networkGraph のズーム「＋」を編集モード中にクリックすると **transform が実際に変化**
+  （scale 2.13 → 3.19）。パネル中央のヒットテスト（`elementFromPoint`）でも
+  **viz 自身の SVG `<rect>` が最前面**＝シールドは無い。
+  パネルの移動だけはホバー時に上部中央へ出るピル型ドラッグハンドル（⋮⋮）から行い、
+  viz 本体への mousedown は「パネル選択＋viz への通常入力」として両方成立する。
+- **カスタム viz（iframe 拡張）… 編集モードでは入力が届かない**。
+  iframe の上に**シールド DIV が常時最前面**（ヒットテストで確認）。
+  **パネルを選択した後でも**届かない（フィルタのドロップダウンは開かず、
+  フロー一覧のドラッグも不動。未選択/選択後の両状態で実測）。
+- 機序（バンドルの読解）: パネル移動はハンドルからのみ（`useDragHandleComponent`,
+  `EVENT_MOUSE_DOWN_ON_HANDLE`）。viz 本体への mousedown は `SelectableContainer.onMouseDown`
+  が選択に使う。インライン DOM ならイベントは viz にも流れるが、iframe は
+  ドキュメント境界でイベントが親に伝播しないため、選択を成立させる目的で
+  ホストが iframe をシールドで覆っている（＝遮断は副作用ではなく設計）。
+- → **編集モード中に「カスタム viz 内」へ描いたクリック/ドラッグ UI（アイコンピッカー・
+  編集ハンドル等）は動かない**。標準 viz と同じ操作感を iframe で期待しないこと。
 - 対策:「**表示モードで操作 → 変更を viz 内 pending に保持 → mode が edit に変わった瞬間に setOptions を
   再送(flush) → ユーザーが保存**」。モード変化イベントは iframe に届き続ける（iframe は view↔edit で
   生存する）ため flush が成立する。echo（opts が pending と一致）で消し込み、再送は未反映分のみ1回。
   表示モード中の見た目はローカル draft でライブプレビューする（**表示モードの setOptions はホスト定義に
   載らない**ため）。参照実装: link-line の `pendingRef` / flush effect。確実な保険は右パネル
   （editor.number 等）完結の操作。
+
+#### この遮断は突破できない（バンドル読解で確定・2026-08-09）
+
+「内部設定で編集モードでも入力を通せないか」を、Splunk Web のバンドルまで遡って調べた**否定的な結論**。
+希望的観測ではなく、遮断を実装している**分岐そのものを読んだ**うえでの結論:
+
+- **遮断の実体は `data-test="custom-viz-overlay"` という透明 DIV**。iframe と同階層の兄弟に置かれ、
+  ホストのコードで **`display: mode === "edit" ? "flex" : "none"`** と直書きされている
+  （正確には `display: e==="edit" || loading || error ? "flex" : "none"`）。
+  表示モードでは 0×0（`display:none`）で透過、編集モードで iframe 全面（実測 510×341）に広がり
+  `pointer-events` を奪う。**実験で overlay を `pointer-events:none` にすると iframe が最前面に復帰**した
+  （＝遮断は overlay 単独の仕業）。
+- **viz 側（config.json / options / iframe 属性）で切り替えられる分岐は存在しない**。条件は
+  「編集モード or ローディング or エラー」の3つだけ。だから「宣言を足せば通る」抜け道は無い。
+- iframe には `data-viz-supports-simulated-clicks=true` が付くが、**クリック転送のリスナーは
+  Splunk 内製 viz（`svgChoropleth`）専用**で、カスタム viz の overlay には結線されていない
+  （属性は名乗るだけ。overlay は転送せず塞ぐのみ）。
+- overlay を消せば技術的には届くが、それには**親フレーム（Splunk Web 本体）の DOM 書き換え**が要る。
+  iframe は `sandbox="allow-scripts"`（＝ `allow-same-origin` 無し・opaque origin）なので
+  `window.parent` へのアクセスは SOP でブロックされ、**viz のコードからは物理的に不可能**
+  （[[iframe-sandbox-limits]] と整合。兄弟 iframe へは postMessage で届くが親 DOM は触れない）。
+  ブラウザ拡張/ユーザースクリプトなら可能だが成果物(.jsx)に閉じない＝この viz の解ではない。
+- **→ 唯一の正解は上の pending+flush 方式**（Splunk が意図した設計）。標準 viz と同じ
+  「編集モードで直接ドラッグ」は**インライン DOM の標準 viz 限定**で、iframe 隔離の構造上の差。
 
 ---
 
@@ -1355,7 +1395,8 @@ node tools/dashboard-loop/src/click-check.mjs <dashboard-name> <出力先> <押�
 
 ### 注意
 
-- **編集モードでは viz 内のマウス操作が iframe ごと遮断される**（§3 の既知事項）。
+- **編集モードではカスタム viz（iframe）内のマウス操作が遮断される**（§3 の既知事項。
+  ⚠ 遮断は iframe 拡張 viz 限定。標準 viz は編集モードでも操作できる＝2026-08-09 実機確定）。
   クリックの動作確認は表示モードで行う。
 - **`config.json` に `events` を足した回は splunkd の再起動が要る**（§7.1）。
   再起動前は「実装は正しいのにクリックしても何も起きない」状態になるので、
