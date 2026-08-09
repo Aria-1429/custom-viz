@@ -36,6 +36,15 @@ Dashboard Studio 拡張 viz の実装ナレッジを集約している:
 **WebGL を happy-dom で検証する方法**（getContext のスタブ化）をまとめてある。
 SVG で足りるものに WebGL を使う必要は無い（判断基準も同ファイルに記載）。
 
+**「viz が重い」「大画面・4K で fps が落ちる」「複数パネルで遅い」のような
+パフォーマンス要件なら [references/viz-performance.md](references/viz-performance.md) を必ず読む**
+（2026-08-09 実機計測。world-map を 4面・1080p で 5.9fps → 60fps にした改善で確定）。
+**推測でコードを触る前に CDP トレースで内訳を取る**（`RasterTask` ≫ JS なら犯人は
+「面積に比例する半透明の塗り」＝ SVG フィルタ・SMIL・radialGradient・backdrop-filter）。
+犯人の類型と対策、**WebGL2/Canvas2D ハイブリッドの使い分け**（ソフトウェアGLでは
+WebGL にしても速くならない）、**効かなかった対策4件**（will-change 昇格は逆効果等）、
+計測ツール一式（`measure-{fps,viewport,breakdown}.mjs`）をまとめてある。
+
 **「viz 間の連携」「再起動なしの機能追加」「バックエンド無しの状態保存」のような
 プラットフォームの隙間を突く要件なら [references/studio-hacks.md](references/studio-hacks.md) を読む**
 （2026-08-09 実機検証）。トークンバス（クリック→別パネルの useTokens にリアルタイム配信＝
