@@ -69,7 +69,7 @@
           [{ "label": "基準値（空欄=0）", "editor": "editor.number", "option": "bandBase" }],
           [{ "label": "1バンドの幅（空欄=自動）", "editor": "editor.number", "option": "bandStep" }],
           [{ "label": "系列ごとに高さを正規化", "editor": "editor.checkbox", "option": "perSeriesScale" }],
-          [{ "label": "基準値より下を反対色で表示", "editor": "editor.checkbox", "option": "showNegative" }]
+          [{ "label": "下側を反対色に", "editor": "editor.checkbox", "option": "showNegative" }]
         ]
       },
       {
@@ -113,7 +113,7 @@
           [{ "label": "各レーンの最大値を表示", "editor": "editor.checkbox", "option": "showPeakValue" }],
           [{ "label": "時刻軸を表示", "editor": "editor.checkbox", "option": "showTimeAxis" }],
           [{ "label": "凡例を表示", "editor": "editor.checkbox", "option": "showLegend" }],
-          [{ "label": "カーソルの縦線（クロスヘア）を表示", "editor": "editor.checkbox", "option": "showCrosshair" }],
+          [{ "label": "カーソル線を表示", "editor": "editor.checkbox", "option": "showCrosshair" }],
           [{ "label": "描画アニメーション", "editor": "editor.checkbox", "option": "animate" }]
         ]
       },
@@ -121,7 +121,7 @@
         "label": "数値",
         "layout": [
           [{ "label": "小数点以下の桁数", "editor": "editor.number", "option": "valueDecimals" }],
-          [{ "label": "数値を省略表記（1.5M など）", "editor": "editor.checkbox", "option": "abbreviateValue" }]
+          [{ "label": "数値を省略表記", "editor": "editor.checkbox", "option": "abbreviateValue" }]
         ]
       }
     ],

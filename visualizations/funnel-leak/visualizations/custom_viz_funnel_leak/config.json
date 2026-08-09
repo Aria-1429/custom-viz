@@ -60,7 +60,7 @@
         "layout": [
           [{ "label": "通過フローの色", "editor": "editor.color", "option": "flowColor" }],
           [{ "label": "離脱（リーク）の色", "editor": "editor.color", "option": "leakColor" }],
-          [{ "label": "通過率で段の色を変える（低→高）", "editor": "editor.checkbox", "option": "useRateColors" }],
+          [{ "label": "通過率で色分け", "editor": "editor.checkbox", "option": "useRateColors" }],
           [{ "label": "低い通過率の色", "editor": "editor.color", "option": "lowColor" }],
           [{ "label": "高い通過率の色", "editor": "editor.color", "option": "highColor" }]
         ]
@@ -70,7 +70,7 @@
         "layout": [
           [{ "label": "アニメーション周期（秒、0で停止）", "editor": "editor.number", "option": "animationPeriod" }],
           [{ "label": "粒子の密度（1〜100）", "editor": "editor.number", "option": "particleDensity" }],
-          [{ "label": "フローの帯を表示（粒子の下地。既定OFF）", "editor": "editor.checkbox", "option": "showFlowBands" }]
+          [{ "label": "フローの帯を表示", "editor": "editor.checkbox", "option": "showFlowBands" }]
         ]
       },
       {
@@ -89,7 +89,7 @@
           [{ "label": "件数を表示", "editor": "editor.checkbox", "option": "showCounts" }],
           [{ "label": "通過率を表示", "editor": "editor.checkbox", "option": "showRate" }],
           [{ "label": "離脱数を表示", "editor": "editor.checkbox", "option": "showLeak" }],
-          [{ "label": "総合通過率のヘッダーを表示", "editor": "editor.checkbox", "option": "showOverallRate" }],
+          [{ "label": "ヘッダーを表示", "editor": "editor.checkbox", "option": "showOverallRate" }],
           [{ "label": "ラベルサイズ（px、0で自動）", "editor": "editor.number", "option": "labelSize" }],
           [{ "label": "ホバーで段をハイライト", "editor": "editor.checkbox", "option": "highlightOnHover" }],
           [{ "label": "サマリーヘッダーを表示", "editor": "editor.checkbox", "option": "showHeader" }]

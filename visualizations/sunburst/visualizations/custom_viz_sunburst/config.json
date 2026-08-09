@@ -99,11 +99,11 @@
         "label": "表示",
         "layout": [
           [{ "label": "扇形にラベルを表示", "editor": "editor.checkbox", "option": "showLabels" }],
-          [{ "label": "ホバー中、その系統以外を暗くする", "editor": "editor.checkbox", "option": "dimOthers" }],
+          [{ "label": "系統以外を暗く", "editor": "editor.checkbox", "option": "dimOthers" }],
           [{ "label": "中央に合計を表示", "editor": "editor.checkbox", "option": "showCenter" }],
           [{ "label": "パンくずリストを表示", "editor": "editor.checkbox", "option": "showBreadcrumb" }],
           [{ "label": "凡例を表示", "editor": "editor.checkbox", "option": "showLegend" }],
-          [{ "label": "クリックで下の階層へ掘り下げる", "editor": "editor.checkbox", "option": "enableDrilldown" }],
+          [{ "label": "クリックで掘下げ", "editor": "editor.checkbox", "option": "enableDrilldown" }],
           [{ "label": "アニメーション", "editor": "editor.checkbox", "option": "animate" }]
         ]
       },
@@ -117,7 +117,7 @@
         "label": "数値",
         "layout": [
           [{ "label": "小数点以下の桁数", "editor": "editor.number", "option": "valueDecimals" }],
-          [{ "label": "数値を省略表記（1.5M など）", "editor": "editor.checkbox", "option": "abbreviateValue" }]
+          [{ "label": "数値を省略表記", "editor": "editor.checkbox", "option": "abbreviateValue" }]
         ]
       }
     ],

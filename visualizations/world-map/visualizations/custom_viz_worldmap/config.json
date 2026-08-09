@@ -154,7 +154,7 @@
           [{ "label": "値（count）の単位（凡例・ツールチップ・テーブルに使用。例: 件／接続／MB）", "editor": "editor.text", "option": "countLabel" }],
           [{ "label": "件数による線の太さの強調度（0で一律の細線）", "editor": "editor.slider", "option": "widthScale", "editorProps": { "min": 0, "max": 5, "step": 0.5 } }],
           [{ "label": "描画する矢印の上限（件数の多い順。0で無制限）", "editor": "editor.number", "option": "maxArcs", "editorProps": { "min": 0 } }],
-          [{ "label": "ホバーで関連する矢印を強調", "editor": "editor.checkbox", "option": "highlightOnHover" }],
+          [{ "label": "ホバーで強調", "editor": "editor.checkbox", "option": "highlightOnHover" }],
           [{ "label": "近接した地点をまとめる半径（px。0でまとめない。ズームすると自然に分かれます）", "editor": "editor.slider", "option": "clusterRadius", "editorProps": { "min": 0, "max": 80, "step": 2 } }],
           [{ "label": "凡例に合計を表示", "editor": "editor.checkbox", "option": "showTotals" }],
           [{ "label": "カテゴリ別の件数を表示", "editor": "editor.checkbox", "option": "showCategoryCounts" }]

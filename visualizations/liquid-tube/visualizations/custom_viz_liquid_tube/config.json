@@ -110,7 +110,7 @@
       {
         "label": "背景",
         "layout": [
-          [{ "label": "背景を透過する（ダッシュボードの背景を透かす）", "editor": "editor.checkbox", "option": "transparentBg" }],
+          [{ "label": "背景を透過", "editor": "editor.checkbox", "option": "transparentBg" }],
           [{ "label": "背景色（透過しない場合に使用。未設定ならテーマに合わせる）", "editor": "editor.color", "option": "bgColor" }]
         ]
       },

@@ -55,22 +55,22 @@
           [{ "label": "送信元フィールド", "editor": "editor.columnSelector", "option": "sourceField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
           [{ "label": "送信先フィールド", "editor": "editor.columnSelector", "option": "targetField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
           [{ "label": "数値（流量）フィールド", "editor": "editor.columnSelector", "option": "valueField", "context": "valuesContext", "editorProps": { "dataSourceKey": "primary" } }],
-          [{ "label": "自己ループ（送信元＝送信先）を表示", "editor": "editor.checkbox", "option": "showSelfLoops" }]
+          [{ "label": "自己ループを表示", "editor": "editor.checkbox", "option": "showSelfLoops" }]
         ]
       },
       {
         "label": "リボン",
         "layout": [
-          [{ "label": "グラデーションリボン（送信元色→送信先色）", "editor": "editor.checkbox", "option": "useGradientRibbons" }],
+          [{ "label": "グラデーション", "editor": "editor.checkbox", "option": "useGradientRibbons" }],
           [{ "label": "リボンの不透明度（％）", "editor": "editor.number", "option": "ribbonOpacity" }],
-          [{ "label": "送信元を太く／送信先を細くする（方向を表現）", "editor": "editor.checkbox", "option": "taperRibbons" }],
+          [{ "label": "方向で太さを変える", "editor": "editor.checkbox", "option": "taperRibbons" }],
           [{ "label": "送信先側に矢印を表示", "editor": "editor.checkbox", "option": "showArrows" }],
-          [{ "label": "値でリボンを着色（低→高）", "editor": "editor.checkbox", "option": "useValueColors" }],
+          [{ "label": "値で着色", "editor": "editor.checkbox", "option": "useValueColors" }],
           [{ "label": "低い値の色", "editor": "editor.color", "option": "lowColor" }],
           [{ "label": "高い値の色", "editor": "editor.color", "option": "highColor" }],
-          [{ "label": "中間色を使う（3色スケール）", "editor": "editor.checkbox", "option": "useMidColor" }],
+          [{ "label": "中間色を使う", "editor": "editor.checkbox", "option": "useMidColor" }],
           [{ "label": "中間色", "editor": "editor.color", "option": "midColor" }],
-          [{ "label": "高低を反転（高い値＝低い色）", "editor": "editor.checkbox", "option": "reverse" }]
+          [{ "label": "高低を反転", "editor": "editor.checkbox", "option": "reverse" }]
         ]
       },
       {
@@ -103,7 +103,7 @@
         "label": "表示",
         "layout": [
           [{ "label": "サマリーヘッダーを表示", "editor": "editor.checkbox", "option": "showHeader" }],
-          [{ "label": "ホバーで関連フローをハイライト", "editor": "editor.checkbox", "option": "highlightOnHover" }],
+          [{ "label": "ホバーで強調", "editor": "editor.checkbox", "option": "highlightOnHover" }],
           [{ "label": "クリックで選択を固定", "editor": "editor.checkbox", "option": "clickToFocus" }]
         ]
       }

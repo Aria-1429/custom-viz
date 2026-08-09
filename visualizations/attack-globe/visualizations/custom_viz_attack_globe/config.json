@@ -104,7 +104,7 @@
         "layout": [
           [{ "label": "タイトルの文字列（空欄で非表示）", "editor": "editor.text", "option": "titleText" }],
           [{ "label": "凡例を表示", "editor": "editor.checkbox", "option": "showLegend" }],
-          [{ "label": "地点の表示名を地球上に表示", "editor": "editor.checkbox", "option": "showPointNames" }],
+          [{ "label": "地点名を表示", "editor": "editor.checkbox", "option": "showPointNames" }],
           [{ "label": "光の筋の周期（秒、0で停止）", "editor": "editor.number", "option": "flowPeriod", "editorProps": { "min": 0, "max": 30 } }],
           [{ "label": "件数による線の太さの強調度（0で一律）", "editor": "editor.number", "option": "widthScale", "editorProps": { "min": 0, "max": 5 } }],
           [{ "label": "描画する矢印の上限（0で無制限）", "editor": "editor.number", "option": "maxArcs", "editorProps": { "min": 0, "max": 5000 } }]
@@ -137,7 +137,7 @@
           [{ "label": "初期表示の中心の緯度", "editor": "editor.number", "option": "centerLat", "editorProps": { "min": -85, "max": 85 } }],
           [{ "label": "初期ズーム倍率", "editor": "editor.number", "option": "initialZoom", "editorProps": { "min": 1, "max": 12 } }],
           [{ "label": "自転の周期（秒/周、0で停止）", "editor": "editor.number", "option": "rotatePeriod", "editorProps": { "min": 0, "max": 600 } }],
-          [{ "label": "ドラッグ回転・ホイールズームを有効にする", "editor": "editor.checkbox", "option": "interactive" }]
+          [{ "label": "回転・ズーム可", "editor": "editor.checkbox", "option": "interactive" }]
         ]
       },
       {
@@ -155,7 +155,7 @@
       {
         "label": "背景",
         "layout": [
-          [{ "label": "背景を透過する（ダッシュボードの背景を透かす）", "editor": "editor.checkbox", "option": "transparentBg" }],
+          [{ "label": "背景を透過", "editor": "editor.checkbox", "option": "transparentBg" }],
           [{ "label": "背景色（透過しない場合に使用。未設定ならテーマに合わせる）", "editor": "editor.color", "option": "bgColor" }]
         ]
       }

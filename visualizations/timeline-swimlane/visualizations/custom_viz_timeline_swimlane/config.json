@@ -81,7 +81,7 @@
       {
         "label": "レーン",
         "layout": [
-          [{ "label": "レーンの高さを自動調整（パネルの高さいっぱいに広げる）", "editor": "editor.checkbox", "option": "autoLaneHeight" }],
+          [{ "label": "レーン高を自動", "editor": "editor.checkbox", "option": "autoLaneHeight" }],
           [{ "label": "レーンの高さ上限（px、自動調整オン時）", "editor": "editor.number", "option": "laneMaxHeight" }],
           [{ "label": "レーンの高さ（px、自動調整オフ時）", "editor": "editor.number", "option": "laneHeight" }],
           [{ "label": "レーンの最大数（超過分は省略）", "editor": "editor.number", "option": "maxLanes" }],
@@ -104,7 +104,7 @@
         "layout": [
           [{ "label": "時間軸を表示", "editor": "editor.checkbox", "option": "showAxis" }],
           [{ "label": "グリッド線を表示", "editor": "editor.checkbox", "option": "showGrid" }],
-          [{ "label": "カーソル位置に時刻の縦線を表示", "editor": "editor.checkbox", "option": "showCrosshair" }],
+          [{ "label": "カーソル線を表示", "editor": "editor.checkbox", "option": "showCrosshair" }],
           [{ "label": "現在時刻の線を表示", "editor": "editor.checkbox", "option": "showNowLine" }],
           [{ "label": "時間軸の余白（％）", "editor": "editor.number", "option": "padRangePercent" }]
         ]
@@ -120,8 +120,8 @@
         "label": "表示",
         "layout": [
           [{ "label": "凡例を表示", "editor": "editor.checkbox", "option": "showLegend" }],
-          [{ "label": "フェードインアニメーション", "editor": "editor.checkbox", "option": "animate" }],
-          [{ "label": "ドラッグで時間範囲を絞り込む", "editor": "editor.checkbox", "option": "enableBrush" }]
+          [{ "label": "フェードイン", "editor": "editor.checkbox", "option": "animate" }],
+          [{ "label": "ドラッグで絞込み", "editor": "editor.checkbox", "option": "enableBrush" }]
         ]
       }
     ],

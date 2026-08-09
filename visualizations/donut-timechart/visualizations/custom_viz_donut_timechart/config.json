@@ -62,7 +62,7 @@
           [{ "label": "セグメント間の隙間（px）", "editor": "editor.number", "option": "gap" }],
           [{ "label": "最大セグメント数（超過分は Others に集約）", "editor": "editor.number", "option": "maxSegments" }],
           [{ "label": "セグメント端を丸める", "editor": "editor.checkbox", "option": "rounded" }],
-          [{ "label": "中央に最大セグメントの割合を表示", "editor": "editor.checkbox", "option": "centerPercent" }],
+          [{ "label": "中央に割合を表示", "editor": "editor.checkbox", "option": "centerPercent" }],
           [{ "label": "発光エフェクト", "editor": "editor.checkbox", "option": "glow" }],
           [{ "label": "発光の強さ（px）", "editor": "editor.number", "option": "glowStrength" }]
         ]
@@ -94,7 +94,7 @@
       {
         "label": "表示",
         "layout": [
-          [{ "label": "パネルサイズに自動フィット", "editor": "editor.checkbox", "option": "autoFit" }]
+          [{ "label": "自動フィット", "editor": "editor.checkbox", "option": "autoFit" }]
         ]
       }
     ]

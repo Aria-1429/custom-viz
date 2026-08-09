@@ -62,9 +62,9 @@
         "layout": [
           [{ "label": "低値の色（例：安全＝緑）", "editor": "editor.color", "option": "lowColor" }],
           [{ "label": "高値の色（例：危険＝赤）", "editor": "editor.color", "option": "highColor" }],
-          [{ "label": "中間色を使う（3色スケール）", "editor": "editor.checkbox", "option": "useMidColor" }],
+          [{ "label": "中間色を使う", "editor": "editor.checkbox", "option": "useMidColor" }],
           [{ "label": "中間色", "editor": "editor.color", "option": "midColor" }],
-          [{ "label": "高い値を低値側の色にする（反転）", "editor": "editor.checkbox", "option": "reverse" }],
+          [{ "label": "高低を反転", "editor": "editor.checkbox", "option": "reverse" }],
           [{ "label": "スケール下限（空欄＝データ最小）", "editor": "editor.number", "option": "scaleMin" }],
           [{ "label": "スケール上限（空欄＝データ最大）", "editor": "editor.number", "option": "scaleMax" }]
         ]

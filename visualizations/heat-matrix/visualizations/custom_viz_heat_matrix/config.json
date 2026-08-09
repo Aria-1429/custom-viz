@@ -82,9 +82,9 @@
           [{ "label": "行の合計を表示", "editor": "editor.checkbox", "option": "showRowTotals" }],
           [{ "label": "列の合計を表示", "editor": "editor.checkbox", "option": "showColTotals" }],
           [{ "label": "カラー凡例を表示", "editor": "editor.checkbox", "option": "showLegend" }],
-          [{ "label": "行を合計の大きい順に並べ替え", "editor": "editor.checkbox", "option": "sortRowsByTotal" }],
-          [{ "label": "列を合計の大きい順に並べ替え", "editor": "editor.checkbox", "option": "sortColsByTotal" }],
-          [{ "label": "フェードインアニメーション", "editor": "editor.checkbox", "option": "animate" }]
+          [{ "label": "行を合計順に", "editor": "editor.checkbox", "option": "sortRowsByTotal" }],
+          [{ "label": "列を合計順に", "editor": "editor.checkbox", "option": "sortColsByTotal" }],
+          [{ "label": "フェードイン", "editor": "editor.checkbox", "option": "animate" }]
         ]
       },
       {
@@ -99,7 +99,7 @@
         "label": "数値",
         "layout": [
           [{ "label": "小数点以下の桁数", "editor": "editor.number", "option": "valueDecimals" }],
-          [{ "label": "数値を省略表記（1.5M など）", "editor": "editor.checkbox", "option": "abbreviateValue" }]
+          [{ "label": "数値を省略表記", "editor": "editor.checkbox", "option": "abbreviateValue" }]
         ]
       }
     ],

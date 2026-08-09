@@ -142,8 +142,8 @@
         "label": "数値",
         "layout": [
           [{ "label": "小数点以下の桁数", "editor": "editor.number", "option": "valueDecimals" }],
-          [{ "label": "数値を省略表記（1.5M など）", "editor": "editor.checkbox", "option": "abbreviateValue" }],
-          [{ "label": "カウントアップアニメーション", "editor": "editor.checkbox", "option": "animate" }]
+          [{ "label": "数値を省略表記", "editor": "editor.checkbox", "option": "abbreviateValue" }],
+          [{ "label": "カウントアップ", "editor": "editor.checkbox", "option": "animate" }]
         ]
       }
     ],

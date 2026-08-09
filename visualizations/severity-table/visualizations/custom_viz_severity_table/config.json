@@ -143,7 +143,7 @@
       {
         "label": "クリック操作",
         "layout": [
-          [{ "label": "セルのクリックでインタラクションを発火（「インタラクション」タブで設定）", "editor": "editor.checkbox", "option": "enableDrilldown" }]
+          [{ "label": "クリックで発火", "editor": "editor.checkbox", "option": "enableDrilldown" }]
         ]
       },
       {
@@ -158,8 +158,8 @@
           ] } }],
           [{ "label": "行頭に深刻度カラーバー", "editor": "editor.checkbox", "option": "rowBar" }],
           [{ "label": "縞模様（ゼブラ）", "editor": "editor.checkbox", "option": "zebra" }],
-          [{ "label": "コンパクト表示（行を詰める）", "editor": "editor.checkbox", "option": "compact" }],
-          [{ "label": "幅が狭いときに列を自動で省略する", "editor": "editor.checkbox", "option": "autoHideColumns" }],
+          [{ "label": "コンパクト表示", "editor": "editor.checkbox", "option": "compact" }],
+          [{ "label": "狭い時に列を省略", "editor": "editor.checkbox", "option": "autoHideColumns" }],
           [{ "label": "件数サマリを表示", "editor": "editor.checkbox", "option": "showSummary" }],
           [{ "label": "件数サマリのラベル", "editor": "editor.select", "option": "summaryLabelMode", "editorProps": { "values": [
             { "label": "順位一覧の代表値（別名をまとめる）", "value": "canonical" },

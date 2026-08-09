@@ -46,7 +46,7 @@ import './visualization.css';
 //     ぼかし再計算を避ける）。グロー／アニメーションは個別にオプションで切れる。
 // ---------------------------------------------------------------------------
 
-const VIZ_VERSION = '1.1.5';
+const VIZ_VERSION = '1.1.6';
 
 // オプションのデフォルト（config.json の optionsSchema.default と一致させる）
 const DEFAULTS = {

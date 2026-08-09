@@ -88,7 +88,7 @@
       {
         "label": "線の形状（線は表示画面の「✎ 線を編集」でドラッグ編集し、その後この編集画面で保存して確定。編集モード中はドラッグ不可）",
         "layout": [
-          [{ "label": "表示画面での線編集を許可（✎ボタンを表示）", "editor": "editor.checkbox", "option": "allowViewEdit" }],
+          [{ "label": "線編集を許可", "editor": "editor.checkbox", "option": "allowViewEdit" }],
           [{ "label": "折れ角の丸み（px、0で角ばった折れ線）", "editor": "editor.number", "option": "cornerRadius" }]
         ]
       },
@@ -122,7 +122,7 @@
             }
           ],
           [{ "label": "線の太さ（px）", "editor": "editor.number", "option": "lineWidth" }],
-          [{ "label": "線にグラデーション（立体感）", "editor": "editor.checkbox", "option": "lineGradient" }],
+          [{ "label": "グラデーション", "editor": "editor.checkbox", "option": "lineGradient" }],
           [{ "label": "破線の長さ（px、0で実線）", "editor": "editor.number", "option": "dashLength" }],
           [{ "label": "光の帯の速度（0で停止）", "editor": "editor.slider", "option": "flowSpeed", "editorProps": { "min": 0, "max": 10, "step": 0.5 } }],
           [{ "label": "光の帯の向き", "editor": "editor.select", "option": "flowDirection", "editorProps": { "values": [
@@ -130,14 +130,14 @@
             { "label": "逆方向（終点 → 始点）", "value": "reverse" },
             { "label": "双方向", "value": "both" }
           ] } }],
-          [{ "label": "端点をパルス発光させる（アニメーション）", "editor": "editor.checkbox", "option": "pulseCaps" }],
+          [{ "label": "端点をパルス発光", "editor": "editor.checkbox", "option": "pulseCaps" }],
           [{ "label": "不透明度（%）", "editor": "editor.slider", "option": "lineOpacity", "editorProps": { "min": 10, "max": 100, "step": 5 } }]
         ]
       },
       {
         "label": "端点・値ラベル",
         "layout": [
-          [{ "label": "両端にコネクタ（丸端子）を表示", "editor": "editor.checkbox", "option": "showEndCaps" }],
+          [{ "label": "両端に丸端子", "editor": "editor.checkbox", "option": "showEndCaps" }],
           [{ "label": "終点に矢印を表示", "editor": "editor.checkbox", "option": "arrowHead" }],
           [{ "label": "値ラベルを線の中央に表示", "editor": "editor.checkbox", "option": "showValue" }],
           [{ "label": "小数点以下の桁数", "editor": "editor.number", "option": "valueDecimals" }],

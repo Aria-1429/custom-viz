@@ -137,7 +137,7 @@
         "layout": [
           [{ "label": "最小値", "editor": "editor.number", "option": "minValue" }],
           [{ "label": "最大値", "editor": "editor.number", "option": "maxValue" }],
-          [{ "label": "データから自動で範囲を決める（最小/最大を無視）", "editor": "editor.checkbox", "option": "autoScale" }]
+          [{ "label": "範囲を自動決定", "editor": "editor.checkbox", "option": "autoScale" }]
         ]
       },
       {
@@ -218,8 +218,8 @@
           [{ "label": "タイトルを表示", "editor": "editor.checkbox", "option": "showTitle" }],
           [{ "label": "単位（例: %, GB, 件）", "editor": "editor.text", "option": "unitText" }],
           [{ "label": "小数点以下の桁数", "editor": "editor.number", "option": "decimals" }],
-          [{ "label": "大きな数を省略表記（1.5M など）", "editor": "editor.checkbox", "option": "compactNumbers" }],
-          [{ "label": "該当する帯の範囲をバッジ表示（例: 80 +）", "editor": "editor.checkbox", "option": "showBandLabel" }],
+          [{ "label": "数値を省略表記", "editor": "editor.checkbox", "option": "compactNumbers" }],
+          [{ "label": "帯の範囲を表示", "editor": "editor.checkbox", "option": "showBandLabel" }],
           [
             {
               "label": "数値の色",
@@ -413,9 +413,9 @@
         "layout": [
           [{ "label": "下地（トラック）を表示", "editor": "editor.checkbox", "option": "showTrack" }],
           [{ "label": "目盛りを表示", "editor": "editor.checkbox", "option": "showTicks" }],
-          [{ "label": "最小値・最大値のラベルを表示", "editor": "editor.checkbox", "option": "showRangeLabels" }],
-          [{ "label": "色が切り替わる位置に数値を表示", "editor": "editor.checkbox", "option": "showBoundaryValues" }],
-          [{ "label": "針を表示（タコメーターでは常に表示）", "editor": "editor.checkbox", "option": "showNeedle" }],
+          [{ "label": "最小最大を表示", "editor": "editor.checkbox", "option": "showRangeLabels" }],
+          [{ "label": "境界値を表示", "editor": "editor.checkbox", "option": "showBoundaryValues" }],
+          [{ "label": "針を表示", "editor": "editor.checkbox", "option": "showNeedle" }],
           [{ "label": "発光（グロー）を表示", "editor": "editor.checkbox", "option": "showGlow" }],
           [{ "label": "発光の強さ（0〜100）", "editor": "editor.number", "option": "glowStrength" }],
           [{ "label": "アニメーションする", "editor": "editor.checkbox", "option": "animate" }],

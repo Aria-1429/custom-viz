@@ -54,7 +54,7 @@
       {
         "label": "データ解釈",
         "layout": [
-          [{ "label": "値を累計値として解釈（増減を自動計算）", "editor": "editor.checkbox", "option": "cumulativeInput" }],
+          [{ "label": "累計値として解釈", "editor": "editor.checkbox", "option": "cumulativeInput" }],
           [{ "label": "末尾に合計バーを自動追加", "editor": "editor.checkbox", "option": "showTotal" }]
         ]
       },
@@ -64,7 +64,7 @@
           [{ "label": "増加の色", "editor": "editor.color", "option": "increaseColor" }],
           [{ "label": "減少の色", "editor": "editor.color", "option": "decreaseColor" }],
           [{ "label": "合計・開始の色", "editor": "editor.color", "option": "totalColor" }],
-          [{ "label": "増減の色を入れ替え（増＝赤／減＝緑）", "editor": "editor.checkbox", "option": "invertColors" }],
+          [{ "label": "増減の色を反転", "editor": "editor.checkbox", "option": "invertColors" }],
           [{ "label": "発光（グロー）を表示", "editor": "editor.checkbox", "option": "showGlow" }]
         ]
       },
@@ -74,7 +74,7 @@
           [{ "label": "値ラベルを表示", "editor": "editor.checkbox", "option": "showValues" }],
           [{ "label": "コネクタ（点線）を表示", "editor": "editor.checkbox", "option": "showConnectors" }],
           [{ "label": "Y軸目盛を表示", "editor": "editor.checkbox", "option": "showAxis" }],
-          [{ "label": "項目名（X軸ラベル）を表示", "editor": "editor.checkbox", "option": "showXLabels" }],
+          [{ "label": "項目名を表示", "editor": "editor.checkbox", "option": "showXLabels" }],
           [{ "label": "バーの伸長アニメーション", "editor": "editor.checkbox", "option": "animate" }]
         ]
       },
@@ -82,7 +82,7 @@
         "label": "数値",
         "layout": [
           [{ "label": "小数点以下の桁数", "editor": "editor.number", "option": "valueDecimals" }],
-          [{ "label": "数値を省略表記（1.5M など）", "editor": "editor.checkbox", "option": "abbreviateValue" }]
+          [{ "label": "数値を省略表記", "editor": "editor.checkbox", "option": "abbreviateValue" }]
         ]
       }
     ],

@@ -225,7 +225,7 @@
               "editorProps": { "min": 0, "max": 6 }
             }
           ],
-          [{ "label": "省略表記（1.5K など）", "editor": "editor.checkbox", "option": "abbreviateValue" }]
+          [{ "label": "数値を省略表記", "editor": "editor.checkbox", "option": "abbreviateValue" }]
         ]
       }
     ]

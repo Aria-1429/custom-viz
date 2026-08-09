@@ -1,6 +1,6 @@
 {
   "name": "custom_viz_treemap",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "A hierarchical treemap with squarified layout and click-to-drill navigation, for Splunk Dashboard Studio",
   "author": "Yuto Ishitsuki",
   "type": "module",

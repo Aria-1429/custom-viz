@@ -78,9 +78,9 @@
           [{ "label": "中間色を使う", "editor": "editor.checkbox", "option": "useMidColor" }],
           [{ "label": "中標高の色", "editor": "editor.color", "option": "midColor" }],
           [{ "label": "高標高の色", "editor": "editor.color", "option": "highColor" }],
-          [{ "label": "頂点色を使う（最上位を強調）", "editor": "editor.checkbox", "option": "usePeakColor" }],
+          [{ "label": "頂点色を使う", "editor": "editor.checkbox", "option": "usePeakColor" }],
           [{ "label": "頂点の色", "editor": "editor.color", "option": "peakColor" }],
-          [{ "label": "反転（高い値＝低標高側の色）", "editor": "editor.checkbox", "option": "reverse" }],
+          [{ "label": "高低を反転", "editor": "editor.checkbox", "option": "reverse" }],
           [{ "label": "スケール下限（空欄=データ最小）", "editor": "editor.number", "option": "scaleMin" }],
           [{ "label": "スケール上限（空欄=データ最大）", "editor": "editor.number", "option": "scaleMax" }]
         ]

@@ -316,7 +316,7 @@
                     ],
                     [
                         {
-                            "label": "グロー効果（ダークテーマ）",
+                            "label": "グロー効果",
                             "editor": "editor.checkbox",
                             "option": "glow"
                         }
@@ -391,7 +391,7 @@
                 "layout": [
                     [
                         {
-                            "label": "値で色分けする（低→高スケール）",
+                            "label": "値で色分け",
                             "editor": "editor.checkbox",
                             "option": "useValueColors"
                         }
@@ -438,7 +438,7 @@
                 "layout": [
                     [
                         {
-                            "label": "ノードのクリックでインタラクションを発火（「インタラクション」タブで設定）",
+                            "label": "クリックで発火",
                             "editor": "editor.checkbox",
                             "option": "enableDrilldown"
                         }
