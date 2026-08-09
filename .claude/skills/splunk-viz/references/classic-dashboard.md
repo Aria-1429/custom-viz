@@ -318,7 +318,7 @@ Studio でも `cellTypes: SparklineCell` で出せるが、**クラシックは 
 > **クラシックは `<search type="annotation">` を足すだけ**で、列名
 > （`annotation_label` / `annotation_color`）の規約で自動的に効く。
 
-### 3.4 Single Value のブロック塗り（Studio に無い）
+### 3.4 Single Value のブロック塗り（Studio でも可。下の訂正を参照）
 
 ```xml
 <option name="rangeColors">["0x118832","0xE9A03A","0xD41F1F"]</option>
@@ -331,7 +331,16 @@ Studio でも `cellTypes: SparklineCell` で出せるが、**クラシックは 
 ![colorMode=block](images/cl-single-block.png)
 
 *↑ **パネル全体が閾値の色で塗り潰される**。遠くから見る監視ボードで効く。
-Studio の `splunk.singlevalue` に `colorMode: block` は無く、**文字色しか変えられない**。*
+クラシックは**オプション2つ（`useColors` + `colorMode`）だけ**で書けるのが利点。*
+
+> **【訂正】（2026-08-09 追記）** 当初ここに
+> 「Studio の `splunk.singlevalue` は文字色しか変えられない」と書いたが**誤り**。
+> Studio でも **`backgroundColor` に DOS 式を渡せばパネル全面を塗れる**（実機確認済み）:
+> `"backgroundColor": "> primary | seriesByName(\"v\") | lastPoint() | rangeValue(vRange)"`
+> → [studio-standard-viz.md](studio-standard-viz.md) §2.18.2。
+> **この機能はクラシック限定ではない**（書き方が違うだけ）。
+> 「Studio のオプション一覧に `colorMode` が無い」から「できない」を導いたのが誤りで、
+> **同じことを別のキーで実現していないか**を先に確認すべきだった。
 
 ### 3.5 その他（実機で描画確認済み）
 

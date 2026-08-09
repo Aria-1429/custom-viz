@@ -1112,6 +1112,196 @@ splunk.markerGauge is not defined
 
 ---
 
+## 2.17 ⭐⭐ eventHandlers 9種の実機検証（2026-08-09）
+
+§2.16.1 で名前だけ抽出していたものを**実際に発火させて確認した**（9種中8種を確認）。
+**docs はほぼ `setToken` しか説明していないので、ここが一番の空白地帯だった。**
+
+### 2.17.1 まずスキーマをバンドルから抜く（推測しない）
+
+オプション名を推測して2回外した（下の「外した2件」）。**正解はバンドルの JSON Schema にある**:
+
+```js
+// 各 drilldown.* の周辺を切り出すと options の schema が読める
+const re = new RegExp(`drilldown\\.${type}`, 'g');
+all.slice(m.index - 700, m.index + 700)
+```
+
+抽出した**本物のスキーマ**（Splunk 10.4.2）:
+
+| type | options | 備考 |
+|---|---|---|
+| `drilldown.setToken` | `tokens[]`（`{token,key}` **または** `{token,value}`）, `events`, `fields` | `key`/`token` の**直書きは deprecated** |
+| `drilldown.unsetTokens` | **`tokenNames[]`**, `tokenNamespaces[]`, `events`, `fields` | ⚠ `tokens` ではない |
+| `drilldown.resetTokens` | **`tokenNames[]`**, `events`, `fields` | 同上 |
+| `drilldown.setTimeRange` | `token`, **`events`（必須・`["range.select"]`固定）** | ⚠ クリックでは発火しない |
+| `drilldown.switchToTab` | **`tabId`**, `events`, `fields` | `tabId` は **`layoutId`** を指す |
+| `drilldown.customUrl` | `url`, `newTab`, `events`, `fields` | |
+| `drilldown.linkToSearch` | （`events`/`fields` ほか） | 下の §2.17.3 |
+| `drilldown.linkToDashboard` | `app`, `dashboard`, `tabId`, `events`, `fields` | 未検証 |
+| `drilldown.linkToReport` | （同系） | **未検証**（保存レポートが要る） |
+
+> **⭐ 全ハンドラ共通で `events` と `fields` を取れる**（これが効く）。
+> `fields` は**「どの列をクリックしたときだけ発火するか」**の絞り込み。
+
+### 2.17.2 ⭐ `fields` で列を限定＋固定値トークン（実機確認済み）
+
+```jsonc
+"eventHandlers": [{
+    "type": "drilldown.setToken",
+    "options": {
+        "fields": ["cpu"],                    // ← cpu 列を押したときだけ発火
+        "tokens": [
+            { "token": "tok_c",     "key":   "row.cpu.value" },
+            { "token": "tok_fixed", "value": "固定文字列" }   // ← データに無い固定値も入れられる
+        ]
+    }
+}]
+```
+
+![fields と value](images/st-eh-fields.png)
+
+*↑ **cpu 列の「60」を押した**結果。`tok_c=60`（クリック値）と `tok_fixed=固定文字列`（固定値）が
+両方入っている。**host 列を押したときは何も起きなかった**（`fields` が効いている証拠）。*
+
+**使いどころ**：1つの表で「この列は絞り込み、あの列はリンク」と**列ごとに違う挙動**を割り当てられる。
+`value`（固定値）は「どのパネルから来たか」を後段に伝えるフラグに使える。
+
+### 2.17.3 ⭐ `linkToSearch` は「パネルのSPL＋クリック行の絞り込み」を自動生成する
+
+**これが一番使える。** `query` オプションを書かなくても、
+**パネル自身のサーチに `| search <クリックした列>=<値>` を足して**サーチ画面を開く:
+
+```
+/en-US/app/<app>/search
+  ?q=| makeresults count=4 | … | search host%3Dweb01     ← ★自動で付いた
+  &earliest=-24h@h&latest=now                             ← 時間範囲も引き継ぐ
+```
+
+> ⚠ **自分で書いた `query` オプションは無視された**（実機で確認）。
+> 「クリックした行の生データを見に行く」用途に特化していると考えるのが正しい。
+
+### 2.17.4 `setTimeRange` は**ドラッグ選択**でしか発火しない
+
+```jsonc
+{ "type": "drilldown.setTimeRange", "options": { "token": "tr", "events": ["range.select"] } }
+```
+
+**クリックでは何も起きない**（最初これで「効かない」と誤診した）。
+チャート上を**横にドラッグして範囲を選ぶ**と発火する。
+
+![setTimeRange](images/st-eh-settimerange.png)
+
+*↑ ドラッグ後、URL に `form.tr.earliest` / `form.tr.latest`（**epoch 秒**）が入り、
+`queryParameters` に `$tr.earliest$` / `$tr.latest$` を渡した別パネルが
+**17:26〜18:51 に絞り込まれた**。*
+
+### 2.17.5 ⭐ トークンは URL に載る（＝状態を共有できる）
+
+**実機で判明した副産物。** Studio はトークンを**クエリ文字列に反映する**:
+
+```
+studio_probe2?tab=layout_1&form.tok_a=初期値A&form.tok_b=web03
+```
+
+→ **「今見ている絞り込み状態」をそのまま URL でコピーして人に渡せる**。
+`tab=<layoutId>` も載るので**タブ位置も再現される**。
+
+### 2.17.6 外した2件（推測でオプション名を書いた）
+
+| 書いたもの | 症状 | 正解 |
+|---|---|---|
+| `unsetTokens` に `tokens: ["tok_a"]` | **たまたま動いた**が全トークンが消えた | `tokenNames: ["tok_a"]`。**指定が効かず「全消し」にフォールバックしていた** |
+| `setTimeRange` に `earliest`/`latest`/`$trigger.*$` | 無反応 | `events: ["range.select"]` が必須。**クリックではなくドラッグ** |
+
+**教訓**：`additionalProperties: true` なので**知らないキーを書いてもエラーにならない**。
+「動いた」も疑う（上の1件目は**間違ったキーなのに副作用で動いて見えた**）。
+
+---
+
+## 2.18 ⭐ DOS は表専用ではない（2026-08-09 実機確認済み）
+
+**既存ナレッジは `columnFormat`（表）中心だったが、`singlevalue` や chart 系のオプションにも
+DOS 式をそのまま書ける。** スキーマの説明文にも
+*"You can use a data source ... to apply the color"* と明記されている。
+
+### 2.18.1 singlevalue の値を DOS で加工する
+
+```jsonc
+"options": {
+    "majorValue": "> primary | seriesByName(\"v\") | divideBy(1048576) | formatByType(p2)",
+    "unit": "MiB"
+},
+"context": { "p2": { "number": { "precision": 2 } } }
+```
+
+![singlevalue に DOS](images/st-dos-singlevalue.png)
+
+*↑ 左が DOS あり（**1.50 MiB**）、中央が対照の DOS なし（**1,572,864**）。
+**同じサーチのまま**パネル側で単位を変えられる。*
+
+### 2.18.2 ⭐ singlevalue のパネル全体を閾値の色で塗る
+
+**【訂正】** classic-dashboard.md に「Studio の singlevalue は文字色しか変えられない」と
+書いたが**誤り**。`backgroundColor` に DOS を渡せば**パネル全面を塗れる**（＝クラシックの
+`colorMode=block` 相当が Studio でもできる）:
+
+```jsonc
+"options": {
+    "backgroundColor": "> primary | seriesByName(\"v\") | lastPoint() | rangeValue(vRange)"
+},
+"context": { "vRange": [
+    { "to": 40, "value": "#118832" },
+    { "from": 40, "to": 80, "value": "#E9A03A" },
+    { "from": 80, "value": "#D41F1F" }
+] }
+```
+
+![singlevalue の全面塗り](images/st-sv-blockcolor.png)
+
+*↑ 値 95 が `from:80` に当たり、**パネル全体が赤**になった。*
+
+> ⚠ **`lastPoint()` が要る。** `backgroundColor` は**単一の色**を期待するので、
+> 複数行の系列をそのまま渡すと**何も起きない**（エラーも出ない）。最初これで失敗した。
+> 表の `rowBackgroundColors`（＝行数分の配列）とは**要求される形が違う**。
+
+### 2.18.3 chart 系の色
+
+- `seriesColorsByField`（`{"v": "#D41F1F"}`）… **列名→色**。実機確認済み
+- `seriesColors`（配列）… pie のスライス色などに効く。実機確認済み
+- ⚠ **`seriesColors` に `rangeValue` を渡しても「値ごとに色が変わる棒」にはならない**
+  （系列単位の色なので、全部同じ色になる）。**棒を値で塗り分けたいなら表＋DOS か
+  カスタム viz**（実機確認済み）。
+
+---
+
+## 2.19 `ds.spl2` — SPL2 がデータソースとして使える（2026-08-09 実機確認済み）
+
+```jsonc
+"ds_spl2": {
+    "type": "ds.spl2",
+    "options": { "query": "from [{ 'a': 1 }]" }
+}
+```
+
+![ds.spl2](images/st-spl2.png)
+
+*↑ **SPL2 の構文がそのまま実行され**、`a=1` の表が描画された。*
+
+`ds.search`（SPL1）・`ds.chain`・`ds.savedSearch`・`ds.test` に加えて
+**SPL2 も選べる**（未文書）。`ds.spl2.view` もレジストリに存在する（**未検証**）。
+
+## 2.20 `splunk.markdown` はトークンを展開する（2026-08-09 実機確認済み）
+
+```jsonc
+"options": { "markdown": "直書き: **$tok_md$**" }
+```
+
+入力で `tok_md` を設定すると、**markdown 本文の `$tok_md$` がその値に置き換わった**。
+→ **サーチ不要の「今の絞り込み条件」表示**が作れる（パネルタイトルのトークン展開と同じ発想）。
+
+---
+
 ## 3. 検証の型（同じことをやるとき）
 
 ```bash
