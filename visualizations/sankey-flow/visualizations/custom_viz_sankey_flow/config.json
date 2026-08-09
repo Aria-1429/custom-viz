@@ -2,14 +2,19 @@
   "showTitleAndDescription": true,
   "includeInToolbar": true,
   "includeInVizSwitcher": true,
-  "showDrilldown": false,
-  "canSetTokens": [],
-  "hasEventHandlers": false,
+  "showDrilldown": true,
+  "canSetTokens": ["dynamic", "static"],
+  "hasEventHandlers": true,
   "config": {
     "name": "Sankey Flow",
-    "description": "A multi-stage Sankey flow diagram with gradient links, hover highlighting and a value-based link color scale",
+    "description": "Multi-stage Sankey flow diagram with path tracing, drilldown, loss analysis, top-N rollup and threshold colors",
     "category": "Custom",
     "icon": null,
+    "events": {
+      "node.click": { "description": "triggered when user clicks a node" },
+      "link.click": { "description": "triggered when user clicks a link" }
+    },
+    "supports": ["events"],
     "dataContract": {
       "requiredDataSources": ["primary"],
       "optionalDataSources": []
@@ -21,39 +26,92 @@
     "optionsSchema": {
       "useGradientLinks": { "type": "boolean", "default": true },
       "linkOpacity": { "type": "number", "default": 40 },
-      "useValueColors": { "type": "boolean", "default": false },
+      "colorMode": { "type": "string", "default": "categorical" },
       "lowColor": { "type": "string", "default": "#3fb950" },
       "highColor": { "type": "string", "default": "#ef4d4d" },
       "useMidColor": { "type": "boolean", "default": true },
       "midColor": { "type": "string", "default": "#f5c518" },
       "reverse": { "type": "boolean", "default": false },
+      "colorBands": {
+        "default": [
+          { "from": 0, "to": 1000, "value": "#3fb950" },
+          { "from": 1000, "to": null, "value": "#ef4d4d" }
+        ],
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": { "type": ["number", "null"] },
+                "to": { "type": ["number", "null"] },
+                "value": { "type": "string" }
+              },
+              "required": ["value"],
+              "additionalProperties": false
+            }
+          },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      },
+      "nodeColors": {
+        "default": [],
+        "anyOf": [
+          { "type": "array", "items": { "type": "string" } },
+          { "type": "string", "pattern": "^>.*" }
+        ]
+      },
       "nodeWidth": { "type": "number", "default": 12 },
       "nodePadding": { "type": "number", "default": 14 },
+      "nodeSort": { "type": "string", "default": "auto" },
       "showLabels": { "type": "boolean", "default": true },
       "showValues": { "type": "boolean", "default": true },
       "labelSize": { "type": "number", "default": 0 },
+      "valueUnit": { "type": "string", "default": "" },
+      "unitPosition": { "type": "string", "default": "after" },
+      "showLinkLabels": { "type": "boolean", "default": false },
       "showHeader": { "type": "boolean", "default": true },
-      "highlightOnHover": { "type": "boolean", "default": true }
+      "highlightOnHover": { "type": "boolean", "default": true },
+      "traceMode": { "type": "string", "default": "path" },
+      "topN": { "type": "number", "default": 0 },
+      "otherLabel": { "type": "string", "default": "その他" },
+      "showLoss": { "type": "boolean", "default": false },
+      "lossColor": { "type": "string", "default": "#8a6d3b" },
+      "cycleMode": { "type": "string", "default": "drop" }
     },
     "editorConfig": [
       {
         "label": "リンク",
         "layout": [
-          [{ "label": "グラデーションリンク（送信元色→送信先色）", "editor": "editor.checkbox", "option": "useGradientLinks" }],
+          [{ "label": "リンクの配色", "editor": "editor.select", "option": "colorMode",
+             "editorProps": { "values": [
+               { "label": "ノード色（カテゴリ）", "value": "categorical" },
+               { "label": "値のグラデーション", "value": "scale" },
+               { "label": "しきい値で色分け", "value": "threshold" }
+             ] } }],
+          [{ "label": "グラデーション", "editor": "editor.checkbox", "option": "useGradientLinks" }],
           [{ "label": "リンクの不透明度（％）", "editor": "editor.number", "option": "linkOpacity" }],
-          [{ "label": "値でリンクを着色（低→高）", "editor": "editor.checkbox", "option": "useValueColors" }],
           [{ "label": "低い値の色", "editor": "editor.color", "option": "lowColor" }],
           [{ "label": "高い値の色", "editor": "editor.color", "option": "highColor" }],
-          [{ "label": "中間色を使う（3色スケール）", "editor": "editor.checkbox", "option": "useMidColor" }],
+          [{ "label": "中間色を使う", "editor": "editor.checkbox", "option": "useMidColor" }],
           [{ "label": "中間色", "editor": "editor.color", "option": "midColor" }],
-          [{ "label": "高低を反転（高い値＝低い色）", "editor": "editor.checkbox", "option": "reverse" }]
+          [{ "label": "高低を反転", "editor": "editor.checkbox", "option": "reverse" }],
+          [{ "label": "しきい値の色", "editor": "editor.threshold", "option": "colorBands",
+             "editorProps": { "openRanges": true, "isTogglable": false } }]
         ]
       },
       {
         "label": "ノード",
         "layout": [
+          [{ "label": "ノードの色", "editor": "editor.seriesColors", "option": "nodeColors" }],
           [{ "label": "ノードの幅（px）", "editor": "editor.number", "option": "nodeWidth" }],
-          [{ "label": "ノードの間隔（px）", "editor": "editor.number", "option": "nodePadding" }]
+          [{ "label": "ノードの間隔（px）", "editor": "editor.number", "option": "nodePadding" }],
+          [{ "label": "段内の並び順", "editor": "editor.select", "option": "nodeSort",
+             "editorProps": { "values": [
+               { "label": "自動（交差を減らす）", "value": "auto" },
+               { "label": "値の大きい順", "value": "value" },
+               { "label": "名前順", "value": "name" }
+             ] } }]
         ]
       },
       {
@@ -61,14 +119,41 @@
         "layout": [
           [{ "label": "ノード名を表示", "editor": "editor.checkbox", "option": "showLabels" }],
           [{ "label": "ラベルに値を併記", "editor": "editor.checkbox", "option": "showValues" }],
-          [{ "label": "ラベル文字サイズ（px、0で自動）", "editor": "editor.number", "option": "labelSize" }]
+          [{ "label": "リンクに値を表示", "editor": "editor.checkbox", "option": "showLinkLabels" }],
+          [{ "label": "ラベル文字サイズ（px、0で自動）", "editor": "editor.number", "option": "labelSize" }],
+          [{ "label": "単位（例: bytes、%）", "editor": "editor.text", "option": "valueUnit" }],
+          [{ "label": "単位の位置", "editor": "editor.radioBar", "option": "unitPosition",
+             "editorProps": { "values": [
+               { "label": "後ろ", "value": "after" },
+               { "label": "前", "value": "before" }
+             ] } }]
+        ]
+      },
+      {
+        "label": "分析",
+        "layout": [
+          [{ "label": "ホバー時の強調範囲", "editor": "editor.select", "option": "traceMode",
+             "editorProps": { "values": [
+               { "label": "経路全体を追跡", "value": "path" },
+               { "label": "隣接のみ", "value": "adjacent" },
+               { "label": "強調しない", "value": "off" }
+             ] } }],
+          [{ "label": "上位N件に集約（0で全件）", "editor": "editor.number", "option": "topN" }],
+          [{ "label": "集約先の名前", "editor": "editor.text", "option": "otherLabel" }],
+          [{ "label": "損失を表示", "editor": "editor.checkbox", "option": "showLoss" }],
+          [{ "label": "損失の色", "editor": "editor.color", "option": "lossColor" }],
+          [{ "label": "循環リンクの扱い", "editor": "editor.select", "option": "cycleMode",
+             "editorProps": { "values": [
+               { "label": "除去する", "value": "drop" },
+               { "label": "段を増やして残す", "value": "unroll" }
+             ] } }]
         ]
       },
       {
         "label": "表示",
         "layout": [
-          [{ "label": "サマリーヘッダーを表示", "editor": "editor.checkbox", "option": "showHeader" }],
-          [{ "label": "ホバーで関連フローをハイライト", "editor": "editor.checkbox", "option": "highlightOnHover" }]
+          [{ "label": "ヘッダーを表示", "editor": "editor.checkbox", "option": "showHeader" }],
+          [{ "label": "ホバーで強調", "editor": "editor.checkbox", "option": "highlightOnHover" }]
         ]
       }
     ]

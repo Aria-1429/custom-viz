@@ -26,7 +26,7 @@ Splunk **Dashboard Studio** 向けのカスタムビジュアライゼーショ�
 | プレビュー | 名前 / バージョン | 概要 |
 | --- | --- | --- |
 | <img src="visualizations/funnel-leak/examples/example.png" width="240"> | **[Funnel Leak](visualizations/funnel-leak/)**<br>v1.1.3 | アニメ付きファネル×リーク図。各段の通過を下へ流し、離脱分を左右にこぼれ落ちる粒子で可視化。コンバージョン／攻撃チェーンの生存分析に。 |
-| <img src="visualizations/sankey-flow/examples/example.png" width="240"> | **[Sankey Flow](visualizations/sankey-flow/)**<br>v1.1.3 | 多段サンキー図。グラデーションのリンク、ホバー強調、値ベースのリンク色スケール。 |
+| <img src="visualizations/sankey-flow/examples/example.png" width="240"> | **[Sankey Flow](visualizations/sankey-flow/)**<br>v2.0.2 | 多段サンキー図。標準 `splunk.sankey` が捨てる4列以上の多段データに対応。経路追跡・ドリルダウン・段ごとの損失分析・上位N件集約・しきい値カラー。 |
 | <img src="visualizations/chord-flow/examples/example.png" width="240"> | **[Chord Flow](visualizations/chord-flow/)**<br>v1.1.3 | アニメ付きコード図。リング上のエンティティ間の相互フローをグラデーションリボンで結び、方向付き発光粒子が流れる。 |
 | <img src="visualizations/network-graph/examples/example.png" width="240"> | **[Network Graph](visualizations/network-graph/)**<br>v1.2.3 | 力学ベースのフォースダイレクテッド・ネットワーク図。送信元・宛先・値の**列を編集画面で選べ**、指定しなければ「名前らしい列2つ＋最も数値らしい列」を自動判定する（数値列が先頭にある並びでも正しく描ける）。反発計算に **Barnes-Hut 近似**を使い 300 ノードで約 21 倍高速、ノード上限は 400。**ノードのドラッグ中は反発・衝突が弱まり狙った場所に置ける**。流れる破線エッジ、線幅連動の矢印、ズーム／パン、**ノードのクリックでトークン設定**に対応。 |
 | <img src="visualizations/link-line/examples/example.png" width="240"> | **[Link Line](visualizations/link-line/)**<br>v1.11.1 | サーバ間コネクタ線。表示画面の「✎ 線を編集」でキャンバス上の線を直接編集（ドラッグ移動・折れ点追加・削除）でき、**値ラベルもドラッグで自由な位置に配置**できる。編集内容はダッシュボードの編集→保存で確定。値→色は**値の範囲**（`editor.threshold`・開区間対応）と**文字列の一致**（`OK|色` 形式。死活監視向け）の2モード。**線クリックのドリルダウン**（トークン設定）、値ラベルの**単位・接続名**表示に対応。質感4種（フラット／ソフトシャドウ／ネオン／立体パイプ）・破線・流れる光の帯（向きは順／逆／双方向）・パルス対応。 |
