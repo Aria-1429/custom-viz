@@ -648,7 +648,6 @@
       "options": {
         "useGradientLinks": true,
         "linkOpacity": 46,
-        "useValueColors": true,
         "lowColor": "#5b8def",
         "midColor": "#d8b46a",
         "highColor": "#2fc2ac",
@@ -660,7 +659,8 @@
         "showValues": true,
         "showHeader": true,
         "highlightOnHover": true,
-        "backgroundColor": "transparent"
+        "backgroundColor": "transparent",
+        "colorMode": "scale"
       }
     },
     "viz_roi_waterfall": {

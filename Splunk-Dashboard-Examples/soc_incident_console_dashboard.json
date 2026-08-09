@@ -504,7 +504,6 @@
                 "backgroundColor": "transparent",
                 "useGradientLinks": true,
                 "linkOpacity": 45,
-                "useValueColors": true,
                 "lowColor": "#38bdf8",
                 "midColor": "#f5c518",
                 "highColor": "#ef4d6a",
@@ -514,7 +513,8 @@
                 "showLabels": true,
                 "showValues": true,
                 "showHeader": false,
-                "highlightOnHover": true
+                "highlightOnHover": true,
+                "colorMode": "scale"
             }
         },
         "viz_sevmix": {
