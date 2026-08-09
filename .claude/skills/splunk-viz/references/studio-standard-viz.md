@@ -1043,6 +1043,75 @@ SLO の目標値を変えるときに**サーチを触らなくてよい**。同
 
 ---
 
+## 2.16 ⭐ バンドルから抜いたレジストリ全体（2026-08-09 実機取得）
+
+§0 の手法を `eventHandlers` / `ds` / `input` に広げて抽出したもの（Splunk 10.4.2 / JS 182本・69MB）。
+**ただし「バンドルに名前がある＝実在」ではない**（§2.16.3）。
+
+### 2.16.1 eventHandlers の type は9種ある（docs はほぼ `setToken` しか触れない）
+
+```
+drilldown.customUrl        drilldown.linkToDashboard   drilldown.linkToReport
+drilldown.linkToSearch     drilldown.resetTokens       drilldown.setTimeRange
+drilldown.setToken         drilldown.switchToTab       drilldown.unsetTokens
+```
+
+**`drilldown.switchToTab`**（クリックで別タブへ移動）と **`drilldown.setTimeRange`**
+（クリックした点の時刻に時間範囲を合わせる）は使いどころが多い。
+**`drilldown.resetTokens` / `unsetTokens`** は「絞り込みを解除するボタン」を作れる。
+（一覧の抽出は実機確認済み。**個々の動作は未検証**）
+
+### 2.16.2 ds と input の型（未文書のものがある）
+
+```
+ds.search  ds.chain  ds.savedSearch  ds.test  ds.spl2  ds.spl2.view  ds.o11y
+input.dropdown  input.multiselect  input.text  input.timerange
+input.number  ★  input.button  ★  input.dimensionFilter  input.dimensionMultiFilter
+```
+
+**`input.number` と `input.button` は実機で描画確認済み**（下の画像）。既存ナレッジに無かったもの。
+
+![input.number と input.button](images/st-input-number.png)
+
+*↑ 左が `input.number`（スピナー付き）、中央が `input.button`。*
+
+```jsonc
+"in_num": {
+    "type": "input.number",
+    "options": { "token": "tok_num", "defaultValue": 42, "min": 0, "max": 100, "step": 1 }
+}
+```
+
+> **⭐ `input.button` はトークンに値を入れない**（実機で確定）。
+> 既定でも、**押した後でも** `Set token value to render visualization` のままだった。
+> これは不具合ではなく、**「送信ボタン」＝他の入力の確定用**だから
+> （クラシックの `submitButton` に相当）。**値を運ぶ入力として使わないこと。**
+> 対して `input.number` は `42`、`input.text` は `hello` が**そのままトークンに入る**（確認済み）。
+
+### 2.16.3 ⚠ `splunk.fillerGauge` / `splunk.markerGauge` はバンドルに名前があるが**使えない**
+
+```
+splunk.fillerGauge is not defined     ← 実機のパネルに出たエラー
+splunk.markerGauge is not defined
+```
+
+**針のあるゲージ・温度計型ゲージは Studio には無い**（実機で確定）。
+クラシックには**ある**ので、要件になったらそちらを検討する
+→ [classic-dashboard.md](classic-dashboard.md) §1.4。
+
+**`splunk.linkgraph` は逆に「描画された」**（`splunk.networkGraph` とは別物）:
+
+![splunk.linkgraph](images/st-linkgraph.png)
+
+*↑ `src` / `dst` / `w` の3列から**左右2列のノードを線で結ぶ図**が描かれた。
+`splunk.sankey` に似ているが、**ノードをリスト状に並べる**点が違う。*
+
+> これは既存ナレッジ [bundle-schema-not-registry] の**追加事例が2件**という意味になる:
+> **名前があっても使えない**（fillerGauge / markerGauge）／
+> **一覧に無くても使える**（linkgraph）。**実在判定は「置いて撮る」以外にない。**
+
+---
+
 ## 3. 検証の型（同じことをやるとき）
 
 ```bash

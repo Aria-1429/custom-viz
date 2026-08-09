@@ -72,6 +72,16 @@ viz 本体の実装ナレッジとは別物。特に:
 （169 個の schema が取れる）と、**Simple XML の旧キーが混在していて紛らわしい罠**
 （`dataOverlayMode` / `totalsRow` は Studio では無反応）も載せてある。
 
+**⭐ クラシック（Simple XML）ダッシュボードの依頼なら
+[references/classic-dashboard.md](references/classic-dashboard.md) を読む**（2026-08-09 実機検証）。
+**クラシックにしか無い機能がかなりある**ので、「Studio では無理」と答える前に見る:
+入力側でのトークン組み立て（`prefix`/`suffix`/`delimiter`。**Studio は未対応**）、
+**針のあるゲージ3種**（`radialGauge`/`fillerGauge`/`markerGauge`。**Studio に存在しない**）、
+`<done>` ハンドラ（サーチ結果→トークン）、`$env:user$`（**ユーザーごとの出し分けが1枚でできる**）、
+`dataOverlayMode=heatmap`・`totalsRow`（**Studio では死んでいるキーがクラシックでは効く**）。
+⚠ **`<eval>` トークンの `.` 連結は `tostring()` で包まないとサイレント失敗する**（実機で確定）。
+push とパネル撮影には `push-classic.mjs` / `shot-classic.mjs` を使う（Studio 用ツールは使えない）。
+
 **カスタム viz には2方式ある**（classic / Studio 拡張）。どのダッシュボードで使うかで選ぶ。
 方式の取り違えは「一覧に出ない」で詰まるので、迷ったら [references/custom-viz-methods.md](references/custom-viz-methods.md) を先に読む:
 - **classic**（`SplunkVisualizationBase` + `formatter.html`、`visualizations.conf` に `framework_type` なし）
