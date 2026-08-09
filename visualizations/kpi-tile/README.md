@@ -85,6 +85,22 @@ Dashboard Studio のソース JSON では `"type": "custom_viz_kpi_tile.custom_v
 
 ---
 
+### [1.5.1] - 2026-08-09
+
+#### 修正
+
+- **スピナーが永遠に回り続けることがある問題への対策**。公式 `useDataSources` は
+  「render 時に現在値でシード → `useEffect` で購読」の構造で、その間に届いた更新を
+  取り逃す（ホストは購読登録時に現在値を再送しない）。サーチ完了の最終通知を
+  この隙間で落とすと `loading` のまま固まる。対策として、loading 中は
+  `getDataSources()` を 500ms 間隔で読み直し、ホスト側が完了済みなら回収する
+  （`useDataSourcesWithRescue`）。取りこぼしを再現する回帰テストを追加。
+  不定期・初回表示時に発生しやすく、リロードで直る症状はこれが原因とみられる。
+
+`.spl`: `dist/custom_viz_kpi_tile-1.5.1-711a606.spl`
+
+---
+
 ### [1.5.0] - 2026-08-09
 
 #### 修正

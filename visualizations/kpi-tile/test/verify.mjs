@@ -496,5 +496,42 @@ console.log('\n[14] sparkMode=line');
     check('bars restored (20 rects)', [...doc.querySelectorAll('svg[data-role="spark"] rect')].length === 20);
 }
 
+// ---- 15. スピナー回収（サーチ完了通知の取りこぼし） ----------------------------
+// 公式 useDataSources は「render 時シード → useEffect で購読」の間に届いた更新を
+// 取り逃す（ホストは購読時に現在値を再送しない）。完了通知を取り逃すと loading の
+// まま固まりスピナーが回り続ける。この状況を「リスナーへ配信せず getter だけ完了に
+// する」ことで再現し、ポーリング回収（useDataSourcesWithRescue）で復帰することを確認する。
+console.log('\n[15] スピナー回収（完了通知ロスト）');
+{
+    await setOpts({ animate: false, sparkMode: 'bars' });
+
+    // 公式フックへ loading:true を配信 → スピナー状態
+    fire('dataSources', { loading: true, dataSources: { primary: {} } });
+    await sleep(250);
+    check('loading配信 → スピナー状態（値が消える）', !doc.body.textContent.includes('重大アラート'),
+        doc.body.textContent.slice(0, 80));
+
+    // ホスト側は完了済みだが、リスナーへは配信しない（＝取りこぼしを再現）
+    const RESCUE_FIELDS = [{ name: 'label' }, { name: 'rescued' }];
+    const RESCUE_ROWS = [['a', '111'], ['b', '333']];
+    globalThis.DashboardExtensionAPI.getDataSources = () => ({
+        loading: false,
+        dataSources: { primary: { data: { fields: RESCUE_FIELDS, rows: RESCUE_ROWS } } },
+    });
+
+    // ポーリング間隔（500ms）＋描画余裕を待つ
+    await sleep(1300);
+    check('リスナー無配信でも getter から回収して描画復帰', doc.body.textContent.includes('333'),
+        doc.body.textContent.slice(0, 120));
+    check('回収後はスピナーが消えている', !doc.querySelector('[data-test="wait-spinner"]'));
+
+    // 後始末：getter を元へ戻し、通常の完了通知を配信
+    globalThis.DashboardExtensionAPI.getDataSources =
+        () => ({ loading: false, dataSources: { primary: { data: state.data } } });
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(250);
+    check('通常配信で元の値に戻る', doc.body.textContent.includes('重大アラート'));
+}
+
 console.log(`\n=== ${pass} passed, ${fail} failed ===`);
 process.exit(fail === 0 ? 0 : 1);

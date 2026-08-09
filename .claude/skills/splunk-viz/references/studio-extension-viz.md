@@ -203,6 +203,61 @@ function mountApp() {
 - 残余リスク: API 注入前にバンドルが実行されるとライブラリのモジュール評価が throw する
   （コンソールに "DashboardExtensionAPI is not available..."）。
 
+### マウント後にも取りこぼしの隙間がある（スピナー永久表示の原因。2026-08-09）
+
+マウントゲートは「**マウント前**に届いた初期 state」の取り逃しを防ぐが、
+**マウント後にも別の取りこぼし窓がある**。公式フックの実装（v1.x の
+`createVisualizationListenerHook`。パッケージのソースで確認済み）:
+
+```js
+const [state, setState] = useState(() => transformer(getInitialState())); // ①render時にシード
+useEffect(() => listenerFunction((d) => setState(transformer(d))), ...);  // ②commit後に購読
+```
+
+①と②の間（初回表示時はメインスレッドが混み、数十ms〜に広がりうる）に届いた更新は
+**永久に失われる**（ホストは購読登録時に現在値を再送しない）。失われたのが
+「サーチ完了（loading:false）」の最終通知だと、以後更新は来ないため
+**`loading:true` のまま固まりスピナーが回り続ける**。
+
+- 症状：不定期に発生・ダッシュボード初回表示で起きやすい・ブラウザ更新であっさり直る
+  （2回目はジョブキャッシュから即返り、マウント前に届いて①のシードで拾えるため）。
+- **対策（kpi-tile v1.5.1 で導入）**：公式フックが loading の間だけ
+  `getDataSources()` を 500ms 間隔で読み直し、ホスト側が完了済みならその値を採用する。
+  完了後はポーリングしないのでコストは実質ゼロ。
+
+```jsx
+function useDataSourcesWithRescue() {
+    const official = useDataSources();
+    const [rescue, setRescue] = useState(null);
+    const officialLoading = Boolean(official?.loading);
+    useEffect(() => {
+        if (!officialLoading) return undefined;
+        setRescue(null); // 新しいロードサイクル。前回の回収値は使わない
+        let timer = 0;
+        const tick = () => {
+            try {
+                const cur = globalThis.DashboardExtensionAPI?.getDataSources?.();
+                if (cur && !cur.loading) { setRescue(cur); return; }
+            } catch (e) { /* noop */ }
+            timer = setTimeout(tick, 500);
+        };
+        timer = setTimeout(tick, 500);
+        return () => clearTimeout(timer);
+    }, [officialLoading]);
+    return officialLoading && rescue ? rescue : official;
+}
+// 使う側: const { dataSources, loading } = useDataSourcesWithRescue() || {};
+```
+
+- 回帰テストの書き方（kpi-tile `test/verify.mjs` §15）：モックで `loading:true` を配信して
+  スピナー状態にし、**リスナーへは配信せず** `getDataSources` だけ完了済みに差し替え、
+  ポーリング1周後に描画が復帰することを確認する。
+- ⚠ フック実装の隙間と「症状との整合」はソース・回帰テストで確認済みだが、
+  **実機の永久スピナーがこれ「だけ」で全て説明できるかは未確定**（不定期事象のため）。
+  導入後も再発しないか観察する。theme / options / mode にも理論上同じ窓があるが、
+  これらは次の更新で自己回復するため実害が小さく、対策は dataSources のみに入れている。
+- 他の viz への横展開は未実施（kpi-tile のみ。2026-08-09 時点）。
+
 ### データ正規化（rows / columns 両形式に対応・落とさない）
 
 > **`data.rows` だけ見る実装は必ず壊れる。** 実機では `columns` 形式で届くことがあり、
