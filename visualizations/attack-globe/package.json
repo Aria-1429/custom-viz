@@ -1,6 +1,6 @@
 {
   "name": "custom_viz_attack_globe",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Rotating 3D attack globe rendered with WebGL",
   "author": "Unknown",
   "type": "module",

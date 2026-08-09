@@ -42,7 +42,7 @@ import chartIcon from './assets/ChartColumnSquare.svg';
 //     （編集パネルに出す必要が無い＝ドラッグでしか決まらない値なので載せる意味も無い）。
 // -----------------------------------------------------------------------------
 
-const VIZ_VERSION = '2.2.1';
+const VIZ_VERSION = '2.2.2';
 
 // ドリルダウンで発火するイベント名。config.json の `events` に宣言した名前と一致させる。
 // ホストは宣言済みの名前しか認識しないので、両方を同時に直すこと。
@@ -1517,8 +1517,49 @@ function AlertTable({
     );
 }
 
+// ---------------------------------------------------------------------------
+// スピナー永久表示（サーチ完了通知の取りこぼし）対策
+//
+// 公式 useDataSources は「render 時に getDataSources() でシード → useEffect で購読」
+// の構造で、シードと購読の間に届いた更新を取り逃す（ホストは購読登録時に現在値を
+// 再送しない。実機確認済み）。取り逃したのがサーチ完了の最終通知だと、以後更新が
+// 来ないため loading:true のまま固まり、スピナーが回り続ける。
+// 対策として、公式フックが loading の間は getDataSources() を定期的に読み直し、
+// ホスト側がすでに完了していればその値を採用する。完了後は何もしない（コストゼロ）。
+// ---------------------------------------------------------------------------
+
+const RESCUE_POLL_MS = 500;
+
+function useDataSourcesWithRescue() {
+    const official = useDataSources();
+    const [rescue, setRescue] = useState(null);
+    const officialLoading = Boolean(official?.loading);
+
+    useEffect(() => {
+        if (!officialLoading) return undefined;
+        setRescue(null); // 新しいロードサイクル。前回の回収値は使わない
+        let timer = 0;
+        const tick = () => {
+            try {
+                const cur = globalThis.DashboardExtensionAPI?.getDataSources?.();
+                if (cur && !cur.loading) {
+                    setRescue(cur); // ホストは完了済み＝最終通知を取り逃していた。回収して終了
+                    return;
+                }
+            } catch (e) {
+                /* ホスト未応答でも落とさない。次のtickで再試行 */
+            }
+            timer = setTimeout(tick, RESCUE_POLL_MS);
+        };
+        timer = setTimeout(tick, RESCUE_POLL_MS);
+        return () => clearTimeout(timer);
+    }, [officialLoading]);
+
+    return officialLoading && rescue ? rescue : official;
+}
+
 function AlertVisualization({ colorScheme }) {
-    const { dataSources, loading } = useDataSources();
+    const { dataSources, loading } = useDataSourcesWithRescue() || {};
     const optionsApi = useOptions();
     const options = optionsApi?.options;
     const setOptions = optionsApi?.setOptions;

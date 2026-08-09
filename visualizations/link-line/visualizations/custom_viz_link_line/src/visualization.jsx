@@ -50,7 +50,7 @@ import './visualization.css';
 // ---------------------------------------------------------------------------
 
 // バージョン表記（デプロイ確認用。編集モードの案内に表示）
-const VIZ_VERSION = '1.11.0';
+const VIZ_VERSION = '1.11.1';
 
 // 列挙型オプションの許容値（未知値は既定へ丸める。旧バージョンの数値コードは復元しない）
 const STYLE_MODES = ['flat', 'shadow', 'neon', 'pipe'];
@@ -830,11 +830,52 @@ function FlowCanvas({ track, color, lineWidth, speed, direction, pulseCaps, caps
 }
 
 // ---------------------------------------------------------------------------
+// スピナー永久表示（サーチ完了通知の取りこぼし）対策
+//
+// 公式 useDataSources は「render 時に getDataSources() でシード → useEffect で購読」
+// の構造で、シードと購読の間に届いた更新を取り逃す（ホストは購読登録時に現在値を
+// 再送しない。実機確認済み）。取り逃したのがサーチ完了の最終通知だと、以後更新が
+// 来ないため loading:true のまま固まり、スピナーが回り続ける。
+// 対策として、公式フックが loading の間は getDataSources() を定期的に読み直し、
+// ホスト側がすでに完了していればその値を採用する。完了後は何もしない（コストゼロ）。
+// ---------------------------------------------------------------------------
+
+const RESCUE_POLL_MS = 500;
+
+function useDataSourcesWithRescue() {
+    const official = useDataSources();
+    const [rescue, setRescue] = useState(null);
+    const officialLoading = Boolean(official?.loading);
+
+    useEffect(() => {
+        if (!officialLoading) return undefined;
+        setRescue(null); // 新しいロードサイクル。前回の回収値は使わない
+        let timer = 0;
+        const tick = () => {
+            try {
+                const cur = globalThis.DashboardExtensionAPI?.getDataSources?.();
+                if (cur && !cur.loading) {
+                    setRescue(cur); // ホストは完了済み＝最終通知を取り逃していた。回収して終了
+                    return;
+                }
+            } catch (e) {
+                /* ホスト未応答でも落とさない。次のtickで再試行 */
+            }
+            timer = setTimeout(tick, RESCUE_POLL_MS);
+        };
+        timer = setTimeout(tick, RESCUE_POLL_MS);
+        return () => clearTimeout(timer);
+    }, [officialLoading]);
+
+    return officialLoading && rescue ? rescue : official;
+}
+
+// ---------------------------------------------------------------------------
 // 本体
 // ---------------------------------------------------------------------------
 
 function LinkLine({ mode }) {
-    const { dataSources, loading } = useDataSources();
+    const { dataSources, loading } = useDataSourcesWithRescue() || {};
     const optionsApi = useOptions();
     const options = optionsApi?.options;
     const setOptions = optionsApi?.setOptions;

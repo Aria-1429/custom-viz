@@ -1,6 +1,6 @@
 {
   "name": "custom_viz_liquid_tube",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Liquid test-tube gauge rendered with a WebGL shader",
   "author": "Unknown",
   "type": "module",

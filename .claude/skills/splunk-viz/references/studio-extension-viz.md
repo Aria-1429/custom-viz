@@ -256,7 +256,41 @@ function useDataSourcesWithRescue() {
   **実機の永久スピナーがこれ「だけ」で全て説明できるかは未確定**（不定期事象のため）。
   導入後も再発しないか観察する。theme / options / mode にも理論上同じ窓があるが、
   これらは次の更新で自己回復するため実害が小さく、対策は dataSources のみに入れている。
-- 他の viz への横展開は未実施（kpi-tile のみ。2026-08-09 時点）。
+- **全 viz へ横展開済み**（2026-08-09）。`useDataSources()` を呼ぶ **29 viz 全部**に
+  同じフックを入れ、本番ビルド・verify・実機インストールまで完了している。
+  対象外は3つだけ:
+  - `tab-selector` … データソースを読まない（サーチ不要 viz）
+  - `weather-panel` … `src/` が空（未着手）
+  - `editor-probe` … git 管理外の検証台。`esbuild` 未インストールで**元からビルド不可**
+    （この横展開とは無関係の既存状態。誤って変更しかけたので元に戻してある）
+- **新規 viz を作るときは最初からこのフックを入れる**（スケルトン複製元にも入っている）。
+
+#### 横展開時にやらかしかけたこと（2026-08-09）
+
+- **`VIZ_VERSION` 定数を持つ viz がある**（link-line / gauge-arc / icon-status /
+  severity-table / spotlight-frame の5本）。実機での反映確認用に viz 内へ
+  バージョン文字列を埋め込んでいるので、**`package.json` を上げたらここも直す**。
+  link-line は verify がこの値を検査しているので気づけたが、**他4本は検査していない**ため
+  黙ってズレる。横断チェック:
+  ```bash
+  for d in visualizations/*/; do n=$(basename "$d"); f=$(ls "$d"visualizations/*/src/visualization.jsx 2>/dev/null|head -1)
+    [ -z "$f" ] && continue; v=$(node -p "require('./$d/package.json').version")
+    e=$(grep -oP "VIZ_VERSION\s*=\s*'\K[0-9.]+" "$f" 2>/dev/null)
+    [ -n "$e" ] && [ "$e" != "$v" ] && echo "MISMATCH $n: embedded=$e package=$v"; done
+  ```
+- **verify の合否判定を出力文字列で機械判定しない**。viz ごとに書式がバラバラで
+  （`=== N passed, 0 failed ===` / `passed: 77 failed: 0` / `PASS 83 / FAIL 0` /
+  `✅ ALL PASS pass=45 fail=0`）、`grep "0 failed"` だけだと**成功しているのに失敗と誤判定する**。
+  実際にこれで3本を「FAIL」と誤読した。**終了コードで判定する**のが正しい。
+- **ルート README の行フォーマットが揃っていない**。`**[名前](path)**<br>vX.Y.Z` が基本だが、
+  severity-table だけ `**[Severity Table](path)** <br>v2.2.1`（`**` と `<br>` の間に半角スペース）。
+  一括置換の正規表現は `\*\*\s*<br>v` のように**空白を許容**して書く。
+- **実機のアプリが「消えている」ことがあるが、まず viz の不具合を疑わない。**
+  横展開の途中で kpi-tile だけ実機に存在せず（他 28 本は在中）不審に見えたが、
+  実際は**ユーザーが裏で全アンインストールしていた**だけだった。
+  実機はこちらの与り知らないところで状態が変わる共有環境なので、
+  **「前回入れたのに無い」＝異常** と決めつけず、まず素直に入れ直して事実を確認する。
+  （このとき「原因不明」と報告したのは正しい対応。**推測で原因を作文しない**。）
 
 ### データ正規化（rows / columns 両形式に対応・落とさない）
 

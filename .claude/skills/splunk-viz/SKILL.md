@@ -140,8 +140,9 @@ node /home/ishitsuki/work/custom-viz/tools/dashboard-loop/src/install-viz.mjs <v
 #   → 最新の .spl を上書きインストールし、_bump まで行う（依存ゼロの HTTP 呼び出し）
 
 # 3. その viz を並べた検証用ダッシュボードを push して撮影
+#    ⭐ --scale 1 を付ける（既定の 2x は遅いうえに空表示パネルが増える。2026-08-09 実測）
 node /home/ishitsuki/work/custom-viz/tools/dashboard-loop/src/sync.mjs <検証用.json> \
-     --name viz_check_<viz名> --out <出力先>
+     --name viz_check_<viz名> --out <出力先> --scale 1 --wait 25
 
 # 4. 出力された PNG を Read で見て、直して 2 に戻る
 ```
@@ -185,6 +186,12 @@ node /home/ishitsuki/work/custom-viz/tools/dashboard-loop/src/sync.mjs <検証�
   「データがありません」になり、**撮り直すたびに空になるパネルが変わる**。
   `shot.mjs` が空表示パネルを警告するので、出たら `--wait` を伸ばして撮り直す。
   それでも空なら初めて実装／データ側の問題と判断する。
+- **⚠ `--wait` の単位は「秒」。しかも「各パネルの待ち時間」ではなく「画面が安定するまでの上限」。**
+  取り違えて `--wait 25000` と書き、**上限が約7時間**になって走り続けた（2026-08-09 実害）。
+  アニメーションする viz が1枚でもあると画面は永久に安定しないので、
+  **`--wait` は必ず消費される固定コスト**になる（`settled: false` で終わるのが正常）。
+  **速くしたいならまず `--scale 1`**（29 パネルで 107 秒 → 39 秒。しかも空表示が 8→1 に減る）。
+  実測表は studio-dashboard-json.md「撮影を速くする」を参照。
 - **アニメーションする viz は毎回わずかに絵が変わる**（これは異常ではない）。
 
 検証用ダッシュボードの書き方・セレクタ・その他の落とし穴は

@@ -1,6 +1,6 @@
 {
   "name": "custom_viz_japanmap",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "A custom Japan attack-map visualization for Splunk Dashboard Studio",
   "author": "Yuto Ishitsuki",
   "type": "module",
