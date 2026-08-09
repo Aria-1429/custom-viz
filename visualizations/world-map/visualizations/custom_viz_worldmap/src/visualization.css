@@ -39,3 +39,39 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0.25; }
 }
+
+/* HUD オーバーレイ内のスクロールバー（フロー一覧・フィルタのリスト）。
+   ブラウザ既定の太い立体スクロールバーはガラス調 HUD から浮くため、
+   細い半透明のつまみに置き換える（実機スクリーンショットの指摘対応）。
+   Firefox は scrollbar-width / scrollbar-color、Chromium/WebKit は
+   ::-webkit-scrollbar 系で同じ見た目を作る。性能への影響は無い（静的スタイル） */
+.gtm-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(120, 170, 230, 0.45) transparent;
+}
+.gtm-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+.gtm-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+.gtm-scroll::-webkit-scrollbar-thumb {
+    background: rgba(120, 170, 230, 0.35);
+    border-radius: 4px;
+    /* つまみの周囲に透明の縁を残し、レールに密着した細いバーに見せる */
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+.gtm-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(120, 170, 230, 0.6);
+    background-clip: padding-box;
+}
+.gtm-scroll::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+}
+.gtm-scroll::-webkit-scrollbar-corner {
+    background: transparent;
+}

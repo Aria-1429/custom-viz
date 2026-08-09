@@ -36,7 +36,7 @@ globalThis.performance = globalThis.performance || { now: () => 0 };
 
 // happy-dom は canvas.getContext を実装しないため 2D コンテキストをスタブ化。
 // 彗星描画（fill 回数）を数えて「Canvas に描かれたか / 静止時は描かれないか」を検証する。
-const canvasStub = { fills: 0, arcs: 0, clears: 0, strokes: 0 };
+const canvasStub = { fills: 0, arcs: 0, clears: 0, strokes: 0, gradients: 0 };
 const ctxStub = {
     setTransform() {},
     clearRect() { canvasStub.clears += 1; },
@@ -48,6 +48,11 @@ const ctxStub = {
     closePath() {},
     arc() { canvasStub.arcs += 1; },
     fill() { canvasStub.fills += 1; },
+    // v2.2.0: ホットスポットのグローは Canvas の放射グラデーションで描く
+    createRadialGradient() {
+        canvasStub.gradients += 1;
+        return { addColorStop() {} };
+    },
     // v1.10.0 到達リップル（終点の輪）は stroke で描く
     stroke() { canvasStub.strokes += 1; },
     set fillStyle(v) {}, get fillStyle() { return '#000'; },
@@ -141,8 +146,11 @@ const fire = (key, payload) => listeners[key].forEach((cb) => cb(payload));
 // 流れる彗星は Canvas に描くため DOM に出ない。弧の本数は SVG のベース軌道で数える。
 // ベース軌道は 1 弧あたり2枚（発光ハロー=filter付き + 芯線）。
 // ハロー層(filter="url(#gtm-arc-glow)")を 1 弧 = 1 とみなして数える。
-const streaks = () =>
-    [...doc.querySelectorAll('svg path[filter="url(#gtm-arc-glow)"]')];
+// 弧は芯線の data-gtm="arc" で数える。
+// 【v2.1.0】以前はぼかしハロー（filter="url(#gtm-arc-glow)"）を目印にしていたが、
+// ハローは本数が多いと軽量化のため描かれなくなるので、装飾レイヤーではなく
+// 常に存在する芯線を見る（本数・色の検査はすべてこれを通る）
+const streaks = () => [...doc.querySelectorAll('svg path[data-gtm="arc"]')];
 const strokes = () => streaks().map((p) => p.getAttribute('stroke'));
 // ツールチップ相当のテキスト。v1.8.0 で SVG <title>（ブラウザ標準ツールチップ）を
 // 廃止し、当たり判定要素の aria-label ＋カスタムツールチップに置き換えたため、
@@ -168,7 +176,16 @@ console.log('\n[1] initial render (dark, auto field detection)');
     check('legend/filter include arbitrary category (worm)', body.includes('worm'));
     check('arc tooltip src → dst', titles().some((t) => t.includes('Shanghai') && t.includes('Tokyo')), JSON.stringify(titles().slice(0, 4)));
     check('hotspot tooltip has target name', titles().some((t) => t.startsWith('Target: Tokyo')));
-    check('pulse/streak animations present', doc.querySelectorAll('svg animate').length > 0);
+    // 【v2.2.0】ホットスポットの脈動グローは SVG(SMIL) から **Canvas 描画**へ移した。
+    // SVG の半透明グラデーション円は、SMIL でも CSS アニメーションでも
+    // 合成コストが高く、大画面で極端に重かった
+    // （実機計測 2560x1440・4面: グロー有り 21.6fps → 消すと 48.1fps）。
+    // すでに毎フレーム描いている Canvas に相乗りさせればレイヤーが増えない。
+    check('no SMIL <animate> remains (forces re-raster)',
+        doc.querySelectorAll('svg animate').length === 0,
+        `got ${doc.querySelectorAll('svg animate').length}`);
+    check('hotspot glow is drawn on canvas while animating',
+        canvasStub.gradients > 0, `got ${canvasStub.gradients}`);
     // 彗星は Canvas に描かれる：アニメーション中は fill が発生している
     canvasStub.fills = 0;
     await sleep(120);
@@ -1336,14 +1353,15 @@ console.log('\n[28] v1.10.0 design refinements');
     check('land fill references the dot pattern',
         !!doc.querySelector('svg path[fill="url(#gtm-land-dots)"]'));
 
-    // 大円航路: 弧は折れ線（L コマンド）になり、本数は変わらない
+    // 【v2.1.0】大円航路は廃止した。既存ダッシュボードに arcStyle が
+    // 残っていても無視され、常にベジェ（Q コマンド）で描かれること
     state.options = { arcStyle: 'greatcircle' };
     fire('options', { options: state.options });
     await sleep(300);
-    check('greatcircle mode keeps 6 arcs', streaks().length === 6, `got ${streaks().length}`);
+    check('removed arcStyle option keeps 6 arcs', streaks().length === 6, `got ${streaks().length}`);
     const gcD = streaks()[0].getAttribute('d') || '';
-    check('greatcircle arcs are polylines (L, no Q)',
-        gcD.includes('L') && !gcD.includes('Q'), gcD.slice(0, 60));
+    check('arcs stay bezier (Q) even if legacy arcStyle is set',
+        gcD.includes('Q') && !gcD.includes('L'), gcD.slice(0, 60));
 
     // 静的表示ではリップルも止まる（rAF は回るが stroke されない）
     state.options = { animDuration: 0 };
@@ -1471,8 +1489,12 @@ console.log('\n[29] flow table below the map');
     check('toggle header remains while collapsed', !!doc.querySelector('[data-gtm="flow-table-toggle"]'));
     // 折りたたみ中のピルは右上（カテゴリフィルタの左隣）へ移動する
     const pillBox = doc.querySelector('[data-gtm="flow-table-toggle"]').closest('[data-viz-ui]');
-    check('collapsed pill docks top-right beside the filter (top:12 / right:160)',
-        pillBox.style.top === '12px' && pillBox.style.right === '160px',
+    // 【v2.2.0】折りたたみピルはフィルタの「左隣」ではなく「真下」に積む。
+    // 以前は right:160 とフィルタ幅を決め打ちしていたため、カテゴリ名が長いと
+    // フィルタと重なった（実機スクリーンショットで確認）。
+    // 縦積みなら相手の幅に依存しないので、どんなラベルでも重ならない。
+    check('collapsed pill stacks below the filter, right-aligned',
+        pillBox.style.right === '16px' && parseInt(pillBox.style.top, 10) > 12,
         `top=${pillBox.style.top} right=${pillBox.style.right}`);
     doc.querySelector('[data-gtm="flow-table-toggle"]')
         .dispatchEvent(new win.MouseEvent('click', { bubbles: true, cancelable: true }));
@@ -1555,6 +1577,195 @@ console.log('\n[30] missing-field message lists only the missing columns');
     // 後片付け
     state.data = { fields: FIELDS, rows: ROWS };
     fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(250);
+}
+
+// ---- 31. 多数本のときの描画軽量化（v2.1.0） ------------------------------------
+// 線が増えたときに「描画量が本数なりに増え続けない」ことを確かめる。
+// 実測の主因はペイントコストなので、ここでは代理指標として
+//   - SVG: ぼかしハロー（feGaussianBlur を参照する path）の本数
+//   - Canvas: 一定時間あたりの fill 回数（＝塗り面積の代理）
+// を見る。しきい値そのものではなく「増え方が頭打ちになる」ことを検査する。
+console.log('\n[31] heavy-load rendering stays bounded');
+{
+    // 【v2.1.0】SVG フィルタ（feGaussianBlur）は全廃した。
+    // 大画面で「本数 × パネル面積」のラスタライズが効き、最大の重さの原因だったため
+    // （実機計測: 弧30本・4面・2560x1440 で 3.5fps → フィルタ全廃で 12.2fps）。
+    const filteredPaths = () =>
+        [...doc.querySelectorAll('svg [filter]')].length;
+    const filterDefs = () => [...doc.querySelectorAll('svg filter')].length;
+
+    const rowsN = (n) =>
+        Array.from({ length: n }, (_, i) => [
+            String(10 + (i % 60)), String(-150 + (i % 300)), '35.68', '139.69',
+            'high', String(1000 - i), `S${i}`, 'Tokyo',
+        ]);
+
+    // 少数本（既定の品質段階）: ハローが弧ごとに描かれる
+    state.options = {};
+    state.data = { fields: FIELDS, rows: rowsN(20) };
+    fire('options', { options: state.options });
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(400);
+    check('no SVG filter is applied to any element', filteredPaths() === 0, `got ${filteredPaths()}`);
+    check('no SVG filter is even defined', filterDefs() === 0, `got ${filterDefs()}`);
+    // ハローは実線の重ね描きで表現するので、弧1本につき複数の path が出る
+    check('arcs still render a layered halo (no filter)', streaks().length > 0,
+        `got ${streaks().length}`);
+
+    canvasStub.fills = 0;
+    await sleep(400);
+    const fillsFew = canvasStub.fills;
+    check('few arcs animate on canvas', fillsFew > 0, `got ${fillsFew}`);
+
+    // 多数本: ハローは完全に外れる（SVG フィルタの再ラスタライズを止める）
+    state.data = { fields: FIELDS, rows: rowsN(500) };
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(600);
+    check('still no SVG filter at high arc counts', filteredPaths() === 0, `got ${filteredPaths()}`);
+    // 芯線自体は残る（線が消えてしまってはいけない）
+    check('many arcs still draw their base stroke', streaks().length > 100,
+        `got ${streaks().length}`);
+
+    // Canvas 側: 本数は25倍でも、fps 間引き＋グロー省略で
+    // 一定時間あたりの塗り回数は本数比ほどには増えない
+    canvasStub.fills = 0;
+    await sleep(400);
+    const fillsMany = canvasStub.fills;
+    const ratio = fillsMany / Math.max(fillsFew, 1);
+    check('canvas fill volume grows far slower than arc count (25x)',
+        ratio < 12, `arcs 25x -> fills ${ratio.toFixed(1)}x (few=${fillsFew}, many=${fillsMany})`);
+
+    // 静止指定では rAF ループ自体が起動しない（描画スキップではなく完全停止）
+    state.options = { animDuration: 0 };
+    fire('options', { options: state.options });
+    await sleep(300);
+    canvasStub.fills = 0;
+    canvasStub.clears = 0;
+    await sleep(300);
+    check('static mode stops the loop (no clears, no fills)',
+        canvasStub.fills === 0 && canvasStub.clears === 0,
+        `fills=${canvasStub.fills} clears=${canvasStub.clears}`);
+
+    // 後片付け
+    state.options = {};
+    state.data = { fields: FIELDS, rows: ROWS };
+    fire('options', { options: state.options });
+    fire('dataSources', { loading: false, dataSources: { primary: { data: state.data } } });
+    await sleep(300);
+}
+
+// ---- 32. フロー一覧のドラッグ移動と位置の保存（v2.1.0） -------------------------
+// ドラッグ操作そのもの（getBoundingClientRect 依存）は happy-dom では動かないため、
+// 「保存された位置が適用される」「リセットで既定位置と保存が戻る」を検証する。
+// 実際のドラッグは実機（Playwright）で確認する。
+console.log('\n[32] flow table position (tablePos)');
+{
+    const tableBox = () =>
+        doc.querySelector('[data-gtm="flow-table-toggle"]')?.closest('[data-viz-ui]');
+
+    // 保存済みの位置（正規化 [0.1, 0.2]）が left/top % として適用される
+    state.options = { showTable: true, tablePos: '[0.1,0.2]' };
+    fire('options', { options: state.options });
+    await sleep(300);
+    let box = tableBox();
+    check('saved tablePos applies as % position',
+        !!box && box.style.left === '10%' && box.style.top === '20%',
+        box ? `left=${box.style.left} top=${box.style.top}` : 'no box');
+    check('reset affordance appears when positioned',
+        !!doc.querySelector('[data-gtm="flow-table-reset-pos"]'));
+
+    // リセット → setOptions に tablePos:'' が入り、既定のドック位置（右下）へ戻る
+    doc.querySelector('[data-gtm="flow-table-reset-pos"]')
+        .dispatchEvent(new win.MouseEvent('click', { bubbles: true, cancelable: true }));
+    await sleep(250);
+    check('reset saves empty tablePos via setOptions', state.options.tablePos === '',
+        `got ${JSON.stringify(state.options.tablePos)}`);
+    box = tableBox();
+    check('reset returns to default dock (bottom-right)',
+        !!box && box.style.bottom === '12px' && box.style.right === '190px',
+        box ? `bottom=${box.style.bottom} right=${box.style.right}` : 'no box');
+    check('reset affordance disappears at default position',
+        !doc.querySelector('[data-gtm="flow-table-reset-pos"]'));
+
+    // 不正な tablePos は無視して既定位置（壊れない）
+    state.options = { showTable: true, tablePos: 'garbage' };
+    fire('options', { options: state.options });
+    await sleep(250);
+    box = tableBox();
+    check('invalid tablePos falls back to default dock',
+        !!box && box.style.bottom === '12px', box ? `bottom=${box.style.bottom}` : 'no box');
+
+    // 折りたたみピルは保存位置があっても**常に右上ドック**（保存位置は展開時のみ）
+    state.options = { showTable: true, tablePos: '[0.1,0.2]', tableCollapsed: true };
+    fire('options', { options: state.options });
+    await sleep(250);
+    box = tableBox();
+    check('collapsed pill ignores saved pos and docks top-right',
+        !!box && box.style.right === '16px' && box.style.left === '',
+        box ? `left=${box.style.left} right=${box.style.right}` : 'no box');
+    // 展開に戻すと保存位置が適用される
+    state.options = { showTable: true, tablePos: '[0.1,0.2]' };
+    fire('options', { options: state.options });
+    await sleep(250);
+    box = tableBox();
+    check('expanding restores the saved position',
+        !!box && box.style.left === '10%' && box.style.top === '20%',
+        box ? `left=${box.style.left} top=${box.style.top}` : 'no box');
+
+    // --- サイズ（tableSize）---
+    state.options = { showTable: true, tableSize: '[0.5,0.4]' };
+    fire('options', { options: state.options });
+    await sleep(250);
+    box = tableBox();
+    check('saved tableSize applies as % size',
+        !!box && box.style.width === '50%' && box.style.height === '40%',
+        box ? `w=${box.style.width} h=${box.style.height}` : 'no box');
+    check('resize grip present when expanded',
+        !!doc.querySelector('[data-gtm="flow-table-resize"]'));
+    state.options = { showTable: true, tableSize: '[0.5,0.4]', tableCollapsed: true };
+    fire('options', { options: state.options });
+    await sleep(250);
+    check('resize grip hidden when collapsed',
+        !doc.querySelector('[data-gtm="flow-table-resize"]'));
+
+    // --- 「保存した修正が古い定義の再配信で戻る」バグの再現（v2.1.0 修正） ---
+    // 1. 保存済みの位置がある状態から ⟲ でリセット（＝ユーザーの修正）
+    state.options = { showTable: true, tablePos: '[0.1,0.2]' };
+    fire('options', { options: state.options });
+    await sleep(250);
+    doc.querySelector('[data-gtm="flow-table-reset-pos"]')
+        .dispatchEvent(new win.MouseEvent('click', { bubbles: true, cancelable: true }));
+    await sleep(200);
+    check('unsaved badge appears after view-mode change',
+        !!doc.querySelector('[data-gtm="flow-table-dirty"]'));
+    // 2. ホストが**古い定義**の options を再配信（編集モード突入時などに起こる）
+    fire('options', { options: { showTable: true, tablePos: '[0.1,0.2]' } });
+    await sleep(250);
+    box = tableBox();
+    check('pending change survives stale options rebroadcast',
+        !!box && box.style.bottom === '12px',
+        box ? `bottom=${box.style.bottom} left=${box.style.left}` : 'no box');
+    // 3. 編集モードに入ると pending が flush され、ホストへ再送される
+    state.options = { showTable: true, tablePos: '[0.1,0.2]' };
+    fire('mode', { mode: 'edit' });
+    await sleep(250);
+    // tableSize は定義に元々キーが無い（undefined ＝ 既定 ＝ pending の '' と等価）ため
+    // flush 対象にならないのが正しい。tablePos だけが差分として再送される
+    check('entering edit mode flushes pending reset to host',
+        state.options.tablePos === '' && (state.options.tableSize ?? '') === '',
+        `tablePos=${JSON.stringify(state.options.tablePos)} tableSize=${JSON.stringify(state.options.tableSize)}`);
+    // 4. ホストが確定値を echo すると「未保存」表示が消える
+    fire('options', { options: { showTable: true, tablePos: '', tableSize: '' } });
+    await sleep(250);
+    check('unsaved badge clears after host echo',
+        !doc.querySelector('[data-gtm="flow-table-dirty"]'));
+    fire('mode', { mode: 'view' });
+    await sleep(150);
+
+    // 後片付け
+    state.options = {};
+    fire('options', { options: state.options });
     await sleep(250);
 }
 

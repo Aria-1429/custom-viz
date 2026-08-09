@@ -72,7 +72,6 @@
         ]
       },
       "mapDetail": { "type": "string", "default": "auto" },
-      "arcStyle": { "type": "string", "default": "bezier" },
       "showGraticule": { "type": "boolean", "default": true },
       "landStyle": { "type": "string", "default": "solid" },
       "showHudStats": { "type": "boolean", "default": true },
@@ -111,16 +110,16 @@
         "layout": [
           [{ "label": "見た目をまとめて切り替え", "editor": "editor.presetSelector", "editorProps": { "presets": [
             { "label": "管制室ダーク（既定）", "name": "p.console", "value": { "context": {}, "options": {
-              "landStyle": "solid", "showGraticule": true, "arcStyle": "bezier",
+              "landStyle": "solid", "showGraticule": true,
               "animDuration": 2.8, "showHudStats": true, "useBgColor": false, "useLandColor": false } } },
             { "label": "ドットマトリクス", "name": "p.dots", "value": { "context": {}, "options": {
-              "landStyle": "dots", "showGraticule": true, "arcStyle": "bezier",
+              "landStyle": "dots", "showGraticule": true,
               "animDuration": 2.8, "showHudStats": true, "useBgColor": false, "useLandColor": false } } },
-            { "label": "航路図（大円・静止）", "name": "p.routes", "value": { "context": {}, "options": {
-              "landStyle": "solid", "showGraticule": true, "arcStyle": "greatcircle",
+            { "label": "航路図（静止）", "name": "p.routes", "value": { "context": {}, "options": {
+              "landStyle": "solid", "showGraticule": true,
               "animDuration": 0, "showHudStats": true, "useBgColor": false, "useLandColor": false } } },
             { "label": "ミニマル", "name": "p.minimal", "value": { "context": {}, "options": {
-              "landStyle": "solid", "showGraticule": false, "arcStyle": "bezier",
+              "landStyle": "solid", "showGraticule": false,
               "animDuration": 0, "showHudStats": false, "useBgColor": false, "useLandColor": false } } }
           ] } }]
         ]
@@ -146,10 +145,6 @@
           [{ "label": "凡例を表示", "editor": "editor.checkbox", "option": "showLegend" }],
           [{ "label": "カテゴリフィルタを表示", "editor": "editor.checkbox", "option": "showFilter" }],
           [{ "label": "アニメーション周期（秒、0で停止）", "editor": "editor.number", "option": "animDuration" }],
-          [{ "label": "矢印の形状", "editor": "editor.select", "option": "arcStyle", "editorProps": { "values": [
-            { "label": "アーチ（装飾的な弧）", "value": "bezier" },
-            { "label": "大円航路（地理的な最短経路）", "value": "greatcircle" }
-          ] } }],
           [{ "label": "総件数とLIVEを表示", "editor": "editor.checkbox", "option": "showHudStats" }],
           [{ "label": "値（count）の単位（凡例・ツールチップ・テーブルに使用。例: 件／接続／MB）", "editor": "editor.text", "option": "countLabel" }],
           [{ "label": "件数による線の太さの強調度（0で一律の細線）", "editor": "editor.slider", "option": "widthScale", "editorProps": { "min": 0, "max": 5, "step": 0.5 } }],

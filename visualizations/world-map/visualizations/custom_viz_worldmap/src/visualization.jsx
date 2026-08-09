@@ -1,6 +1,7 @@
 import {
     VisualizationExtensionProvider,
     useDataSources,
+    useMode,
     useOptions,
     useTheme,
 } from '@splunk/dashboard-studio-extension/react';
@@ -8,10 +9,9 @@ import {
 // 型定義 visualization.d.mts の export 一覧で確認済み）。
 import { addDrilldownListener } from '@splunk/dashboard-studio-extension/visualization';
 import Paragraph from '@splunk/react-ui/Paragraph';
-import Select from '@splunk/react-ui/Select';
 import WaitSpinner from '@splunk/react-ui/WaitSpinner';
 import { SplunkThemeProvider } from '@splunk/themes';
-import { geoBounds, geoGraticule10, geoInterpolate, geoNaturalEarth1, geoPath } from 'd3-geo';
+import { geoBounds, geoGraticule10, geoNaturalEarth1, geoPath } from 'd3-geo';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { feature, mesh } from 'topojson-client';
@@ -89,9 +89,9 @@ const MAP_PALETTES = {
         landStrokeOpacity: 0.35,
         titleColor: '#f2f6fb',
         titleShadow: '0 0 14px rgba(60, 140, 255, 0.6)',
-        panelBg: 'rgba(10, 24, 46, 0.85)',
+        panelBg: 'rgba(10, 22, 42, 0.94)',
         panelBorder: '1px solid rgba(90, 140, 200, 0.35)',
-        legendBg: 'rgba(10, 24, 46, 0.75)',
+        legendBg: 'rgba(10, 22, 42, 0.92)',
         legendBorder: '1px solid rgba(90, 140, 200, 0.25)',
         legendText: '#e8eef6',
         // 地名ラベル（地図由来）と始点/終点ラベル（データ由来）。
@@ -119,9 +119,9 @@ const MAP_PALETTES = {
         landStrokeOpacity: 0.6,
         titleColor: '#16283e',
         titleShadow: '0 0 10px rgba(255, 255, 255, 0.8)',
-        panelBg: 'rgba(255, 255, 255, 0.88)',
+        panelBg: 'rgba(252, 254, 255, 0.96)',
         panelBorder: '1px solid rgba(90, 140, 200, 0.45)',
-        legendBg: 'rgba(255, 255, 255, 0.82)',
+        legendBg: 'rgba(252, 254, 255, 0.94)',
         legendBorder: '1px solid rgba(90, 140, 200, 0.35)',
         legendText: '#24354a',
         placeLabel: '#31445c',
@@ -132,6 +132,23 @@ const MAP_PALETTES = {
         liveDot: '#d63a12',
     },
 };
+
+// ---------------------------------------------------------------------------
+// オーバーレイ UI（タイトル・フィルタ・凡例・フロー一覧）の共通の質感。
+// 【v2.2.0】以前はフロー一覧だけ別の色・角丸・影を持っていて、
+// 折りたたみピルがカテゴリフィルタの隣に来ると質感が揃わなかった。
+// 角丸・影・ぼかしはここに集約し、全オーバーレイで同じ値を使う。
+// ---------------------------------------------------------------------------
+const OVERLAY_RADIUS = 10;
+const OVERLAY_SHADOW = '0 6px 24px rgba(0, 0, 0, 0.28)';
+// 【v2.1.0】backdrop-filter(blur) は全廃した。
+//   1. オーバーレイが専用コンポジタレイヤーになり、**文字のサブピクセル AA が
+//      無効化されて小さい文字がぼやける**（実機スクリーンショットの拡大で確認）
+//   2. 下のアニメーションが動くたびに毎フレーム再ブラーされ、合成コストを食う
+// 代わりに背景の不透明度を上げて（0.92〜0.96）読みやすさとガラス調の両立を図る。
+// オーバーレイ同士の間隔（px）。フィルタとフロー一覧のピルが重ならないよう、
+// 右上に縦積みするときの段の高さにも使う
+const OVERLAY_GAP = 8;
 
 // ---------------------------------------------------------------------------
 // 色ユーティリティ
@@ -172,6 +189,14 @@ function parseColor(value) {
 
 function toCss({ r, g, b, a }) {
     return a >= 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${+a.toFixed(3)})`;
+}
+
+// 既存の色（{r,g,b,a}）に不透明度を掛けた CSS 文字列を作る。
+// Canvas のグラデーションは SVG の stopOpacity に相当するものが無いため、
+// 色そのものにアルファを載せて同じ見た目を作る（v2.2.0）
+function withAlpha(c, alpha) {
+    if (!c) return 'rgba(0, 0, 0, 0)';
+    return toCss({ r: c.r, g: c.g, b: c.b, a: (c.a ?? 1) * alpha });
 }
 
 // 白と混ぜて明るいトーンを作る（amount: 0=元の色, 1=白）。アルファは維持
@@ -510,7 +535,6 @@ const DEFAULT_COUNT_BANDS = [
 const LABEL_LANGS = ['en', 'ja'];
 const MAP_DETAILS = ['auto', 'low', 'high'];
 const COLOR_MODES = ['category', 'count'];
-const ARC_STYLES = ['bezier', 'greatcircle'];
 const LAND_STYLES = ['solid', 'dots'];
 
 function normalizeOptions(options) {
@@ -541,15 +565,25 @@ function normalizeOptions(options) {
         // ホイールズーム / ドラッグパンを許可するか
         enableZoom: bool(o.enableZoom, true),
         // --- 弧の見た目・件数 ---
-        // 弧の形状。bezier: 装飾的なアーチ（従来） / greatcircle: 大円航路
-        // （地理的な最短経路。ズームしても経路が地理と整合する）
-        arcStyle: ARC_STYLES.includes(o.arcStyle) ? o.arcStyle : 'bezier',
         // count に応じた太さの強調度。0 で一律の細線、大きいほど差が出る
         widthScale: clamp(num(o.widthScale, 1), 0, 10),
         // 描画する弧の上限（count の多い順）。0 で無制限
         maxArcs: Math.max(0, Math.round(num(o.maxArcs, 0))),
         // 地点にマウスを乗せたとき、その地点に繋がる弧だけを強調する
         highlightOnHover: bool(o.highlightOnHover, true),
+        // 【スキーマ外】フロー一覧の位置（正規化座標の JSON "[x,y]"。'' = 既定の右下）。
+        // テーブルのヘッダーをドラッグすると setOptions で保存される。
+        // 編集パネルには出さない＝ optionsSchema に載せない＝ splunkd 再起動不要
+        // （スキーマ外キーが保存され viz に届くことは link-line labelPos で実機確認済み）
+        tablePos: typeof o.tablePos === 'string' ? o.tablePos : '',
+        // 【スキーマ外】フロー一覧のサイズ（正規化の JSON "[w,h]"。'' = 既定サイズ）。
+        // 右下グリップのドラッグで setOptions 保存される
+        tableSize: typeof o.tableSize === 'string' ? o.tableSize : '',
+        // 【検証用・スキーマ外】光の帯レンダラーの強制指定（'webgl' | '2d'）。
+        // 既定は自動（実 GPU があれば WebGL、無ければ 2D）。
+        // optionsSchema に載せていないキーもダッシュボード定義に書けば viz に届く
+        // （実機確認済み）ため、再起動なしで切り替えて検証できる
+        forceRenderer: ['webgl', '2d'].includes(o.forceRenderer) ? o.forceRenderer : '',
         // 近接した地点をまとめる半径（画面px）。0 で集約しない（1点1マーカー）。
         // 画面距離なので、ズームすると同じ設定値でもクラスタは自然に分離する
         clusterRadius: clamp(num(o.clusterRadius, 18), 0, 80),
@@ -844,118 +878,52 @@ function bezierPoint(sx, sy, cx, cy, tx, ty, t) {
 }
 
 // ---------------------------------------------------------------------------
-// 弧ジオメトリ（bezier / greatcircle の2形状を同一インターフェースで扱う）
-//   - SVG のベース軌道（パス文字列）と Canvas の彗星サンプリングの両方が
-//     ここを通ることで、2つの描画レイヤーの軌道が必ず一致する。
-//   - bezier: 従来の装飾的アーチ（2次ベジェ）。画面座標上の曲線。
-//   - poly(greatcircle): 大円に沿った折れ線。geoInterpolate のサンプル列を投影する。
-//     投影の継ぎ目（±180度）をまたぐと画面上で大きく跳ぶため、跳んだ区間には
-//     brk（このセグメントは描かない）の印を付けて線が画面を横切るのを防ぐ。
+// 弧ジオメトリ（2次ベジェの装飾的アーチ）
+//   SVG のベース軌道（パス文字列）と Canvas の彗星サンプリングの両方が
+//   ここを通ることで、2つの描画レイヤーの軌道が必ず一致する。
+//
+//   【v2.1.0】大円航路（poly / geoInterpolate）は廃止した。折れ線1本あたり
+//   49点の投影とセグメント走査が必要で、線が増えるほど生成コストが積み上がる
+//   （ベジェは制御点1個で済む）。形状の選択肢も無くなったため、geom は
+//   常に bezier の1種類だけになり、各ヘルパーの分岐も消えている。
 // ---------------------------------------------------------------------------
-const GC_SAMPLES = 48;
-
-function buildArcGeom(a, style, projection, breakDist) {
-    if (style === 'greatcircle' && projection && projection.invert) {
-        try {
-            // クラスタ吸着後の端点（画面座標）を経緯度へ戻して大円を引く。
-            // 逆投影が取れない場合は元データの経緯度で代替する
-            const sInv = projection.invert([a.sx, a.sy]);
-            const dInv = projection.invert([a.tx, a.ty]);
-            const src = sInv && sInv.every(Number.isFinite) ? sInv : [a.srcLon, a.srcLat];
-            const dst = dInv && dInv.every(Number.isFinite) ? dInv : [a.dstLon, a.dstLat];
-            const interp = geoInterpolate(src, dst);
-            const pts = [];
-            let prev = null;
-            for (let i = 0; i <= GC_SAMPLES; i += 1) {
-                const p = projection(interp(i / GC_SAMPLES));
-                if (!p || !p.every(Number.isFinite)) {
-                    if (prev) prev.brk = true;
-                    prev = null;
-                    continue;
-                }
-                const pt = { x: p[0], y: p[1], brk: false };
-                if (prev && Math.hypot(pt.x - prev.x, pt.y - prev.y) > breakDist) {
-                    prev.brk = true;
-                }
-                pts.push(pt);
-                prev = pt;
-            }
-            if (pts.length >= 2) return { kind: 'poly', pts };
-        } catch (e) {
-            /* 大円が作れなければベジェへ退避 */
-        }
-    }
+function buildArcGeom(a) {
     const { cx, cy } = arcControl(a.sx, a.sy, a.tx, a.ty);
-    return { kind: 'bezier', sx: a.sx, sy: a.sy, cx, cy, tx: a.tx, ty: a.ty };
+    return { sx: a.sx, sy: a.sy, cx, cy, tx: a.tx, ty: a.ty };
 }
 
 // ジオメトリ → SVG パス文字列（ベース軌道・当たり判定に使用）
 function geomPath(geom) {
-    if (geom.kind === 'bezier') {
-        const { sx, sy, cx, cy, tx, ty } = geom;
-        return `M ${sx.toFixed(1)} ${sy.toFixed(1)} Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${tx.toFixed(1)} ${ty.toFixed(1)}`;
-    }
-    let d = '';
-    let pen = false;
-    geom.pts.forEach((p) => {
-        d += `${pen ? 'L' : 'M'} ${p.x.toFixed(1)} ${p.y.toFixed(1)} `;
-        pen = !p.brk;
-    });
-    return d.trim();
+    const { sx, sy, cx, cy, tx, ty } = geom;
+    return `M ${sx.toFixed(1)} ${sy.toFixed(1)} Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${tx.toFixed(1)} ${ty.toFixed(1)}`;
 }
 
-// ジオメトリ上の点 (t: 0..1) と単位法線。パス外・brk 区間は null
+// ジオメトリ上の点 (t: 0..1) と単位法線。パス外は null
 function geomPoint(geom, t) {
     if (t < 0 || t > 1) return null;
-    if (geom.kind === 'bezier') {
-        const { sx, sy, cx, cy, tx, ty } = geom;
-        const p = bezierPoint(sx, sy, cx, cy, tx, ty, t);
-        const dx = 2 * (1 - t) * (cx - sx) + 2 * t * (tx - cx);
-        const dy = 2 * (1 - t) * (cy - sy) + 2 * t * (ty - cy);
-        const len = Math.hypot(dx, dy) || 1;
-        return { x: p.x, y: p.y, nx: -dy / len, ny: dx / len };
-    }
-    const pts = geom.pts;
-    const n = pts.length;
-    if (n < 2) return null;
-    const f = t * (n - 1);
-    const i = Math.min(Math.floor(f), n - 2);
-    const u = f - i;
-    const a = pts[i];
-    const b = pts[i + 1];
-    if (a.brk) return null; // 継ぎ目をまたぐ区間は描かない
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
+    const { sx, sy, cx, cy, tx, ty } = geom;
+    const p = bezierPoint(sx, sy, cx, cy, tx, ty, t);
+    const dx = 2 * (1 - t) * (cx - sx) + 2 * t * (tx - cx);
+    const dy = 2 * (1 - t) * (cy - sy) + 2 * t * (ty - cy);
     const len = Math.hypot(dx, dy) || 1;
-    return { x: a.x + dx * u, y: a.y + dy * u, nx: -dy / len, ny: dx / len };
+    return { x: p.x, y: p.y, nx: -dy / len, ny: dx / len };
 }
 
 // ジオメトリの終点（到達リップルの中心）
 function geomEnd(geom) {
-    if (geom.kind === 'bezier') return { x: geom.tx, y: geom.ty };
-    const last = geom.pts[geom.pts.length - 1];
-    return last ? { x: last.x, y: last.y } : null;
+    return { x: geom.tx, y: geom.ty };
 }
 
 // ジオメトリの画面上の長さ（px 近似）。
 // 光の帯の「速度の正規化」と「サンプル数の調整」に使う（毎フレームではなく生成時に1回）
 function geomLength(geom) {
-    if (geom.kind === 'bezier') {
-        const { sx, sy, cx, cy, tx, ty } = geom;
-        let len = 0;
-        let prev = { x: sx, y: sy };
-        for (let i = 1; i <= 12; i += 1) {
-            const p = bezierPoint(sx, sy, cx, cy, tx, ty, i / 12);
-            len += Math.hypot(p.x - prev.x, p.y - prev.y);
-            prev = p;
-        }
-        return len;
-    }
+    const { sx, sy, cx, cy, tx, ty } = geom;
     let len = 0;
-    for (let i = 1; i < geom.pts.length; i += 1) {
-        const a = geom.pts[i - 1];
-        const b = geom.pts[i];
-        if (!a.brk) len += Math.hypot(b.x - a.x, b.y - a.y);
+    let prev = { x: sx, y: sy };
+    for (let i = 1; i <= 12; i += 1) {
+        const p = bezierPoint(sx, sy, cx, cy, tx, ty, i / 12);
+        len += Math.hypot(p.x - prev.x, p.y - prev.y);
+        prev = p;
     }
     return len;
 }
@@ -1145,84 +1113,551 @@ function useContainerSize() {
 //   実装メモ:
 //     - 弧は 2次ベジェ。SVG と同じ制御点(arcControl)をサンプリングして完全一致。
 //     - ポリゴン 1 回塗りなのでサンプル同士のアルファ累積も起きない。
-//     - animDuration=0 で rAF を回さない（静的表示。CPU 0）。
 //     - devicePixelRatio は 2 で頭打ち（高精細でも描画量を抑える）。
+//
+// 【v2.1.0 パフォーマンス対策】
+// 2026-08-08 の実機計測で「複数パネルで重い」主因がこの Canvas の
+// 毎フレーム全面再描画（ペイント/コンポジットのコスト。JS ではない）と確定した
+// （4面で 4fps、アニメーションを止めると 49fps）。線が多いときはさらに悪化する。
+// 対策を3層で入れている:
+//   1. **画面外・非表示なら rAF を完全に止める**（IntersectionObserver +
+//      visibilitychange）。ダッシュボードをスクロールして見えていないパネルや、
+//      別タブに切り替えたときのコストがゼロになる。見た目は一切変わらない。
+//   2. **本数に応じて描画 fps を自動で落とす**（30 → 20 → 15fps）。
+//      塗る面積は本数に比例するので、多いときだけ間引いて総ペイント量を抑える。
+//   3. **本数が多いときは帯の描画自体を軽くする**（グロー層を省く・
+//      サンプル点数を減らす）。1本あたりの塗り面積とパス頂点数が直接減る。
+//   さらに duration<=0 では rAF ループ自体を起動しない
+//   （従来は「ループは回して描画だけスキップ」で、コメントの『CPU 0』は不正確だった）。
 // ---------------------------------------------------------------------------
 // 帯の弧長比（パス全体に対する光の帯の長さ）
 const FLOW_LEN = 0.22;
 // 帯を構成するサンプル点の数（多いほど滑らか。数十本×この数でも 60fps 余裕）
 const FLOW_SAMPLES = 16;
 
-function ArcFlowCanvas({ arcs, width, height, duration, hoverKey }) {
+// 描画本数に応じた品質段階。しきい値は「塗り面積 ≒ 本数 × 帯の面積」が
+// 一定に収まるように置いた（実機計測の 4面=4fps を基準に、
+// 多数本でも 1面あたりのペイント量が既定 30fps 相当を超えないようにする）。
+//   frameMs   : 描画間隔（大きいほど低 fps）
+//   glow      : 太く淡いグロー層を描くか（false で塗り面積が約 2.4 倍減る）
+//   maxSamples: 帯の中心線サンプル点数の上限（パス頂点数の上限）
+//   ripple    : 到達リップル（弧ごとの円ストローク）を描くか
+const FLOW_TIERS = [
+    { limit: 120, frameMs: 32, glow: true, maxSamples: 40, ripple: true }, // 〜120本: 30fps・フル品質（グロー有り）
+    { limit: 400, frameMs: 50, glow: true, maxSamples: 28, ripple: true }, // 〜400本: 20fps・サンプル削減
+    { limit: Infinity, frameMs: 66, glow: false, maxSamples: 16, ripple: false }, // 400本超: 15fps・グロー無し
+];
+
+function flowTier(n) {
+    return FLOW_TIERS.find((t) => n <= t.limit) || FLOW_TIERS[FLOW_TIERS.length - 1];
+}
+
+// パネルが大きいときは描画間隔をさらに広げる（⚠ **2D フォールバック専用**）。
+// Canvas 2D は塗り＋合成のコストが表示面積に比例し、内部解像度を下げても
+// 減らない（実機で確認済み: 解像度上限を 1280x720 → 1000x560 に下げても
+// 25.3 → 25.9fps とほぼ変化なし）。減らせるのは「描く回数」だけなので、
+// 面積に応じて fps を落とす。基準は 1920x1080（約207万px）。
+// WebGL2 レンダラー（既定）はこのスロットルを使わない＝大画面でも fps を落とさない。
+const FLOW_AREA_BASE = 1920 * 1080;
+
+function frameMsForArea(baseMs, w, h) {
+    const area = Math.max(1, w * h);
+    if (area <= FLOW_AREA_BASE) return baseMs;
+    // 面積比に比例して間隔を伸ばす（上限 100ms ＝ 10fps）
+    return Math.min(100, Math.round(baseMs * (area / FLOW_AREA_BASE)));
+}
+
+// ---------------------------------------------------------------------------
+// WebGL2 レンダラー（v2.1.0）
+//
+// 【なぜ WebGL か・実機計測 2026-08-09】
+// Canvas 2D は「半透明の帯・グローを塗って全面合成する」コストが
+// **表示面積に比例**し、4K フルスクリーンでは面積スロットルで 10fps まで
+// 落とすしかなかった（それでも重い）。ラスタライズを GPU パイプラインへ
+// 移せばこの面積コストが消える。WebGL2 がカスタム viz の iframe で動くことは
+// 実機確認済み（webgl-in-custom-viz.md: 全画面シェーダで 62fps）。
+//
+// 設計: 光の帯・到達リップル・ホットスポットグローを**すべて
+// 「位置＋頂点色の三角形」**に落とし、1シェーダ・1バッファ・
+// 1 drawArrays で描く。radialGradient は同心リングの頂点色補間で再現する
+// （Canvas のグラデーションもストップ間は線形補間なので、見た目は一致する。
+// 円周の分割誤差は r=44px・24分割で 0.4px 未満＝視認不可）。
+//
+// 透過3点セット（webgl-in-custom-viz.md）:
+//   1. alpha:true / premultipliedAlpha:true でコンテキスト取得
+//   2. シェーダは premultiplied で出力（rgb×a）
+//   3. blendFunc(ONE, ONE_MINUS_SRC_ALPHA) ＋ clearColor(0,0,0,0)
+//
+// WebGL2 が取れない環境は従来の Canvas 2D へフォールバックする
+// （happy-dom のローカル検証もこの 2D 経路を通る）。
+// ---------------------------------------------------------------------------
+const FLOW_VS = `#version 300 es
+layout(location=0) in vec2 aPos;
+layout(location=1) in vec4 aColor;
+uniform vec2 uRes;
+out vec4 vColor;
+void main() {
+    vec2 clip = aPos / uRes * 2.0 - 1.0;
+    gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
+    vColor = aColor;
+}`;
+
+const FLOW_FS = `#version 300 es
+precision mediump float;
+in vec4 vColor;
+out vec4 outColor;
+void main() {
+    outColor = vec4(vColor.rgb * vColor.a, vColor.a);
+}`;
+
+// WebGL を使うべき環境かの判定（iframe ごとに1回だけ・使い捨て canvas で調べる）。
+//
+// 【実機計測 2026-08-09】ソフトウェア GL（SwiftShader）では WebGL にしても
+// 速くならない（合成が CPU のままなので、面積スロットル付きの 2D 経路と同等か
+// わずかに遅い。1080p 30本: 2D 60.1fps / GL 50.7fps）。GPU が無い環境では
+// 2D へ倒し、実 GPU がある環境だけ WebGL を使う。
+//
+// ⚠ 判定は必ず**使い捨ての canvas** で行う。一度 webgl2 コンテキストを取った
+// canvas では getContext('2d') が二度と取れないため、本番の canvas で試すと
+// 「GL をやめて 2D」ができなくなる。
+let FLOW_GL_SUPPORT = null;
+function flowGLSupported() {
+    if (FLOW_GL_SUPPORT !== null) return FLOW_GL_SUPPORT;
+    FLOW_GL_SUPPORT = false;
+    try {
+        const probe = document.createElement('canvas');
+        const gl = probe.getContext('webgl2', { alpha: true });
+        if (gl && typeof gl.createShader === 'function' && typeof gl.getParameter === 'function') {
+            let name = '';
+            try {
+                const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+                name = String(
+                    dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)
+                );
+            } catch (e) {
+                name = '';
+            }
+            // ソフトウェアラスタライザは除外（実測で 2D のほうが速い）
+            FLOW_GL_SUPPORT = !/swiftshader|llvmpipe|softpipe|software/i.test(name);
+            const lose = gl.getExtension('WEBGL_lose_context');
+            if (lose) lose.loseContext();
+        }
+    } catch (e) {
+        FLOW_GL_SUPPORT = false;
+    }
+    return FLOW_GL_SUPPORT;
+}
+
+function createFlowGL(canvas) {
+    let gl = null;
+    try {
+        gl = canvas.getContext('webgl2', {
+            alpha: true,
+            premultipliedAlpha: true,
+            antialias: true,
+        });
+    } catch (e) {
+        return null;
+    }
+    // happy-dom のスタブは任意の type に 2D 相当を返すため、
+    // 「webgl2 と言って返ってきたが GL の関数が無い」ケースも弾く
+    if (!gl || typeof gl.createShader !== 'function') return null;
+
+    let uRes = null;
+    let vbo = null;
+    let lost = false;
+
+    const setup = () => {
+        const compile = (type, src) => {
+            const sh = gl.createShader(type);
+            gl.shaderSource(sh, src);
+            gl.compileShader(sh);
+            if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+                throw new Error(gl.getShaderInfoLog(sh) || 'shader compile failed');
+            }
+            return sh;
+        };
+        const program = gl.createProgram();
+        gl.attachShader(program, compile(gl.VERTEX_SHADER, FLOW_VS));
+        gl.attachShader(program, compile(gl.FRAGMENT_SHADER, FLOW_FS));
+        gl.linkProgram(program);
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+            throw new Error(gl.getProgramInfoLog(program) || 'program link failed');
+        }
+        gl.useProgram(program);
+        uRes = gl.getUniformLocation(program, 'uRes');
+        vbo = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+        // 頂点レイアウト: [x, y, r, g, b, a] × float32（stride 24 バイト）
+        gl.enableVertexAttribArray(0);
+        gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 24, 0);
+        gl.enableVertexAttribArray(1);
+        gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 24, 8);
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        gl.clearColor(0, 0, 0, 0);
+    };
+    try {
+        setup();
+    } catch (e) {
+        return null;
+    }
+    // コンテキストロスト: preventDefault しないと restored が来ない。
+    // ロスト中は描画をスキップし、復帰したらプログラムを組み直す
+    canvas.addEventListener('webglcontextlost', (e) => {
+        e.preventDefault();
+        lost = true;
+    });
+    canvas.addEventListener('webglcontextrestored', () => {
+        try {
+            setup();
+            lost = false;
+        } catch (e) {
+            /* 復帰失敗時は描画停止のまま（次のマウントで再試行される） */
+        }
+    });
+
+    return {
+        isLost: () => lost,
+        // verts: Float32Array（[x,y,r,g,b,a]×count）。count=0 なら消すだけ
+        draw(verts, count, w, h) {
+            if (lost) return;
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            if (count > 0 && verts) {
+                // aPos は CSS px の論理座標。viewport がバッファ解像度差を吸収する
+                gl.uniform2f(uRes, w, h);
+                gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+                gl.bufferData(gl.ARRAY_BUFFER, verts.subarray(0, count * 6), gl.DYNAMIC_DRAW);
+                gl.drawArrays(gl.TRIANGLES, 0, count);
+            }
+        },
+    };
+}
+
+// 毎フレーム作り直さない可変長の頂点バッファ（[x,y,r,g,b,a] × 頂点数）
+function makeVertexSink() {
+    let buf = new Float32Array(6 * 4096);
+    let n = 0;
+    const ensure = (add) => {
+        const need = (n + add) * 6;
+        if (need <= buf.length) return;
+        let cap = buf.length;
+        while (cap < need) cap *= 2;
+        const next = new Float32Array(cap);
+        next.set(buf.subarray(0, n * 6));
+        buf = next;
+    };
+    return {
+        reset() {
+            n = 0;
+        },
+        push(x, y, r, g, b, a) {
+            ensure(1);
+            const o = n * 6;
+            buf[o] = x;
+            buf[o + 1] = y;
+            buf[o + 2] = r;
+            buf[o + 3] = g;
+            buf[o + 4] = b;
+            buf[o + 5] = a;
+            n += 1;
+        },
+        get count() {
+            return n;
+        },
+        get array() {
+            return buf;
+        },
+    };
+}
+
+// 帯（テーパーポリゴン）を三角形列に落とす。pts は collectBandPts の出力
+function emitBandGL(sink, pts, w, scale, cv, alpha) {
+    for (let i = 1; i < pts.length; i += 1) {
+        const p0 = pts[i - 1];
+        const p1 = pts[i];
+        const h0 = w * scale * p0.env;
+        const h1 = w * scale * p1.env;
+        const x0l = p0.x + p0.nx * h0;
+        const y0l = p0.y + p0.ny * h0;
+        const x0r = p0.x - p0.nx * h0;
+        const y0r = p0.y - p0.ny * h0;
+        const x1l = p1.x + p1.nx * h1;
+        const y1l = p1.y + p1.ny * h1;
+        const x1r = p1.x - p1.nx * h1;
+        const y1r = p1.y - p1.ny * h1;
+        sink.push(x0l, y0l, cv[0], cv[1], cv[2], alpha);
+        sink.push(x0r, y0r, cv[0], cv[1], cv[2], alpha);
+        sink.push(x1l, y1l, cv[0], cv[1], cv[2], alpha);
+        sink.push(x1l, y1l, cv[0], cv[1], cv[2], alpha);
+        sink.push(x0r, y0r, cv[0], cv[1], cv[2], alpha);
+        sink.push(x1r, y1r, cv[0], cv[1], cv[2], alpha);
+    }
+}
+
+// 到達リップル（輪）を三角形列に落とす
+const RING_SEGS = 28;
+function emitRingGL(sink, cx, cy, radius, thickness, cv, alpha) {
+    const rIn = Math.max(0, radius - thickness / 2);
+    const rOut = radius + thickness / 2;
+    let pix = 0;
+    let piy = 0;
+    let pox = 0;
+    let poy = 0;
+    for (let i = 0; i <= RING_SEGS; i += 1) {
+        const t = (i / RING_SEGS) * Math.PI * 2;
+        const cos = Math.cos(t);
+        const sin = Math.sin(t);
+        const xi = cx + cos * rIn;
+        const yi = cy + sin * rIn;
+        const xo = cx + cos * rOut;
+        const yo = cy + sin * rOut;
+        if (i > 0) {
+            sink.push(pix, piy, cv[0], cv[1], cv[2], alpha);
+            sink.push(pox, poy, cv[0], cv[1], cv[2], alpha);
+            sink.push(xi, yi, cv[0], cv[1], cv[2], alpha);
+            sink.push(xi, yi, cv[0], cv[1], cv[2], alpha);
+            sink.push(pox, poy, cv[0], cv[1], cv[2], alpha);
+            sink.push(xo, yo, cv[0], cv[1], cv[2], alpha);
+        }
+        pix = xi;
+        piy = yi;
+        pox = xo;
+        poy = yo;
+    }
+}
+
+// 放射グラデーション円（ホットスポットのグロー）を同心リングの頂点色補間で描く。
+// stopsV は [r,g,b,a]×4（半径 0 / 0.3r / 0.7r / r の色）。
+// Canvas の createRadialGradient もストップ間は線形補間なので見た目は一致する
+const DISC_SEGS = 24;
+const DISC_STOP_T = [0, 0.3, 0.7, 1];
+function emitDiscGL(sink, cx, cy, r, stopsV, alphaMul) {
+    for (let band = 0; band < 3; band += 1) {
+        const r0 = r * DISC_STOP_T[band];
+        const r1 = r * DISC_STOP_T[band + 1];
+        const c0 = stopsV[band];
+        const c1 = stopsV[band + 1];
+        const a0 = c0[3] * alphaMul;
+        const a1 = c1[3] * alphaMul;
+        let pix = 0;
+        let piy = 0;
+        let pox = 0;
+        let poy = 0;
+        for (let i = 0; i <= DISC_SEGS; i += 1) {
+            const t = (i / DISC_SEGS) * Math.PI * 2;
+            const cos = Math.cos(t);
+            const sin = Math.sin(t);
+            const xi = cx + cos * r0;
+            const yi = cy + sin * r0;
+            const xo = cx + cos * r1;
+            const yo = cy + sin * r1;
+            if (i > 0) {
+                sink.push(pix, piy, c0[0], c0[1], c0[2], a0);
+                sink.push(pox, poy, c1[0], c1[1], c1[2], a1);
+                sink.push(xi, yi, c0[0], c0[1], c0[2], a0);
+                sink.push(xi, yi, c0[0], c0[1], c0[2], a0);
+                sink.push(pox, poy, c1[0], c1[1], c1[2], a1);
+                sink.push(xo, yo, c1[0], c1[1], c1[2], a1);
+            }
+            pix = xi;
+            piy = yi;
+            pox = xo;
+            poy = yo;
+        }
+    }
+}
+
+// 帯の中心線サンプルを集める（2D / WebGL の両経路で共有 → 軌道が食い違わない）
+function collectBandPts(a, head, maxSamples) {
+    const samples = Math.min(a.samples || FLOW_SAMPLES, maxSamples);
+    const pts = [];
+    for (let s = 0; s <= samples; s += 1) {
+        const u = s / samples; // 0=帯の先頭, 1=帯の末尾
+        const p = geomPoint(a.geom, head - u * FLOW_LEN);
+        if (!p) continue; // パス外（出発前/到達後）は描かない
+        pts.push({ x: p.x, y: p.y, nx: p.nx, ny: p.ny, env: Math.sin(Math.PI * u) });
+    }
+    return pts;
+}
+
+// 光の帯キャンバスの「塗るピクセル数」の上限（CSS px 換算の面積）。
+//
+// 【なぜ必要か・実機計測 2026-08-09】
+// この Canvas は毎フレーム全面を塗り直すため、コストは**画面の広さに比例**する。
+// 弧30本・4パネルで解像度だけを変えた実測:
+//     1280x720 → 13.2fps ／ 1920x1080 → 5.9fps ／ 2560x1440 → 3.5fps
+// 本数ではなく面積が支配的で、**大画面ほど不利**（面積が4倍になれば4倍重い）。
+// そこで内部バッファを一定面積で頭打ちにし、CSS で引き伸ばして表示する。
+// 光の帯はもともと柔らかい発光なので、多少低い解像度で描いても見た目の差が出にくい
+// （輪郭のある地図・文字は SVG 側なので、そちらの精細さは一切落ちない）。
+// 1280x720 相当（約92万px）を上限にすると、4K でも塗る量はこの値で一定になる。
+const FLOW_MAX_PIXELS = 1280 * 720;
+
+function ArcFlowCanvas({ arcs, spots, width, height, duration, hoverKey, forceRenderer }) {
     const canvasRef = useRef(null);
     // 最新の arcs / サイズを rAF ループから参照するための ref（再購読でループを
     // 張り直さず、値だけ差し替える）
-    const stateRef = useRef({ arcs, width, height, duration, hoverKey });
-    stateRef.current = { arcs, width, height, duration, hoverKey };
+    const stateRef = useRef({ arcs, spots, width, height, duration, hoverKey });
+    stateRef.current = { arcs, spots, width, height, duration, hoverKey };
+    const forceRef = useRef(forceRenderer);
+    forceRef.current = forceRenderer;
     // ホバー強調の減光係数（弧ID → 現在値）。毎フレーム目標値へ漸近させ、
     // 強調の ON/OFF をフェードで切り替える（瞬時に切り替わると画面がチカつく）
     const dimRef = useRef(new Map());
 
+    // --- 画面外・非表示の検出（rAF を完全に止めるための条件） ----------------
+    // ダッシュボードに複数パネルを並べると、見えていないパネルのアニメーションも
+    // 同じメインスレッドを食う（同一オリジン iframe はスレッドを共有する。
+    // 2026-08-08 実機計測で確認）。見えていない間は描画する意味が無いので止める。
+    const [visible, setVisible] = useState(true);
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        // ドキュメントが隠れている（別タブ・最小化）間も止める
+        const isDocVisible = () =>
+            typeof document === 'undefined' || document.visibilityState !== 'hidden';
+        let inView = true;
+        const sync = () => setVisible(inView && isDocVisible());
+
+        const onVis = () => sync();
+        if (typeof document !== 'undefined') {
+            document.addEventListener('visibilitychange', onVis);
+        }
+
+        let observer = null;
+        if (canvas && typeof IntersectionObserver !== 'undefined') {
+            observer = new IntersectionObserver(
+                (entries) => {
+                    const e = entries[entries.length - 1];
+                    if (e) {
+                        inView = e.isIntersecting;
+                        sync();
+                    }
+                },
+                // わずかでも見えていれば描く（境界で点滅させない）
+                { threshold: 0 }
+            );
+            observer.observe(canvas);
+        }
+        sync();
+        return () => {
+            if (typeof document !== 'undefined') {
+                document.removeEventListener('visibilitychange', onVis);
+            }
+            if (observer) observer.disconnect();
+        };
+    }, []);
+
+    // アニメーションが不要な条件（静止指定 / 弧が無い / 見えていない）では
+    // rAF ループそのものを起動しない。依存に入れることで、条件が変わった
+    // ときだけループが張り直される
+    const animate = visible && duration > 0 && (arcs.length > 0 || spots.length > 0);
+
+    // レンダラーは canvas 要素ごとに1回だけ決める。
+    // 【重要】一度 webgl2 コンテキストを取った canvas では getContext('2d') が
+    // 二度と取れない（null になる）ため、途中でのモード切替はできない。
+    const rendererRef = useRef(null);
+
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas || !width || !height) return undefined;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return undefined;
+        let renderer = rendererRef.current;
+        if (!renderer || renderer.canvas !== canvas) {
+            // 既定は自動判定（実 GPU があれば WebGL）。forceRenderer で上書き可
+            const force = forceRef.current;
+            const wantGL = force === 'webgl' || (force !== '2d' && flowGLSupported());
+            const glr = wantGL ? createFlowGL(canvas) : null;
+            if (glr) {
+                renderer = { kind: 'gl', glr, canvas };
+            } else {
+                const ctx2d = canvas.getContext('2d');
+                renderer = ctx2d ? { kind: '2d', ctx: ctx2d, canvas } : null;
+            }
+            rendererRef.current = renderer;
+            if (renderer) {
+                // 実機での経路確認用（スクリーンショットだけでは GL か 2D か
+                // 区別できないため、コンソールと data 属性の両方に残す）
+                canvas.dataset.gtmRenderer = renderer.kind;
+                // eslint-disable-next-line no-console
+                console.info(`[world-map] flow renderer: ${renderer.kind === 'gl' ? 'webgl2' : 'canvas2d'}`);
+            }
+        }
+        if (!renderer) return undefined;
+        const isGL = renderer.kind === 'gl';
+        const ctx = isGL ? null : renderer.ctx;
 
-        const dpr = Math.min(2, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
+        // 内部バッファの倍率。
+        // WebGL はフラグメントが「光の帯の面積ぶん」しか走らないので
+        // 表示解像度そのまま（dpr 上限2）。2D は塗り＋合成が面積に比例するため、
+        // FLOW_MAX_PIXELS に収まるよう倍率を下げる（＝塗る量を頭打ちにする）。
+        // canvas は CSS で 100% に引き伸ばされるので、倍率を下げても
+        // 表示サイズは変わらない（解像度だけが下がる）。
+        const dprRaw = Math.min(2, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
+        let dpr = dprRaw;
+        if (!isGL) {
+            // 2D は塗り＋合成が面積に比例するため FLOW_MAX_PIXELS で頭打ちにする。
+            // GL は実 GPU 前提（ソフトウェア GL は自動判定で 2D に倒れる）なので
+            // 表示解像度そのまま＝4K でも精細に描く
+            const area = Math.max(1, width * height);
+            const fit = Math.sqrt(FLOW_MAX_PIXELS / area);
+            // 極端に小さくすると光が粗く見えるので下限を置く
+            dpr = clamp(Math.min(dprRaw, fit), 0.5, 2);
+        }
         canvas.width = Math.max(1, Math.round(width * dpr));
         canvas.height = Math.max(1, Math.round(height * dpr));
 
-        let raf = 0;
-
-        // 光の帯1本を描く。head は帯の先頭位置(0..1)。帯は head から後方へ
-        // FLOW_LEN ぶんの区間を占め、幅・不透明度とも sin エンベロープで
-        // 前後両端に向かって 0 に窄まる（テーパー形状）。
-        // 軌道の形状（ベジェ / 大円折れ線）は geomPoint が吸収する。
-        const drawFlow = (a, head, k) => {
-            const { geom, color, w } = a;
-            // 帯の中心線サンプル（座標＋法線＋エンベロープ）を先に集める。
-            // サンプル数は弧の画面長に応じて増やす（長い帯が折れ線に見えないように）
-            const samples = a.samples || FLOW_SAMPLES;
-            const pts = [];
-            for (let s = 0; s <= samples; s += 1) {
-                const u = s / samples; // 0=帯の先頭, 1=帯の末尾
-                const p = geomPoint(geom, head - u * FLOW_LEN);
-                if (!p) continue; // パス外（出発前/到達後）・投影の継ぎ目は描かない
-                pts.push({ x: p.x, y: p.y, nx: p.nx, ny: p.ny, env: Math.sin(Math.PI * u) });
+        // 停止条件のときは「消してから」ループを起動せずに抜ける。
+        // 直前まで描いていた光が残像として残らないようにする
+        if (!animate) {
+            if (isGL) {
+                renderer.glr.draw(null, 0, width, height);
+            } else {
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                ctx.clearRect(0, 0, width, height);
             }
-            if (pts.length < 2) return;
-            // 中心線の左右に halfWidth ぶん張り出したテーパーポリゴンを 1 回で
-            // 塗る。重ね塗りしないのでアルファが累積せず、色は fillStyle の
-            // カテゴリ色を超えない（＝白飛びしない）。
-            const fillBand = (scale, alpha) => {
-                ctx.beginPath();
-                pts.forEach((p, i) => {
-                    const hw = w * scale * p.env;
-                    if (i === 0) ctx.moveTo(p.x + p.nx * hw, p.y + p.ny * hw);
-                    else ctx.lineTo(p.x + p.nx * hw, p.y + p.ny * hw);
-                });
-                for (let i = pts.length - 1; i >= 0; i -= 1) {
-                    const p = pts[i];
-                    const hw = w * scale * p.env;
-                    ctx.lineTo(p.x - p.nx * hw, p.y - p.ny * hw);
-                }
-                ctx.closePath();
-                ctx.globalAlpha = alpha;
-                ctx.fill();
-            };
+            return undefined;
+        }
+
+        let raf = 0;
+        // WebGL 用の頂点バッファ（毎フレーム reset して使い回す）
+        const sink = isGL ? makeVertexSink() : null;
+
+        // --- 2D フォールバック用の描画関数 --------------------------------
+        // 光の帯1本を描く。中心線の左右に halfWidth ぶん張り出した
+        // テーパーポリゴンを1回で塗る（重ね塗りしないのでアルファが累積せず、
+        // 色は fillStyle のカテゴリ色を超えない＝白飛びしない）。
+        const fillBand2D = (pts, w, scale, alpha) => {
+            ctx.beginPath();
+            pts.forEach((p, i) => {
+                const hw = w * scale * p.env;
+                if (i === 0) ctx.moveTo(p.x + p.nx * hw, p.y + p.ny * hw);
+                else ctx.lineTo(p.x + p.nx * hw, p.y + p.ny * hw);
+            });
+            for (let i = pts.length - 1; i >= 0; i -= 1) {
+                const p = pts[i];
+                const hw = w * scale * p.env;
+                ctx.lineTo(p.x - p.nx * hw, p.y - p.ny * hw);
+            }
+            ctx.closePath();
+            ctx.globalAlpha = alpha;
+            ctx.fill();
+        };
+        const drawFlow2D = (a, pts, k, tier) => {
             ctx.save();
-            ctx.fillStyle = color;
-            fillBand(2.4, 0.18 * k); // 太く淡い同色グロー（柔らかい輪郭）
-            fillBand(1.0, 0.9 * k); // 締まった芯
+            ctx.fillStyle = a.color;
+            // グロー層は塗り面積が芯の約2.4倍あり、ペイントコストの大半を占める。
+            // 本数が多い段階では省き、芯だけを少し濃くして見え方を補う
+            if (tier.glow) {
+                fillBand2D(pts, a.w, 2.4, 0.18 * k); // 太く淡い同色グロー
+                fillBand2D(pts, a.w, 1.0, 0.9 * k); // 締まった芯
+            } else {
+                fillBand2D(pts, a.w, 1.0, 0.95 * k);
+            }
             ctx.restore();
         };
-
-        // 到達リップル: 帯の先頭が終点を通過した直後（head が 1 を超えている間）、
-        // 終点から細い輪をひとつ広げて消す。「着弾した」ことが目で追える
-        const drawRipple = (a, head, k) => {
-            if (head <= 1 || !a.end) return;
-            const rt = Math.min((head - 1) / FLOW_LEN, 1); // 0→1 で拡大しつつ減衰
+        // 到達リップル: 終点から細い輪をひとつ広げて消す
+        const drawRipple2D = (a, rt, k) => {
             ctx.save();
             ctx.beginPath();
             ctx.arc(a.end.x, a.end.y, 2.5 + rt * (10 + a.w * 4), 0, Math.PI * 2);
@@ -1232,28 +1667,57 @@ function ArcFlowCanvas({ arcs, width, height, duration, hoverKey }) {
             ctx.stroke();
             ctx.restore();
         };
+        const drawSpot2D = (s, r, alpha) => {
+            const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r);
+            g.addColorStop(0, s.inner);
+            g.addColorStop(0.3, s.mid);
+            g.addColorStop(0.7, s.outer);
+            g.addColorStop(1, s.edge);
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        };
 
-        // 描画は最大30fpsに間引く（負荷も半減）。
+        // 描画間隔は本数に応じて決まる（FLOW_TIERS）。既定（〜120本）は従来どおり
+        // 32ms＝約30fps で、本数が増えるほど間引いて総ペイント量を一定に近づける。
         let lastDraw = 0;
-        const FRAME_MIN_MS = 32;
         // アニメーションの時刻は実時間（wall clock）ではなく、
         // 「描画したフレームごとに一定量」進める（固定ステップ方式）。
         // 実時間追従だと、描画が遅れたフレームで遅れたぶん光が大きく跳び、
         // それが「ガクつき」に見える（特に画面上の速度が高い遠距離の弧で顕著）。
         // 固定ステップなら移動量が毎フレーム等しく、負荷でフレームが落ちても
         // 「全体がわずかにゆっくりになる」だけで、跳びは原理的に発生しない。
-        // 装飾アニメーションであり実時間との同期に意味は無いので、滑らかさを優先する
+        // 装飾アニメーションであり実時間との同期に意味は無いので、滑らかさを優先する。
+        // ⚠ 品質段階で frameMs が変わっても「1秒あたりの進み量」は変えない
+        //   （fps を落としても光の速度が変わらないよう、実際の間隔で積算する）
         let animT = 0;
 
         const frame = (now) => {
             raf = requestAnimationFrame(frame);
-            if (now - lastDraw < FRAME_MIN_MS) return;
-            lastDraw = now;
             const st = stateRef.current;
-            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-            ctx.clearRect(0, 0, st.width, st.height);
-            if (st.duration > 0 && st.arcs.length > 0) {
-                animT += FRAME_MIN_MS / 1000;
+            // 本数は絞り込み（凡例フィルタ・maxArcs）で動くため、毎フレーム見て
+            // 品質段階を決める。ループを張り直さずに段階だけ切り替わる
+            const tier = flowTier(st.arcs.length);
+            const dt = now - lastDraw;
+            // 2D フォールバックのみ表示面積でも間引く（塗り＋合成が面積比例のため）。
+            // WebGL は面積の影響が小さいので本数段階の fps だけで描く
+            const minMs = isGL ? tier.frameMs : frameMsForArea(tier.frameMs, st.width, st.height);
+            if (dt < minMs) return;
+            lastDraw = now;
+            if (isGL) {
+                if (renderer.glr.isLost()) return;
+                sink.reset();
+            } else {
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                ctx.clearRect(0, 0, st.width, st.height);
+            }
+            if (st.duration > 0 && (st.arcs.length > 0 || st.spots.length > 0)) {
+                // 実際に経過した間隔で進める（上限を置いてタブ復帰時の大跳びを防ぐ）
+                animT += Math.min(dt, 250) / 1000;
                 // 帯の先頭は 0→1 を周回。帯の末尾が終点を過ぎてから次周が始点に
                 // 入るよう、1+FLOW_LEN 周期で動かして「到達 → リップル → 再出発」を
                 // 途切れなくループさせる。弧ごとに固有の位相オフセット（a.off）を
@@ -1265,6 +1729,21 @@ function ArcFlowCanvas({ arcs, width, height, duration, hoverKey }) {
                 // 短い弧は従来どおり duration 秒で走る（これ以上速くはしない）
                 const refLen = Math.hypot(st.width, st.height) * 0.5;
                 const dims = dimRef.current;
+                // ホットスポットのグロー（攻撃元は3秒周期で脈動・攻撃先は静的）。
+                // SVG で描くと半透明の大きなグラデーション円の合成が重いため、
+                // 毎フレーム描いているこのレイヤーに相乗りさせている（実機計測:
+                // 2560x1440・4面で SVG 描画 21.6fps → 移設で大幅改善）
+                st.spots.forEach((s) => {
+                    let env = 0;
+                    if (s.pulse) {
+                        const ph = ((animT + s.off * 3) / 3) % 1;
+                        env = 0.5 - 0.5 * Math.cos(ph * Math.PI * 2); // 0→1→0
+                    }
+                    const r = s.r * (1 + 0.3 * env);
+                    const alpha = 1 - 0.4 * env;
+                    if (isGL) emitDiscGL(sink, s.x, s.y, r, s.stopsV, alpha);
+                    else drawSpot2D(s, r, alpha);
+                });
                 st.arcs.forEach((a) => {
                     const durScale = Math.min(Math.max((a.len || refLen) / refLen, 1), 4);
                     const phase = (animT / (st.duration * durScale)) % 1;
@@ -1276,20 +1755,54 @@ function ArcFlowCanvas({ arcs, width, height, duration, hoverKey }) {
                     const cur = dims.has(a.id) ? dims.get(a.id) : 1;
                     const k = Math.abs(target - cur) < 0.01 ? target : cur + (target - cur) * 0.18;
                     dims.set(a.id, k);
-                    drawFlow(a, head, k);
-                    drawRipple(a, head, k);
+                    // 帯の中心線サンプル（2D / GL 共通 → 軌道が食い違わない）
+                    const pts = collectBandPts(a, head, tier.maxSamples);
+                    if (pts.length >= 2) {
+                        if (isGL) {
+                            if (tier.glow) {
+                                emitBandGL(sink, pts, a.w, 2.4, a.colorV, 0.18 * k);
+                                emitBandGL(sink, pts, a.w, 1.0, a.colorV, 0.9 * k);
+                            } else {
+                                emitBandGL(sink, pts, a.w, 1.0, a.colorV, 0.95 * k);
+                            }
+                        } else {
+                            drawFlow2D(a, pts, k, tier);
+                        }
+                    }
+                    // 到達リップル（head が 1 を超えている間だけ）
+                    if (tier.ripple && head > 1 && a.end) {
+                        const rt = Math.min((head - 1) / FLOW_LEN, 1); // 0→1 で拡大しつつ減衰
+                        if (isGL) {
+                            emitRingGL(
+                                sink,
+                                a.end.x,
+                                a.end.y,
+                                2.5 + rt * (10 + a.w * 4),
+                                0.5 + 1.4 * (1 - rt),
+                                a.colorV,
+                                0.5 * (1 - rt) * k
+                            );
+                        } else {
+                            drawRipple2D(a, rt, k);
+                        }
+                    }
                 });
+                // 減光係数の記録が、消えた弧のぶんだけ際限なく増えないようにする
+                if (dims.size > st.arcs.length * 2 + 64) dims.clear();
             }
+            if (isGL) renderer.glr.draw(sink.array, sink.count, st.width, st.height);
         };
         raf = requestAnimationFrame(frame);
         return () => cancelAnimationFrame(raf);
-    }, [width, height]);
+    }, [width, height, animate]);
 
+    // width/height 属性は **付けない**。バッファ解像度は上の effect が
+    // FLOW_MAX_PIXELS に合わせて決めるので、React に CSS px で上書きさせない
+    // （属性を書くと再レンダリングのたびに解像度の頭打ちが外れてしまう）。
+    // 表示サイズは CSS の 100% で決まる。
     return (
         <canvas
             ref={canvasRef}
-            width={width}
-            height={height}
             style={{
                 position: 'absolute',
                 inset: 0,
@@ -1324,6 +1837,144 @@ function MessageState({ message }) {
 }
 
 // ---------------------------------------------------------------------------
+// カテゴリフィルタのドロップダウン（v2.1.0）
+//
+// 以前は @splunk/react-ui の Select を使っていたが、ポップアップが SUI テーマの
+// 標準スタイル（ベタ塗りの角ばったメニュー・太い選択枠）で描かれ、
+// ガラス調 HUD のオーバーレイ群から**この欄だけ浮いていた**
+// （実機スクリーンショットで指摘）。自前の軽量ドロップダウンに置き換え、
+// 閉じた状態もポップアップも OVERLAY_* トークンと MAP_PALETTES で統一する。
+// ---------------------------------------------------------------------------
+function HudSelect({ value, options, onChange, mode }) {
+    const [open, setOpen] = useState(false);
+    const rootRef = useRef(null);
+    const dark = mode === 'dark';
+    const palette = MAP_PALETTES[dark ? 'dark' : 'light'];
+    const hoverBg = dark ? 'rgba(56, 166, 255, 0.14)' : 'rgba(56, 166, 255, 0.10)';
+
+    // 外側クリック / Escape で閉じる（開いている間だけ購読する）
+    useEffect(() => {
+        if (!open) return undefined;
+        const onDown = (e) => {
+            if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false);
+        };
+        const onKey = (e) => {
+            if (e.key === 'Escape') setOpen(false);
+        };
+        document.addEventListener('pointerdown', onDown, true);
+        document.addEventListener('keydown', onKey);
+        return () => {
+            document.removeEventListener('pointerdown', onDown, true);
+            document.removeEventListener('keydown', onKey);
+        };
+    }, [open]);
+
+    const current = options.find((o) => o.value === value) || options[0];
+    return (
+        <div ref={rootRef} style={{ position: 'relative' }}>
+            <button
+                type="button"
+                onClick={() => setOpen((o) => !o)}
+                aria-haspopup="listbox"
+                aria-expanded={open}
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    background: 'transparent',
+                    border: 'none',
+                    padding: '6px 10px',
+                    color: palette.legendText,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    letterSpacing: '0.02em',
+                    fontFamily: 'inherit',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                }}
+            >
+                {current ? current.label : ''}
+                <span
+                    aria-hidden="true"
+                    style={{
+                        fontSize: 9,
+                        opacity: 0.8,
+                        transform: open ? 'rotate(180deg)' : 'none',
+                        transition: 'transform 0.15s',
+                    }}
+                >
+                    ▼
+                </span>
+            </button>
+            {open && (
+                <div
+                    role="listbox"
+                    className="gtm-scroll"
+                    style={{
+                        position: 'absolute',
+                        top: `calc(100% + ${OVERLAY_GAP + 4}px)`,
+                        right: -4, // 外枠（padding 4px）の右端に揃える
+                        minWidth: 'calc(100% + 8px)',
+                        maxWidth: 280,
+                        maxHeight: 260,
+                        overflowY: 'auto',
+                        background: palette.panelBg,
+                        border: palette.panelBorder,
+                        borderRadius: OVERLAY_RADIUS,
+                        boxShadow: OVERLAY_SHADOW,
+                        padding: 4,
+                        zIndex: 10,
+                    }}
+                >
+                    {options.map((o) => {
+                        const sel = o.value === value;
+                        return (
+                            <div
+                                key={o.value}
+                                role="option"
+                                aria-selected={sel}
+                                onClick={() => {
+                                    onChange(o.value);
+                                    setOpen(false);
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = hoverBg;
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'transparent';
+                                }}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    gap: 10,
+                                    padding: '6px 10px',
+                                    borderRadius: 6,
+                                    color: palette.legendText,
+                                    fontSize: 12,
+                                    fontWeight: sel ? 700 : 400,
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap',
+                                }}
+                            >
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {o.label}
+                                </span>
+                                {sel && (
+                                    <span aria-hidden="true" style={{ opacity: 0.9, flexShrink: 0 }}>
+                                        ✓
+                                    </span>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ---------------------------------------------------------------------------
 // マップ本体
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
@@ -1340,48 +1991,68 @@ function MessageState({ message }) {
 // 切り捨てが起きたときはフッターに「上位 N 行を表示（全 M 行）」と明示する
 const TABLE_MAX_ROWS = 200;
 
+// フロー一覧の保存位置（"[x,y]" 正規化 0..1）を解釈する。不正値は null（既定位置）
+function parseTablePos(str) {
+    if (typeof str !== 'string' || str === '') return null;
+    try {
+        const v = JSON.parse(str);
+        if (!Array.isArray(v) || v.length < 2) return null;
+        const x = Number(v[0]);
+        const y = Number(v[1]);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+        return { x: clamp(x, 0, 0.95), y: clamp(y, 0, 0.95) };
+    } catch (e) {
+        return null;
+    }
+}
+
+// フロー一覧の保存サイズ（"[w,h]" 正規化 0..1）を解釈する。不正値は null（既定サイズ）
+function parseTableSize(str) {
+    if (typeof str !== 'string' || str === '') return null;
+    try {
+        const v = JSON.parse(str);
+        if (!Array.isArray(v) || v.length < 2) return null;
+        const w = Number(v[0]);
+        const h = Number(v[1]);
+        if (!Number.isFinite(w) || !Number.isFinite(h)) return null;
+        return { w: clamp(w, 0.15, 1), h: clamp(h, 0.1, 0.95) };
+    } catch (e) {
+        return null;
+    }
+}
+
 // 表示名が無い地点は座標で示す（テーブルの表示とソートの両方で同じ表記を使う）
 function endpointText(name, lat, lon) {
     return name || `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
 }
 
-function FlowTable({ rows, totalRows, colorOf, showCategory, categoryHeader, countHeader, hasCount, mode, heightPct, collapsedInit, sort, onSort, onRowHover, registerRow }) {
+function FlowTable({ rows, totalRows, colorOf, showCategory, categoryHeader, countHeader, hasCount, mode, heightPct, collapsed, setCollapsed, filterBottom, pos, size, dirty, onSavePos, onSaveSize, onResetLayout, sort, onSort, onRowHover, registerRow }) {
     const [hoverId, setHoverId] = useState(null);
-    // 折りたたみ状態。ヘッダーバーのクリックで切り替える（地図が見たいときに
-    // ワンクリックでピル状に最小化できる）。初期状態はオプションに従い、
-    // オプションが変わったら（編集画面のチェック操作）表示へ反映する
-    const [collapsed, setCollapsed] = useState(!!collapsedInit);
-    useEffect(() => {
-        setCollapsed(!!collapsedInit);
-    }, [collapsedInit]);
+    // 折りたたみ状態は **呼び出し側（ThreatMap）が持つ**。
+    // ズーム倍率ピルをこのピルの下へ積む必要があり、位置の決定に
+    // 折りたたみ状態が要るため（v2.2.0 で state を持ち上げた）。
+    // 【v2.2.0】オーバーレイの質感はフィルタ・凡例と共通のトークン（MAP_PALETTES）
+    // から作る。以前はこのテーブルだけ独自の色・角丸・影を持っていたため、
+    // 折りたたみピルとカテゴリフィルタが隣り合うと**見た目が揃わなかった**
+    // （実機スクリーンショットで指摘）。共通化して同じ「板」に見えるようにする。
     const dark = mode === 'dark';
-    const palette = dark
-        ? {
-              bg: 'rgba(10, 24, 46, 0.85)',
-              border: '1px solid rgba(90, 140, 200, 0.35)',
-              headBg: 'rgba(10, 24, 46, 0.92)',
-              headText: 'rgba(160, 200, 255, 0.85)',
-              text: '#e8eef6',
-              subText: 'rgba(160, 185, 220, 0.75)',
-              rowBorder: 'rgba(120, 180, 255, 0.10)',
-              hoverBg: 'rgba(56, 166, 255, 0.14)',
-              shadow: '0 6px 24px rgba(0, 0, 0, 0.35)',
-          }
-        : {
-              bg: 'rgba(255, 255, 255, 0.88)',
-              border: '1px solid rgba(90, 140, 200, 0.45)',
-              headBg: 'rgba(255, 255, 255, 0.95)',
-              headText: '#5a6672',
-              text: '#24354a',
-              subText: '#6b7684',
-              rowBorder: 'rgba(90, 140, 200, 0.15)',
-              hoverBg: 'rgba(56, 166, 255, 0.10)',
-              shadow: '0 6px 24px rgba(30, 60, 100, 0.15)',
-          };
+    const base = MAP_PALETTES[dark ? 'dark' : 'light'];
+    const palette = {
+        bg: base.panelBg,
+        border: base.panelBorder,
+        headBg: 'transparent',
+        headText: dark ? 'rgba(160, 200, 255, 0.85)' : '#5a6672',
+        text: base.legendText,
+        subText: dark ? 'rgba(160, 185, 220, 0.75)' : '#6b7684',
+        rowBorder: dark ? 'rgba(120, 180, 255, 0.10)' : 'rgba(90, 140, 200, 0.15)',
+        hoverBg: dark ? 'rgba(56, 166, 255, 0.14)' : 'rgba(56, 166, 255, 0.10)',
+        shadow: OVERLAY_SHADOW,
+    };
     const th = {
         position: 'sticky',
         top: 0,
-        background: palette.headBg,
+        // スクロール時に行が透けないよう、見出しだけは不透明寄りの下地を敷く
+        background: dark ? 'rgba(10, 24, 46, 0.95)' : 'rgba(255, 255, 255, 0.95)',
         color: palette.headText,
         textAlign: 'left',
         fontWeight: 600,
@@ -1407,51 +2078,211 @@ function FlowTable({ rows, totalRows, colorOf, showCategory, categoryHeader, cou
     };
     // ソート状態の表示（アクティブな列に ▲ / ▼ を付ける）
     const arrow = (key) => (sort.key === key ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '');
+
+    // --- ヘッダーバーのドラッグでテーブルを移動する（v2.1.0） ---
+    // 【性能設計】移動中は React を通さず **DOM の style を直接書く**
+    // （再レンダリングゼロ。200行のテーブルをドラッグ中に再描画しない）。
+    // 保存（onSavePos → setOptions）は**離した時に1回だけ**。
+    // クリック（折りたたみトグル）との区別は移動量 4px のしきい値で行い、
+    // ドラッグ後のクリックイベントは1回だけ握りつぶす。
+    const rootRef = useRef(null);
+    const headerDragRef = useRef(null);
+    const suppressClickRef = useRef(false);
+    const onHeaderPointerDown = useCallback((e) => {
+        // 折りたたみピルは常に右上ドック固定なのでドラッグ対象にしない
+        // （クリック＝展開トグルはそのまま生きる）
+        if (collapsed) return;
+        const root = rootRef.current;
+        const panel = root ? root.offsetParent : null;
+        if (!root || !panel) return;
+        const panelRect = panel.getBoundingClientRect ? panel.getBoundingClientRect() : null;
+        const boxRect = root.getBoundingClientRect ? root.getBoundingClientRect() : null;
+        // happy-dom 等で実寸が取れない環境ではドラッグ無効（クリックは生きる）
+        if (!panelRect || !panelRect.width || !panelRect.height || !boxRect) return;
+        const st = {
+            startX: e.clientX,
+            startY: e.clientY,
+            // 掴んだ瞬間の箱の左上（パネル座標）
+            boxX: boxRect.left - panelRect.left,
+            boxY: boxRect.top - panelRect.top,
+            boxW: boxRect.width,
+            boxH: boxRect.height,
+            panelW: panelRect.width,
+            panelH: panelRect.height,
+            moved: false,
+            last: null,
+        };
+        headerDragRef.current = st;
+        const w = window;
+        const onMove = (mv) => {
+            const d = headerDragRef.current;
+            if (!d || !Number.isFinite(mv.clientX)) return;
+            const dx = mv.clientX - d.startX;
+            const dy = mv.clientY - d.startY;
+            if (!d.moved && Math.hypot(dx, dy) < 4) return; // クリックとの区別
+            d.moved = true;
+            // 箱がパネルの外へ出ないようクランプ（ヘッダーを掴めなくならないように）
+            const x = clamp(d.boxX + dx, 4, Math.max(4, d.panelW - d.boxW - 4));
+            const y = clamp(d.boxY + dy, 4, Math.max(4, d.panelH - 28));
+            d.last = { x: x / d.panelW, y: y / d.panelH };
+            const el = rootRef.current;
+            if (el) {
+                el.style.left = `${x}px`;
+                el.style.top = `${y}px`;
+                el.style.right = 'auto';
+                el.style.bottom = 'auto';
+            }
+        };
+        const onUp = () => {
+            const d = headerDragRef.current;
+            headerDragRef.current = null;
+            ['pointermove', 'mousemove'].forEach((t) => w.removeEventListener(t, onMove));
+            ['pointerup', 'mouseup'].forEach((t) => w.removeEventListener(t, onUp));
+            if (d && d.moved && d.last) {
+                suppressClickRef.current = true; // 直後の click（トグル）を1回無効化
+                onSavePos(d.last);
+            }
+        };
+        ['pointermove', 'mousemove'].forEach((t) => w.addEventListener(t, onMove));
+        ['pointerup', 'mouseup'].forEach((t) => w.addEventListener(t, onUp));
+    }, [onSavePos, collapsed]);
+    const onHeaderClick = useCallback(() => {
+        if (suppressClickRef.current) {
+            suppressClickRef.current = false;
+            return;
+        }
+        setCollapsed((c) => !c);
+    }, [setCollapsed]);
+
+    // --- 右下グリップのドラッグでサイズ変更（v2.1.0） ---
+    // ヘッダードラッグと同じ性能設計: 移動中は DOM の style を直接書き
+    // （再レンダリングゼロ）、保存は離した時に1回だけ
+    const gripDragRef = useRef(null);
+    const onGripPointerDown = useCallback((e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const root = rootRef.current;
+        const panel = root ? root.offsetParent : null;
+        if (!root || !panel) return;
+        const panelRect = panel.getBoundingClientRect ? panel.getBoundingClientRect() : null;
+        const boxRect = root.getBoundingClientRect ? root.getBoundingClientRect() : null;
+        if (!panelRect || !panelRect.width || !panelRect.height || !boxRect) return;
+        gripDragRef.current = {
+            startX: e.clientX,
+            startY: e.clientY,
+            w0: boxRect.width,
+            h0: boxRect.height,
+            boxX: boxRect.left - panelRect.left,
+            boxY: boxRect.top - panelRect.top,
+            panelW: panelRect.width,
+            panelH: panelRect.height,
+            moved: false,
+            last: null,
+        };
+        const w = window;
+        const onMove = (mv) => {
+            const d = gripDragRef.current;
+            if (!d || !Number.isFinite(mv.clientX)) return;
+            const dw = mv.clientX - d.startX;
+            const dh = mv.clientY - d.startY;
+            if (!d.moved && Math.hypot(dw, dh) < 3) return;
+            d.moved = true;
+            // パネルからはみ出さない範囲で 220x64px を下限にクランプ
+            const nw = clamp(d.w0 + dw, 220, Math.max(220, d.panelW - d.boxX - 4));
+            const nh = clamp(d.h0 + dh, 64, Math.max(64, d.panelH - d.boxY - 4));
+            d.last = { w: nw / d.panelW, h: nh / d.panelH };
+            const el = rootRef.current;
+            if (el) {
+                el.style.width = `${nw}px`;
+                el.style.height = `${nh}px`;
+                // 既定スタイルの maxWidth/maxHeight に阻まれないよう一時解除
+                el.style.maxWidth = 'none';
+                el.style.maxHeight = 'none';
+            }
+        };
+        const onUp = () => {
+            const d = gripDragRef.current;
+            gripDragRef.current = null;
+            ['pointermove', 'mousemove'].forEach((t) => w.removeEventListener(t, onMove));
+            ['pointerup', 'mouseup'].forEach((t) => w.removeEventListener(t, onUp));
+            const el = rootRef.current;
+            if (el) {
+                // 直接書いた一時スタイルを消し、React（size prop）に管理を戻す
+                el.style.maxWidth = '';
+                el.style.maxHeight = '';
+            }
+            if (d && d.moved && d.last) onSaveSize(d.last);
+        };
+        ['pointermove', 'mousemove'].forEach((t) => w.addEventListener(t, onMove));
+        ['pointerup', 'mouseup'].forEach((t) => w.addEventListener(t, onUp));
+    }, [onSaveSize]);
+
+    // 位置・サイズ由来のスタイル（restored 値が枠外へはみ出さないよう数値でクランプ）
+    const effSize = collapsed || !size
+        ? null
+        : {
+              w: clamp(Math.min(size.w, pos ? 0.99 - pos.x : 0.9), 0.15, 1),
+              h: clamp(Math.min(size.h, pos ? 0.99 - pos.y : 0.9), 0.1, 0.95),
+          };
+
     return (
         <div
+            ref={rootRef}
             data-viz-ui="1"
             onDoubleClick={(e) => e.stopPropagation()}
             onMouseLeave={leave}
             style={{
                 position: 'absolute',
-                // 【展開時】右下・最下部（右側を約190px空けて Splunk のホバー
-                // ツールバーと水平方向に共存）。
-                // 【折りたたみ時】ピルは右上・カテゴリフィルタの左隣へ移動し、
-                // 地図の下部を完全に空ける（2026-08-09 ユーザー指定）
+                // 【位置】折りたたみピルは**常に右上のドック位置**（カテゴリフィルタの
+                // 真下）。保存位置（pos）は**展開時のみ**適用する。
+                // ピルまで保存位置に付いていくと、畳んだ意味（地図を空ける）が
+                // 失われるため（実機で指摘）。展開すると保存位置に戻る。
                 ...(collapsed
-                    ? { top: 12, right: 160 }
-                    : { bottom: 12, right: 190 }),
-                // 幅はコンパクトに（パネルの約38%・最低280px）。
-                // それも入らなければ残り幅いっぱいまで縮む。
-                // 折りたたみ中はヘッダーバーだけのピルに縮む
-                width: collapsed ? 'auto' : 'clamp(280px, 38%, calc(100% - 202px))',
-                // 内容が少なければ縮み、上限を超えると中身がスクロール（下の余白を作らない）
-                maxHeight: `${heightPct}%`,
+                    ? { top: filterBottom, right: 16 }
+                    : pos
+                      ? { left: `${pos.x * 100}%`, top: `${pos.y * 100}%` }
+                      : { bottom: 12, right: 190 }),
+                // 【サイズ】グリップで変えたサイズ（effSize。枠外へ出ない値に
+                // クランプ済み）が最優先。未設定なら従来の既定:
+                //   幅 = パネルの約38%（最低280px、入らなければ残り幅まで縮む）
+                //   高さ = 内容にフィットし、上限 heightPct% で中身がスクロール
+                // 折りたたみ中はヘッダーバーだけのピルに縮む（サイズ指定は無視）
+                ...(effSize
+                    ? {
+                          width: `${effSize.w * 100}%`,
+                          height: `${effSize.h * 100}%`,
+                          minWidth: 220,
+                          minHeight: 64,
+                      }
+                    : {
+                          width: collapsed ? 'auto' : 'clamp(280px, 38%, calc(100% - 202px))',
+                          maxHeight: `${heightPct}%`,
+                      }),
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden',
                 background: palette.bg,
                 border: palette.border,
-                borderRadius: 10,
-                backdropFilter: 'blur(10px)',
-                WebkitBackdropFilter: 'blur(10px)',
+                borderRadius: OVERLAY_RADIUS,
                 boxShadow: palette.shadow,
                 zIndex: 4,
             }}
         >
-            {/* ヘッダーバー: クリックで折りたたみ／展開。
-                地図がテーブルに隠れて見たいときに、ワンクリックでどかせる */}
+            {/* ヘッダーバー: クリックで折りたたみ／展開、ドラッグで移動。
+                地図がテーブルに隠れて見たいときに、どかす手段が2つある */}
             <div
                 data-gtm="flow-table-toggle"
-                onClick={() => setCollapsed((c) => !c)}
-                title={collapsed ? 'クリックで展開' : 'クリックで折りたたむ'}
+                onClick={onHeaderClick}
+                onPointerDown={onHeaderPointerDown}
+                title={collapsed ? 'クリックで展開' : 'ドラッグで移動 / クリックで折りたたむ'}
                 style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
                     padding: '6px 10px',
-                    cursor: 'pointer',
+                    cursor: collapsed ? 'pointer' : 'grab',
                     userSelect: 'none',
+                    touchAction: 'none',
                     flex: '0 0 auto',
                     color: palette.headText,
                     fontSize: 11,
@@ -1475,9 +2306,48 @@ function FlowTable({ rows, totalRows, colorOf, showCategory, categoryHeader, cou
                 <span style={{ marginLeft: 4, color: palette.subText, fontWeight: 400 }}>
                     {`${formatCount(totalRows)} 行`}
                 </span>
+                {/* 位置・サイズの変更が未確定（表示モードで動かしただけ）の間の目印。
+                    編集モードに入って保存すると確定し、この表示は消える */}
+                {dirty && (
+                    <span
+                        data-gtm="flow-table-dirty"
+                        title="位置・サイズの変更は未確定です。編集モードに入って保存すると恒久化されます"
+                        style={{
+                            marginLeft: 2,
+                            color: palette.subText,
+                            fontWeight: 400,
+                            fontSize: 10,
+                            opacity: 0.9,
+                        }}
+                    >
+                        未保存
+                    </span>
+                )}
+                {/* ドラッグ／リサイズした後だけ出る「既定に戻す」。
+                    クリック（トグル）と衝突しないよう伝播を止める */}
+                {(pos || size) && (
+                    <span
+                        data-gtm="flow-table-reset-pos"
+                        title="既定の位置とサイズに戻す"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onResetLayout();
+                        }}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        style={{
+                            marginLeft: 2,
+                            padding: '0 4px',
+                            cursor: 'pointer',
+                            opacity: 0.75,
+                            fontSize: 12,
+                        }}
+                    >
+                        ⟲
+                    </span>
+                )}
             </div>
             {collapsed ? null : (
-            <div style={{ overflow: 'auto', minHeight: 0, flex: '0 1 auto' }}>
+            <div className="gtm-scroll" style={{ overflow: 'auto', minHeight: 0, flex: '0 1 auto' }}>
             {rows.length === 0 ? (
                 <div style={{ padding: '10px 12px', fontSize: 12, color: palette.subText }}>
                     表示できるフローがありません（絞り込みで全件が除外されています）
@@ -1569,6 +2439,31 @@ function FlowTable({ rows, totalRows, colorOf, showCategory, categoryHeader, cou
                 </div>
             )}
             </div>
+            )}
+            {/* 右下のリサイズグリップ（展開時のみ）。ドラッグでサイズ変更 */}
+            {!collapsed && (
+                <div
+                    data-gtm="flow-table-resize"
+                    onPointerDown={onGripPointerDown}
+                    title="ドラッグでサイズ変更"
+                    style={{
+                        position: 'absolute',
+                        right: 1,
+                        bottom: 0,
+                        width: 16,
+                        height: 16,
+                        cursor: 'nwse-resize',
+                        color: palette.subText,
+                        fontSize: 10,
+                        lineHeight: '16px',
+                        textAlign: 'center',
+                        userSelect: 'none',
+                        touchAction: 'none',
+                        opacity: 0.7,
+                    }}
+                >
+                    ◢
+                </div>
             )}
         </div>
     );
@@ -1665,14 +2560,13 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
         };
     }, [customBg, palette]);
 
-    // 陸地: カスタム陸地色が有効なら、縁取りとグローもその色から導出する。
-    // 完全透過の場合は陸地を描画しない
+    // 陸地: カスタム陸地色が有効なら、縁取りもその色から導出する。
+    // 完全透過の場合は陸地を描画しない。
+    // 【v2.1.0】グロー層は廃止したため glow / glowOpacity は持たない
     const land = useMemo(() => {
         if (!customLand) {
             return {
                 visible: true,
-                glow: palette.landGlow,
-                glowOpacity: palette.landGlowOpacity,
                 fill: palette.landFill,
                 stroke: palette.landStroke,
                 strokeOpacity: palette.landStrokeOpacity,
@@ -1683,8 +2577,6 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
         }
         return {
             visible: true,
-            glow: toCss(tint(customLand, 0.25)),
-            glowOpacity: palette.landGlowOpacity,
             fill: toCss(customLand),
             stroke: toCss(tint(customLand, 0.4)),
             strokeOpacity: 0.5,
@@ -1701,6 +2593,8 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                 core: toCss(tint(base, 0.72)),
                 glowInner: toCss(tint(base, 0.55)),
                 glowMid: toCss(tint(base, 0.2)),
+                // WebGL 用の 0-1 正規化 RGB（頂点色として使う）
+                rgbV: [base.r / 255, base.g / 255, base.b / 255],
             };
         });
         return out;
@@ -2242,18 +3136,17 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
         [countRange, opts.widthScale]
     );
 
-    // 弧のジオメトリ（形状はオプションの arcStyle で決まる）。
+    // 弧のジオメトリ（2次ベジェ）。
     // SVG のベース軌道・当たり判定・Canvas の彗星がすべて同じ geom を使うので、
     // どの描画レイヤーでも軌道が食い違わない
-    const arcGeoms = useMemo(() => {
-        const projection = geo ? geo.projection : null;
-        // 大円折れ線が投影の継ぎ目で「跳んだ」とみなす画面距離
-        const breakDist = size ? Math.max(size.w, size.h) * 0.45 : 400;
-        return arcs.map((t) => {
-            const geom = buildArcGeom(t, opts.arcStyle, projection, breakDist);
-            return { t, geom, d: geomPath(geom) };
-        });
-    }, [arcs, opts.arcStyle, geo, size]);
+    const arcGeoms = useMemo(
+        () =>
+            arcs.map((t) => {
+                const geom = buildArcGeom(t);
+                return { t, geom, d: geomPath(geom) };
+            }),
+        [arcs]
+    );
 
     // Canvas の光の帯用の弧データ（ジオメトリ・色・線幅を事前計算して rAF から使う）
     const flowArcs = useMemo(
@@ -2266,6 +3159,8 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                     geom,
                     end: geomEnd(geom), // 到達リップルの中心
                     color: derived[t.category]?.css || 'rgb(56, 166, 255)',
+                    // WebGL 用の頂点色（0-1 正規化）。css と同じ色
+                    colorV: derived[t.category]?.rgbV || [56 / 255, 166 / 255, 1],
                     w: arcWidth(t.count),
                     len,
                     // 帯の中心線サンプル数。帯の画面長 ≒ len×FLOW_LEN に対して
@@ -2282,6 +3177,45 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
             }),
         [arcGeoms, derived, arcWidth]
     );
+
+    // Canvas に描くホットスポットのグロー（v2.2.0）。
+    // 攻撃元は脈動（3秒周期・位相をずらす）、攻撃先は静的な淡いグロー。
+    // SVG の radialGradient（gtm-hot-*）と同じ色・同じ停止位置を再現する。
+    const flowSpots = useMemo(() => {
+        if (!animOn) return []; // 静止時は SVG 側が1回だけ描く
+        const build = (list, radiusOf, scale, pulse) =>
+            list.map((s, i) => {
+                const base = categoryColors[s.category] || parseColor(DEFAULT_CATEGORY_COLOR);
+                const inner = tint(base, 0.55);
+                const mid = tint(base, 0.2);
+                return {
+                    x: s.x,
+                    y: s.y,
+                    r: radiusOf(s),
+                    // SVG の stop（0%/30%/70%/100%）と同じ不透明度を色に載せる
+                    // （2D フォールバックの createRadialGradient 用の CSS 文字列）
+                    inner: withAlpha(inner, 0.95 * scale),
+                    mid: withAlpha(mid, 0.5 * scale),
+                    outer: withAlpha(base, 0.17 * scale),
+                    edge: withAlpha(base, 0),
+                    // WebGL 用の同じ4ストップ（[r,g,b,a] 0-1 正規化。半径 0/0.3r/0.7r/r）
+                    stopsV: [
+                        [inner.r / 255, inner.g / 255, inner.b / 255, (inner.a ?? 1) * 0.95 * scale],
+                        [mid.r / 255, mid.g / 255, mid.b / 255, (mid.a ?? 1) * 0.5 * scale],
+                        [base.r / 255, base.g / 255, base.b / 255, (base.a ?? 1) * 0.17 * scale],
+                        [base.r / 255, base.g / 255, base.b / 255, 0],
+                    ],
+                    // 脈動の位相。従来の begin={(i%5)*0.5s} と同じ5段階
+                    off: pulse ? (i % 5) * 0.5 / 3 : 0,
+                    pulse,
+                };
+            });
+        return [
+            // 攻撃先（静的・やや淡い）を先に描き、攻撃元を上に重ねる
+            ...build(targets, () => 20, 0.85, false),
+            ...build(sources, (s) => Math.min(26 + Math.sqrt(s.count) * 1.5, 44), 1, true),
+        ];
+    }, [animOn, sources, targets, categoryColors]);
 
     // --- 地名ラベル（ズーム段階で国名 → 都市名が現れる） -------------------
     // 画面外は捨て、重なるものは重要度の高い方を残す（地図アプリの間引きと同じ）。
@@ -2443,6 +3377,136 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
     // 地図と食い違う一覧を出さない（絞り込んだら表も絞る）。
     // 並び順は列ヘッダーのクリックで変更できる（既定は値の大きい順）
     const [tableSort, setTableSort] = useState({ key: 'count', dir: 'desc' });
+    // フロー一覧の折りたたみ状態。ズーム倍率ピルをこのピルの下に積むため、
+    // FlowTable のローカル state ではなくここで持つ（v2.2.0）。
+    // オプション（編集画面のチェック）が変わったら表示へ反映する
+    const [tableCollapsed, setTableCollapsed] = useState(!!opts.tableCollapsed);
+    useEffect(() => {
+        setTableCollapsed(!!opts.tableCollapsed);
+    }, [opts.tableCollapsed]);
+
+    // --- フロー一覧の位置とサイズ（ドラッグ／リサイズ ⇔ options 保存） --------
+    // link-line の labelPos と同じ機構（実機確認済み）:
+    //   - 位置は tablePos（"[x,y]"）、サイズは tableSize（"[w,h]"）。どちらも
+    //     正規化座標のスキーマ外キーとして setOptions で保存する（再起動不要）
+    //   - 表示モード中の setOptions はダッシュボード定義に取り込まれないことが
+    //     あるため、pending に保持して**編集モードに入った瞬間に再送（flush）**する。
+    //     編集モードで「保存」すると定義に永続化される
+    //   - 外部変更（undo・他画面）には追従し、自分の保存の echo は消し込む。
+    //     【v2.1.0 修正】ただし **pending がある間は外部値で上書きしない**。
+    //     以前は「外部値 ≠ 直近保存値なら pending ごと破棄」していたため、
+    //     編集モード突入時にホストが定義から古い options を再配信すると
+    //     保存待ちの位置がその瞬間に消え、flush が空振り＝**保存したはずの
+    //     位置修正が再読み込みで元に戻る**ことがあった。ユーザーの最新操作を
+    //     ホストへの反映が確認できるまで保持する
+    const { options: rawOptions, setOptions } = useOptions();
+    const modeApi = useMode();
+    const isEdit = modeApi?.mode === 'edit';
+    const optsTablePos = useMemo(() => parseTablePos(opts.tablePos), [opts.tablePos]);
+    const optsTableSize = useMemo(() => parseTableSize(opts.tableSize), [opts.tableSize]);
+    // 'default' = リセット直後（echo 到着前でも既定の位置・サイズを出すためのセンチネル）
+    const [tablePosDraft, setTablePosDraft] = useState(null);
+    const [tableSizeDraft, setTableSizeDraft] = useState(null);
+    const tablePendingRef = useRef({}); // { tablePos?, tableSize? }
+    const lastSavedRef = useRef({}); // { tablePos?, tableSize? }
+    // 未保存の変更があるか（ヘッダーの「未保存」表示用。ref だけだと再描画されない）
+    const [tableDirty, setTableDirty] = useState(false);
+    const syncDirty = () => setTableDirty(Object.keys(tablePendingRef.current).length > 0);
+    const rawOptionsRef = useRef(rawOptions);
+    rawOptionsRef.current = rawOptions;
+    const setOptionsRef = useRef(setOptions);
+    setOptionsRef.current = setOptions;
+
+    // 外部変更への追従（キーごと共通）。
+    //   - 自分の保存の echo（incoming === pending）→ pending を消費して確定
+    //   - それ以外の外部値 → draft を捨てて追従する。ただし **pending は消さない**。
+    //     編集モード突入時にホストが古い定義の options を再配信しても、
+    //     直後の flush（下の effect）が pending を再送するので最終的に
+    //     ユーザーの最新操作が勝つ。
+    //     ⚠ pending を「外部値と不一致」で消してはいけない（旧実装のバグ）。
+    //       また「不一致の間は draft も維持」にすると、echo と同値の変更イベントが
+    //       来ない限り pending が残留し、以後の正当な外部更新まで永遠にブロックする
+    //       （テストで検出）。追従と pending 保持は分離するのが正しい
+    const followExternal = (key, incoming, setDraft) => {
+        if (tablePendingRef.current[key] !== undefined && incoming === tablePendingRef.current[key]) {
+            delete tablePendingRef.current[key]; // ホストに反映された（draft は表示継続でよい）
+            syncDirty();
+            return;
+        }
+        if (incoming !== lastSavedRef.current[key]) setDraft(null);
+    };
+    useEffect(() => {
+        followExternal('tablePos', typeof opts.tablePos === 'string' ? opts.tablePos : '', setTablePosDraft);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [opts.tablePos]);
+    useEffect(() => {
+        followExternal('tableSize', typeof opts.tableSize === 'string' ? opts.tableSize : '', setTableSizeDraft);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [opts.tableSize]);
+
+    // 編集モードに入った瞬間、未確定の変更を正規ルートで再送して定義を dirty にする
+    useEffect(() => {
+        if (!isEdit) return;
+        const raw = rawOptionsRef.current && typeof rawOptionsRef.current === 'object' ? rawOptionsRef.current : {};
+        const pend = tablePendingRef.current;
+        const patch = {};
+        ['tablePos', 'tableSize'].forEach((key) => {
+            if (pend[key] !== undefined && pend[key] !== (typeof raw[key] === 'string' ? raw[key] : '')) {
+                patch[key] = pend[key];
+            }
+        });
+        if (Object.keys(patch).length > 0 && typeof setOptionsRef.current === 'function') {
+            setOptionsRef.current({ ...raw, ...patch });
+        }
+    }, [isEdit]);
+
+    // 保存の共通処理（pending 登録・setOptions 送信）。
+    // 【重要】送信は必ず1回にまとめ、**pending 全体を毎回重ねて**送る。
+    //   - 2回に分けると、2回目が古い rawOptions を展開して1回目を上書きする
+    //     （リセットで実際に発生。テストで検出した実バグ）
+    //   - 表示モード中はホストが options を echo しないことがあるため、
+    //     rawOptions には直前の保存が載っていない。pending を重ねないと
+    //     次の保存で前の保存が落ちる
+    const saveTableFields = (patch, drafts) => {
+        Object.entries(patch).forEach(([key, json]) => {
+            lastSavedRef.current[key] = json;
+            tablePendingRef.current[key] = json;
+        });
+        drafts.forEach(([setDraft, v]) => setDraft(v));
+        syncDirty();
+        const raw = rawOptionsRef.current && typeof rawOptionsRef.current === 'object' ? rawOptionsRef.current : {};
+        if (typeof setOptionsRef.current === 'function') {
+            setOptionsRef.current({ ...raw, ...tablePendingRef.current });
+        }
+    };
+    const saveTablePos = useCallback((p) => {
+        const json = p
+            ? JSON.stringify([Math.round(p.x * 10000) / 10000, Math.round(p.y * 10000) / 10000])
+            : '';
+        saveTableFields({ tablePos: json }, [[setTablePosDraft, p ? { ...p } : 'default']]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    const saveTableSize = useCallback((sz) => {
+        const json = sz
+            ? JSON.stringify([Math.round(sz.w * 10000) / 10000, Math.round(sz.h * 10000) / 10000])
+            : '';
+        saveTableFields({ tableSize: json }, [[setTableSizeDraft, sz ? { ...sz } : 'default']]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    // ⟲ は位置とサイズの両方を既定へ戻す（setOptions は1回だけ）
+    const resetTableLayout = useCallback(() => {
+        saveTableFields(
+            { tablePos: '', tableSize: '' },
+            [
+                [setTablePosDraft, 'default'],
+                [setTableSizeDraft, 'default'],
+            ]
+        );
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const tablePos = tablePosDraft === 'default' ? null : tablePosDraft || optsTablePos;
+    const tableSize = tableSizeDraft === 'default' ? null : tableSizeDraft || optsTableSize;
     const onTableSort = useCallback((key) => {
         setTableSort((s) =>
             s.key === key
@@ -2549,6 +3613,15 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
         const showLegend = opts.showLegend && w >= 200 && h >= 140;
         const legendCompact = w < 360 || h < 240;
 
+        // 右上の縦積みの基準。フィルタが出ていればその下、無ければ最上段。
+        // フィルタの高さ ≒ 44px（Select 36px + padding 4px×2）
+        // 自前ドロップダウン（HudSelect）の高さ ≒ 40px（ボタン 6px pad×2 +
+        // 文字 ~16px + 外枠 padding 4px×2 + 境界線）
+        const filterBottom = showFilter ? 12 + 40 + OVERLAY_GAP : 12;
+        // フロー一覧が「折りたたみピル」として右上のドック位置に居るか。
+        // ピルは保存位置に関係なく常にドックに居る（展開時のみ保存位置が効く）
+        const stackFlowPill = opts.showTable && tableCollapsed;
+
         // タイトルのフォントは幅に応じて 22px→12px にクランプ
         const titleFont = Math.max(12, Math.min(22, Math.round(w * 0.028)));
         // タイトルの最大横幅（パネル幅から左右余白と右側フィルタ分を差し引く）
@@ -2584,9 +3657,18 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
             legSwatchW,
             legSwatchH,
             legDir,
+            // 右上に縦積みするオーバーレイの段の位置（px）。
+            // 【v2.2.0】ズーム倍率ピルとフロー一覧の折りたたみピルが
+            // カテゴリフィルタと重ならないよう、**相手の幅に依存しない縦積み**にする。
+            // フィルタの高さは約 44px（Select + padding 4px×2）。
+            filterBottom,
+            // ズームピルはさらにその下。フロー一覧を折りたたみ表示している場合は
+            // そのピル（高さ約 29px）のぶんも下げる
+            zoomPillTop:
+                filterBottom + (stackFlowPill ? 29 + OVERLAY_GAP : 0),
         };
     }, [size, opts.showTitle, opts.titleText, opts.showFilter, opts.showLegend,
-        opts.showTotals, opts.showCategoryCounts]);
+        opts.showTotals, opts.showCategoryCounts, opts.showTable, tableCollapsed]);
 
     return (
         <div
@@ -2662,16 +3744,11 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                                 <circle cx="3.5" cy="3.5" r="1.3" fill={land.visible ? land.fill : 'none'} />
                             </pattern>
                         )}
-                        <filter id="gtm-land-blur" x="-10%" y="-10%" width="120%" height="120%">
-                            <feGaussianBlur stdDeviation="7" />
-                        </filter>
-                        <filter id="gtm-soft-blur" x="-20%" y="-20%" width="140%" height="140%">
-                            <feGaussianBlur stdDeviation="2.5" />
-                        </filter>
-                        {/* 弧の発光: ベース軌道をにじませてネオンの熱量を出す */}
-                        <filter id="gtm-arc-glow" x="-30%" y="-30%" width="160%" height="160%">
-                            <feGaussianBlur stdDeviation="3.2" />
-                        </filter>
+                        {/* 【v2.1.0】弧の発光フィルタ（feGaussianBlur）は廃止した。
+                            弧ごとにぼかしがラスタライズされ、コストが
+                            「本数 × パネル面積」で増える最大の重さの原因だった
+                            （実機計測: 2560x1440 で 3.5fps → 外すと 12.2fps）。
+                            今は太く薄い実線を重ねてにじみを表現している。 */}
                     </defs>
 
                     {/* 背景（完全透過時は描画しない） */}
@@ -2694,12 +3771,14 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                     {/* 大陸（グロー層 + 本体 + 階層国境。完全透過時は描画しない） */}
                     {land.visible && (
                         <>
-                            <path
-                                d={geo.landPath}
-                                fill={land.glow}
-                                opacity={land.glowOpacity}
-                                filter="url(#gtm-land-blur)"
-                            />
+                            {/* 【v2.1.0】陸地のグロー層は**丸ごと廃止**した。
+                                ぼかしフィルタ版も、その代替として試した
+                                「太い縁取りストローク」版も、どちらも
+                                大陸の全頂点をなぞる巨大なパスを半透明で塗るため
+                                大画面で極端に重い（実機計測 2560x1440・弧30本・4面:
+                                グロー有り 7.4fps → 廃止 23.3fps ＝ 3.1倍）。
+                                陸地の輪郭は下の海岸線ストロークで十分読めるので、
+                                グロー層は復活させないこと。 */}
                             {/* ドットマトリクス時は淡いベタ塗りを下敷きにして
                                 シルエットを読めるようにし、その上にドットを重ねる */}
                             {opts.landStyle === 'dots' && (
@@ -2739,31 +3818,30 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                         const tipSub = `${describeCategory(s.category)}${formatCount(s.count)} ${totals.unit}`;
                         return (
                             <g key={`src-${i}`}>
-                                <circle
-                                    cx={s.x}
-                                    cy={s.y}
-                                    r={base}
-                                    fill={`url(#gtm-hot-${catIndex[s.category] ?? 0})`}
-                                >
-                                    {animOn && (
-                                        <animate
-                                            attributeName="r"
-                                            values={`${base};${base * 1.3};${base}`}
-                                            dur="3s"
-                                            begin={`${(i % 5) * 0.5}s`}
-                                            repeatCount="indefinite"
-                                        />
-                                    )}
-                                    {animOn && (
-                                        <animate
-                                            attributeName="opacity"
-                                            values="1;0.6;1"
-                                            dur="3s"
-                                            begin={`${(i % 5) * 0.5}s`}
-                                            repeatCount="indefinite"
-                                        />
-                                    )}
-                                </circle>
+                                {/* 脈動グロー。
+                                    【v2.2.0】SMIL の <animate>（r / opacity）をやめ、
+                                    **CSS の transform アニメーション**に置き換えた。
+                                    `r` を動かすとジオメトリが変わるため、地図レイヤー全体が
+                                    毎フレーム再ラスタライズされる（実機計測: これだけで
+                                    2560x1440・4面が 22.1fps → 止めると 26.1fps）。
+                                    transform / opacity は**コンポジタだけで処理される**ので、
+                                    ラスタライズをやり直さずに同じ見た目が出せる。
+                                    transform-origin をスポット座標に置き、拡大の中心を合わせる。 */}
+                                {/* 脈動グローは **アニメーション時は Canvas 側**が描く
+                                    （ArcFlowCanvas の spots）。半透明の大きな
+                                    グラデーション円を SVG で毎フレーム合成すると、
+                                    コンポジタ処理でも極端に重いため（実機計測:
+                                    2560x1440・4面で 21.6fps → 消すと 48.1fps）。
+                                    静止時（animDuration=0）は Canvas が動かないので、
+                                    ここで一度だけ SVG として描く。 */}
+                                {!animOn && (
+                                    <circle
+                                        cx={s.x}
+                                        cy={s.y}
+                                        r={base}
+                                        fill={`url(#gtm-hot-${catIndex[s.category] ?? 0})`}
+                                    />
+                                )}
                                 <circle
                                     cx={s.x}
                                     cy={s.y}
@@ -2804,13 +3882,18 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                         const tipSub = `${describeCategory(t.category)}${formatCount(t.count)} ${totals.unit}`;
                         return (
                         <g key={`dst-${i}`}>
-                            <circle
-                                cx={t.x}
-                                cy={t.y}
-                                r="20"
-                                fill={`url(#gtm-hot-${catIndex[t.category] ?? 0})`}
-                                opacity="0.85"
-                            />
+                            {/* 攻撃先のグローも、アニメーション時は Canvas 側が描く
+                                （半透明の大きな円は SVG だと合成コストが高いため）。
+                                静止時のみ SVG で1回だけ描く。 */}
+                            {!animOn && (
+                                <circle
+                                    cx={t.x}
+                                    cy={t.y}
+                                    r="20"
+                                    fill={`url(#gtm-hot-${catIndex[t.category] ?? 0})`}
+                                    opacity="0.85"
+                                />
+                            )}
                             <circle
                                 cx={t.x}
                                 cy={t.y}
@@ -2848,7 +3931,14 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                         ツールチップ(title)はここに置き、常にホバー可能にする。
                           軌道1: 太く柔らかい発光ハロー（熱をにじませる）
                           軌道2: 細い芯線（弧の存在を常に示す薄い実線）
-                        animOn 時は軌道を控えめにして彗星を主役に、静的時は芯線を濃くする。 */}
+                        animOn 時は軌道を控えめにして彗星を主役に、静的時は芯線を濃くする。
+
+                        【v2.1.0】ハローに feGaussianBlur を使うのをやめた。
+                        SVG フィルタは弧ごとにラスタライズされ、コストが
+                        「本数 × パネル面積」で効くため、**大画面ほど極端に重くなる**
+                        （実機計測: 弧30本・4面・2560x1440 で 3.5fps。フィルタを
+                        外すだけで 12.2fps ＝ 3.4倍）。太さと不透明度の違う実線を
+                        重ねてにじみを出す方式に置き換え、フィルタを完全に無くした。 */}
                     {arcGeoms.map(({ t, d }) => {
                         const color = derived[t.category]?.css || 'rgb(56, 166, 255)';
                         const width = arcWidth(t.count);
@@ -2864,23 +3954,36 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                         const tipSub = `${describeCategory(t.category)}${formatCount(t.count)} ${totals.unit}`;
                         return (
                             <g key={`arc-${t.id}`}>
+                                {/* ハロー（熱のにじみ）。
+                                    ぼかしフィルタは使わず「太くて薄い実線」で表現する。
+                                    2本重ねることで中心ほど濃くなり、ぼかしに近い見え方になる。 */}
                                 <path
                                     d={d}
                                     fill="none"
                                     stroke={color}
-                                    strokeWidth={width * 2.4}
+                                    strokeWidth={width * 3.4}
                                     strokeLinecap="round"
-                                    opacity={(animOn ? 0.14 : 0.28) * k}
-                                    filter="url(#gtm-arc-glow)"
+                                    opacity={(animOn ? 0.05 : 0.09) * k}
                                     style={{ transition: 'opacity 0.25s ease' }}
                                 />
                                 <path
                                     d={d}
                                     fill="none"
                                     stroke={color}
+                                    strokeWidth={width * 1.8}
+                                    strokeLinecap="round"
+                                    opacity={(animOn ? 0.1 : 0.2) * k}
+                                    style={{ transition: 'opacity 0.25s ease' }}
+                                />
+                                {/* 芯線。data-gtm="arc" は「弧の本数と色」を指す安定した目印 */}
+                                <path
+                                    d={d}
+                                    data-gtm="arc"
+                                    fill="none"
+                                    stroke={color}
                                     strokeWidth={width * 0.7}
                                     strokeLinecap="round"
-                                    opacity={(animOn ? 0.3 : 0.75) * k}
+                                    opacity={(animOn ? 0.34 : 0.75) * k}
                                     style={{ transition: 'opacity 0.25s ease' }}
                                 />
                                 {/* 透明な太い当たり判定。細い線でもホバー/クリックしやすくする。
@@ -2954,6 +4057,8 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
             {geo && size && (
                 <ArcFlowCanvas
                     arcs={flowArcs}
+                    spots={flowSpots}
+                    forceRenderer={opts.forceRenderer}
                     width={size.w}
                     height={size.h}
                     duration={opts.animDuration}
@@ -2974,8 +4079,6 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                         background: palette.panelBg,
                         border: palette.panelBorder,
                         borderRadius: 8,
-                        backdropFilter: 'blur(10px)',
-                        WebkitBackdropFilter: 'blur(10px)',
                         padding: '6px 10px',
                         color: palette.legendText,
                         fontSize: 12,
@@ -3066,11 +4169,11 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
             )}
 
             {/* カテゴリフィルタ（右上・地図の内側。サーチ結果から動的生成）
-                狭幅パネルではタイトルとの衝突を避けるため非表示 */}
+                狭幅パネルではタイトルとの衝突を避けるため非表示。
+                他のオーバーレイと同じガラス調の板（OVERLAY_* トークン）で描く */}
             {overlay.showFilter && (
                 <div
                     // data-viz-ui: この内側で押しても地図のパンを開始しない
-                    // （ポインタ捕捉に奪われて Select が開かなくなるのを防ぐ）
                     data-viz-ui="1"
                     onDoubleClick={(e) => e.stopPropagation()}
                     style={{
@@ -3079,23 +4182,24 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                         right: 16,
                         background: palette.panelBg,
                         border: palette.panelBorder,
-                        borderRadius: 8,
-                        backdropFilter: 'blur(10px)',
-                        WebkitBackdropFilter: 'blur(10px)',
+                        borderRadius: OVERLAY_RADIUS,
+                        boxShadow: OVERLAY_SHADOW,
                         padding: 4,
-                        zIndex: 4,
+                        zIndex: 5,
                     }}
                 >
-                    <Select
+                    <HudSelect
                         value={effectiveFilter}
-                        onChange={(e, { value }) => setCategoryFilter(value)}
-                        appearance="subtle"
-                    >
-                        <Select.Option label={opts.categoryLabel ? `すべての${opts.categoryLabel}` : 'すべて'} value="all" />
-                        {categoryList.map((cat) => (
-                            <Select.Option key={cat} label={cat} value={cat} />
-                        ))}
-                    </Select>
+                        onChange={setCategoryFilter}
+                        mode={mode}
+                        options={[
+                            {
+                                value: 'all',
+                                label: opts.categoryLabel ? `すべての${opts.categoryLabel}` : 'すべて',
+                            },
+                            ...categoryList.map((cat) => ({ value: cat, label: cat })),
+                        ]}
+                    />
                 </div>
             )}
 
@@ -3112,12 +4216,13 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                     style={{
                         position: 'absolute',
                         right: 16,
-                        top: overlay.showFilter ? 64 : 12,
+                        // 右上の縦積み: カテゴリフィルタ → フロー一覧ピル → ズームピル。
+                        // フロー一覧を折りたたみ表示しているときはその下へずらす
+                        top: overlay.zoomPillTop,
                         background: palette.panelBg,
                         border: palette.panelBorder,
-                        borderRadius: 8,
-                        backdropFilter: 'blur(10px)',
-                        WebkitBackdropFilter: 'blur(10px)',
+                        borderRadius: OVERLAY_RADIUS,
+                        boxShadow: OVERLAY_SHADOW,
                         padding: '4px 10px',
                         color: palette.legendText,
                         fontSize: 12,
@@ -3143,9 +4248,8 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                         maxWidth: '80%',
                         background: palette.legendBg,
                         border: palette.legendBorder,
-                        borderRadius: 10,
-                        backdropFilter: 'blur(10px)',
-                        WebkitBackdropFilter: 'blur(10px)',
+                        borderRadius: OVERLAY_RADIUS,
+                        boxShadow: OVERLAY_SHADOW,
                         padding: overlay.legPad,
                         display: 'flex',
                         flexDirection: overlay.legDir,
@@ -3274,7 +4378,15 @@ function ThreatMap({ threats, hasCount, mode, categoryList, categoryColors, expl
                     hasCount={hasCount}
                     mode={mode}
                     heightPct={opts.tableHeight}
-                    collapsedInit={opts.tableCollapsed}
+                    collapsed={tableCollapsed}
+                    setCollapsed={setTableCollapsed}
+                    filterBottom={overlay.filterBottom}
+                    pos={tablePos}
+                    size={tableSize}
+                    dirty={tableDirty && !isEdit}
+                    onSavePos={saveTablePos}
+                    onSaveSize={saveTableSize}
+                    onResetLayout={resetTableLayout}
                     sort={tableSort}
                     onSort={onTableSort}
                     onRowHover={onTableRowHover}
