@@ -76,7 +76,7 @@ Splunk **Dashboard Studio** 向けのカスタムビジュアライゼーショ�
 <table>
 <tr><th width="240">プレビュー</th><th width="170">名前 / バージョン</th><th>概要</th></tr>
 <tr><td><img src="visualizations/attack-globe/examples/example.png" width="240"></td><td><a href="visualizations/attack-globe/"><b>Attack Globe</b></a><br>v1.1.2</td><td>回転する3D地球儀に攻撃フローの弧を描くアタックマップ（WebGL2 必要・データ仕様は World Map と共通）。展示・壁掛け向け（分析には平面の World Map）。</td></tr>
-<tr><td><img src="visualizations/world-map/examples/example.png" width="240"></td><td><a href="visualizations/world-map/"><b>World Map</b></a><br>v2.1.1</td><td>世界地図に起点→終点のフローを光の帯で描くフローマップ。攻撃元や通信の地理的な俯瞰に。ズーム・カテゴリ色分け・フロー一覧テーブルの重ね表示に対応。</td></tr>
+<tr><td><img src="visualizations/world-map/examples/example.png" width="240"></td><td><a href="visualizations/world-map/"><b>World Map</b></a><br>v2.2.0</td><td>世界地図に起点→終点のフローを光の帯で描くフローマップ。攻撃元や通信の地理的な俯瞰に。ズーム・カテゴリ色分け・フロー一覧テーブルの重ね表示に対応。</td></tr>
 <tr><td><img src="visualizations/japan-map/examples/example.png" width="240"></td><td><a href="visualizations/japan-map/"><b>Japan Map</b></a><br>v1.2.3</td><td>World Map の日本地図版（都道府県境つき・データ仕様共通）。国内の拠点間フローの可視化に。</td></tr>
 <tr><td><img src="visualizations/country-graph/examples/example.png" width="240"></td><td><a href="visualizations/country-graph/"><b>Country Graph</b></a><br>v1.1.4</td><td>国旗付きの国別ランキング棒グラフ。国別の上位 N 比較に。</td></tr>
 </table>

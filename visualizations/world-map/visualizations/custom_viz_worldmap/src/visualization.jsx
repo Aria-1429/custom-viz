@@ -1138,14 +1138,23 @@ const FLOW_SAMPLES = 16;
 // 描画本数に応じた品質段階。しきい値は「塗り面積 ≒ 本数 × 帯の面積」が
 // 一定に収まるように置いた（実機計測の 4面=4fps を基準に、
 // 多数本でも 1面あたりのペイント量が既定 30fps 相当を超えないようにする）。
-//   frameMs   : 描画間隔（大きいほど低 fps）
-//   glow      : 太く淡いグロー層を描くか（false で塗り面積が約 2.4 倍減る）
-//   maxSamples: 帯の中心線サンプル点数の上限（パス頂点数の上限）
-//   ripple    : 到達リップル（弧ごとの円ストローク）を描くか
+//   frameMs     : 描画間隔（大きいほど低 fps）
+//   glow        : 太く淡いグロー層を描くか（false で塗り面積が約 2.4 倍減る）
+//   maxSamples  : 帯の中心線サンプル点数の上限（パス頂点数の上限）
+//   ripple      : 到達演出（着弾フラッシュ＋リップル）を描くか
+//   rippleRings : 到達リップルの重ね枚数（v2.2.0。1 で従来と同じ）
+//   flash2D     : 2D 経路でも着弾フラッシュを描くか（v2.2.0）
+//
+// 【v2.2.0 の追加分の考え方】着弾フラッシュは**弧1本につき fill() が1回増える**。
+// GL 経路は三角形が増えるだけで安いが、2D 経路（ソフトウェア描画）では
+// fill() 回数がそのままコストになるため、**本数が少ない段階だけ**に限る。
 const FLOW_TIERS = [
-    { limit: 120, frameMs: 32, glow: true, maxSamples: 40, ripple: true }, // 〜120本: 30fps・フル品質（グロー有り）
-    { limit: 400, frameMs: 50, glow: true, maxSamples: 28, ripple: true }, // 〜400本: 20fps・サンプル削減
-    { limit: Infinity, frameMs: 66, glow: false, maxSamples: 16, ripple: false }, // 400本超: 15fps・グロー無し
+    // 〜120本: 30fps・フル品質（着弾フラッシュ＋リップル3重）
+    { limit: 120, frameMs: 32, glow: true, maxSamples: 40, ripple: true, rippleRings: 3, flash2D: true },
+    // 〜400本: 20fps・サンプル削減（リップル2重。フラッシュは GL 経路のみ）
+    { limit: 400, frameMs: 50, glow: true, maxSamples: 28, ripple: true, rippleRings: 2, flash2D: false },
+    // 400本超: 15fps・グロー無し、到達演出も省く
+    { limit: Infinity, frameMs: 66, glow: false, maxSamples: 16, ripple: false, rippleRings: 0, flash2D: false },
 ];
 
 function flowTier(n) {
@@ -1336,16 +1345,17 @@ function createFlowGL(canvas) {
 }
 
 // 毎フレーム作り直さない可変長の頂点バッファ（[x,y,r,g,b,a] × 頂点数）
+const VTX_FLOATS = 6;
 function makeVertexSink() {
-    let buf = new Float32Array(6 * 4096);
+    let buf = new Float32Array(VTX_FLOATS * 4096);
     let n = 0;
     const ensure = (add) => {
-        const need = (n + add) * 6;
+        const need = (n + add) * VTX_FLOATS;
         if (need <= buf.length) return;
         let cap = buf.length;
         while (cap < need) cap *= 2;
         const next = new Float32Array(cap);
-        next.set(buf.subarray(0, n * 6));
+        next.set(buf.subarray(0, n * VTX_FLOATS));
         buf = next;
     };
     return {
@@ -1354,7 +1364,7 @@ function makeVertexSink() {
         },
         push(x, y, r, g, b, a) {
             ensure(1);
-            const o = n * 6;
+            const o = n * VTX_FLOATS;
             buf[o] = x;
             buf[o + 1] = y;
             buf[o + 2] = r;
@@ -1491,6 +1501,28 @@ function collectBandPts(a, head, maxSamples) {
         pts.push({ x: p.x, y: p.y, nx: p.nx, ny: p.ny, env: Math.sin(Math.PI * u) });
     }
     return pts;
+}
+
+// 着弾フラッシュが消えるまでの時間（リップル進行 rt に対する比率）
+const IMPACT_FLASH_T = 0.35;
+// 多重リップルの位相差（rt 上のずれ）
+const RIPPLE_STAGGER = 0.22;
+
+// 【v2.2.0】着弾フラッシュ（面光源の円）。
+// 中心が最も明るく縁で 0 になる扇の集まり。頂点色の補間でグラデーションが出る。
+const FLASH_SEGS = 20;
+function emitFlashGL(sink, cx, cy, r, cv, alpha) {
+    for (let i = 1; i <= FLASH_SEGS; i += 1) {
+        const t0 = ((i - 1) / FLASH_SEGS) * Math.PI * 2;
+        const t1 = (i / FLASH_SEGS) * Math.PI * 2;
+        const x0 = cx + Math.cos(t0) * r;
+        const y0 = cy + Math.sin(t0) * r;
+        const x1 = cx + Math.cos(t1) * r;
+        const y1 = cy + Math.sin(t1) * r;
+        sink.push(cx, cy, cv[0], cv[1], cv[2], alpha);
+        sink.push(x0, y0, cv[0], cv[1], cv[2], 0);
+        sink.push(x1, y1, cv[0], cv[1], cv[2], 0);
+    }
 }
 
 // 光の帯キャンバスの「塗るピクセル数」の上限（CSS px 換算の面積）。
@@ -1654,6 +1686,8 @@ function ArcFlowCanvas({ arcs, spots, width, height, duration, hoverKey, forceRe
             ctx.globalAlpha = alpha;
             ctx.fill();
         };
+        // ⚠ ここを粒子や多層に増やすと fill() 回数が本数×枚数で効くため増やさない
+        //   （2026-08-10 実測: 弧30本×4面で fill() は 91回/フレーム）
         const drawFlow2D = (a, pts, k, tier) => {
             ctx.save();
             ctx.fillStyle = a.color;
@@ -1667,15 +1701,29 @@ function ArcFlowCanvas({ arcs, spots, width, height, duration, hoverKey, forceRe
             }
             ctx.restore();
         };
-        // 到達リップル: 終点から細い輪をひとつ広げて消す
-        const drawRipple2D = (a, rt, k) => {
+        // 到達リップル: 終点から細い輪を広げて消す。
+        // 【v2.2.0】半径・太さ・不透明度を呼び出し側で決める（多重リップル対応）
+        const drawRipple2D = (a, radius, thick, alpha) => {
             ctx.save();
             ctx.beginPath();
-            ctx.arc(a.end.x, a.end.y, 2.5 + rt * (10 + a.w * 4), 0, Math.PI * 2);
+            ctx.arc(a.end.x, a.end.y, radius, 0, Math.PI * 2);
             ctx.strokeStyle = a.color;
-            ctx.lineWidth = 0.5 + 1.4 * (1 - rt);
-            ctx.globalAlpha = 0.5 * (1 - rt) * k;
+            ctx.lineWidth = thick;
+            ctx.globalAlpha = alpha;
             ctx.stroke();
+            ctx.restore();
+        };
+        // 【v2.2.0 案2】着弾フラッシュ: 到達の瞬間、着弾点が強く光って素早く消える
+        const drawFlash2D = (a, r, alpha) => {
+            const g = ctx.createRadialGradient(a.end.x, a.end.y, 0, a.end.x, a.end.y, r);
+            g.addColorStop(0, a.color);
+            g.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(a.end.x, a.end.y, r, 0, Math.PI * 2);
+            ctx.fill();
             ctx.restore();
         };
         const drawSpot2D = (s, r, alpha) => {
@@ -1783,21 +1831,46 @@ function ArcFlowCanvas({ arcs, spots, width, height, duration, hoverKey, forceRe
                             drawFlow2D(a, pts, kb, tier);
                         }
                     }
-                    // 到達リップル（head が 1 を超えている間だけ）
+                    // 到達演出（head が 1 を超えている間だけ）。
+                    // 【v2.2.0 案2】従来は輪1つだったのを「着弾フラッシュ＋多重リップル」へ。
+                    //   フラッシュ: 到達の瞬間に着弾点そのものが強く光り、素早く減衰する
+                    //   多重リップル: 位相をずらした輪が続けて広がる（遠距離便の見応え）
                     if (tier.ripple && head > 1 && a.end) {
                         const rt = Math.min((head - 1) / FLOW_LEN, 1); // 0→1 で拡大しつつ減衰
-                        if (isGL) {
-                            emitRingGL(
-                                sink,
-                                a.end.x,
-                                a.end.y,
-                                2.5 + rt * (10 + a.w * 4),
-                                0.5 + 1.4 * (1 - rt),
-                                a.colorV,
-                                0.5 * (1 - rt) * k
-                            );
-                        } else {
-                            drawRipple2D(a, rt, k);
+                        // 着弾フラッシュ（rt が小さいうちだけ・鋭く落ちる）。
+                        // 2D 経路では radialGradient の塗りが1回増えるため、
+                        // fill() が1回増えるため、本数が多い段階では省く（flash2D）
+                        const flash =
+                            isGL || tier.flash2D ? Math.max(0, 1 - rt / IMPACT_FLASH_T) : 0;
+                        if (flash > 0.01) {
+                            const fa = flash * flash * 0.85 * k;
+                            const fr = (3 + a.w * 2.2) * (1 + 0.8 * (1 - flash));
+                            if (isGL) {
+                                emitFlashGL(sink, a.end.x, a.end.y, fr, a.colorV, fa);
+                            } else {
+                                drawFlash2D(a, fr, fa);
+                            }
+                        }
+                        // 多重リップル（位相をずらした輪。後続ほど弱い）
+                        for (let ri = 0; ri < tier.rippleRings; ri += 1) {
+                            const rp = rt - ri * RIPPLE_STAGGER;
+                            if (rp <= 0 || rp >= 1) continue;
+                            const decay = (1 - rp) * (1 - ri * 0.3);
+                            const radius = 2.5 + rp * (10 + a.w * 4);
+                            const thick = 0.5 + 1.4 * (1 - rp);
+                            if (isGL) {
+                                emitRingGL(
+                                    sink,
+                                    a.end.x,
+                                    a.end.y,
+                                    radius,
+                                    thick,
+                                    a.colorV,
+                                    0.5 * decay * k
+                                );
+                            } else {
+                                drawRipple2D(a, radius, thick, 0.5 * decay * k);
+                            }
                         }
                     }
                 });
