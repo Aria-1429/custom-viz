@@ -1469,14 +1469,25 @@ function emitDiscGL(sink, cx, cy, r, stopsV, alphaMul) {
     }
 }
 
-// 帯の中心線サンプルを集める（2D / WebGL の両経路で共有 → 軌道が食い違わない）
+// 帯の中心線サンプルを集める（2D / WebGL の両経路で共有 → 軌道が食い違わない）。
+// 帯はパス上の [head-FLOW_LEN, head] を占めるが、始点前・終点後には出られないので、
+// **見えている区間 [lo, hi] にエンベロープを張り直す**。これで帯の両端は常に幅 0 へ
+// 窄まり、到達時は「先端が終点に留まり、末尾が追いついて縮みながら吸い込まれる」
+// 形になる（出発時はその逆で、始点から伸び出す）。
+// ⚠ 旧実装ははみ出したサンプルを捨てるだけでエンベロープは全長基準のままだった。
+//   そのため終点通過中は sin(π·u)>0 の「太い切り口」が終点に現れ、帯が長い
+//   遠距離の弧ほどブツ切りに見えた（v2.1.1 で修正）。
 function collectBandPts(a, head, maxSamples) {
     const samples = Math.min(a.samples || FLOW_SAMPLES, maxSamples);
+    const hi = Math.min(head, 1); // 見えている先頭（終点で止まる）
+    const lo = Math.max(head - FLOW_LEN, 0); // 見えている末尾（始点より前へ出ない）
+    const span = hi - lo;
+    if (span <= 0) return [];
     const pts = [];
     for (let s = 0; s <= samples; s += 1) {
         const u = s / samples; // 0=帯の先頭, 1=帯の末尾
-        const p = geomPoint(a.geom, head - u * FLOW_LEN);
-        if (!p) continue; // パス外（出発前/到達後）は描かない
+        const p = geomPoint(a.geom, hi - u * span);
+        if (!p) continue;
         pts.push({ x: p.x, y: p.y, nx: p.nx, ny: p.ny, env: Math.sin(Math.PI * u) });
     }
     return pts;
@@ -1757,16 +1768,19 @@ function ArcFlowCanvas({ arcs, spots, width, height, duration, hoverKey, forceRe
                     dims.set(a.id, k);
                     // 帯の中心線サンプル（2D / GL 共通 → 軌道が食い違わない）
                     const pts = collectBandPts(a, head, tier.maxSamples);
+                    // 到達後（head>1）は帯が縮むのに加えて減光もかけ、
+                    // 終点に吸い込まれるように消す（リップルの減衰と歩調が合う）
+                    const kb = head > 1 ? k * (1 - (head - 1) / FLOW_LEN) : k;
                     if (pts.length >= 2) {
                         if (isGL) {
                             if (tier.glow) {
-                                emitBandGL(sink, pts, a.w, 2.4, a.colorV, 0.18 * k);
-                                emitBandGL(sink, pts, a.w, 1.0, a.colorV, 0.9 * k);
+                                emitBandGL(sink, pts, a.w, 2.4, a.colorV, 0.18 * kb);
+                                emitBandGL(sink, pts, a.w, 1.0, a.colorV, 0.9 * kb);
                             } else {
-                                emitBandGL(sink, pts, a.w, 1.0, a.colorV, 0.95 * k);
+                                emitBandGL(sink, pts, a.w, 1.0, a.colorV, 0.95 * kb);
                             }
                         } else {
-                            drawFlow2D(a, pts, k, tier);
+                            drawFlow2D(a, pts, kb, tier);
                         }
                     }
                     // 到達リップル（head が 1 を超えている間だけ）
