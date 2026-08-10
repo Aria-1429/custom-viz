@@ -1,0 +1,1913 @@
+{
+  "title": "SOC コマンドセンター",
+  "description": "カスタム viz で構成した SOC 監視ダッシュボード。4タブ構成（概況 / 脅威分析 / インシデント対応 / インフラ健全性）。各タブは 1920x980 に収め、縦スクロールが出ないようにしてある。",
+  "inputs": {
+    "input_time": {
+      "type": "input.timerange",
+      "title": "時間範囲",
+      "options": {
+        "token": "global_time",
+        "defaultValue": "-24h@h,now"
+      }
+    },
+    "input_host": {
+      "type": "input.dropdown",
+      "title": "調査対象ホスト",
+      "options": {
+        "token": "sel_host",
+        "defaultValue": "web-01",
+        "items": [
+          {
+            "label": "web-01",
+            "value": "web-01"
+          },
+          {
+            "label": "web-02",
+            "value": "web-02"
+          },
+          {
+            "label": "app-01",
+            "value": "app-01"
+          },
+          {
+            "label": "db-primary",
+            "value": "db-primary"
+          },
+          {
+            "label": "vpn-gw",
+            "value": "vpn-gw"
+          },
+          {
+            "label": "file-srv",
+            "value": "file-srv"
+          }
+        ]
+      }
+    }
+  },
+  "defaults": {
+    "dataSources": {
+      "ds.search": {
+        "options": {
+          "queryParameters": {
+            "latest": "now"
+          }
+        }
+      }
+    },
+    "visualizations": {
+      "global": {
+        "showLastUpdated": false,
+        "showProgressBar": false
+      }
+    }
+  },
+  "visualizations": {
+    "viz_hdr_overview": {
+      "type": "splunk.markdown",
+      "options": {
+        "markdown": "# SOC コマンドセンター  \n**概況** — 直近24時間の全体状況。左から順に「規模」「発生源」「内訳」を見る。",
+        "fontColor": "#c9d6e8",
+        "backgroundColor": "transparent"
+      }
+    },
+    "viz_kpi_alerts": {
+      "type": "custom_viz_kpi_tile.custom_viz_kpi_tile",
+      "dataSources": {
+        "primary": "ds_kpi_alerts"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "titleText": "総アラート数",
+        "iconName": "bell",
+        "showIcon": true,
+        "accentColor": "#5b8def",
+        "bgOpacity": 22,
+        "deltaLabel": "前日比",
+        "deltaAsPercent": true,
+        "deltaColorMode": "positiveBad",
+        "sparkMode": "bars",
+        "sparkBars": 14,
+        "abbreviateValue": true,
+        "showGlow": true
+      }
+    },
+    "viz_kpi_critical": {
+      "type": "custom_viz_kpi_tile.custom_viz_kpi_tile",
+      "dataSources": {
+        "primary": "ds_kpi_critical"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "titleText": "重大インシデント",
+        "iconName": "fire",
+        "showIcon": true,
+        "accentColor": "#ef4d6a",
+        "bgOpacity": 22,
+        "deltaLabel": "前日比",
+        "deltaAsPercent": true,
+        "deltaColorMode": "positiveBad",
+        "sparkMode": "line",
+        "sparkBars": 14,
+        "showGlow": true
+      }
+    },
+    "viz_kpi_blocked": {
+      "type": "custom_viz_kpi_tile.custom_viz_kpi_tile",
+      "dataSources": {
+        "primary": "ds_kpi_blocked"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "titleText": "ブロック済み通信",
+        "iconName": "shield",
+        "showIcon": true,
+        "accentColor": "#2dd4bf",
+        "bgOpacity": 22,
+        "deltaLabel": "前日比",
+        "deltaAsPercent": true,
+        "deltaColorMode": "positiveGood",
+        "sparkMode": "bars",
+        "sparkBars": 14,
+        "abbreviateValue": true,
+        "showGlow": true
+      }
+    },
+    "viz_kpi_mttr": {
+      "type": "custom_viz_kpi_tile.custom_viz_kpi_tile",
+      "dataSources": {
+        "primary": "ds_kpi_mttr"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "titleText": "平均対応時間（分）",
+        "iconName": "clock",
+        "showIcon": true,
+        "accentColor": "#f0912e",
+        "bgOpacity": 22,
+        "deltaLabel": "前日比",
+        "deltaAsPercent": true,
+        "deltaColorMode": "positiveBad",
+        "sparkMode": "line",
+        "sparkBars": 14,
+        "valueDecimals": 0,
+        "showGlow": true
+      }
+    },
+    "viz_kpi_assets": {
+      "type": "custom_viz_kpi_tile.custom_viz_kpi_tile",
+      "dataSources": {
+        "primary": "ds_kpi_assets"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "titleText": "要対応資産",
+        "iconName": "server",
+        "showIcon": true,
+        "accentColor": "#a78bfa",
+        "bgOpacity": 22,
+        "deltaLabel": "前日比",
+        "deltaAsPercent": true,
+        "deltaColorMode": "positiveBad",
+        "sparkMode": "bars",
+        "sparkBars": 14,
+        "showGlow": true
+      }
+    },
+    "viz_kpi_score": {
+      "type": "custom_viz_kpi_tile.custom_viz_kpi_tile",
+      "dataSources": {
+        "primary": "ds_kpi_score"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "titleText": "リスクスコア",
+        "iconName": "pulse",
+        "showIcon": true,
+        "accentColor": "#f5c518",
+        "bgOpacity": 22,
+        "deltaLabel": "前日比",
+        "deltaAsPercent": true,
+        "deltaColorMode": "positiveBad",
+        "sparkMode": "line",
+        "sparkBars": 14,
+        "valueDecimals": 0,
+        "showGlow": true
+      }
+    },
+    "viz_globe": {
+      "type": "custom_viz_attack_globe.custom_viz_attack_globe",
+      "title": "グローバル攻撃状況",
+      "dataSources": {
+        "primary": "ds_attacks_geo"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "srcLatField": "> primary | seriesByName('src_lat')",
+        "srcLonField": "> primary | seriesByName('src_lon')",
+        "dstLatField": "> primary | seriesByName('dst_lat')",
+        "dstLonField": "> primary | seriesByName('dst_lon')",
+        "categoryField": "> primary | seriesByName('category')",
+        "countField": "> primary | seriesByName('count')",
+        "srcNameField": "> primary | seriesByName('src_name')",
+        "dstNameField": "> primary | seriesByName('dst_name')",
+        "titleText": "攻撃元 → 拠点",
+        "showLegend": true,
+        "showPointNames": true,
+        "transparentBg": true,
+        "colorMode": "category",
+        "categoryColors": [
+          "#ff5a2e",
+          "#e6b93c",
+          "#38a6ff",
+          "#a78bfa"
+        ],
+        "shadeMode": "daynight",
+        "showGraticule": true,
+        "showBorders": true,
+        "rotatePeriod": 90,
+        "flowPeriod": 3,
+        "atmosphere": 0.7,
+        "landColor": "#1c3350",
+        "oceanColor": "#070f1e",
+        "interactive": true
+      }
+    },
+    "viz_worldmap": {
+      "type": "custom_viz_worldmap.custom_viz_worldmap",
+      "title": "攻撃フロー（平面図）",
+      "dataSources": {
+        "primary": "ds_attacks_geo"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "srcLatField": "> primary | seriesByName('src_lat')",
+        "srcLonField": "> primary | seriesByName('src_lon')",
+        "dstLatField": "> primary | seriesByName('dst_lat')",
+        "dstLonField": "> primary | seriesByName('dst_lon')",
+        "categoryField": "> primary | seriesByName('category')",
+        "countField": "> primary | seriesByName('count')",
+        "srcNameField": "> primary | seriesByName('src_name')",
+        "dstNameField": "> primary | seriesByName('dst_name')",
+        "showTitle": false,
+        "useBgColor": false,
+        "useLandColor": true,
+        "landColor": "#1a2f4a",
+        "colorMode": "category",
+        "categoryColors": [
+          "攻撃|#ff5a2e",
+          "偵察|#e6b93c",
+          "マルウェア|#38a6ff",
+          "情報流出|#a78bfa"
+        ],
+        "categoryLabel": "種別",
+        "showLegend": true,
+        "showFilter": false,
+        "showHudStats": true,
+        "showTable": false,
+        "showEndpointLabels": true,
+        "showPlaceLabels": false,
+        "labelLang": "ja",
+        "animDuration": 3.5,
+        "maxArcs": 60
+      }
+    },
+    "viz_sev_overview": {
+      "type": "custom_viz_severity_table.custom_viz_severity_table",
+      "title": "アラートキュー（上位）",
+      "dataSources": {
+        "primary": "ds_alert_queue"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "severityField": "> primary | seriesByName('severity')",
+        "severityMode": "string",
+        "severityOrder": [
+          "critical",
+          "high",
+          "medium",
+          "low",
+          "info"
+        ],
+        "severityColors": [
+          "#ef4d6a",
+          "#f0912e",
+          "#f5c518",
+          "#38bdf8",
+          "#7f8ea3"
+        ],
+        "sortMode": "desc",
+        "maxRows": 4,
+        "cellStyle": "pill",
+        "rowBar": true,
+        "zebra": true,
+        "compact": true,
+        "showSummary": true,
+        "topIcon": "highest",
+        "title": "未対応アラート"
+      }
+    },
+    "viz_donut_category": {
+      "type": "custom_viz_donut_graph.custom_viz_donut_graph",
+      "title": "検知種別の内訳",
+      "dataSources": {
+        "primary": "ds_category_mix"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "categoryField": "> primary | seriesByName('category')",
+        "valueField": "> primary | seriesByName('count')",
+        "seriesColors": [
+          "#ef4d6a",
+          "#f0912e",
+          "#f5c518",
+          "#38bdf8",
+          "#a78bfa",
+          "#2dd4bf"
+        ],
+        "thickness": 30,
+        "showLegend": true,
+        "showTotal": true,
+        "showPercent": true,
+        "showBar": true,
+        "rounded": true,
+        "glow": true
+      }
+    },
+    "viz_horizon": {
+      "type": "custom_viz_horizon_chart.custom_viz_horizon_chart",
+      "title": "検知ソース別の推移",
+      "dataSources": {
+        "primary": "ds_source_trend"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "timeField": "> primary | seriesByName('_time')",
+        "seriesField": "> primary | seriesByName('source')",
+        "valueField": "> primary | seriesByName('events')",
+        "bands": 3,
+        "laneHeight": 34,
+        "autoFitLanes": true,
+        "curve": true,
+        "sortMode": "peak",
+        "maxSeries": 6,
+        "showLabels": true,
+        "showPeakValue": true,
+        "showTimeAxis": true,
+        "showLegend": false,
+        "showLaneSeparator": true,
+        "positiveColor": "#38bdf8",
+        "abbreviateValue": true
+      }
+    },
+    "viz_hdr_threat": {
+      "type": "splunk.markdown",
+      "options": {
+        "markdown": "# 脅威分析  \n**攻撃の手口と経路** — 戦術の分布、侵入から流出までの経路、資産×戦術の当たり方を突き合わせる。",
+        "fontColor": "#c9d6e8",
+        "backgroundColor": "transparent"
+      }
+    },
+    "viz_sunburst_mitre": {
+      "type": "custom_viz_sunburst.custom_viz_sunburst",
+      "title": "MITRE ATT&CK 戦術・技術",
+      "dataSources": {
+        "primary": "ds_mitre"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "level1Field": "> primary | seriesByName('tactic')",
+        "level2Field": "> primary | seriesByName('technique')",
+        "valueField": "> primary | seriesByName('count')",
+        "seriesColors": [
+          "#ef4d6a",
+          "#f0912e",
+          "#f5c518",
+          "#38bdf8",
+          "#a78bfa",
+          "#2dd4bf",
+          "#ff7ab8"
+        ],
+        "maxDepth": 2,
+        "maxSlices": 40,
+        "innerRadiusPercent": 32,
+        "showLabels": true,
+        "showCenter": true,
+        "centerTitle": "戦術",
+        "showBreadcrumb": true,
+        "showLegend": false,
+        "enableDrilldown": true,
+        "animate": true,
+        "abbreviateValue": true
+      }
+    },
+    "viz_sankey_killchain": {
+      "type": "custom_viz_sankey_flow.custom_viz_sankey_flow",
+      "title": "侵入経路（キルチェーン）",
+      "dataSources": {
+        "primary": "ds_killchain"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "colorMode": "categorical",
+        "nodeColors": [
+          "#38bdf8",
+          "#f5c518",
+          "#f0912e",
+          "#ef4d6a",
+          "#a78bfa",
+          "#2dd4bf"
+        ],
+        "useGradientLinks": true,
+        "linkOpacity": 0.45,
+        "nodeWidth": 14,
+        "nodePadding": 14,
+        "nodeSort": "value",
+        "showLabels": true,
+        "showValues": true,
+        "labelSize": 12,
+        "valueUnit": "件",
+        "unitPosition": "after",
+        "highlightOnHover": true,
+        "traceMode": "path",
+        "showHeader": false
+      }
+    },
+    "viz_heat_asset": {
+      "type": "custom_viz_heat_matrix.custom_viz_heat_matrix",
+      "title": "資産グループ × 戦術",
+      "dataSources": {
+        "primary": "ds_asset_tactic"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "rowField": "> primary | seriesByName('asset_group')",
+        "colField": "> primary | seriesByName('tactic')",
+        "valueField": "> primary | seriesByName('count')",
+        "lowColor": "#12233a",
+        "midColor": "#f0912e",
+        "highColor": "#ef4d6a",
+        "useMidColor": true,
+        "showValues": true,
+        "showXLabels": true,
+        "showYLabels": true,
+        "showRowTotals": true,
+        "showLegend": true,
+        "sortRowsByTotal": true,
+        "cellGap": 3,
+        "cellRadius": 3,
+        "animate": true
+      }
+    },
+    "viz_treemap_assets": {
+      "type": "custom_viz_treemap.custom_viz_treemap",
+      "title": "影響資産の規模",
+      "dataSources": {
+        "primary": "ds_asset_tree"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "level1Field": "> primary | seriesByName('segment')",
+        "level2Field": "> primary | seriesByName('host')",
+        "valueField": "> primary | seriesByName('count')",
+        "seriesColors": [
+          "#ef4d6a",
+          "#f0912e",
+          "#38bdf8",
+          "#a78bfa",
+          "#2dd4bf"
+        ],
+        "maxDepth": 2,
+        "maxTiles": 40,
+        "tileGap": 3,
+        "tileRadius": 4,
+        "showLabels": true,
+        "showValues": true,
+        "showPercent": true,
+        "showGroupHeaders": true,
+        "showBreadcrumb": true,
+        "showLegend": false,
+        "enableDrilldown": true,
+        "animate": true,
+        "abbreviateValue": true
+      }
+    },
+    "viz_country_rank": {
+      "type": "custom_viz_country_graph.custom_viz_country_graph",
+      "title": "攻撃元の国別ランキング",
+      "dataSources": {
+        "primary": "ds_country_rank"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "colorByValue": true,
+        "lowColor": "#38bdf8",
+        "highColor": "#ef4d6a",
+        "useMidColor": true,
+        "midColor": "#f0912e",
+        "sortDescending": true,
+        "topN": 7,
+        "showRank": true,
+        "showFlag": true,
+        "showBar": true,
+        "showValue": true,
+        "showShare": true,
+        "showHeader": false,
+        "glow": true,
+        "animate": true
+      }
+    },
+    "viz_funnel_triage": {
+      "type": "custom_viz_funnel_leak.custom_viz_funnel_leak",
+      "title": "トリアージの絞り込み",
+      "dataSources": {
+        "primary": "ds_triage_funnel"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "stepField": "> primary | seriesByName('step')",
+        "valueField": "> primary | seriesByName('count')",
+        "flowColor": "#38bdf8",
+        "leakColor": "#ef4d6a",
+        "barThickness": 26,
+        "stepGap": 16,
+        "showStepLabels": true,
+        "showCounts": true,
+        "showRate": true,
+        "showLeak": true,
+        "showOverallRate": true,
+        "showFlowBands": true,
+        "showHeader": false,
+        "labelSize": 12
+      }
+    },
+    "viz_hdr_incident": {
+      "type": "splunk.markdown",
+      "options": {
+        "markdown": "# インシデント対応  \n**左のキューで行をクリック**すると、右の調査ペインと下段が選択ホストに切り替わる。上のドロップダウンでも切り替え可。",
+        "fontColor": "#c9d6e8",
+        "backgroundColor": "transparent"
+      }
+    },
+    "viz_queue": {
+      "type": "custom_viz_severity_table.custom_viz_severity_table",
+      "title": "対応キュー（クリックで調査対象を切替）",
+      "dataSources": {
+        "primary": "ds_incident_queue"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "severityField": "> primary | seriesByName('severity')",
+        "severityMode": "string",
+        "severityOrder": [
+          "critical",
+          "high",
+          "medium",
+          "low"
+        ],
+        "severityColors": [
+          "#ef4d6a",
+          "#f0912e",
+          "#f5c518",
+          "#38bdf8"
+        ],
+        "sortMode": "desc",
+        "maxRows": 8,
+        "cellStyle": "pill",
+        "rowBar": true,
+        "zebra": true,
+        "compact": true,
+        "showSummary": true,
+        "topIcon": "highest",
+        "enableDrilldown": true,
+        "title": "インシデント一覧"
+      },
+      "eventHandlers": [
+        {
+          "type": "drilldown.setToken",
+          "options": {
+            "tokens": [
+              {
+                "token": "sel_host",
+                "key": "row.host.value"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "viz_gauge_risk": {
+      "type": "custom_viz_gauge_arc.custom_viz_gauge_arc",
+      "title": "$sel_host$ のリスクスコア",
+      "dataSources": {
+        "primary": "ds_host_risk"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "valueField": "> primary | seriesByName('risk')",
+        "aggMode": "last",
+        "minValue": 0,
+        "maxValue": 100,
+        "gaugeStyle": "segmented",
+        "sweepAngle": 240,
+        "arcThickness": 22,
+        "segmentCount": 40,
+        "colorMode": "band",
+        "colorBands": [
+          {
+            "from": null,
+            "to": 40,
+            "value": "#3fd66e"
+          },
+          {
+            "from": 40,
+            "to": 70,
+            "value": "#f0912e"
+          },
+          {
+            "from": 70,
+            "to": null,
+            "value": "#ef4d6a"
+          }
+        ],
+        "titleText": "リスク",
+        "unitText": "点",
+        "decimals": 0,
+        "showTitle": true,
+        "showBandLabel": true,
+        "showTicks": true,
+        "showRangeLabels": true,
+        "showGlow": true,
+        "animate": true,
+        "compareMode": "prev",
+        "showDelta": true,
+        "deltaLabel": "前日比",
+        "goodDirection": "down",
+        "panelPosition": "right",
+        "panelWidth": 190,
+        "slot1": "delta",
+        "slot2": "stats",
+        "slot3": "target",
+        "slot4": "none",
+        "statList": [
+          "max",
+          "avg"
+        ],
+        "targetValue": 40,
+        "showTarget": true
+      }
+    },
+    "viz_radar_host": {
+      "type": "custom_viz_radar_chart.custom_viz_radar_chart",
+      "title": "$sel_host$ の脆弱性プロファイル",
+      "dataSources": {
+        "primary": "ds_host_radar"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "axisField": "> primary | seriesByName('axis')",
+        "seriesFields": [
+          "current",
+          "baseline"
+        ],
+        "seriesColors": [
+          "#ef4d6a",
+          "#5b8def"
+        ],
+        "fillOpacity": 0.28,
+        "strokeWidth": 2,
+        "rings": 4,
+        "sharedScale": true,
+        "showDots": true,
+        "showAxisLabels": true,
+        "showValueLabels": false,
+        "showLegend": true,
+        "glow": true
+      }
+    },
+    "viz_timeline": {
+      "type": "custom_viz_timeline_swimlane.custom_viz_timeline_swimlane",
+      "title": "インシデントの時系列",
+      "dataSources": {
+        "primary": "ds_timeline"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "laneField": "> primary | seriesByName('lane')",
+        "startField": "> primary | seriesByName('start')",
+        "endField": "> primary | seriesByName('end')",
+        "categoryField": "> primary | seriesByName('severity')",
+        "labelField": "> primary | seriesByName('label')",
+        "seriesColors": [
+          "#ef4d6a",
+          "#f0912e",
+          "#f5c518",
+          "#38bdf8"
+        ],
+        "maxLanes": 6,
+        "autoLaneHeight": true,
+        "barRadius": 4,
+        "barOpacity": 0.9,
+        "showLaneLabels": true,
+        "showLaneCount": true,
+        "showAxis": true,
+        "showGrid": true,
+        "showLegend": true,
+        "showBarLabels": true,
+        "stripeLanes": true,
+        "showNowLine": true,
+        "animate": true
+      }
+    },
+    "viz_waterfall": {
+      "type": "custom_viz_waterfall_chart.custom_viz_waterfall_chart",
+      "title": "アラート件数の増減要因",
+      "dataSources": {
+        "primary": "ds_waterfall"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "labelField": "> primary | seriesByName('label')",
+        "valueField": "> primary | seriesByName('delta')",
+        "showTotal": true,
+        "totalLabel": "現在",
+        "increaseColor": "#ef4d6a",
+        "decreaseColor": "#3fd66e",
+        "totalColor": "#5b8def",
+        "showValues": true,
+        "showConnectors": true,
+        "showAxis": true,
+        "showXLabels": true,
+        "showGlow": true,
+        "animate": true
+      }
+    },
+    "viz_hdr_infra": {
+      "type": "splunk.markdown",
+      "options": {
+        "markdown": "# インフラ健全性  \n**監視基盤そのものの状態** — ログ取り込み・機器の負荷・キャパシティを見る。SOC が目を塞がれていないかの確認。",
+        "fontColor": "#c9d6e8",
+        "backgroundColor": "transparent"
+      }
+    },
+    "viz_vu": {
+      "type": "custom_viz_vu_console.custom_viz_vu_console",
+      "title": "取り込みパイプライン負荷",
+      "dataSources": {
+        "primary": "ds_pipeline"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "dataShape": "wide",
+        "aggMode": "last",
+        "rangeMin": 0,
+        "rangeMax": 100,
+        "colorBands": [
+          {
+            "from": null,
+            "to": 60,
+            "value": "#3fd66e"
+          },
+          {
+            "from": 60,
+            "to": 85,
+            "value": "#f0912e"
+          },
+          {
+            "from": 85,
+            "to": null,
+            "value": "#ef4d6a"
+          }
+        ],
+        "faceStyle": "dark",
+        "sweepAngle": 120,
+        "unitText": "%",
+        "decimals": 0,
+        "showValue": true,
+        "showTickLabels": true,
+        "showLamp": true,
+        "showPeak": true,
+        "animate": true,
+        "maxColumns": 4,
+        "maxMeters": 4
+      }
+    },
+    "viz_icon_siem": {
+      "type": "custom_viz_icon_status.custom_viz_icon_status",
+      "dataSources": {
+        "primary": "ds_node_siem"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "showCard": false,
+        "labelField": "> primary | seriesByName('label')",
+        "valueField": "> primary | seriesByName('cpu')",
+        "iconName": "shield",
+        "iconStyle": "solid",
+        "colorMode": "threshold",
+        "colorBands": [
+          {
+            "from": null,
+            "to": 60,
+            "value": "#3fb950"
+          },
+          {
+            "from": 60,
+            "to": 85,
+            "value": "#d29922"
+          },
+          {
+            "from": 85,
+            "to": null,
+            "value": "#f85149"
+          }
+        ],
+        "showGlow": true,
+        "showValue": true,
+        "showLabel": true,
+        "unitText": "%",
+        "aggregation": "last",
+        "pulseMode": "ring"
+      }
+    },
+    "viz_icon_fw": {
+      "type": "custom_viz_icon_status.custom_viz_icon_status",
+      "dataSources": {
+        "primary": "ds_node_fw"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "showCard": false,
+        "labelField": "> primary | seriesByName('label')",
+        "valueField": "> primary | seriesByName('cpu')",
+        "iconName": "firewall",
+        "iconStyle": "solid",
+        "colorMode": "threshold",
+        "colorBands": [
+          {
+            "from": null,
+            "to": 60,
+            "value": "#3fb950"
+          },
+          {
+            "from": 60,
+            "to": 85,
+            "value": "#d29922"
+          },
+          {
+            "from": 85,
+            "to": null,
+            "value": "#f85149"
+          }
+        ],
+        "showGlow": true,
+        "showValue": true,
+        "showLabel": true,
+        "unitText": "%",
+        "aggregation": "last"
+      }
+    },
+    "viz_icon_ids": {
+      "type": "custom_viz_icon_status.custom_viz_icon_status",
+      "dataSources": {
+        "primary": "ds_node_ids"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "showCard": false,
+        "labelField": "> primary | seriesByName('label')",
+        "valueField": "> primary | seriesByName('cpu')",
+        "iconName": "eye",
+        "iconStyle": "solid",
+        "colorMode": "threshold",
+        "colorBands": [
+          {
+            "from": null,
+            "to": 60,
+            "value": "#3fb950"
+          },
+          {
+            "from": 60,
+            "to": 85,
+            "value": "#d29922"
+          },
+          {
+            "from": 85,
+            "to": null,
+            "value": "#f85149"
+          }
+        ],
+        "showGlow": true,
+        "showValue": true,
+        "showLabel": true,
+        "unitText": "%",
+        "aggregation": "last"
+      }
+    },
+    "viz_icon_db": {
+      "type": "custom_viz_icon_status.custom_viz_icon_status",
+      "dataSources": {
+        "primary": "ds_node_db"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "showCard": false,
+        "labelField": "> primary | seriesByName('label')",
+        "valueField": "> primary | seriesByName('cpu')",
+        "iconName": "database",
+        "iconStyle": "solid",
+        "colorMode": "threshold",
+        "colorBands": [
+          {
+            "from": null,
+            "to": 60,
+            "value": "#3fb950"
+          },
+          {
+            "from": 60,
+            "to": 85,
+            "value": "#d29922"
+          },
+          {
+            "from": 85,
+            "to": null,
+            "value": "#f85149"
+          }
+        ],
+        "showGlow": true,
+        "showValue": true,
+        "showLabel": true,
+        "unitText": "%",
+        "aggregation": "last",
+        "pulseMode": "ring"
+      }
+    },
+    "viz_link_fw_ids": {
+      "type": "custom_viz_link_line.custom_viz_link_line",
+      "dataSources": {
+        "primary": "ds_link_fw_ids"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "valueField": "> primary | seriesByName('gbps')",
+        "linePoints": "[[0.12,0.318],[0.88,0.318]]",
+        "allowViewEdit": false,
+        "styleMode": "neon",
+        "lineWidth": 6,
+        "lineGradient": true,
+        "flowSpeed": 1.2,
+        "pulseCaps": true,
+        "arrowHead": true,
+        "showValue": true,
+        "valueDecimals": 1,
+        "unitLabel": "Gbps",
+        "linkLabel": "ミラー",
+        "flowDirection": "forward",
+        "colorMode": "range",
+        "colorBands": [
+          {
+            "from": null,
+            "to": 5,
+            "value": "#3fb950"
+          },
+          {
+            "from": 5,
+            "to": 8,
+            "value": "#d29922"
+          },
+          {
+            "from": 8,
+            "to": null,
+            "value": "#f85149"
+          }
+        ]
+      }
+    },
+    "viz_link_ids_siem": {
+      "type": "custom_viz_link_line.custom_viz_link_line",
+      "dataSources": {
+        "primary": "ds_link_ids_siem"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "valueField": "> primary | seriesByName('eps')",
+        "linePoints": "[[0.12,0.318],[0.88,0.318]]",
+        "allowViewEdit": false,
+        "styleMode": "neon",
+        "lineWidth": 6,
+        "lineGradient": true,
+        "flowSpeed": 1.6,
+        "pulseCaps": true,
+        "arrowHead": true,
+        "showValue": true,
+        "valueDecimals": 0,
+        "unitLabel": "EPS",
+        "linkLabel": "転送",
+        "flowDirection": "forward",
+        "colorMode": "range",
+        "colorBands": [
+          {
+            "from": null,
+            "to": 40000,
+            "value": "#3fb950"
+          },
+          {
+            "from": 40000,
+            "to": 70000,
+            "value": "#d29922"
+          },
+          {
+            "from": 70000,
+            "to": null,
+            "value": "#f85149"
+          }
+        ]
+      }
+    },
+    "viz_link_siem_db": {
+      "type": "custom_viz_link_line.custom_viz_link_line",
+      "dataSources": {
+        "primary": "ds_link_siem_db"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "valueField": "> primary | seriesByName('gbps')",
+        "linePoints": "[[0.12,0.318],[0.88,0.318]]",
+        "allowViewEdit": false,
+        "styleMode": "neon",
+        "lineWidth": 6,
+        "lineGradient": true,
+        "flowSpeed": 1,
+        "pulseCaps": true,
+        "arrowHead": true,
+        "showValue": true,
+        "valueDecimals": 1,
+        "unitLabel": "Gbps",
+        "linkLabel": "書込",
+        "flowDirection": "forward",
+        "colorMode": "range",
+        "colorBands": [
+          {
+            "from": null,
+            "to": 5,
+            "value": "#3fb950"
+          },
+          {
+            "from": 5,
+            "to": 8,
+            "value": "#d29922"
+          },
+          {
+            "from": 8,
+            "to": null,
+            "value": "#f85149"
+          }
+        ]
+      }
+    },
+    "viz_tube_disk": {
+      "type": "custom_viz_liquid_tube.custom_viz_liquid_tube",
+      "title": "インデックス使用量",
+      "dataSources": {
+        "primary": "ds_capacity"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "labelField": "> primary | seriesByName('label')",
+        "valueField": "> primary | seriesByName('pct')",
+        "minValue": 0,
+        "maxValue": 100,
+        "colorMode": "threshold",
+        "colorBands": [
+          {
+            "from": null,
+            "to": 60,
+            "value": "#3fd66e"
+          },
+          {
+            "from": 60,
+            "to": 85,
+            "value": "#f0912e"
+          },
+          {
+            "from": 85,
+            "to": null,
+            "value": "#ef4d6a"
+          }
+        ],
+        "transparentBg": true,
+        "liquidOpacity": 0.85,
+        "bubbleCount": 18,
+        "animSpeed": 1,
+        "showLabel": true,
+        "showValue": true,
+        "valueUnit": "%",
+        "valueDecimals": 0,
+        "aggregation": "last",
+        "glow": 0.6,
+        "tubeWidth": 0.5
+      }
+    },
+    "viz_calendar": {
+      "type": "custom_viz_calendar_heatmap.custom_viz_calendar_heatmap",
+      "title": "日別のアラート密度",
+      "dataSources": {
+        "primary": "ds_calendar"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "dateField": "> primary | seriesByName('date')",
+        "valueField": "> primary | seriesByName('count')",
+        "useValueColors": true,
+        "lowColor": "#12233a",
+        "highColor": "#ef4d6a",
+        "useMidColor": true,
+        "midColor": "#f0912e",
+        "levels": 5,
+        "maxCellSize": 26,
+        "weekStartMonday": true,
+        "showHeader": false,
+        "showMonthLabels": true,
+        "showWeekdayLabels": true,
+        "showLegend": true,
+        "glow": true
+      }
+    },
+    "viz_bullet_slo": {
+      "type": "custom_viz_bullet_graph.custom_viz_bullet_graph",
+      "title": "運用 SLO の達成状況",
+      "dataSources": {
+        "primary": "ds_slo"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "labelField": "> primary | seriesByName('metric')",
+        "valueField": "> primary | seriesByName('value')",
+        "targetField": "> primary | seriesByName('target')",
+        "showBands": true,
+        "band1Pct": 60,
+        "band2Pct": 85,
+        "showTarget": true,
+        "showValues": true,
+        "showPercent": true,
+        "sharedScale": false,
+        "useValueColors": true,
+        "goodColor": "#3fd66e",
+        "warnColor": "#f0912e",
+        "badColor": "#ef4d6a",
+        "animate": true,
+        "valueDecimals": 0
+      }
+    },
+    "viz_gradient_srcip": {
+      "type": "custom_viz_gradient_bar.custom_viz_gradient_bar",
+      "title": "ノイズの多い検知ルール",
+      "dataSources": {
+        "primary": "ds_noisy_rules"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "labelField": "> primary | seriesByName('rule')",
+        "valueField": "> primary | seriesByName('count')",
+        "useValueColors": true,
+        "lowColor": "#38bdf8",
+        "midColor": "#f0912e",
+        "highColor": "#ef4d6a",
+        "useMidColor": true,
+        "sortMode": "desc",
+        "topN": 6,
+        "showTitle": false,
+        "showAxis": false,
+        "showValue": true,
+        "showPercent": false,
+        "showTrack": true,
+        "glow": true,
+        "animate": true,
+        "fillHeight": true
+      }
+    },
+    "viz_host_icon": {
+      "type": "custom_viz_icon_status.custom_viz_icon_status",
+      "title": "$sel_host$ の状態",
+      "dataSources": {
+        "primary": "ds_host_state"
+      },
+      "options": {
+        "backgroundColor": "transparent",
+        "showCard": false,
+        "labelField": "> primary | seriesByName('label')",
+        "valueField": "> primary | seriesByName('risk')",
+        "iconName": "server",
+        "iconStyle": "solid",
+        "colorMode": "threshold",
+        "colorBands": [
+          {
+            "from": null,
+            "to": 40,
+            "value": "#3fb950"
+          },
+          {
+            "from": 40,
+            "to": 70,
+            "value": "#d29922"
+          },
+          {
+            "from": 70,
+            "to": null,
+            "value": "#f85149"
+          }
+        ],
+        "showGlow": true,
+        "showShadow": false,
+        "pulseMode": "ring",
+        "showValue": true,
+        "showLabel": true,
+        "unitText": "点",
+        "valueDecimals": 0,
+        "aggregation": "last",
+        "iconScale": 1
+      }
+    }
+  },
+  "dataSources": {
+    "ds_kpi_alerts": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults count=14 | streamstats count as i | eval _time=relative_time(now(), \"-\" . (14-i) . \"d\"), value=2400+round(600*sin(i/2.1),0)+i*35 | table _time value"
+      }
+    },
+    "ds_kpi_critical": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults count=14 | streamstats count as i | eval _time=relative_time(now(), \"-\" . (14-i) . \"d\"), value=8+round(5*sin(i/1.7),0)+round(i/4,0) | table _time value"
+      }
+    },
+    "ds_kpi_blocked": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults count=14 | streamstats count as i | eval _time=relative_time(now(), \"-\" . (14-i) . \"d\"), value=18400+round(3200*sin(i/2.4),0)+i*180 | table _time value"
+      }
+    },
+    "ds_kpi_mttr": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults count=14 | streamstats count as i | eval _time=relative_time(now(), \"-\" . (14-i) . \"d\"), value=46-round(9*sin(i/2.2),0)-round(i/3,0) | table _time value"
+      }
+    },
+    "ds_kpi_assets": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults count=14 | streamstats count as i | eval _time=relative_time(now(), \"-\" . (14-i) . \"d\"), value=27+round(7*sin(i/1.9),0) | table _time value"
+      }
+    },
+    "ds_kpi_score": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults count=14 | streamstats count as i | eval _time=relative_time(now(), \"-\" . (14-i) . \"d\"), value=58+round(12*sin(i/2.6),0) | table _time value"
+      }
+    },
+    "ds_attacks_geo": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults format=csv data=\"src_name,src_lat,src_lon,dst_name,dst_lat,dst_lon,category,count\n上海,31.23,121.47,東京,35.68,139.69,攻撃,842\nモスクワ,55.75,37.62,東京,35.68,139.69,マルウェア,517\nサンパウロ,-23.55,-46.63,大阪,34.69,135.50,偵察,288\nラゴス,6.52,3.38,東京,35.68,139.69,攻撃,196\nキーウ,50.45,30.52,福岡,33.59,130.40,情報流出,143\nソウル,37.57,126.98,東京,35.68,139.69,偵察,431\nムンバイ,19.08,72.88,大阪,34.69,135.50,マルウェア,254\nアムステルダム,52.37,4.90,東京,35.68,139.69,攻撃,177\nロサンゼルス,34.05,-118.24,札幌,43.06,141.35,偵察,122\nシンガポール,1.35,103.82,大阪,34.69,135.50,情報流出,98\nイスタンブール,41.01,28.98,東京,35.68,139.69,マルウェア,164\nシドニー,-33.87,151.21,福岡,33.59,130.40,偵察,76\" | table src_name src_lat src_lon dst_name dst_lat dst_lon category count"
+      }
+    },
+    "ds_alert_queue": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults format=csv data=\"time,host,rule,severity,count\n10:42,db-primary,認証情報の総当たり,critical,84\n10:38,vpn-gw,不審な国外ログイン,critical,31\n10:31,web-01,SQLインジェクション試行,high,127\n10:24,file-srv,大量ファイル暗号化の兆候,high,12\n10:19,app-01,権限昇格の検知,high,7\n10:11,web-02,Webシェル設置の疑い,medium,23\n10:04,vpn-gw,ポートスキャン,medium,318\n09:57,app-01,証明書の期限切れ,low,3\" | table time host rule severity count"
+      }
+    },
+    "ds_category_mix": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults format=csv data=\"category,count\n不正アクセス,1284\nマルウェア,842\n偵察スキャン,731\n情報流出,318\nポリシー違反,204\n内部不正,96\" | table category count"
+      }
+    },
+    "ds_source_trend": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults count=48 | streamstats count as i | eval _time=relative_time(now(), \"-\" . (48-i) . \"m\") | eval s=\"Firewall\", events=320+round(120*sin(i/5.0),0) | table _time s events | append [| makeresults count=48 | streamstats count as i | eval _time=relative_time(now(), \"-\" . (48-i) . \"m\"), s=\"IDS/IPS\", events=180+round(90*sin(i/3.4+1),0) | table _time s events] | append [| makeresults count=48 | streamstats count as i | eval _time=relative_time(now(), \"-\" . (48-i) . \"m\"), s=\"EDR\", events=140+round(70*sin(i/4.2+2),0) | table _time s events] | append [| makeresults count=48 | streamstats count as i | eval _time=relative_time(now(), \"-\" . (48-i) . \"m\"), s=\"Proxy\", events=260+round(110*sin(i/6.1+3),0) | table _time s events] | append [| makeresults count=48 | streamstats count as i | eval _time=relative_time(now(), \"-\" . (48-i) . \"m\"), s=\"認証基盤\", events=90+round(60*sin(i/2.8+4),0) | table _time s events] | rename s as source | table _time source events"
+      }
+    },
+    "ds_mitre": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults format=csv data=\"tactic,technique,count\n初期アクセス,フィッシング,312\n初期アクセス,公開アプリの悪用,198\n初期アクセス,正規アカウント利用,144\n実行,コマンドインタプリタ,246\n実行,スケジュールタスク,88\n永続化,アカウント作成,132\n永続化,起動時自動実行,97\n権限昇格,トークン操作,118\n権限昇格,設定不備の悪用,74\n防御回避,ログ消去,163\n防御回避,難読化,121\n認証情報アクセス,総当たり,284\n認証情報アクセス,OS認証情報の窃取,152\n探索,アカウント探索,209\n探索,ネットワーク探索,187\n水平展開,リモートサービス,141\n収集,ローカルデータ収集,103\n持ち出し,C2経由の送信,176\" | table tactic technique count"
+      }
+    },
+    "ds_killchain": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults format=csv data=\"src,dst,cnt\nメール,初期アクセス,412\nWeb,初期アクセス,286\nVPN,初期アクセス,158\n初期アクセス,実行,624\n初期アクセス,遮断,232\n実行,永続化,318\n実行,遮断,306\n永続化,水平展開,214\n永続化,遮断,104\n水平展開,情報収集,148\n水平展開,遮断,66\n情報収集,持ち出し,92\n情報収集,遮断,56\" | table src dst cnt"
+      }
+    },
+    "ds_asset_tactic": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults format=csv data=\"asset_group,tactic,count\nWebサーバ,初期アクセス,86\nWebサーバ,実行,54\nWebサーバ,権限昇格,21\nWebサーバ,持ち出し,12\nDBサーバ,初期アクセス,32\nDBサーバ,実行,18\nDBサーバ,権限昇格,44\nDBサーバ,持ち出し,58\n業務PC,初期アクセス,124\n業務PC,実行,96\n業務PC,権限昇格,38\n業務PC,持ち出し,17\nネットワーク機器,初期アクセス,41\nネットワーク機器,実行,12\nネットワーク機器,権限昇格,26\nネットワーク機器,持ち出し,8\n認証基盤,初期アクセス,63\n認証基盤,実行,22\n認証基盤,権限昇格,71\n認証基盤,持ち出し,14\" | table asset_group tactic count"
+      }
+    },
+    "ds_asset_tree": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults format=csv data=\"segment,host,count\nDMZ,web-01,127\nDMZ,web-02,63\nDMZ,proxy-01,41\n社内,app-01,88\n社内,file-srv,72\n社内,print-srv,19\nデータ,db-primary,142\nデータ,db-replica,37\n境界,vpn-gw,96\n境界,fw-01,54\n管理,jump-01,28\n管理,backup-01,16\" | table segment host count"
+      }
+    },
+    "ds_country_rank": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults format=csv data=\"country,count\nChina,842\nRussia,517\nSouth Korea,431\nBrazil,288\nIndia,254\nNigeria,196\nNetherlands,177\nTurkey,164\nUkraine,143\nUnited States,122\" | table country count"
+      }
+    },
+    "ds_triage_funnel": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults format=csv data=\"step,count\n生ログ検知,18420\n相関ルール通過,3240\nトリアージ対象,864\n調査着手,213\nインシデント認定,47\nエスカレーション,12\" | table step count"
+      }
+    },
+    "ds_incident_queue": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults format=csv data=\"host,rule,severity,age_min,count\ndb-primary,認証情報の総当たり,critical,18,84\nvpn-gw,不審な国外ログイン,critical,24,31\nweb-01,SQLインジェクション試行,high,31,127\nfile-srv,大量ファイル暗号化の兆候,high,38,12\napp-01,権限昇格の検知,high,43,7\nweb-02,Webシェル設置の疑い,medium,51,23\nweb-01,不審なプロセス起動,medium,58,15\napp-01,証明書の期限切れ,low,72,3\ndb-primary,長時間クエリの多発,medium,79,44\nvpn-gw,ポートスキャン,medium,86,318\" | table host rule severity age_min count"
+      }
+    },
+    "ds_host_state": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults format=csv data=\"host,label,risk\nweb-01,調査中,74\nweb-02,経過観察,42\napp-01,調査中,61\ndb-primary,対応中,88\nvpn-gw,対応中,79\nfile-srv,調査中,68\" | where host=\"$sel_host$\" | table label risk"
+      }
+    },
+    "ds_host_risk": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults format=csv data=\"host,risk\nweb-01,68\nweb-02,38\napp-01,57\ndb-primary,84\nvpn-gw,76\nfile-srv,64\" | where host=\"$sel_host$\" | append [| makeresults format=csv data=\"host,risk\nweb-01,74\nweb-02,42\napp-01,61\ndb-primary,88\nvpn-gw,79\nfile-srv,68\" | where host=\"$sel_host$\"] | table risk"
+      }
+    },
+    "ds_host_radar": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults format=csv data=\"host,axis,current,baseline\nweb-01,公開面の露出,82,45\nweb-01,パッチ適用の遅れ,64,30\nweb-01,認証の強度,38,25\nweb-01,通信の異常度,71,35\nweb-01,権限の過剰付与,49,30\nweb-01,ログ欠損,28,20\nweb-02,公開面の露出,54,45\nweb-02,パッチ適用の遅れ,31,30\nweb-02,認証の強度,26,25\nweb-02,通信の異常度,38,35\nweb-02,権限の過剰付与,33,30\nweb-02,ログ欠損,22,20\napp-01,公開面の露出,44,45\napp-01,パッチ適用の遅れ,58,30\napp-01,認証の強度,47,25\napp-01,通信の異常度,52,35\napp-01,権限の過剰付与,68,30\napp-01,ログ欠損,31,20\ndb-primary,公開面の露出,36,45\ndb-primary,パッチ適用の遅れ,72,30\ndb-primary,認証の強度,88,25\ndb-primary,通信の異常度,64,35\ndb-primary,権限の過剰付与,79,30\ndb-primary,ログ欠損,41,20\nvpn-gw,公開面の露出,91,45\nvpn-gw,パッチ適用の遅れ,48,30\nvpn-gw,認証の強度,74,25\nvpn-gw,通信の異常度,83,35\nvpn-gw,権限の過剰付与,37,30\nvpn-gw,ログ欠損,26,20\nfile-srv,公開面の露出,42,45\nfile-srv,パッチ適用の遅れ,66,30\nfile-srv,認証の強度,52,25\nfile-srv,通信の異常度,58,35\nfile-srv,権限の過剰付与,71,30\nfile-srv,ログ欠損,35,20\" | where host=\"$sel_host$\" | table axis current baseline"
+      }
+    },
+    "ds_timeline": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults format=csv data=\"lane,label,severity,off_start,off_end\nweb-01,SQLi 試行,high,180,150\nweb-01,不審プロセス,medium,120,96\nweb-01,C2 通信疑い,critical,84,60\ndb-primary,総当たり開始,critical,240,186\ndb-primary,認証成功,critical,186,168\ndb-primary,大量クエリ,high,168,108\nvpn-gw,国外ログイン,critical,300,264\nvpn-gw,ポートスキャン,medium,264,192\napp-01,権限昇格,high,144,114\napp-01,設定変更,medium,114,72\nfile-srv,暗号化の兆候,high,96,42\nweb-02,Webシェル設置,medium,210,174\" | eval start=relative_time(now(), \"-\" . off_start . \"m\"), end=relative_time(now(), \"-\" . off_end . \"m\") | table lane label severity start end"
+      }
+    },
+    "ds_waterfall": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults format=csv data=\"label,delta\n前日残,214\n新規検知,486\n自動遮断,-268\n誤検知除外,-142\nエスカレーション,-47\n再オープン,38\" | table label delta"
+      }
+    },
+    "ds_pipeline": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults format=csv data=\"取り込み,パース,インデックス,サーチ\n72,64,81,58\" | table 取り込み パース インデックス サーチ"
+      }
+    },
+    "ds_infra_nodes": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults format=csv data=\"kind,name,v\nnode,FW-01,46\nnode,IDS-01,68\nnode,SIEM,81\nnode,INDEX-DB,74\nlink,fw_ids,6.4\nlink,ids_siem,52000\nlink,siem_db,4.2\" | table kind name v"
+      }
+    },
+    "ds_node_fw": {
+      "type": "ds.chain",
+      "options": {
+        "extend": "ds_infra_nodes",
+        "query": "| where kind=\"node\" AND name=\"FW-01\" | eval label=name, cpu=tonumber(v) | table label cpu"
+      }
+    },
+    "ds_node_ids": {
+      "type": "ds.chain",
+      "options": {
+        "extend": "ds_infra_nodes",
+        "query": "| where kind=\"node\" AND name=\"IDS-01\" | eval label=name, cpu=tonumber(v) | table label cpu"
+      }
+    },
+    "ds_node_siem": {
+      "type": "ds.chain",
+      "options": {
+        "extend": "ds_infra_nodes",
+        "query": "| where kind=\"node\" AND name=\"SIEM\" | eval label=name, cpu=tonumber(v) | table label cpu"
+      }
+    },
+    "ds_node_db": {
+      "type": "ds.chain",
+      "options": {
+        "extend": "ds_infra_nodes",
+        "query": "| where kind=\"node\" AND name=\"INDEX-DB\" | eval label=name, cpu=tonumber(v) | table label cpu"
+      }
+    },
+    "ds_link_fw_ids": {
+      "type": "ds.chain",
+      "options": {
+        "extend": "ds_infra_nodes",
+        "query": "| where kind=\"link\" AND name=\"fw_ids\" | eval gbps=tonumber(v) | table gbps"
+      }
+    },
+    "ds_link_ids_siem": {
+      "type": "ds.chain",
+      "options": {
+        "extend": "ds_infra_nodes",
+        "query": "| where kind=\"link\" AND name=\"ids_siem\" | eval eps=tonumber(v) | table eps"
+      }
+    },
+    "ds_link_siem_db": {
+      "type": "ds.chain",
+      "options": {
+        "extend": "ds_infra_nodes",
+        "query": "| where kind=\"link\" AND name=\"siem_db\" | eval gbps=tonumber(v) | table gbps"
+      }
+    },
+    "ds_capacity": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults format=csv data=\"label,pct\nHot ストレージ,78\" | table label pct"
+      }
+    },
+    "ds_calendar": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults count=90 | streamstats count as i | eval date=strftime(relative_time(now(), \"-\" . (90-i) . \"d\"), \"%Y-%m-%d\"), count=120+round(80*sin(i/3.7),0)+round(40*sin(i/11.0),0) | table date count"
+      }
+    },
+    "ds_slo": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults format=csv data=\"metric,value,target\n検知までの時間（分）,7,10\n初動までの時間（分）,18,15\n封じ込めまでの時間（分）,52,60\n誤検知率（%）,14,10\nログ取り込み率（%）,97,99\" | table metric value target"
+      }
+    },
+    "ds_noisy_rules": {
+      "type": "ds.search",
+      "options": {
+        "query": "| makeresults format=csv data=\"rule,count\nポートスキャン検知,3184\n認証失敗の連続,2107\n地理的にありえない移動,1642\nDNS の異常問い合わせ,1188\n大容量アップロード,864\n未署名バイナリの実行,612\n設定変更の検知,431\" | table rule count"
+      }
+    }
+  },
+  "layout": {
+    "globalInputs": [
+      "input_time",
+      "input_host"
+    ],
+    "tabs": {
+      "items": [
+        {
+          "label": "概況",
+          "layoutId": "layout_overview"
+        },
+        {
+          "label": "脅威分析",
+          "layoutId": "layout_threat"
+        },
+        {
+          "label": "インシデント対応",
+          "layoutId": "layout_incident"
+        },
+        {
+          "label": "インフラ健全性",
+          "layoutId": "layout_infra"
+        }
+      ]
+    },
+    "layoutDefinitions": {
+      "layout_overview": {
+        "type": "absolute",
+        "options": {
+          "backgroundColor": "#050a14",
+          "display": "auto-scale",
+          "width": 1920,
+          "height": 980
+        },
+        "structure": [
+          {
+            "type": "block",
+            "item": "viz_hdr_overview",
+            "position": {
+              "x": 20,
+              "y": 12,
+              "w": 1880,
+              "h": 74
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_kpi_alerts",
+            "position": {
+              "x": 20,
+              "y": 96,
+              "w": 305,
+              "h": 176
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_kpi_critical",
+            "position": {
+              "x": 337,
+              "y": 96,
+              "w": 305,
+              "h": 176
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_kpi_blocked",
+            "position": {
+              "x": 654,
+              "y": 96,
+              "w": 305,
+              "h": 176
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_kpi_mttr",
+            "position": {
+              "x": 971,
+              "y": 96,
+              "w": 305,
+              "h": 176
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_kpi_assets",
+            "position": {
+              "x": 1288,
+              "y": 96,
+              "w": 305,
+              "h": 176
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_kpi_score",
+            "position": {
+              "x": 1605,
+              "y": 96,
+              "w": 295,
+              "h": 176
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_globe",
+            "position": {
+              "x": 20,
+              "y": 286,
+              "w": 620,
+              "h": 348
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_worldmap",
+            "position": {
+              "x": 652,
+              "y": 286,
+              "w": 800,
+              "h": 348
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_donut_category",
+            "position": {
+              "x": 1464,
+              "y": 286,
+              "w": 436,
+              "h": 348
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_sev_overview",
+            "position": {
+              "x": 20,
+              "y": 648,
+              "w": 940,
+              "h": 320
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_horizon",
+            "position": {
+              "x": 972,
+              "y": 648,
+              "w": 928,
+              "h": 320
+            }
+          }
+        ]
+      },
+      "layout_threat": {
+        "type": "absolute",
+        "options": {
+          "backgroundColor": "#050a14",
+          "display": "auto-scale",
+          "width": 1920,
+          "height": 980
+        },
+        "structure": [
+          {
+            "type": "block",
+            "item": "viz_hdr_threat",
+            "position": {
+              "x": 20,
+              "y": 12,
+              "w": 1880,
+              "h": 74
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_sunburst_mitre",
+            "position": {
+              "x": 20,
+              "y": 96,
+              "w": 620,
+              "h": 452
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_sankey_killchain",
+            "position": {
+              "x": 652,
+              "y": 96,
+              "w": 800,
+              "h": 452
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_country_rank",
+            "position": {
+              "x": 1464,
+              "y": 96,
+              "w": 436,
+              "h": 452
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_heat_asset",
+            "position": {
+              "x": 20,
+              "y": 562,
+              "w": 620,
+              "h": 406
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_treemap_assets",
+            "position": {
+              "x": 652,
+              "y": 562,
+              "w": 620,
+              "h": 406
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_funnel_triage",
+            "position": {
+              "x": 1284,
+              "y": 562,
+              "w": 616,
+              "h": 406
+            }
+          }
+        ]
+      },
+      "layout_incident": {
+        "type": "absolute",
+        "options": {
+          "backgroundColor": "#050a14",
+          "display": "auto-scale",
+          "width": 1920,
+          "height": 980
+        },
+        "structure": [
+          {
+            "type": "block",
+            "item": "viz_hdr_incident",
+            "position": {
+              "x": 20,
+              "y": 12,
+              "w": 1880,
+              "h": 74
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_queue",
+            "position": {
+              "x": 20,
+              "y": 96,
+              "w": 800,
+              "h": 530
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_host_icon",
+            "position": {
+              "x": 832,
+              "y": 96,
+              "w": 400,
+              "h": 230
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_gauge_risk",
+            "position": {
+              "x": 832,
+              "y": 338,
+              "w": 400,
+              "h": 288
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_radar_host",
+            "position": {
+              "x": 1244,
+              "y": 96,
+              "w": 656,
+              "h": 530
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_timeline",
+            "position": {
+              "x": 20,
+              "y": 640,
+              "w": 1180,
+              "h": 328
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_waterfall",
+            "position": {
+              "x": 1212,
+              "y": 640,
+              "w": 688,
+              "h": 328
+            }
+          }
+        ]
+      },
+      "layout_infra": {
+        "type": "absolute",
+        "options": {
+          "backgroundColor": "#050a14",
+          "display": "auto-scale",
+          "width": 1920,
+          "height": 980
+        },
+        "structure": [
+          {
+            "type": "block",
+            "item": "viz_hdr_infra",
+            "position": {
+              "x": 20,
+              "y": 12,
+              "w": 1880,
+              "h": 74
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_icon_fw",
+            "position": {
+              "x": 40,
+              "y": 100,
+              "w": 168,
+              "h": 168
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_link_fw_ids",
+            "position": {
+              "x": 208,
+              "y": 100,
+              "w": 200,
+              "h": 168
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_icon_ids",
+            "position": {
+              "x": 408,
+              "y": 100,
+              "w": 168,
+              "h": 168
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_link_ids_siem",
+            "position": {
+              "x": 576,
+              "y": 100,
+              "w": 200,
+              "h": 168
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_icon_siem",
+            "position": {
+              "x": 776,
+              "y": 100,
+              "w": 168,
+              "h": 168
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_link_siem_db",
+            "position": {
+              "x": 944,
+              "y": 100,
+              "w": 200,
+              "h": 168
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_icon_db",
+            "position": {
+              "x": 1144,
+              "y": 100,
+              "w": 168,
+              "h": 168
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_tube_disk",
+            "position": {
+              "x": 1344,
+              "y": 96,
+              "w": 556,
+              "h": 460
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_vu",
+            "position": {
+              "x": 20,
+              "y": 288,
+              "w": 800,
+              "h": 268
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_bullet_slo",
+            "position": {
+              "x": 832,
+              "y": 288,
+              "w": 492,
+              "h": 268
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_calendar",
+            "position": {
+              "x": 20,
+              "y": 570,
+              "w": 760,
+              "h": 398
+            }
+          },
+          {
+            "type": "block",
+            "item": "viz_gradient_srcip",
+            "position": {
+              "x": 792,
+              "y": 570,
+              "w": 1108,
+              "h": 398
+            }
+          }
+        ]
+      }
+    }
+  }
+}
