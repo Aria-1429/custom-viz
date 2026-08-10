@@ -17,6 +17,91 @@
 
 # ✅ 成立（実機確認済み）
 
+## ハック15：合成クリックで「無人のトークン設定」（2026-08-10 実機確定）⭐
+
+**`node.dispatchEvent(new Event('click'))` でトークンが入る。ホストは `isTrusted` を見ていない。**
+これで「発火はクリックのみ」というカスタム viz 最大の制約が、**ユーザー操作なしで**破れる。
+
+検証（`hack15_probe` / vu-console の3メーター。echo パネルで実際のトークン値を観測）:
+
+| 撃ち方 | 結果 |
+|---|---|
+| 実マウスクリック（対照実験） | ✓ `init/init` → `cpu/72` |
+| `MouseEvent('click')` 5点セット（pointerdown〜click） | ✓ `mem/48` |
+| **`MouseEvent('click')` 単発** | ✓ `disk/91` |
+| **座標も view も無い `new Event('click')`** | ✓ `cpu/72` |
+| **viz 自身の `setTimeout` から自走発火** | ✓ `disk/91` |
+| `hit.click()` | ✗ ただし理由は `SVGElement` に `click()` が無いから（DOM の仕様。ホストの拒否ではない） |
+
+**分かったこと**:
+- **必要なのは `click` イベント1発だけ**。pointer/mouse のシーケンスは不要。
+- **`isTrusted`・座標・`view` のいずれも検査されていない**（`new Event('click')` で通る）。
+- **注入直後でなく、時間差で自走させても効く** → **viz のコードに書いてそのまま動く**
+  （Playwright から撃ったから効いた、ではない）。
+- 発火先は `elementFromPoint` で拾った最深ノード（`<rect>`）。**バブリングするので
+  登録ノードの子孫を撃てばよい**。
+
+```js
+// viz 内での使い方（addDrilldownListener で登録済みのノードに撃つ）
+node.dispatchEvent(new Event('click', { bubbles: true }));
+```
+
+**⚠ 使うときの注意**:
+- **無限ループを作らない**。データ更新 → 合成クリック → トークン更新 → サーチ再実行 →
+  データ更新… と回りうる。**前回値と比較して、変化したときだけ撃つ**。
+- ユーザーの操作を勝手に上書きする挙動になるので、**自動巡回はオプションで
+  明示的に ON にさせる**（既定 OFF）。
+- 検証スクリプト: `tools/dashboard-loop/probe-hack15b.mjs`（対照実験つき）、
+  `probe-hack15c.mjs`（条件の絞り込み）。
+
+**これで解禁されるもの**: ハック22（サーチ結果→トークン＝Simple XML の `<done><set>` 相当）、
+壁掛けキオスクの自動巡回、最悪値への自動フォーカス。
+
+## ハック11：viz からダッシュボードの時間範囲を書く（2026-08-10 実機確定）⭐
+
+**`drilldown.setToken` の宛先に `global_time.earliest` / `global_time.latest` を
+指定すると、ダッシュボード全体の時間範囲が実際に動く。**
+
+```jsonc
+"eventHandlers": [
+  { "type": "drilldown.setToken", "options": { "tokens": [
+    { "token": "global_time.earliest", "key": "row.tr.value" }   // 値は "-7d@d" 等の時間修飾子
+  ] } }
+]
+```
+
+- 実測：クリック前 `-24h@h` → クリック後 **時間ピッカーの表示が「Last 7 days」に変わった**
+  （URL も `form.global_time.earliest=-7d@d` に変化。スクリーンショットで確認）。
+- **合成クリック（ハック15）との併用も確認済み** ＝ 無人で時間範囲を動かせる。
+- 用途: **カスタム時間ブラシ**（バケットをクリック → 全パネルがその期間にズーム）。
+- 値は SPL の時間修飾子文字列（`-7d@d` / `-1h@h` など）。epoch でも可かは未検証。
+
+## ハック6：トークンに JSON を積む（2026-08-10 実機確定）⭐
+
+**JSON 文字列はトークンバスを無傷で通る。`JSON.parse` に成功する。**
+単一値のトークンが**複数選択の集合**を運べる＝クロスフィルタが作れる。
+
+- 実測ペイロード `{"hosts":["web-01","web-02"],"n":2,"q":"a&b=c d"}` が
+  **`"` `[` `]` `&` `=` 空白すべて無傷**で往復し、`JSON.parse` 成功。
+- **長さは 20,229 文字でも無傷**（247 / 1,063 / 4,563 / 20,229 で確認。実用上は無制限と考えてよい）。
+
+**🛑 ただし SPL に埋めると壊れる（最重要の注意点）**:
+
+```
+| eval x="$sel_json$"     ← 生の " が文字列リテラルを割る
+→ Error in 'EvalCommand': The expression is malformed.（実機で FATAL を確認）
+```
+
+- **Simple XML の `|s` フィルタ（`$tok|s$`）は Studio では効かない。**
+  実機の dispatch 済み SPL は `len(""init"")` になっており（クォートを重ねるだけで
+  エスケープしない）、かえって壊れた。**Studio で `|s` を使わないこと。**
+- → **使い分けの結論**：
+  - **JSON トークンは「viz が `useTokens` で読む」用途に限る**（ここは完全に安全）。
+  - **SPL に流すなら JSON にしない**。カンマ区切り等の引用符を含まない形にして
+    `split()` + `IN` で受ける（[[studio-inputs-tokens]] の multiselect と同じ流儀）。
+- 検証スクリプト: `probe-h6d.mjs`（往復の無傷確認）、`probe-h6len.mjs`（長さ）、
+  `probe-h6c.mjs`（**dispatch 済み SPL を REST で読んで FATAL を確認**）。
+
 ## ハック26：兄弟 iframe への直接 postMessage — ホバー同期の解禁（2026-08-09）
 
 **`window.parent.frames[i].postMessage(msg, '*')` で viz iframe 同士が直接通信できる。**
@@ -153,19 +238,8 @@ opaque origin のため **fetch に session cookie が付かない**。
 
 # 🔥 有望・未検証（優先度順の検証キュー）
 
-## ハック15：合成クリックで「無人のトークン設定」（未検証・かなめ）
-
-`addDrilldownListener` は登録ノードの click を聴く（実機確認済み）。
-**viz 自身が `node.dispatchEvent(new MouseEvent('click'))` を発火**したら、
-ホストは人間のクリックと区別するか（`isTrusted` を検査しない実装は多い）。
-
-- 通れば「クリックのみ」の発火制約を**ユーザー操作なしで**突破:
-  壁掛けキオスクの自動巡回（N 秒ごとに選択が回る）／最悪値への自動フォーカス。
-- **ハック22・自動巡回系はすべてこの成否に懸かる**。プローブは `viz_check_vu_link`
-  流用で10分（iframe 内で登録済みノードに合成クリック → 別パネルと echo を観測）。
-- 不発なら最後の手段としてホストブリッジの postMessage 直叩き（クリック時に流れる
-  メッセージを親側で観測して同じ形を送る）があるが、**非公開プロトコル依存で
-  バージョンアップに脆い**。正攻法が死んだ時だけ検討する。
+> **2026-08-10 にハック15・11・6 を実機検証し、3件とも成立**（上の「✅ 成立」章へ移動済み）。
+> 残っているのはハック20＋21（実装のみ）とハック24（未調査）。
 
 ## ハック20＋21：ds.test / サーチを「設定チャネル」にする（実質検証済みの組み合わせ）
 
@@ -179,27 +253,109 @@ viz に `config` という名前のソースを縛り、**任意の表形式設�
   を `config` ソースにすると、**色帯が過去データの分位点に自動追従**する。
   しきい値の手動メンテが消える。ハック10確定済みのため**技術的な未知はゼロ、実装のみ**。
 
-## ハック22：見えないセンサー viz — 「サーチ結果 → トークン」の復活（15依存）
+## ハック22：見えないセンサー viz — 「サーチ結果 → トークン」の復活（2026-08-10 **実機成立**）⭐
 
-Studio に無い Simple XML の `<done><set>` 相当を作る。1px の不可視 viz にサーチを縛り、
-**データ到着時に自分へ合成クリック**（payloadCallback はクリック時評価＝行の値を載せられる）
-→ サーチ結果がトークンに入る。最重要アラートのホストへ全パネルが無人でフォーカスする、等。
-**ハック15が通った場合のみ成立**。
+**Studio に無い Simple XML の `<done><set>` 相当が作れる。**
+サーチ結果を読んで**ユーザー操作なしにトークンを設定**できることを実機で確認した。
 
-## ハック11：viz からダッシュボードの時間範囲を書く — カスタム時間ブラシ（未検証）
+**実測**（`probe-hack22.mjs`。vu-console の中核ロジックだけを再現して検証）:
 
-`drilldown.setToken` の `token` に **`global_time.earliest` / `latest`** を指定したら
-効くか。通れば「バケットをクリック → 全パネルがその1時間にズーム」という
-カスタム時間ブラシが作れる（Simple XML では可能だった系譜）。
-プローブは既存ダッシュボードに eventHandlers を1個足すだけ（15分）。
+| 確認項目 | 結果 |
+|---|---|
+| データ到着で自動発火 | ✓ サーチ結果から最悪値の行（`disk=91`）を選び、**無人でトークン設定**（`init/init` → `disk/91`） |
+| **無限ループしないか**（最重要） | ✓ **12秒放置しても発火は1回のまま**。前回値と比較するガードが効いた |
 
-## ハック6：トークンに JSON を積む — 複数選択クロスフィルタ（未検証）
+**中核ロジック**（これを 1px の不可視 viz に入れれば完成。**残りは見た目だけ**）:
 
-トークン値はただの文字列で `payloadCallback` の値がそのまま入る（実機確認済み）。
-選択集合を `JSON.stringify` して載せれば、単一値のトークンバスが**複数選択**に化ける。
-未検証は値の長さ制限・特殊文字の扱いのみ。プローブ15分。
+```js
+let lastKey = null;
+const tick = () => {
+    const worst = pickWorst();            // サーチ結果から対象行を選ぶ
+    if (!worst) return;
+    const key = `${worst.name}=${worst.value}`;
+    if (key === lastKey) return;          // 🛑 同じ結果なら撃たない（暴走防止の要）
+    lastKey = key;
+    node.dispatchEvent(new Event('click', { bubbles: true }));   // ハック15
+};
+addDataSourcesListener(() => tick(), { invokeImmediately: true });
+```
 
-## ハック24：パネルの条件表示 — Studio ネイティブ機能の存否調査（未調査）
+- 発火は**ハック15**（合成クリック）、登録時の取りこぼし対策に **`invokeImmediately`**
+  （[studio-extension-viz.md](studio-extension-viz.md) の該当節）を使っている。
+  **今回の一連の検証成果がそのまま組み合わさる形。**
+- 🛑 **`lastKey` のガードは必須**。外すと「データ更新→クリック→トークン更新→再サーチ→
+  データ更新」で回り続ける。
+- 用途: 最重要アラートのホストへ全パネルが無人でフォーカス／壁掛けの自動巡回。
+- ⚠ **viz として作るのは未実施**（検証したのはロジックのみ）。1px viz を新規に作る場合は
+  `config.json` に `events` 宣言が要る＝**splunkd 再起動が必要**になる点に注意。
+  既存 viz（vu-console 等）にオプションとして足すなら**再起動不要**。
+
+## ハック24：パネルの条件表示 — **ネイティブ機能。`hideWhenNoData` は動く／カスタム条件は不発**（2026-08-10 実機）
+
+**結論：Studio には「Visibility（表示条件）」がネイティブで存在する。ハックは不要。**
+ただし **Simple XML の `depends` / `rejects` は使えない**（別物）。
+
+### 実機で確かめた結果（この環境 = Splunk Enterprise 10.4.2）
+
+| 項目 | 結果 |
+|---|---|
+| 編集パネルの「Visibility」セクション | ✓ **出る**（カスタム viz の vu-console でも出た）。`enableShowHide` は有効 |
+| **`hideWhenNoData: true`** | ✓ **効く**。空サーチ（`where 1=0`）のパネルが**実際に消えた**（スクショ確認） |
+| `showConditions` / `hideConditions`（カスタム条件） | ✗ **効かなかった**。式5通り（`==` / `=` / `LIKE` / クォート囲み / **定数 `true`**）を並べたが**全部そのまま表示**され、トークンを切り替えても変化なし |
+| 定義の保存 | ✓ `expressions.conditions` も `containerOptions.visibility` も**そのまま保存される**（REST で確認） |
+
+**⚠ 「定数 `true` すら効かない」＝式の書き方の問題ではない。**
+条件が解決できないと**表示側にフォールバック**する挙動なので、**条件評価そのものが
+走っていない**と考えられる。UI 側も「Set up condition」→ Conditions 一覧が**空**で、
+`Create condition` から先へ進めなかった。
+→ **`showConditionsEditor` フィーチャーフラグが無効**の可能性が高い（**未確定**。
+フラグの実値は `window` から取得できず未確認）。
+
+**実務上の結論**:
+- **「データが無いパネルを隠す」だけなら今すぐ使える**（`hideWhenNoData`。JSON 1行）。
+  これは**サーチ未設定の空パネルを消す**用途に有効。
+- **トークン条件でパネルを出し分けるのは、この環境では現状できない。**
+  ハック22（センサー viz でトークンを立てる）と組み合わせる構想は**保留**。
+- 環境・バージョンによってはフラグが有効なこともありうるので、
+  **別環境では「Set up condition が押せるか」を最初に見る**。
+
+**① `depends` / `rejects` は「変換時の非対応警告」として実装されている**（＝Studio では死んでいる）:
+- 出現箇所はすべて Simple XML → Studio の**変換器**（`warnIfShowHide` /
+  `unsupportedConfigs` / `conversionWarnings`）。
+- **変換時に「この設定は移行できません」と警告を出すためのコード**。
+  → **Studio の JSON に `depends` を書いても効かない**（[[bundle-schema-not-registry]] の
+  「移行マップが混ざる罠」と同じ構図）。
+
+**② 本物は `containerOptions.visibility` + `expressions.conditions`**（バンドルのコード構造）:
+
+```jsonc
+// パネル側：どの条件で出す/隠すか（条件は id で参照する）
+"containerOptions": { "visibility": {
+    "hideConditions": ["<conditionId>"],
+    "showConditions": ["<conditionId>"]
+} },
+// ダッシュボード直下：条件式の実体
+"expressions": { "conditions": { "<conditionId>": { /* 式 */ } } }
+```
+
+- 編集 UI は右サイドバーの **「Visibility」パネル**（`SidebarCollapsiblePanel` /
+  `data-test="collapsible-panel-visibility"`）。`ConditionListEditor` で条件を並べる。
+- 既製の条件に **「no data」「no results」「hide」** があり、**「custom conditions」**（自由な式）も持つ。
+- **入力（inputs）にも同じ Visibility がある**（`hideInViewMode` ＝ 表示モードでだけ隠す、も別途ある）。
+- 条件式は専用の式エンジンで評価される（`expressionType: "conditions"` / DAG を作って解決）。
+
+**⚠ フィーチャーフラグで出し分けられている**（`useFeatureFlags()` の
+`enableShowHide` と `showConditionsEditor`）。**この環境で編集パネルに出るかは未確認**。
+また `shouldHideVisibilitySection(type)` により **viz の型によっては出ない**
+（`abslayout.line` は明示的に除外されている＝link-line 系の図形は対象外）。
+
+**→ 次にやるべきこと（未実施）**：検証用ダッシュボードを編集モードで開き、
+右サイドバーに「Visibility」セクションが出るかを**スクリーンショットで確認する**。
+出るなら UI で条件を1つ作り、**保存された JSON を読んで正確な書式を採取する**
+（推測で書かない＝[[bundle-schema-not-registry]]）。出ないならフラグが無効。
+
+**⭐ これが効くと**：ハック22（サーチ結果→トークン）と組み合わせて
+**「異常時だけ詳細パネルが現れる」ダッシュボード**が、カスタム viz 無しで作れる。
 
 Simple XML の `depends`（トークンでパネルを出し隠し）相当が Studio の layout に
 あるかどうか、**まだ調べていない**。バンドル抽出済みスキーマの再走査＋docs＋1プローブで
@@ -219,6 +375,11 @@ Simple XML の `depends`（トークンでパネルを出し隠し）相当が S
 - ハック26: `viz_check_vu_link` の vu-console iframe 2枚で実測（2026-08-09）。
   A から `parent.frames` 経由で送信 → B の message リスナーで受信を確認。
   バースト200通=受信200/200（送信1.5ms・受信スパン1.5ms）。`ev.origin` は `"null"`。
+- ハック15・11・6: `hack11_probe` / `hack15_probe`（dashboard_loop_test）。2026-08-10。
+  合成クリック → echo パネルのトークン値・時間ピッカーの表示・URL の form.* を観測。
+  **判定は必ず「echo の値が変わったか」で行った**（例外が出ないことは証拠にしない）。
+  ハック6 の不成立部分（SPL 埋め込み）は **dispatch 済みジョブの `search` フィールドを
+  REST で読んで FATAL を確認**（[[verify-by-reading-dispatched-spl]] の流儀）。
 - **sandbox 属性は Splunk のバージョンで変わりうる。** 将来 `allow-same-origin` が
   付いたらハック5・7の結論は覆るので、大型アップグレード後は再測定する価値がある。
 - ⚠ 副産物の未確認事項: 各データソースのペイロードに `requestParams` / `meta` が

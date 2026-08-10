@@ -221,6 +221,38 @@ useEffect(() => listenerFunction((d) => setState(transformer(d))), ...);  // ②
 
 - 症状：不定期に発生・ダッシュボード初回表示で起きやすい・ブラウザ更新であっさり直る
   （2回目はジョブキャッシュから即返り、マウント前に届いて①のシードで拾えるため）。
+
+> #### ⭐ 本命だった：`{ invokeImmediately: true }` は**効く**（2026-08-10 実機確定）
+>
+> **ホスト API の第2引数 `ListenerOptions` の `invokeImmediately: true` を渡すと、
+> 登録したその場で（同期的に）現在値でコールバックが1回走る。**
+> これで①②の隙間は**原理的に塞がる**（隙間の間に通知が流れても、登録時に現在値が来る）。
+>
+> **実測（`probe-invoke-immediately.mjs` / `...2.mjs` / `...6.mjs`）**:
+>
+> | 検証 | 結果 |
+> |---|---|
+> | `invokeImmediately: true` で登録 | ✓ **6種すべて**が同期発火（DataSources / Theme / Options / Tokens / Mode / Dimensions）。`loading:false` と実データが届く |
+> | **対照：オプション無し** | ✗ **同期発火 0**（＝この即時発火は確かにオプションの効果） |
+> | **事故の再現**（完了通知を取り逃した後に登録） | オプション無し=**0回**（＝永久スピナーの正体）／`invokeImmediately`=**1回・`loading:false`**（＝救済成立） |
+> | **one-shot ではないか**（最重要の確認） | ✗ one-shot ではない。loading 中に張って L1(有) と L2(無) を並べると**両者まったく同じ列**（`true`→`false`→`false`）を受信 |
+> | `cleanup` の戻り | ✓ `function`（購読解除できる） |
+> | `signal`（AbortSignal） | ✓ 受け付ける（`ListenerOptions` のもう1つのフィールド） |
+>
+> **そして公式 React フックはこのオプションを渡していない**（ソース確認済み）:
+> `createVisualizationListenerHook(listenerFunction, getInitialState, transformer)` は
+> 引数に `ListenerOptions` を一切取らず、`listenerFunction(cb)` と呼ぶだけ。
+> **パッケージ同梱の README は「Always pass `{ invokeImmediately: true }`」と明記している**
+> のに、**同じパッケージの React フックがそれに従っていない**。
+> → **①②の隙間は公式フックの実装漏れ**（ソース＋実機の両方で確認）。
+>
+> **→ 500ms ポーリング（`useDataSourcesWithRescue`）は、自前フックで
+> `addDataSourcesListener(cb, { invokeImmediately: true })` を呼ぶ形に置き換えられる。**
+> ポーリングは「500ms 遅れて回収」だが、こちらは**登録時に同期で埋まる**ので速い。
+>
+> ⚠ **置き換えるなら公式 `useDataSources` を使うのをやめて自前フックにする**必要がある
+> （公式フックにオプションを渡す口が無いため）。**実装と横展開は未実施**。
+> ⚠ 上表は Splunk Enterprise 10.4.2 での測定。**ホスト側実装なのでバージョンで変わりうる**。
 - **対策（kpi-tile v1.5.1 で導入）**：公式フックが loading の間だけ
   `getDataSources()` を 500ms 間隔で読み直し、ホスト側が完了済みならその値を採用する。
   完了後はポーリングしないのでコストは実質ゼロ。
@@ -311,6 +343,35 @@ function normalizeData(data) {
 }
 // フィールド名: (data?.fields || []).map((f) => f?.name || f)
 ```
+
+### `setError` / `clearError` はホスト標準のエラー表示（2026-08-10 実機確定）
+
+**`DashboardExtensionAPI.setError('文言')` を呼ぶと、ホストがパネルを
+「⚠ アイコン＋中央寄せの文言」に差し替える。`clearError()` で元に戻る。**
+（`useError` フック経由でも同じ API に届く。**29 viz とも未使用**）
+
+| 検証項目 | 結果 |
+|---|---|
+| `setError('…')` | ✓ **パネル全体が差し替わる**（⚠ + 中央寄せの文言）。ホストの標準表示なので**標準 viz と見た目が揃う** |
+| viz 自身の描画 | **iframe 内の DOM は残る**（`svgCount` は変わらない）が、**ホストが隠すので画面には出ない** |
+| `clearError()` | ✓ **完全に元通り**（メーターが復帰。撮って確認済み） |
+| `getError()` | ✓ 設定した文字列がそのまま取れる。`clearError()` 後は `null` |
+| **`setError('')`（空文字）** | **⚠ 何も表示されない**（`getError()` は `""` を返す）。**「エラー無し」と同じ見た目**になるので、空文字を渡さないこと |
+| 長文（200文字） | ✓ 折り返して表示。レイアウトは崩れない |
+| HTML 文字列 | ✓ **エスケープされる**（`<b>bold</b>` がそのまま文字として出る。XSS にならない） |
+
+**🛑 最重要：これは「描画の代わり」であって「描画に添えるバッジ」ではない。**
+呼んだ瞬間に viz が画面から消えるので、**「一部の系列だけ変」のような部分的な警告には使えない**。
+
+**使い分け**:
+- **`setError`** … viz として**成立しない**とき（必須フィールドが無い／数値化できない／
+  データ形式が想定外）。**パネルを出す意味が無い場合**。
+- **自前の中央メッセージ**（現行の `CenterMessage`）… 「データがありません」のような
+  **正常系の空状態**。**これは `setError` にしない**（サーチ未設定は異常ではないうえ、
+  下の「文言を統一する」方針＝空パネルが揃って見える利点が失われる）。
+
+⚠ **既存 viz を `setError` に寄せる作業は未実施**（効果と影響範囲を測っていない）。
+検証スクリプト: `tools/dashboard-loop/probe-seterror.mjs`。
 
 ### 堅牢性チェックリスト
 
