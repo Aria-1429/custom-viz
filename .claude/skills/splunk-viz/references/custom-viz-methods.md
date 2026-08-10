@@ -24,10 +24,18 @@ Splunk でカスタムビジュアライゼーション（＝ダッシュボー�
 > Studio でも出るのはこのため。「Studio 拡張が登場する前から Studio で表示できるカスタム viz があった」の
 > 正体がこれ。
 
-> **Dashboard Framework（`@splunk/create` の独立 React アプリ／`DashboardCore` + preset）は対象外**。
-> あれは「Splunk を土台にした独自 Web アプリを作る」道具で、**ダッシュボードにパネルとして viz を載せる
-> 用途では使わない**（独立アプリの1ページになるだけ／Mako テンプレート依存で 10.4 では非推奨）。
-> このプロジェクトの目的（カスタム viz を作る）には不要なので扱わない。
+> **`@splunk/create` の独立 React ページ（Splunk App with React）は、この2方式とは別系統**。
+> 「ダッシュボードにパネルとして viz を載せる」用途では使わない（成果物はページ1枚）ので、
+> カスタム viz を作る目的なら上の2方式から選ぶ。
+> ただし**ページ自身に SPL を実行させたい**なら選択肢になる。
+> → [splunk-react-app.md](splunk-react-app.md)（2026-08-10 実機検証済み）
+>
+> **【訂正】** 以前ここには「Dashboard Framework（…／`DashboardCore` + preset）は
+> **Mako テンプレート依存で 10.4 では非推奨**」と書いてあったが、**2点とも誤り**だった:
+> - **別物2つを混同していた**。`@splunk/create` の独立アプリと、その中で Splunk の
+>   ダッシュボードを描画する `DashboardCore` + preset は別の話。
+> - **Mako を自分で書く必要は無い**（同梱の共通テンプレート `pages/splunk_ui_app.html` を使う）。
+>   実機 10.4.2 で描画・サーチ実行まで確認済み。
 
 ---
 

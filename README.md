@@ -8,6 +8,12 @@ Splunk **Dashboard Studio** 向けのカスタムビジュアライゼーショ�
 各ビジュアライゼーションは `visualizations/<name>/` ディレクトリに独立して収められており、
 それぞれ単体でビルド・パッケージ・デプロイできます。編集画面のオプションはすべて日本語ラベルです。
 
+> **`apps/` は viz ではありません。** ダッシュボードのパネルではなく、**Splunk のナビから開く
+> 独立した React ページ**（Splunk App with React）です。ページ自身が SPL を実行できます。
+> - [apps/ops-console/](apps/ops-console/) … 方式の実証。画面上で SPL を書き換えて実行できる
+> - [apps/noc-wall/](apps/noc-wall/) … 壁掛けモニタ用のウォールボード。**4 画面を 9 秒ごとに自動送り**
+> - [apps/soc-console/](apps/soc-console/) … SOC アラートトリアージ。**一覧の選択に詳細・調査タイムラインが追従**
+
 ---
 
 ## ビジュアライゼーション一覧
@@ -92,6 +98,10 @@ Splunk **Dashboard Studio** 向けのカスタムビジュアライゼーショ�
 custom-viz/
 ├── README.md                           ← このファイル（全体一覧）
 ├── .gitignore
+├── apps/                               ← 独立 React アプリ（viz ではなく「ページ」）
+│   ├── ops-console/                    ← Splunk App with React の実証。実機確認済み
+│   ├── noc-wall/                       ← 壁掛け用ウォールボード（自動ページ送り）
+│   └── soc-console/                    ← SOC トリアージ（選択駆動・1 ページ）
 ├── visualizations/                     ← 各ビジュアライゼーション（独立してビルド可能）
 │   └── <name>/                         ← 例: horizon-chart, sunburst, treemap …
 │       ├── README.md                   ← 個別の詳細ドキュメント

@@ -1,0 +1,7 @@
+node_modules/
+stage/
+build/
+
+# dist は中身を無視するが、パッケージ成果物(.spl)だけはリポジトリに含める
+dist/*
+!dist/*.spl

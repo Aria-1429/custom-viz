@@ -1,0 +1,38 @@
+{
+    "name": "@splunk/soc-console",
+    "version": "1.0.0",
+    "license": "UNLICENSED",
+    "private": true,
+    "description": "SOC アラートトリアージ コンソール",
+    "scripts": {
+        "build": "cross-env NODE_ENV=production webpack --mode=production",
+        "build:dev": "webpack --mode=development",
+        "start": "webpack --watch",
+        "package": "node bin/package.mjs"
+    },
+    "dependencies": {
+        "@splunk/react-page": "^8.3.2",
+        "@splunk/react-ui": "^5.12.0",
+        "@splunk/splunk-utils": "^4.0.1",
+        "@splunk/themes": "^1.9.0",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
+        "styled-components": "^5.3.10"
+    },
+    "devDependencies": {
+        "@babel/core": "^7.28.0",
+        "@splunk/babel-preset": "^4.0.0",
+        "@splunk/webpack-configs": "^7.0.3",
+        "babel-loader": "^8.3.0",
+        "copy-webpack-plugin": "^14.0.0",
+        "cross-env": "^7.0.3",
+        "css-loader": "^7.1.2",
+        "tar": "^6",
+        "webpack": "^5.106.2",
+        "webpack-cli": "^5.1.4",
+        "webpack-merge": "^5.9.0"
+    },
+    "engines": {
+        "node": ">=22"
+    }
+}

@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!--
+  ページの器。template="pages/splunk_ui_app.html" は Splunk 同梱の共通テンプレートで、
+  ビューと同名の JS（appserver/static/pages/triage.js）を自動で読み込む。
+-->
+<view template="pages/splunk_ui_app.html" type="html">
+    <label>Triage</label>
+</view>

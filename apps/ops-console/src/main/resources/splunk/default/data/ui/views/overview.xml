@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!--
+  ページの器。type="html" + template でカスタム HTML ページになる。
+  template="pages/splunk_ui_app.html" は Splunk 同梱の共通テンプレートで、
+  ビューと同名の JS（appserver/static/pages/overview.js）を自動で読み込む。
+  自前の Mako テンプレートを置かなくてよい（@splunk/create の非 legacy 方式）。
+-->
+<view template="pages/splunk_ui_app.html" type="html">
+    <label>Overview</label>
+</view>

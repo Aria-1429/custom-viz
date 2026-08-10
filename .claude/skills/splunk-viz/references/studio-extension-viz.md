@@ -7,7 +7,8 @@ SKILL.md 本体から参照される。新規作成・改修の前に関連章�
   （2026-07-25 に直下の `custom-viz-*/` から移設。フォルダ名からは `custom-viz-` プレフィックスを外し、
   　Splunk のアプリ ID は従来どおり `custom_viz_<name>`。）
 - push はユーザーが手動で行う（Claude は push しない）。
-- 別系統（`@splunk/create` の独立アプリ＝Dashboard Framework）は [dashboard-framework.md](dashboard-framework.md) を参照。
+- 別系統（`@splunk/create` の独立 React ページ＝Splunk App with React）は
+  [splunk-react-app.md](splunk-react-app.md) を参照（2026-08-10 実機検証済み）。
 
 ---
 
