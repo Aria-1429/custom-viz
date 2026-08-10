@@ -19,61 +19,61 @@ Splunk **Dashboard Studio** 向けのカスタムビジュアライゼーショ�
 
 | プレビュー | 名前 / バージョン | 概要 |
 | --- | --- | --- |
-| <img src="visualizations/tab-selector/examples/example.png" width="240"> | **[Tab Selector](visualizations/tab-selector/)**<br>v1.3.2 | クリックでトークンを切り替えるタブバー。「東京／大阪」のようなタブを押すと対応する値がトークンに入り、ダッシュボード全体のサーチが切り替わる。タブの数・名前・トークン値はすべて編集UIから設定でき（`表示名\|トークン値` 形式）、表示名とトークン値を分けられるのでサーチは英字コード・画面は日本語という使い分けができる。選択中は1枚のインジケータが滑って移動し、どのタブへ移ったかを目で追える。形は下線／塗りつぶし／ピル／枠線の4種。**サーチを紐づけずに配置・設定できる**ため、ダッシュボード上部のナビゲーションとして単体で置ける。左右矢印キーにも対応。<br>※ トークン設定には編集画面「インタラクション」の設定が1回必要（カスタム viz は自分でトークンを書けないため）。 |
+| <img src="visualizations/tab-selector/examples/example.png" width="240"> | **[Tab Selector](visualizations/tab-selector/)**<br>v1.3.2 | クリックでトークンを切り替えるタブバー。サーチを紐づけずに単体で置け、ダッシュボード上部のナビゲーション（表示の切り替え）に使う。 |
 
 ### フロー・関係の可視化
 
 | プレビュー | 名前 / バージョン | 概要 |
 | --- | --- | --- |
-| <img src="visualizations/funnel-leak/examples/example.png" width="240"> | **[Funnel Leak](visualizations/funnel-leak/)**<br>v1.1.4 | アニメ付きファネル×リーク図。各段の通過を下へ流し、離脱分を左右にこぼれ落ちる粒子で可視化。コンバージョン／攻撃チェーンの生存分析に。 |
-| <img src="visualizations/sankey-flow/examples/example.png" width="240"> | **[Sankey Flow](visualizations/sankey-flow/)**<br>v2.0.2 | 多段サンキー図。標準 `splunk.sankey` が捨てる4列以上の多段データに対応。経路追跡・ドリルダウン・段ごとの損失分析・上位N件集約・しきい値カラー。 |
-| <img src="visualizations/chord-flow/examples/example.png" width="240"> | **[Chord Flow](visualizations/chord-flow/)**<br>v1.1.4 | アニメ付きコード図。リング上のエンティティ間の相互フローをグラデーションリボンで結び、方向付き発光粒子が流れる。 |
-| <img src="visualizations/link-line/examples/example.png" width="240"> | **[Link Line](visualizations/link-line/)**<br>v1.11.2 | サーバ間コネクタ線。表示画面の「✎ 線を編集」でキャンバス上の線を直接編集（ドラッグ移動・折れ点追加・削除）でき、**値ラベルもドラッグで自由な位置に配置**できる。編集内容はダッシュボードの編集→保存で確定。値→色は**値の範囲**（`editor.threshold`・開区間対応）と**文字列の一致**（`OK|色` 形式。死活監視向け）の2モード。**線クリックのドリルダウン**（トークン設定）、値ラベルの**単位・接続名**表示に対応。質感4種（フラット／ソフトシャドウ／ネオン／立体パイプ）・破線・流れる光の帯（向きは順／逆／双方向）・パルス対応。 |
-| <img src="visualizations/spotlight-frame/examples/example.png" width="240"> | **[Spotlight Frame](visualizations/spotlight-frame/)**<br>v1.2.3 | データ駆動のステータス枠。サーチ結果を OK／WARNING／CRITICAL に分類し、パネル外周の枠色・発光・状態バッジ・点滅で表現。複数行は最悪ケースに丸め、件数内訳と Critical 対象名を併記。判定は自動／数値しきい値／文字列一致の3モード。枠だけ表示（frameOnly）で他パネルへ重ね置きでき、単体では控えめだがダッシュボード全体の状態把握を強化する脇役。 |
+| <img src="visualizations/funnel-leak/examples/example.png" width="240"> | **[Funnel Leak](visualizations/funnel-leak/)**<br>v1.1.4 | 各段の通過と離脱を粒子アニメで見せるファネル図。コンバージョンや攻撃チェーンの離脱分析に。 |
+| <img src="visualizations/sankey-flow/examples/example.png" width="240"> | **[Sankey Flow](visualizations/sankey-flow/)**<br>v2.0.2 | 4列以上の多段データに対応するサンキー図（標準 `splunk.sankey` は3列目以降を捨てる）。段をまたぐ流量の追跡・損失分析に。 |
+| <img src="visualizations/chord-flow/examples/example.png" width="240"> | **[Chord Flow](visualizations/chord-flow/)**<br>v1.1.4 | エンティティ間の相互フローをリボンで結ぶアニメ付きコード図。多対多の通信・依存関係の俯瞰に。 |
+| <img src="visualizations/link-line/examples/example.png" width="240"> | **[Link Line](visualizations/link-line/)**<br>v1.11.2 | サーバ間を結ぶコネクタ線。画面上で線やラベルを直接ドラッグ編集でき、構成図に重ねて死活・スループット表示を作るときに。 |
+| <img src="visualizations/spotlight-frame/examples/example.png" width="240"> | **[Spotlight Frame](visualizations/spotlight-frame/)**<br>v1.2.3 | サーチ結果を OK／WARNING／CRITICAL に判定し、パネル外周の枠色・点滅で示すステータス枠。他パネルに重ねて異常時だけ目立たせる用途に。 |
 
 ### 分布・多変量の可視化
 
 | プレビュー | 名前 / バージョン | 概要 |
 | --- | --- | --- |
-| <img src="visualizations/radar-chart/examples/example.png" width="240"> | **[Radar Chart](visualizations/radar-chart/)**<br>v1.2.3 | レーダー（スパイダー）チャート。共通軸上に複数系列を重ねて比較。 |
-| <img src="visualizations/radial-bar/examples/example.png" width="240"> | **[Radial Bar](visualizations/radial-bar/)**<br>v1.1.3 | 放射状カラムチャート。各カテゴリを等角のくさびで描き、値をバーの外側への伸びで表現。中央に合計 KPI、値ベースのカラースケール、フィールド選択、ホバー連動（背景トラックにも反応）、ライト／ダーク両対応。 |
-| <img src="visualizations/metric-terrain/examples/example.png" width="240"> | **[Metric Terrain](visualizations/metric-terrain/)**<br>v1.1.4 | 等角投影の疑似3D地形。値の起伏を地形として描き、リアルタイムの陰影・落ち影・回転に対応。 |
-| <img src="visualizations/calendar-heatmap/examples/example.png" width="240"> | **[Calendar Heatmap](visualizations/calendar-heatmap/)**<br>v1.1.4 | GitHub 風カレンダーヒートマップ。オートフィットと、編集可能な低／高値カラースケール。 |
-| <img src="visualizations/heat-matrix/examples/example.png" width="240"> | **[Heat Matrix](visualizations/heat-matrix/)**<br>v1.1.4 | 汎用ヒートマップ・マトリクス。任意の2軸クロス集計を連続カラースケールの色行列で表示。縦持ち（`stats by A B`）／クロス集計（`chart`・`timechart by`）の自動判別、行／列ごとの色正規化、合計マージン、合計順ソート、時刻ラベル自動整形に対応。 |
+| <img src="visualizations/radar-chart/examples/example.png" width="240"> | **[Radar Chart](visualizations/radar-chart/)**<br>v1.2.3 | 複数系列を共通軸で重ねるレーダー（スパイダー）チャート。多軸のバランス比較に。 |
+| <img src="visualizations/radial-bar/examples/example.png" width="240"> | **[Radial Bar](visualizations/radial-bar/)**<br>v1.1.3 | 値をくさびの伸びで表す放射状カラムチャート。カテゴリ比較を円形レイアウトで見せたいときに。 |
+| <img src="visualizations/metric-terrain/examples/example.png" width="240"> | **[Metric Terrain](visualizations/metric-terrain/)**<br>v1.1.4 | 値の起伏を疑似3D地形として描く等角投影チャート。2軸グリッドの分布を立体で俯瞰する展示向け。 |
+| <img src="visualizations/calendar-heatmap/examples/example.png" width="240"> | **[Calendar Heatmap](visualizations/calendar-heatmap/)**<br>v1.1.4 | GitHub 風カレンダーヒートマップ。日単位の活動量の濃淡を長期間ながめるときに。 |
+| <img src="visualizations/heat-matrix/examples/example.png" width="240"> | **[Heat Matrix](visualizations/heat-matrix/)**<br>v1.1.4 | 任意の2軸クロス集計を色行列で表す汎用ヒートマップ。時間×ホストのような偏り・ホットスポットの俯瞰に。 |
 
 ### 階層の可視化
 
 | プレビュー | 名前 / バージョン | 概要 |
 | --- | --- | --- |
-| <img src="visualizations/sunburst/examples/example.png" width="240"> | **[Sunburst](visualizations/sunburst/)**<br>v1.3.4 | 階層構造を同心円の輪で表す放射状チャート。中心が根、外側ほど下の階層で、扇形の角度が値を表す。子は親の角度範囲を過不足なく埋めるため、包含関係が一目で分かる。Treemap が「面積の大小を比べる」のに対し、こちらは「どこで枝分かれしているか」という構造を読むのに向く。階層の深さは無制限（一度に表示する輪の数は指定でき、クリックすれば何階層でも掘り下げられる）。ホバーするとその枝の祖先＋子孫だけが明るく残り、他は暗くなるので系統を追いやすい。中央 KPI クリックで1つ戻る、細い扇形は自動で「その他」に集約。 |
-| <img src="visualizations/treemap/examples/example.png" width="240"> | **[Treemap](visualizations/treemap/)**<br>v1.2.4 | 階層構造を面積で表すツリーマップ。`index > sourcetype > host` のような 1〜3 階層の入れ子を一画面に収め、どこが容量・件数を食っているかを示す。squarified レイアウト（Bruls et al.）でタイルの縦横比を 1 に近づけ、細長い短冊による面積比較の破綻を避ける。グループをクリックして掘り下げ、パンくずで復帰。ホバーで階層のパス・値・全体比をツールチップ表示。第1階層で色を決めて子は濃淡で表現するため、掘り下げても枝を見失わない。 |
+| <img src="visualizations/sunburst/examples/example.png" width="240"> | **[Sunburst](visualizations/sunburst/)**<br>v1.3.4 | 階層構造を同心円の輪で表す放射状チャート。クリックで掘り下げられ、「どこで枝分かれしているか」の構造を読むのに向く（面積の大小を比べるなら Treemap）。 |
+| <img src="visualizations/treemap/examples/example.png" width="240"> | **[Treemap](visualizations/treemap/)**<br>v1.2.4 | 階層構造を面積で表すツリーマップ。`index > sourcetype > host` のような入れ子で、どこが容量・件数を食っているかを見るのに向く（構造を読むなら Sunburst）。 |
 
 ### 時系列・集計の可視化
 
 | プレビュー | 名前 / バージョン | 概要 |
 | --- | --- | --- |
-| <img src="visualizations/horizon-chart/examples/example.png" width="240"> | **[Horizon Chart](visualizations/horizon-chart/)**<br>v1.1.4 | 多数の時系列を「畳んで色帯にする」ホライズンチャート。値域を等幅バンドに切り、上のバンドを下へ折り返して重ね、上のバンドほど濃く塗ることで「高さ」の情報を「色の濃さ」に置き換える。これによりレーン高さを 1/バンド数に圧縮でき、1系列 20〜30px で数十系列を同時に比較できる。標準の timechart が系列5本で読めなくなる領域（100台のホストの CPU を縦に積み、どこが同時に跳ねたか見る）を担う。基準値より下は反対色で折り返すので増減の符号も分かる。`timechart` 出力と縦持ちの自動判別、クロスヘア連動の値表示、系列ごとの正規化に対応。 |
-| <img src="visualizations/timeline-swimlane/examples/example.png" width="240"> | **[Timeline Swimlane](visualizations/timeline-swimlane/)**<br>v1.3.4 | エンティティ（host/user/process）ごとのレーンにイベントを時刻順で並べるタイムライン。期間イベントは帯、瞬間イベントは点で描画。カーソルを乗せると時刻の縦線が出て、その瞬間に重なるイベントだけが浮かび上がる（スクラブ用クロスヘア）。分類フィールドによる色分け（色覚特性に配慮したパレット）、横ドラッグでの時間範囲の絞り込み、レーン高さのオートフィットに対応。標準の timechart（集計されて個々のイベントが消える）や Events テーブル（レーン分割できない）では再現できないインシデント調査向けの図。 |
-| <img src="visualizations/liquid-tube/examples/example.png" width="240"> | **[Liquid Tube](visualizations/liquid-tube/)**<br>v1.0.2 | 試験管に入った液体で単一の値を表すゲージ（**1 viz = 1本**）。液面の高さが値を示す。**ガラス・液体・気泡を WebGL フラグメントシェーダで描画**し、屈折・Beer-Lambert の透過・フレネル反射による立体的な質感を出す（SVG では出せない表現）。気泡は個体差と時間で形が揺らぎ真円にならない。**液体・ガラスを通しても背景が透ける**ためダッシュボードに重ねられ、**外側のグローも消せる**。複数行は集計（最終行／合計／平均／最大／最小／件数）で1値に畳む。色は値の**しきい値**または**固定色**。ドリルダウン対応。**WebGL2 が必要**。 |
-| <img src="visualizations/gauge-arc/examples/example.png" width="240"> | **[Gauge Arc](visualizations/gauge-arc/)**<br>v1.4.2 | 単一値のアークゲージ＋サブ情報パネル。主役は1つの数値で、円弧で現在値を大きく見せつつ右（左／下）に副次情報を添える。**ゲージの種類を切り替えられる**のが特徴で、なめらかな「連続」／小片が値まで点灯するイコライザ風の「セグメント」／帯を全周塗って針が現在値を指す車のメーター風の「タコメーター」を選べる。開き角は 180°〜320° の4種。**色が切り替わる位置には境界値を表示**。`editor.threshold` の帯で色分けでき、**境界で階段状に切り替える／滑らかなグラデーション／単色**を選べる。**前回との比較**（直前の行／最初の行／平均／指定フィールド／固定値）を差分＋割合で表示、「増加が良い／減少が良い」で色の意味を反転できる。サブパネルは4スロットで、前回比／サブ指標／帯ごとの内訳／上位ランキング／推移／目標比／凡例／対象期間／自由テキストを自由に割り当てる。標準の SingleValueRadial（単色リング1本・色帯を持てない）と MarkerGauge（横長の棒）では作れない「色帯を持つ半円ゲージ＋周辺情報」を担う。 |
-| <img src="visualizations/vu-console/examples/example.png" width="240"> | **[VU Console](visualizations/vu-console/)**<br>v1.0.0 | 複数のメトリクスをアナログ VU メーター（針の計器）として並べる調整卓風コンソール。1メトリクス = 1メーターで、横持ち（1列=1メーター）と縦持ち（1行=1メーター）を自動判定し、コンテナ実寸から列数を自動決定してグリッドに敷き詰める。**針はバネ物理（減衰2次系）で振れ**、急変時にオーバーシュートして戻るアナログらしさを再現（静止後は rAF を自動停止するので並べても軽い）。**ピークホールド針**が最大振れ位置に残り、保持時間を過ぎると降りる。`editor.threshold` の色帯を目盛り外周の弧として描き、**最上位の帯に入るとピークランプが点灯**。文字盤はビンテージ（クリーム地・黒針）／ダーク（黒文字盤）／テーマ連動、振れ幅は 90°/120°/150°。メーターのクリックでトークンを設定できる。Gauge Arc が「1つの数値を情報豊かに」見せるのに対し、こちらは**多数の値を計器盤の雰囲気で一望する**役割を担う。 |
-| <img src="visualizations/kpi-tile/examples/example.png" width="240"> | **[KPI Tile](visualizations/kpi-tile/)**<br>v1.5.2 | SOC 風 KPI 統計タイル。大数値＋前日比＋スパークライン＋選択式アイコンバッジをアクセントカラーで統一したネオン調カード。編集モード中はタイル上のアイコンをクリックして変更可能。カード背景の不透明度調整・スパークラインの線グラフ切替（グラデ面塗り＋最新点ドット）・負値系列のゼロ基準線・大パネルへの自動スケール対応。 |
-| <img src="visualizations/icon-status/examples/example.png" width="240"> | **[Icon Status](visualizations/icon-status/)**<br>v1.1.6 | 単一値を「アイコンそのもの」で見せるステータスタイル。SOC でよく使う 12 種（サーバー／DB／シールド／警告／錠前／ネットワーク機器／ユーザー／監視／クラウド／ファイアウォール／エンドポイント／バグ）を切り替えられる。アイコンは線画ではなく**多層 SVG による立体表現**で、レイヤーごとに色そのものではなく「色ロール」（上面／前面／側面／差し色／陰／グロー）を持たせ、基準色1色から全レイヤーの色を導出する。このため `editor.threshold` で値が帯をまたぐと、**面の陰影・差し色・発光まで一斉に連動して色が変わる**（ラスタ画像では不可能）。質感は立体／線画を選べ、小さいパネルでは自動で線画に退避。演出（グロー・接地シャドウ・パルスリング）は個別に ON/OFF 可。集計は最終行／合計／平均／最大／最小／件数。KPI Tile が「数値を主役に周辺情報を添える」のに対し、こちらは**アイコンの見た目そのものが状態を語る**壁掛けステータス表示を担う。 |
-| <img src="visualizations/bullet-graph/examples/example.png" width="240"> | **[Bullet Graph](visualizations/bullet-graph/)**<br>v1.1.4 | ブレットグラフ KPI リスト。実績バー＋目標ティック＋良／可／不可の質的バンドを 1 行に重畳し、多数の指標を目標比つきで高密度に一覧。達成度の自動色分け・達成率表示・目標／比較列の名前自動検出・range 列の絶対バンド指定に対応。 |
-| <img src="visualizations/waterfall-chart/examples/example.png" width="240"> | **[Waterfall Chart](visualizations/waterfall-chart/)**<br>v1.1.4 | ウォーターフォール（滝／ブリッジ）チャート。増減の積み上げが合計へ届く過程を階段状バーで可視化。種別列（start/total）の自動検出、累計値モード、合計バー自動追加、破線コネクタ付き。 |
-| <img src="visualizations/donut-graph/examples/example.png" width="240"> | **[Donut Graph](visualizations/donut-graph/)**<br>v1.1.3 | ドーナツチャート。中央に合計、詳細な凡例付き。 |
-| <img src="visualizations/donut-timechart/examples/example.png" width="240"> | **[Donut Timechart](visualizations/donut-timechart/)**<br>v1.1.4 | ドーナツ＋詳細凡例＋トレンド・スパークラインを組み合わせたステータスカード。 |
+| <img src="visualizations/horizon-chart/examples/example.png" width="240"> | **[Horizon Chart](visualizations/horizon-chart/)**<br>v1.1.4 | 多数の時系列を色帯に畳むホライズンチャート。数十系列を縦に並べ「どこが同時に跳ねたか」を見るときに（標準 timechart は5本程度で読めなくなる）。 |
+| <img src="visualizations/timeline-swimlane/examples/example.png" width="240"> | **[Timeline Swimlane](visualizations/timeline-swimlane/)**<br>v1.3.4 | エンティティ（host/user 等）ごとのレーンにイベントを時刻順で並べるタイムライン。インシデント調査で個々のイベントの前後関係を追うときに。 |
+| <img src="visualizations/liquid-tube/examples/example.png" width="240"> | **[Liquid Tube](visualizations/liquid-tube/)**<br>v1.0.2 | 試験管の液面で単一値を表すゲージ（WebGL2 必要）。屈折・気泡まで描く質感重視の展示向け。 |
+| <img src="visualizations/gauge-arc/examples/example.png" width="240"> | **[Gauge Arc](visualizations/gauge-arc/)**<br>v1.4.2 | 単一値のアークゲージ＋サブ情報パネル。1つの KPI をしきい値の色帯・前回比・内訳つきで大きく見せるときに。 |
+| <img src="visualizations/vu-console/examples/example.png" width="240"> | **[VU Console](visualizations/vu-console/)**<br>v1.0.0 | 複数メトリクスをアナログ VU メーター（針の計器）で並べる調整卓風コンソール。多数の値を計器盤の雰囲気で一望する（1値を深く見るなら Gauge Arc）。 |
+| <img src="visualizations/kpi-tile/examples/example.png" width="240"> | **[KPI Tile](visualizations/kpi-tile/)**<br>v1.5.2 | 大数値＋前日比＋スパークライン＋アイコンのネオン調 KPI カード。SOC 風ダッシュボードの統計タイルに。 |
+| <img src="visualizations/icon-status/examples/example.png" width="240"> | **[Icon Status](visualizations/icon-status/)**<br>v1.1.6 | 単一値を立体アイコンの色変化そのもので見せるステータスタイル（12種）。壁掛けの状態表示に（数値を主役にするなら KPI Tile）。 |
+| <img src="visualizations/bullet-graph/examples/example.png" width="240"> | **[Bullet Graph](visualizations/bullet-graph/)**<br>v1.1.4 | 実績バー＋目標ティック＋質的バンドを1行に重ねるブレットグラフ。多数の KPI を目標比つきで高密度に一覧するときに。 |
+| <img src="visualizations/waterfall-chart/examples/example.png" width="240"> | **[Waterfall Chart](visualizations/waterfall-chart/)**<br>v1.1.4 | 増減の積み上げが合計へ届く過程を階段状バーで見せるウォーターフォールチャート。差分の内訳説明に。 |
+| <img src="visualizations/donut-graph/examples/example.png" width="240"> | **[Donut Graph](visualizations/donut-graph/)**<br>v1.1.3 | 中央に合計を出すドーナツチャート。構成比の表示に。 |
+| <img src="visualizations/donut-timechart/examples/example.png" width="240"> | **[Donut Timechart](visualizations/donut-timechart/)**<br>v1.1.4 | ドーナツ＋詳細凡例＋スパークラインのステータスカード。構成比と推移を1枚で見せるときに。 |
 | <img src="visualizations/gradient-bar/examples/example.png" width="240"> | **[Gradient Bar](visualizations/gradient-bar/)**<br>v1.1.4 | グラデーションの縦棒グラフ。 |
-| <img src="visualizations/severity-table/examples/example.png" width="240"> | **[Severity Table](visualizations/severity-table/)** <br>v2.2.3 | 重要度を色分けするテーブル。深刻度の順位・別名・色・並び順・一覧にない値の扱いまで、判定ルールをすべて編集画面で設定できる。列幅は見出しの境界をドラッグして自由に変更でき、セルのクリックでトークン設定も可能。 |
+| <img src="visualizations/severity-table/examples/example.png" width="240"> | **[Severity Table](visualizations/severity-table/)** <br>v2.2.3 | 重要度で行を色分けするテーブル。判定ルール（順位・別名・色）を編集画面で定義でき、アラート一覧に。 |
 
 ### 地理の可視化
 
 | プレビュー | 名前 / バージョン | 概要 |
 | --- | --- | --- |
-| <img src="visualizations/attack-globe/examples/example.png" width="240"> | **[Attack Globe](visualizations/attack-globe/)**<br>v1.1.2 | **回転する3D地球儀のアタックマップ（WebGL）**。フラグメントシェーダでレイトレースした球体地球に、起点→終点の大円アークを描く。弧は発光ハロー＋芯線の2本構えで、テーパー形状の彗星が流れ、終点到達時にリップルが広がる（World Map と同じ質感）。球の裏側に回った弧は自動的に隠れ、着弾点は放射グラデーションのグロー＋コアドットで強調。フレネルの大気の縁光・経緯線グリッド・国境線・陰影3モード（柔らかい/フラット/**昼夜ターミネーター**）を装備。陸地は Natural Earth のポリゴンを初期化時にテクスチャへラスタライズ（解像度3段階）。**ドラッグで回転（慣性付き）・ホイールでズーム・放置で自転**（周期指定・0で停止）。色分けはカテゴリ「名前\|色」明示指定または件数しきい値、凡例にカテゴリ別件数。弧・着弾点のクリックでドリルダウン（トークン設定）。**背景透過**でダッシュボードに地球が浮かぶ。データ仕様は World Map と共通（同じ SPL が使える）。分析には平面の World Map、展示・壁掛けにはこちら。**WebGL2 が必要**。 |
-| <img src="visualizations/world-map/examples/example.png" width="240"> | **[World Map](visualizations/world-map/)**<br>v2.1.1 | 世界地図上に起点→終点の弧を描くフローマップ。**マップの右下に表示中フローの一覧テーブルを重ねられる**（v2.0.0。列ヘッダークリックでソート可・行ホバーで弧を強調・行クリックでドリルダウン。オーバーレイなので地図は縮まず、ワンクリックでピルに折りたたみ可。**ヘッダーのドラッグで移動・右下グリップでリサイズでき、位置とサイズは保存される**（v2.1.0）。マップと同じ絞り込みが効く）。**count は件数以外の量（バイト数等）でもよく、単位表記を指定できる**（`countLabel`）。弧に沿って光の帯が流れ、着弾点をホットスポット表示。**地図アプリのようにホイールでズーム／ドラッグで移動**でき、拡大に応じて国名→都市名の地名ラベルが現れる（Natural Earth 約7,340都市を同梱）。色分けは深刻度専用ではなく**任意の列**（ログ種別・ステータス等）で行い、色は「カテゴリ名\|色」でユーザーが明示指定する（viz は語彙を推測しない）。色分けは count の**しきい値バンド**でも可能。**近接した地点は自動でまとめられ（ズームすると分離）**、凡例には**「表示◯◯／全◯◯」の件数とカテゴリ別件数**が出る。**地名の日本語表示**・ズーム時の**50m 高解像度国境**・カスタムツールチップに対応。凡例クリックで絞り込み、弧・地点のクリックでドリルダウン（トークン設定）も可能。**スタイルプリセット**（管制室ダーク／ドットマトリクス／航路図／ミニマル）で、経緯線グリッド・ドット絵風の陸地・HUD統計行（LIVE＋総件数）を1操作で切り替えられる。**大画面でも軽い**（v2.1.0 で SVG フィルタ・陸地グローを全廃し、光の帯を WebGL2／Canvas 2D ハイブリッド描画へ刷新。実 GPU では WebGL2 で 4K でも fps を落とさない設計。実機計測 4パネル・2D 経路で 1920×1080 が 5.9→58fps）。国境は海岸線と内側国境の2階調、ドラッグは慣性付き。 |
-| <img src="visualizations/japan-map/examples/example.png" width="240"> | **[Japan Map](visualizations/japan-map/)**<br>v1.2.3 | World Map の日本地図版。都道府県境あり（県名ツールチップ付き）の日本列島に、国内の起点→終点の弧＋流れる光の帯＋ホットスポットを描く。仕様は World Map と共通。 |
-| <img src="visualizations/country-graph/examples/example.png" width="240"> | **[Country Graph](visualizations/country-graph/)**<br>v1.1.4 | 国旗付きの国別ランキング棒グラフ。上位 N 制限・ソート・低／高値カラースケール。登場アニメーションは他 viz と同じ「マウント後フラグ＋inline transition」方式で、最終状態が常に inline style に載るため PNG 書き出しでも欠けない。 |
+| <img src="visualizations/attack-globe/examples/example.png" width="240"> | **[Attack Globe](visualizations/attack-globe/)**<br>v1.1.2 | 回転する3D地球儀に攻撃フローの弧を描くアタックマップ（WebGL2 必要・データ仕様は World Map と共通）。展示・壁掛け向け（分析には平面の World Map）。 |
+| <img src="visualizations/world-map/examples/example.png" width="240"> | **[World Map](visualizations/world-map/)**<br>v2.1.1 | 世界地図に起点→終点のフローを光の帯で描くフローマップ。攻撃元や通信の地理的な俯瞰に。ズーム・カテゴリ色分け・フロー一覧テーブルの重ね表示に対応。 |
+| <img src="visualizations/japan-map/examples/example.png" width="240"> | **[Japan Map](visualizations/japan-map/)**<br>v1.2.3 | World Map の日本地図版（都道府県境つき・データ仕様共通）。国内の拠点間フローの可視化に。 |
+| <img src="visualizations/country-graph/examples/example.png" width="240"> | **[Country Graph](visualizations/country-graph/)**<br>v1.1.4 | 国旗付きの国別ランキング棒グラフ。国別の上位 N 比較に。 |
 
 > 各ビジュアライゼーションの詳細（データ仕様・編集オプション・サンプル SPL）は、
 > それぞれのディレクトリ内 `README.md` を参照してください。
