@@ -259,19 +259,28 @@ node /home/ishitsuki/work/custom-viz/tools/dashboard-loop/src/sync.mjs <検証�
   - まだリリースノートセクションが無い viz を作るときは README 末尾に新設し、`1.0.0` に「新規作成（初回リリース）」を書く
 - **ルート `README.md`（リポジトリ直下）の一覧も必ず更新する（必須）**：
   各 viz の README とは**別物**。リポジトリ直下の `README.md` にはジャンル別の viz 一覧表があり、
-  各行が `プレビュー画像 | 名前 / バージョン | 概要` になっている。ここを更新し忘れると
+  1 viz = 1 行の `<tr>`（プレビュー画像 / 名前・バージョン / 概要）になっている。ここを更新し忘れると
   **一覧のバージョンと概要が実物と食い違う**（2026-07-28 に world-map で実際に発生。
   v1.7.0 まで上げたのに一覧は v1.3.0 のまま、説明も「Severity で色分け」と旧仕様のままだった）。
+  - **一覧表は Markdown のパイプ表ではなく HTML `<table>`**（2026-08-10 変更）。
+    列幅を揃えるための形式で、ヘッダは
+    `<tr><th width="240">プレビュー</th><th width="170">名前 / バージョン</th><th>概要</th></tr>`。
+    GitHub は `style` 属性を落とすが **`width` 属性は生き残る**（Markdown API で実機確認済み）。
+    **セル内では Markdown が処理されない**ので、リンクは `<a href>`・強調は `<b>`・コードは
+    `<code>`（`<`/`>` は `&lt;`/`&gt;`）で書く。行の形:
+    `<tr><td><img src="visualizations/<name>/examples/example.png" width="240"></td><td><a href="visualizations/<name>/"><b>表示名</b></a><br>vX.Y.Z</td><td>概要</td></tr>`
+  - **概要は「どんな viz か・いつ使うか」の1〜2文**にとどめる（機能の羅列は各 viz の README へ。
+    2026-08-10 に全行を簡潔化済み）。使い分けの指針（例: Sunburst⇔Treemap）や
+    WebGL2 必須のような利用条件は残してよい。
   - **バージョン更新時**：該当行の `<br>vX.Y.Z` を新しい版に直す。
   - **機能を足した／仕様を変えたとき**：同じ行の「概要」も実物に合わせて直す。
     特に**破壊的変更**（オプション名の変更・挙動の一般化など）は概要に反映する。
-  - **新規 viz を作ったとき**：適切なジャンルの表に行を追加する
-    （プレビュー画像のパスは `visualizations/<name>/examples/example.png`）。
+  - **新規 viz を作ったとき**：適切なジャンルの表に行を追加する。
   - 確認コマンド（README の版と `package.json` の版がずれていないか）:
     ```bash
     for d in visualizations/*/; do n=$(basename "$d"); [ -f "$d/package.json" ] || continue
       a=$(node -p "require('./$d/package.json').version" 2>/dev/null)
-      r=$(grep -A0 "visualizations/$n/)" README.md | grep -oP '<br>v\K[0-9.]+' | head -1)
+      r=$(grep -oP "href=\"visualizations/$n/\"><b>[^<]*</b></a><br>v\K[0-9.]+" README.md | head -1)
       [ "$a" != "$r" ] && echo "差異 $n: README=v${r:-なし} 実際=v$a"; done
     ```
     （`editor-probe` は検証用でリポジトリ一覧に載せないため、`README=vなし` と出るのが正常）
