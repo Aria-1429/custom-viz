@@ -158,7 +158,28 @@ const strokes = () => streaks().map((p) => p.getAttribute('stroke'));
 const titles = () => [...doc.querySelectorAll('svg [aria-label]')].map((t) => t.getAttribute('aria-label'));
 
 // ---- バンドル実行 -----------------------------------------------------------
+// 🛑 バンドルに top-level `export` があってはいけない（Studio が全滅する）。
+//
+// 【訂正】以前はここで末尾の export 文を剥がしたうえで eval しており、
+// 「実機のホストは module として読むので export があっても問題ない」と書いていた。
+// **これは誤りだった。** Studio の iframe はバンドルを classic script として読むため、
+// `export` が1つでもあると `Uncaught SyntaxError: Unexpected token 'export'` で
+// ファイル全体が実行されず、パネルが真っ黒になる（2026-08-10 に実機で確認）。
+//
+// 剥がす実装のままだと、この致命バグを抱えたバンドルでも 229 件すべて通ってしまう
+// （実際に export を注入して全通過することを確認済み）。よって剥がさずに検出する。
+// dash-platform へ App を渡すのは src/host.jsx の役目で、エントリは export ゼロを保つ。
 const code = readFileSync(BUNDLE, 'utf8');
+const exportHits = code.match(/(?:^|;)export[\s{]/g);
+if (exportHits) {
+    console.error(
+        `\n✗ バンドルに top-level export が ${exportHits.length} 個あります。\n` +
+            '  Studio の iframe は classic script として読むため、パネルが真っ黒になります。\n' +
+            '  エントリ（src/visualization.jsx）から export を除き、\n' +
+            '  dash-platform 向けの export は src/host.jsx に置いてください。\n'
+    );
+    process.exit(1);
+}
 (0, eval)(code);
 await sleep(350);
 

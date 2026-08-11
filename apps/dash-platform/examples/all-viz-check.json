@@ -1,0 +1,419 @@
+{
+ "version": 1,
+ "title": "DPX カスタム viz 検証",
+ "description": "各 viz の README サンプル SPL（列順を | table で固定）",
+ "chrome": "dpx",
+ "style": {
+  "preset": "midnight"
+ },
+ "grid": {
+  "columns": 12,
+  "rowHeight": 72,
+  "gap": 12
+ },
+ "panels": [
+  {
+   "id": "p0",
+   "viz": "custom_viz_attack_globe.custom_viz_attack_globe",
+   "title": "Attack Globe",
+   "x": 0,
+   "y": 0,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults format=csv data=\"src_lat,src_lon,dst_lat,dst_lon,category,count,src_name,dst_name\n35.6895,139.6917,37.7749,-122.4194,attack,120,Tokyo,San Francisco\n55.7558,37.6173,35.6895,139.6917,attack,86,Moscow,Tokyo\n39.9042,116.4074,52.5200,13.4050,scan,64,Beijing,Berlin\n-23.5505,-46.6333,40.7128,-74.0060,malware,42,Sao Paulo,New York\n51.5074,-0.1278,1.3521,103.8198,scan,35,London,Singapore\n28.6139,77.2090,35.6895,139.6917,attack,29,Delhi,Tokyo\n37.7749,-122.4194,-33.8688,151.2093,malware,18,San Francisco,Sydney\n59.3293,18.0686,48.8566,2.3522,scan,12,Stockholm,Paris\n30.0444,31.2357,41.0082,28.9784,attack,9,Cairo,Istanbul\n-34.6037,-58.3816,19.4326,-99.1332,malware,5,Buenos Aires,Mexico City\"\n| table src_lat src_lon dst_lat dst_lon category count src_name dst_name"
+   }
+  },
+  {
+   "id": "p1",
+   "viz": "custom_viz_bullet_graph.custom_viz_bullet_graph",
+   "title": "Bullet Graph",
+   "x": 4,
+   "y": 0,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults format=csv data=\"KPI,実績,目標,前回\n月間売上,8200,10000,7900\n新規顧客数,132,120,95\n商談化率,55,100,60\n解約防止件数,48,50,41\nNPS回答数,310,300,280\"\n| table KPI 実績 目標 前回"
+   }
+  },
+  {
+   "id": "p2",
+   "viz": "custom_viz_calendar_heatmap.custom_viz_calendar_heatmap",
+   "title": "Calendar Heatmap",
+   "x": 8,
+   "y": 0,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults count=90\n| streamstats count as n\n| eval _time = now() - (n-1)*86400\n| eval count = (n*7)%12\n| table _time count"
+   }
+  },
+  {
+   "id": "p3",
+   "viz": "custom_viz_chord_flow.custom_viz_chord_flow",
+   "title": "Chord Flow",
+   "x": 0,
+   "y": 4,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults format=csv data=\"src,dst,count\nTokyo,Osaka,5200\nOsaka,Tokyo,3100\nTokyo,Nagoya,1400\nTokyo,Fukuoka,800\nNagoya,Fukuoka,900\nFukuoka,Tokyo,700\nOsaka,Fukuoka,600\nNagoya,Osaka,500\nSapporo,Tokyo,1200\nTokyo,Sapporo,950\nOsaka,Sapporo,300\nFukuoka,Nagoya,250\nTokyo,Tokyo,600\nOsaka,Osaka,400\"\n| table src dst count"
+   }
+  },
+  {
+   "id": "p4",
+   "viz": "custom_viz_country_graph.custom_viz_country_graph",
+   "title": "Country Graph",
+   "x": 4,
+   "y": 4,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults format=csv data=\"country,alerts\nUnited States,5000\nGermany,4500\nJapan,4000\nRussia,3500\nChina,3000\nFrance,2500\nUnited Kingdom,2000\nSouth Korea,1500\nBrazil,1000\nItaly,500\"\n| table country alerts"
+   }
+  },
+  {
+   "id": "p5",
+   "viz": "custom_viz_donut_graph.custom_viz_donut_graph",
+   "title": "Donut Graph",
+   "x": 8,
+   "y": 4,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults format=csv data=\"log_level,count\nINFO,494612\nWARN,50669\nERROR,217\nWARNING,65\nDEBUG,12\nNONE,1\nTRACE,1\"\n| eval count=tonumber(count)\n| table log_level count"
+   }
+  },
+  {
+   "id": "p6",
+   "viz": "custom_viz_donut_timechart.custom_viz_donut_timechart",
+   "title": "Donut Timechart",
+   "x": 0,
+   "y": 8,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults count=48\n| streamstats count as i\n| eval _time = relative_time(now(), \"-48h\") + i*3600\n| eval Protected = 1200 + round(30*sin(i/3)) + (random()%20)\n| eval \"At Risk\" = 14 + (random()%8)\n| eval Offline = 4 + (random()%5)\n| table _time Protected \"At Risk\" Offline"
+   }
+  },
+  {
+   "id": "p7",
+   "viz": "custom_viz_funnel_leak.custom_viz_funnel_leak",
+   "title": "Funnel Leak",
+   "x": 4,
+   "y": 8,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults format=csv data=\"step,users\nサイト訪問,10000\nカート追加,6000\n決済開始,3500\n購入完了,1400\"\n| table step users"
+   }
+  },
+  {
+   "id": "p8",
+   "viz": "custom_viz_gauge_arc.custom_viz_gauge_arc",
+   "title": "Gauge Arc",
+   "x": 8,
+   "y": 8,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults format=csv data=\"time,cpu\n10:00,41\n10:05,55\n10:10,63\n10:15,72\n10:20,87\"\n| table time cpu"
+   }
+  },
+  {
+   "id": "p9",
+   "viz": "custom_viz_gradient_bar.custom_viz_gradient_bar",
+   "title": "Gradient Bar",
+   "x": 0,
+   "y": 12,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults format=csv data=\"category,count\nAuthentication,1240\nNetwork,980\nMalware,760\nPolicy,540\nWeb,410\nEmail,230\"\n| eval count=tonumber(count)\n| table category count"
+   }
+  },
+  {
+   "id": "p10",
+   "viz": "custom_viz_heat_matrix.custom_viz_heat_matrix",
+   "title": "Heat Matrix",
+   "x": 4,
+   "y": 12,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults format=csv data=\"host,ERROR,WARN,INFO\nweb-01,10,40,100\nweb-02,90,20,50\ndb-01,0,5,200\ncache-01,3,12,80\"\n| table host ERROR WARN INFO"
+   }
+  },
+  {
+   "id": "p11",
+   "viz": "custom_viz_horizon_chart.custom_viz_horizon_chart",
+   "title": "Horizon Chart",
+   "x": 8,
+   "y": 12,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults format=csv data=\"_time,web-01,web-02,web-03,db-01,db-02\n2026-07-20 00:00:00,10,12,8,120,95\n2026-07-20 01:00:00,12,15,9,130,102\n2026-07-20 02:00:00,11,14,300,125,98\n2026-07-20 03:00:00,45,13,9,128,410\n2026-07-20 04:00:00,180,16,10,132,105\n2026-07-20 05:00:00,20,14,9,127,99\n2026-07-20 06:00:00,13,15,8,124,101\"\n| eval _time=strptime(_time,\"%Y-%m-%d %H:%M:%S\")\n| table _time web-01 web-02 web-03 db-01 db-02"
+   }
+  },
+  {
+   "id": "p12",
+   "viz": "custom_viz_icon_status.custom_viz_icon_status",
+   "title": "Icon Status",
+   "x": 0,
+   "y": 16,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults\n| eval CPU使用率 = 88\n| table CPU使用率"
+   }
+  },
+  {
+   "id": "p13",
+   "viz": "custom_viz_japanmap.custom_viz_japanmap",
+   "title": "Japan Map",
+   "x": 4,
+   "y": 16,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults format=csv data=\"src_lat,src_lon,dst_lat,dst_lon,severity,count,src_name,dst_name\n43.06,141.35,35.68,139.69,low,120,Sapporo,Tokyo\n34.69,135.50,35.68,139.69,high,300,Osaka,Tokyo\n33.59,130.40,35.68,139.69,high,50,Fukuoka,Tokyo\n26.21,127.68,35.68,139.69,medium,80,Naha,Tokyo\n38.27,140.87,35.68,139.69,medium,60,Sendai,Tokyo\n35.18,136.91,35.68,139.69,low,10,Nagoya,Tokyo\n34.39,132.46,35.68,139.69,scan,40,Hiroshima,Tokyo\"\n| table src_lat src_lon dst_lat dst_lon severity count src_name dst_name"
+   }
+  },
+  {
+   "id": "p14",
+   "viz": "custom_viz_kpi_tile.custom_viz_kpi_tile",
+   "title": "KPI Tile",
+   "x": 8,
+   "y": 16,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults count=30\n| streamstats count as day\n| eval _time = relative_time(now(), \"-\" . (30 - day) . \"d@d\")\n| eval 重大アラート = 10 + (day * 7) % 17 + if(day = 30, 6, 0)\n| table _time, 重大アラート"
+   }
+  },
+  {
+   "id": "p15",
+   "viz": "custom_viz_link_line.custom_viz_link_line",
+   "title": "Link Line",
+   "x": 0,
+   "y": 20,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults format=csv data=\"_time,latency_ms\n2026-07-22 10:00:00,35\n2026-07-22 10:01:00,52\n2026-07-22 10:02:00,95\"\n| table _time latency_ms"
+   }
+  },
+  {
+   "id": "p16",
+   "viz": "custom_viz_liquid_tube.custom_viz_liquid_tube",
+   "title": "Liquid Tube",
+   "x": 4,
+   "y": 20,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults count=1\n| eval name=\"CPU\", value=78\n| table name value"
+   }
+  },
+  {
+   "id": "p17",
+   "viz": "custom_viz_metric_terrain.custom_viz_metric_terrain",
+   "title": "Metric Terrain",
+   "x": 8,
+   "y": 20,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults format=csv data=\"host,hour,cpu\nweb01,00,12\nweb01,06,35\nweb01,12,88\nweb01,18,54\nweb02,00,20\nweb02,06,60\nweb02,12,95\nweb02,18,40\nweb03,00,8\nweb03,06,22\nweb03,12,44\nweb03,18,70\ndb01,00,30\ndb01,06,50\ndb01,12,66\ndb01,18,90\"\n| table host hour cpu"
+   }
+  },
+  {
+   "id": "p18",
+   "viz": "custom_viz_radar_chart.custom_viz_radar_chart",
+   "title": "Radar Chart",
+   "x": 0,
+   "y": 24,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults format=csv data=\"metric,host_a,host_b,host_c\nCPU,82,64,40\nMemory,55,78,60\nDisk IO,30,45,88\nNetwork,70,52,35\nLatency,45,60,72\"\n| table metric host_a host_b host_c"
+   }
+  },
+  {
+   "id": "p19",
+   "viz": "custom_viz_radial_bar.custom_viz_radial_bar",
+   "title": "Radial Bar",
+   "x": 4,
+   "y": 24,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults format=csv data=\"product_group,revenue\nDC-SG-G02,9800\nMB-AG-G07,8200\nWC-SH-G05,7100\nDB-SG-G01,6400\nFI-AG-G08,5600\nFS-SG-G03,4900\nSC-MG-G10,4100\nMB-MG-G09,3300\nCU-PG-G06,2600\nMB-AG-T01,1300\"\n| table product_group revenue"
+   }
+  },
+  {
+   "id": "p20",
+   "viz": "custom_viz_sankey_flow.custom_viz_sankey_flow",
+   "title": "Sankey Flow",
+   "x": 8,
+   "y": 24,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults format=csv data=\"source,target,bytes\nInternet,Firewall,5200\nInternet,VPN,1400\nFirewall,Web Server,3600\nFirewall,App Server,1500\nVPN,App Server,900\nWeb Server,Database,2100\nApp Server,Database,1700\"\n| table source target bytes"
+   }
+  },
+  {
+   "id": "p21",
+   "viz": "custom_viz_severity_table.custom_viz_severity_table",
+   "title": "Severity Table",
+   "x": 0,
+   "y": 28,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults format=csv data=\"_time_str,severity,event,host\n2026-07-19 10:12:03,critical,Brute force detected,host-01\n2026-07-19 10:09:44,high,Port scan,host-07\n2026-07-19 10:05:12,medium,Policy violation,host-22\n2026-07-19 09:58:31,low,Login success,host-03\n2026-07-19 09:51:20,info,Config reload,host-11\n2026-07-19 09:40:07,warning,Unusual outbound traffic,host-05\"\n| table _time_str severity event host"
+   }
+  },
+  {
+   "id": "p22",
+   "viz": "custom_viz_spotlight_frame.custom_viz_spotlight_frame",
+   "title": "Spotlight Frame",
+   "x": 4,
+   "y": 28,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults format=csv data=\"host,severity\nweb-01,ok\nweb-02,warning\napi-01,critical\napi-02,warning\ndb-01,ok\"\n| table host, severity"
+   }
+  },
+  {
+   "id": "p23",
+   "viz": "custom_viz_sunburst.custom_viz_sunburst",
+   "title": "Sunburst",
+   "x": 8,
+   "y": 28,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults format=csv data=\"index,sourcetype,count\nweb,access_combined,4820\nweb,error_log,1240\nweb,ssl_access,860\ndb,mysql_slow,2100\ndb,mysql_error,540\ndb,mysql_general,310\nsecurity,auth,1680\nsecurity,firewall,3200\nsecurity,ids_alert,420\napp,json_app,1950\napp,app_error,280\"\n| eval count=tonumber(count)\n| table index sourcetype count"
+   }
+  },
+  {
+   "id": "p24",
+   "viz": "custom_viz_tab_selector.custom_viz_tab_selector",
+   "title": "Tab Selector",
+   "x": 0,
+   "y": 32,
+   "w": 4,
+   "h": 4,
+   "options": {
+    "tabs": [
+     {
+      "label": "東京",
+      "value": "tokyo"
+     },
+     {
+      "label": "大阪",
+      "value": "osaka"
+     },
+     {
+      "label": "名古屋",
+      "value": "nagoya"
+     }
+    ],
+    "token": "region"
+   }
+  },
+  {
+   "id": "p25",
+   "viz": "custom_viz_timeline_swimlane.custom_viz_timeline_swimlane",
+   "title": "Timeline Swimlane",
+   "x": 4,
+   "y": 32,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults format=csv data=\"host,action,start,end\nweb-01,login,1784970000,1784970300\nweb-01,query,1784970600,1784971500\nweb-01,logout,1784972000,1784972060\nweb-02,login,1784970120,1784970200\nweb-02,error,1784970900,1784970960\nweb-02,query,1784971200,1784972400\ndb-01,query,1784970300,1784973600\ndb-01,backup,1784973700,1784976000\napi-01,deploy,1784969000,1784971000\napi-01,error,1784971100,1784971400\"\n| eval start=tonumber(start), end=tonumber(end)\n| table host action start end"
+   }
+  },
+  {
+   "id": "p26",
+   "viz": "custom_viz_treemap.custom_viz_treemap",
+   "title": "Treemap",
+   "x": 8,
+   "y": 32,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults format=csv data=\"index,sourcetype,count\nweb,access_combined,4820\nweb,error_log,1240\nweb,ssl_access,860\ndb,mysql_slow,2100\ndb,mysql_error,540\ndb,mysql_general,310\nsecurity,auth,1680\nsecurity,firewall,3200\nsecurity,ids_alert,420\napp,json_app,1950\napp,app_error,280\"\n| eval count=tonumber(count)\n| table index sourcetype count"
+   }
+  },
+  {
+   "id": "p27",
+   "viz": "custom_viz_vu_console.custom_viz_vu_console",
+   "title": "VU Console",
+   "x": 0,
+   "y": 36,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults count=5 | streamstats count as n\n| eval cpu=40+n*10, mem=30+n*6, disk=10+n*3\n| table _time cpu mem disk"
+   }
+  },
+  {
+   "id": "p28",
+   "viz": "custom_viz_waterfall_chart.custom_viz_waterfall_chart",
+   "title": "Waterfall Chart",
+   "x": 4,
+   "y": 36,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults format=csv data=\"項目,増減\n新規契約,420\nアップグレード,180\n解約,-260\nダウングレード,-90\n再契約,60\"\n| table 項目 増減"
+   }
+  },
+  {
+   "id": "p29",
+   "viz": "custom_viz_worldmap.custom_viz_worldmap",
+   "title": "World Map",
+   "x": 8,
+   "y": 36,
+   "w": 4,
+   "h": 4,
+   "options": {},
+   "search": {
+    "spl": "| makeresults format=csv data=\"src_lat,src_lon,dst_lat,dst_lon,severity,count,src_name,dst_name\n51.51,-0.13,35.68,139.69,low,120,London,Tokyo\n31.23,121.47,35.68,139.69,high,300,Shanghai,Tokyo\n55.76,37.62,35.68,139.69,high,50,Moscow,Tokyo\n-23.55,-46.63,35.68,139.69,medium,80,Sao Paulo,Tokyo\n28.61,77.21,35.68,139.69,medium,60,Delhi,Tokyo\n40.71,-74.01,35.68,139.69,low,10,New York,Tokyo\n-33.87,151.21,35.68,139.69,scan,40,Sydney,Tokyo\"\n| table src_lat src_lon dst_lat dst_lon severity count src_name dst_name"
+   }
+  }
+ ]
+}

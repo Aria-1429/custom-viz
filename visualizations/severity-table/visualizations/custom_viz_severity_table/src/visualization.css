@@ -21,6 +21,13 @@
 .viz-message-icon {
     display: block;
     margin: 0 auto 12px;
+    /* ⚠ この SVG は viewBox のみで幅高さを持たず fill="currentColor" なので、
+       <img> で読むと (1) 親いっぱいに伸びる (2) currentColor が効かず黒くなる。
+       DPX/Studio 共通の見た目にするため、ここでサイズと色を与える
+       （<img> に色は乗らないので opacity で沈める）。 */
+    width: 48px;
+    height: 48px;
+    opacity: 0.35;
 }
 
 .viz-scroll {

@@ -381,6 +381,33 @@ Sydney,Tokyo,low,9000"
 
 ---
 
+### [2.2.1] - 2026-08-10
+
+#### 変更
+
+- **dash-platform（apps/dash-platform）からの iframe なしホスティングに対応**。
+  自己マウントをホスト検出ガード（`globalThis.__DASH_PLATFORM_HOST__`）で条件化し、
+  ホスト側へ `App` を渡す口として **`src/host.jsx`** を追加した。
+  **Studio 拡張（iframe）としての動作・見た目に変更はない**（実機で描画確認済み）。
+  - ⚠ **エントリ（`src/visualization.jsx`）には `export` を書かない**。
+    ビルドは esbuild の `format: 'esm'` なので、`export` が1つでもあると成果物末尾に
+    `export{…}` が出力され、**Studio の iframe はクラシックスクリプトとして読むため
+    `Uncaught SyntaxError: Unexpected token 'export'` でバンドル全体が実行されず、
+    パネルが真っ黒になる**（開発中に実際に発生させ、実機で確認した）。
+    そのため受け渡しは `globalThis.__WORLDMAP_APP__` 経由とし、
+    `export` は esbuild のエントリではない `src/host.jsx` に置いている。
+  - `host.jsx` は**import 文の並び順に依存しない**（自身でフラグを立ててから viz を読み込む）。
+    順序に依存すると lint の import 整列などで二重マウントが起きうるため。
+
+#### 追加
+
+- **`yarn verify` に「バンドルに top-level `export` が無いこと」の検査を追加**（回帰防止）。
+  検証ハーネスは従来 eval 前に末尾の `export` 文を**剥がしていた**ため、
+  上記の致命バグを抱えたバンドルでも **229 件すべて通ってしまう**状態だった
+  （`export` を注入して全通過することを実際に確認）。
+  剥がすのをやめ、検出したらエラー終了して原因と対処を表示する。
+- `.spl`: `dist/custom_viz_worldmap-2.2.1-248c467.spl`
+
 ### [2.2.0] - 2026-08-10
 
 #### 追加

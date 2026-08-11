@@ -1,0 +1,667 @@
+{
+  "version": 1,
+  "title": "AEGIS / Global Threat Operations",
+  "description": "DPX のショーケース。全面地図の上にガラスパネルを重ねる構図・左サイドバータブ・背景エフェクトなど、Studio では組めないレイアウトを一枚にまとめたもの。",
+  "hideHeader": false,
+  "chrome": "dpx",
+  "style": {
+    "preset": "midnight",
+    "accent": "#00e5ff",
+    "background": "constellation",
+    "entrance": "rise",
+    "radius": 2
+  },
+  "grid": {
+    "columns": 12,
+    "rowHeight": 52,
+    "gap": 8
+  },
+  "tabs": [
+    {
+      "id": "ops",
+      "label": "統合監視"
+    },
+    {
+      "id": "threat",
+      "label": "脅威分析"
+    },
+    {
+      "id": "infra",
+      "label": "基盤稼働"
+    }
+  ],
+  "tabPosition": "left",
+  "tabWidth": 150,
+  "dataSources": {
+    "ds_kpi_attack": {
+      "name": "KPI: 検知総数（30日）",
+      "spl": "| makeresults count=30 | streamstats count as d | eval _time = relative_time(now(), \"-\" . (30 - d) . \"d@d\") | eval 検知数 = 820 + (d * 137) % 640 + if(d >= 28, 380, 0) | table _time 検知数"
+    },
+    "ds_kpi_blocked": {
+      "name": "KPI: 遮断率（30日）",
+      "spl": "| makeresults count=30 | streamstats count as d | eval _time = relative_time(now(), \"-\" . (30 - d) . \"d@d\") | eval 遮断率 = 93.5 + ((d * 31) % 55) / 10 | table _time 遮断率"
+    },
+    "ds_kpi_mttr": {
+      "name": "KPI: 平均対応時間（30日）",
+      "spl": "| makeresults count=30 | streamstats count as d | eval _time = relative_time(now(), \"-\" . (30 - d) . \"d@d\") | eval 対応分 = 46 - (d * 7) % 22 | table _time 対応分"
+    },
+    "ds_kpi_assets": {
+      "name": "KPI: 監視資産数（30日）",
+      "spl": "| makeresults count=30 | streamstats count as d | eval _time = relative_time(now(), \"-\" . (30 - d) . \"d@d\") | eval 資産数 = 12400 + d * 26 | table _time 資産数"
+    },
+    "ds_globe": {
+      "name": "攻撃フロー（地球儀）",
+      "spl": "| makeresults format=csv data=\"src_lat,src_lon,dst_lat,dst_lon,category,count,src_name,dst_name\n55.7558,37.6173,35.6895,139.6917,attack,320,Moscow,Tokyo\n39.9042,116.4074,35.6895,139.6917,attack,280,Beijing,Tokyo\n-23.5505,-46.6333,35.6895,139.6917,scan,140,Sao Paulo,Tokyo\n52.5200,13.4050,35.6895,139.6917,attack,210,Berlin,Tokyo\n28.6139,77.2090,35.6895,139.6917,scan,175,Delhi,Tokyo\n40.7128,-74.0060,35.6895,139.6917,attack,265,New York,Tokyo\n1.3521,103.8198,35.6895,139.6917,scan,120,Singapore,Tokyo\n-33.8688,151.2093,35.6895,139.6917,attack,95,Sydney,Tokyo\n37.7749,-122.4194,35.6895,139.6917,attack,240,San Francisco,Tokyo\n51.5074,-0.1278,35.6895,139.6917,scan,160,London,Tokyo\" | table src_lat src_lon dst_lat dst_lon category count src_name dst_name"
+    },
+    "ds_map": {
+      "name": "攻撃フロー（世界地図）",
+      "spl": "| makeresults format=csv data=\"src_lat,src_lon,dst_lat,dst_lon,severity,count,src_name,dst_name\n55.7558,37.6173,35.6895,139.6917,high,320,Moscow,Tokyo\n39.9042,116.4074,35.6895,139.6917,high,280,Beijing,Tokyo\n-23.5505,-46.6333,35.6895,139.6917,medium,140,Sao Paulo,Tokyo\n52.5200,13.4050,35.6895,139.6917,high,210,Berlin,Tokyo\n28.6139,77.2090,35.6895,139.6917,medium,175,Delhi,Tokyo\n40.7128,-74.0060,35.6895,139.6917,high,265,New York,Tokyo\n1.3521,103.8198,35.6895,139.6917,low,120,Singapore,Tokyo\n-33.8688,151.2093,35.6895,139.6917,low,95,Sydney,Tokyo\n37.7749,-122.4194,35.6895,139.6917,high,240,San Francisco,Tokyo\n51.5074,-0.1278,35.6895,139.6917,medium,160,London,Tokyo\" | table src_lat src_lon dst_lat dst_lon severity count src_name dst_name"
+    },
+    "ds_trend": {
+      "name": "時系列: 攻撃種別の推移",
+      "spl": "| makeresults count=48 | streamstats count as h | eval _time = relative_time(now(), \"-\" . (48 - h) . \"h@h\") | eval マルウェア = 40 + (h * 17) % 55, 不正アクセス = 25 + (h * 29) % 40, スキャン = 60 + (h * 11) % 70 | table _time マルウェア 不正アクセス スキャン"
+    },
+    "ds_topsrc": {
+      "name": "送信元 上位",
+      "spl": "| makeresults format=csv data=\"送信元,件数\nRU / Moscow,320\nCN / Beijing,280\nUS / New York,265\nUS / San Francisco,240\nDE / Berlin,210\nIN / Delhi,175\nGB / London,160\nBR / Sao Paulo,140\" | table 送信元 件数"
+    },
+    "ds_status": {
+      "name": "防御コンポーネント状態",
+      "spl": "| makeresults format=csv data=\"コンポーネント,状態\nWAF クラスタ,稼働\nIDS センサ,稼働\nEDR エージェント,稼働\nメールゲートウェイ,警告\nプロキシ,稼働\nSIEM 取込,稼働\nDNS シンクホール,稼働\nバックアップ,障害\" | table コンポーネント 状態"
+    },
+    "ds_alerts": {
+      "name": "直近アラート",
+      "spl": "| makeresults format=csv data=\"時刻,重大度,検知内容,対象ホスト,件数\n09:42,重大,ランサムウェア挙動,fs-prd-04,12\n09:38,重大,認証情報の総当たり,vpn-gw-01,340\n09:31,警告,C2 通信の疑い,web-prd-07,8\n09:24,警告,権限昇格の試行,db-prd-02,3\n09:11,注意,ポートスキャン,dmz-edge-01,120\n08:57,警告,不審なPowerShell,ws-2041,6\n08:43,注意,大量DNS問い合わせ,ws-1180,88\" | table 時刻 重大度 検知内容 対象ホスト 件数"
+    },
+    "ds_killchain": {
+      "name": "キルチェーン段階",
+      "spl": "| makeresults format=csv data=\"段階,件数\n偵察,1240\n武器化,860\nデリバリ,620\n悪用,410\nインストール,240\nC2,130\n目的実行,44\" | table 段階 件数"
+    },
+    "ds_flow": {
+      "name": "侵入経路のフロー",
+      "spl": "| makeresults format=csv data=\"source,target,bytes\nInternet,エッジFW,5200\nInternet,VPN,1400\nエッジFW,DMZ,3600\nエッジFW,遮断,1600\nVPN,社内LAN,900\nVPN,遮断,500\nDMZ,Webサーバ,2100\nDMZ,検疫,1500\n社内LAN,ファイルサーバ,600\n社内LAN,DBサーバ,300\" | table source target bytes"
+    },
+    "ds_matrix": {
+      "name": "ホスト×重大度",
+      "spl": "| makeresults format=csv data=\"ホスト,重大,警告,注意\nweb-prd-07,12,40,100\nvpn-gw-01,34,22,58\nfs-prd-04,28,15,40\ndb-prd-02,6,30,88\ndmz-edge-01,3,52,140\nws-2041,9,18,64\" | table ホスト 重大 警告 注意"
+    },
+    "ds_sunburst": {
+      "name": "攻撃の分類（階層）",
+      "spl": "| makeresults format=csv data=\"分類,手法,件数\nマルウェア,ランサムウェア,420\nマルウェア,トロイの木馬,310\nマルウェア,ワーム,150\n不正アクセス,総当たり,380\n不正アクセス,認証情報悪用,220\n不正アクセス,権限昇格,110\n偵察,ポートスキャン,540\n偵察,脆弱性スキャン,290\nWeb攻撃,SQLインジェクション,180\nWeb攻撃,XSS,95\" | table 分類 手法 件数"
+    },
+    "ds_swimlane": {
+      "name": "インシデント進行",
+      "spl": "| makeresults format=csv data=\"host,action,start,end\nfs-prd-04,初期侵入,1786000000,1786000600\nfs-prd-04,横展開,1786001200,1786002400\nfs-prd-04,暗号化,1786003000,1786004200\nvpn-gw-01,総当たり,1786000200,1786001800\nvpn-gw-01,認証突破,1786002000,1786002200\nweb-prd-07,脆弱性探索,1786000800,1786002000\nweb-prd-07,C2通信,1786002600,1786004000\" | table host action start end"
+    },
+    "ds_cpu": {
+      "name": "CPU 使用率",
+      "spl": "| makeresults count=1 | eval name=\"CPU\", value=72 | table name value"
+    },
+    "ds_mem": {
+      "name": "メモリ使用率",
+      "spl": "| makeresults count=1 | eval name=\"MEM\", value=58 | table name value"
+    },
+    "ds_disk": {
+      "name": "ディスク使用率",
+      "spl": "| makeresults count=1 | eval name=\"DISK\", value=86 | table name value"
+    },
+    "ds_ingest": {
+      "name": "取込量の推移",
+      "spl": "| makeresults count=48 | streamstats count as h | eval _time = relative_time(now(), \"-\" . (48 - h) . \"h@h\") | eval 取込GB = 180 + (h * 23) % 90 | table _time 取込GB"
+    },
+    "ds_nodes": {
+      "name": "ノード稼働状況",
+      "spl": "| makeresults format=csv data=\"ノード,状態\nidx-01,稼働\nidx-02,稼働\nidx-03,警告\nidx-04,稼働\nsh-01,稼働\nsh-02,稼働\ncm-01,稼働\nhf-01,障害\nhf-02,稼働\nds-01,稼働\nds-02,稼働\nds-03,警告\" | table ノード 状態"
+    },
+    "ds_sla": {
+      "name": "SLA 未達率",
+      "spl": "| makeresults format=csv data=\"サービス,未達率\n検索応答,0.6\nデータ取込,0.2\nアラート配信,1.4\nダッシュボード,0.1\nAPI,2.8\" | table サービス 未達率"
+    }
+  },
+  "panels": [
+    {
+      "id": "ops_title",
+      "viz": "deco.text",
+      "tab": "ops",
+      "x": 0,
+      "y": 0,
+      "w": 7,
+      "h": 1,
+      "style": {
+        "variant": "frameless",
+        "hideTitle": true
+      },
+      "options": {
+        "text": "GLOBAL THREAT OPERATIONS",
+        "size": 26,
+        "align": "left",
+        "glow": true
+      }
+    },
+    {
+      "id": "ops_clock",
+      "viz": "deco.clock",
+      "tab": "ops",
+      "x": 9,
+      "y": 0,
+      "w": 3,
+      "h": 1,
+      "style": {
+        "variant": "frameless",
+        "hideTitle": true
+      },
+      "options": {
+        "size": 26,
+        "showDate": true,
+        "showSeconds": true
+      }
+    },
+    {
+      "id": "kpi_attack",
+      "viz": "dpx.value",
+      "title": "検知総数",
+      "tab": "ops",
+      "x": 0,
+      "y": 1,
+      "w": 3,
+      "h": 3,
+      "style": {
+        "variant": "noc"
+      },
+      "search": {
+        "ref": "ds_kpi_attack"
+      },
+      "options": {
+        "caption": "直近30日",
+        "unit": " 件",
+        "decimals": 0,
+        "size": 40,
+        "glow": true,
+        "showSpark": true,
+        "animate": true,
+        "upIsBad": true
+      }
+    },
+    {
+      "id": "kpi_blocked",
+      "viz": "dpx.value",
+      "title": "遮断率",
+      "tab": "ops",
+      "x": 3,
+      "y": 1,
+      "w": 3,
+      "h": 3,
+      "style": {
+        "variant": "noc"
+      },
+      "search": {
+        "ref": "ds_kpi_blocked"
+      },
+      "options": {
+        "caption": "自動遮断の割合",
+        "unit": " %",
+        "decimals": 1,
+        "size": 40,
+        "glow": true,
+        "showSpark": true,
+        "animate": true
+      }
+    },
+    {
+      "id": "kpi_mttr",
+      "viz": "dpx.value",
+      "title": "平均対応時間",
+      "tab": "ops",
+      "x": 6,
+      "y": 1,
+      "w": 3,
+      "h": 3,
+      "style": {
+        "variant": "noc"
+      },
+      "search": {
+        "ref": "ds_kpi_mttr"
+      },
+      "options": {
+        "caption": "検知から封じ込めまで",
+        "unit": " 分",
+        "decimals": 0,
+        "size": 40,
+        "glow": true,
+        "showSpark": true,
+        "animate": true,
+        "upIsBad": true
+      }
+    },
+    {
+      "id": "kpi_assets",
+      "viz": "dpx.value",
+      "title": "監視資産数",
+      "tab": "ops",
+      "x": 9,
+      "y": 1,
+      "w": 3,
+      "h": 3,
+      "style": {
+        "variant": "noc"
+      },
+      "search": {
+        "ref": "ds_kpi_assets"
+      },
+      "options": {
+        "caption": "エージェント導入済み",
+        "unit": "",
+        "decimals": 0,
+        "size": 40,
+        "glow": true,
+        "showSpark": true,
+        "animate": true
+      }
+    },
+    {
+      "id": "map_full",
+      "viz": "custom_viz_worldmap.custom_viz_worldmap",
+      "title": "攻撃フロー",
+      "tab": "ops",
+      "x": 0,
+      "y": 4,
+      "w": 12,
+      "h": 6,
+      "style": {
+        "variant": "frameless",
+        "hideTitle": true
+      },
+      "search": {
+        "ref": "ds_map"
+      },
+      "options": {
+        "showFlowTable": true
+      }
+    },
+    {
+      "id": "ops_topsrc",
+      "viz": "dpx.bar",
+      "title": "送信元 上位",
+      "tab": "ops",
+      "x": 0,
+      "y": 10,
+      "w": 3,
+      "h": 4,
+      "style": {
+        "variant": "noc"
+      },
+      "search": {
+        "ref": "ds_topsrc"
+      },
+      "options": {
+        "showValues": true,
+        "monochrome": false,
+        "animate": true
+      }
+    },
+    {
+      "id": "ops_status",
+      "viz": "dpx.status",
+      "title": "防御コンポーネント",
+      "tab": "ops",
+      "x": 8,
+      "y": 10,
+      "w": 4,
+      "h": 4,
+      "style": {
+        "variant": "noc"
+      },
+      "search": {
+        "ref": "ds_status"
+      },
+      "options": {
+        "columns": 2,
+        "showDetail": false,
+        "upperCaseState": false,
+        "pulse": true,
+        "colors": {
+          "mode": "match",
+          "matches": [
+            {
+              "value": "稼働",
+              "color": "#3cdcb4",
+              "label": "稼働"
+            },
+            {
+              "value": "警告",
+              "color": "#ffb020",
+              "label": "警告"
+            },
+            {
+              "value": "障害",
+              "color": "#ff4d6d",
+              "label": "障害"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "ops_trend",
+      "viz": "dpx.line",
+      "title": "攻撃種別の推移（48時間）",
+      "tab": "ops",
+      "x": 3,
+      "y": 10,
+      "w": 5,
+      "h": 4,
+      "style": {
+        "variant": "noc"
+      },
+      "search": {
+        "ref": "ds_trend"
+      },
+      "options": {
+        "showArea": true,
+        "showDots": false,
+        "showGrid": true,
+        "showLegend": true,
+        "smooth": true,
+        "animate": true,
+        "lineWidth": 2
+      }
+    },
+    {
+      "id": "ops_alerts",
+      "viz": "dpx.table",
+      "title": "直近アラート",
+      "tab": "ops",
+      "x": 0,
+      "y": 14,
+      "w": 12,
+      "h": 3,
+      "style": {
+        "variant": "noc"
+      },
+      "search": {
+        "ref": "ds_alerts"
+      },
+      "options": {
+        "maxRows": 8,
+        "striped": true,
+        "dense": true,
+        "valueBars": false
+      }
+    },
+    {
+      "id": "th_title",
+      "viz": "deco.text",
+      "tab": "threat",
+      "x": 0,
+      "y": 0,
+      "w": 8,
+      "h": 1,
+      "style": {
+        "variant": "frameless",
+        "hideTitle": true
+      },
+      "options": {
+        "text": "THREAT ANALYSIS",
+        "size": 24,
+        "align": "left",
+        "glow": true
+      }
+    },
+    {
+      "id": "th_globe",
+      "viz": "custom_viz_attack_globe.custom_viz_attack_globe",
+      "title": "攻撃の到達",
+      "tab": "threat",
+      "x": 0,
+      "y": 1,
+      "w": 5,
+      "h": 7,
+      "style": {
+        "variant": "noc"
+      },
+      "search": {
+        "ref": "ds_globe"
+      }
+    },
+    {
+      "id": "th_sunburst",
+      "viz": "custom_viz_sunburst.custom_viz_sunburst",
+      "title": "攻撃の分類",
+      "tab": "threat",
+      "x": 5,
+      "y": 1,
+      "w": 4,
+      "h": 7,
+      "style": {
+        "variant": "noc"
+      },
+      "search": {
+        "ref": "ds_sunburst"
+      }
+    },
+    {
+      "id": "th_kill",
+      "viz": "dpx.bar",
+      "title": "キルチェーン段階",
+      "tab": "threat",
+      "x": 9,
+      "y": 1,
+      "w": 3,
+      "h": 7,
+      "style": {
+        "variant": "noc"
+      },
+      "search": {
+        "ref": "ds_killchain"
+      },
+      "options": {
+        "showValues": true,
+        "monochrome": false,
+        "animate": true
+      }
+    },
+    {
+      "id": "th_flow",
+      "viz": "custom_viz_sankey_flow.custom_viz_sankey_flow",
+      "title": "侵入経路",
+      "tab": "threat",
+      "x": 0,
+      "y": 8,
+      "w": 6,
+      "h": 5,
+      "style": {
+        "variant": "noc"
+      },
+      "search": {
+        "ref": "ds_flow"
+      }
+    },
+    {
+      "id": "th_matrix",
+      "viz": "custom_viz_heat_matrix.custom_viz_heat_matrix",
+      "title": "ホスト × 重大度",
+      "tab": "threat",
+      "x": 6,
+      "y": 8,
+      "w": 6,
+      "h": 5,
+      "style": {
+        "variant": "noc"
+      },
+      "search": {
+        "ref": "ds_matrix"
+      }
+    },
+    {
+      "id": "th_swim",
+      "viz": "custom_viz_timeline_swimlane.custom_viz_timeline_swimlane",
+      "title": "インシデント進行",
+      "tab": "threat",
+      "x": 0,
+      "y": 13,
+      "w": 12,
+      "h": 4,
+      "style": {
+        "variant": "noc"
+      },
+      "search": {
+        "ref": "ds_swimlane"
+      }
+    },
+    {
+      "id": "inf_title",
+      "viz": "deco.text",
+      "tab": "infra",
+      "x": 0,
+      "y": 0,
+      "w": 8,
+      "h": 1,
+      "style": {
+        "variant": "frameless",
+        "hideTitle": true
+      },
+      "options": {
+        "text": "PLATFORM HEALTH",
+        "size": 24,
+        "align": "left",
+        "glow": true
+      }
+    },
+    {
+      "id": "inf_cpu",
+      "viz": "custom_viz_liquid_tube.custom_viz_liquid_tube",
+      "title": "CPU",
+      "tab": "infra",
+      "x": 0,
+      "y": 1,
+      "w": 2,
+      "h": 5,
+      "style": {
+        "variant": "noc"
+      },
+      "search": {
+        "ref": "ds_cpu"
+      }
+    },
+    {
+      "id": "inf_mem",
+      "viz": "custom_viz_liquid_tube.custom_viz_liquid_tube",
+      "title": "メモリ",
+      "tab": "infra",
+      "x": 2,
+      "y": 1,
+      "w": 2,
+      "h": 5,
+      "style": {
+        "variant": "noc"
+      },
+      "search": {
+        "ref": "ds_mem"
+      }
+    },
+    {
+      "id": "inf_disk",
+      "viz": "custom_viz_liquid_tube.custom_viz_liquid_tube",
+      "title": "ディスク",
+      "tab": "infra",
+      "x": 4,
+      "y": 1,
+      "w": 2,
+      "h": 5,
+      "style": {
+        "variant": "noc"
+      },
+      "search": {
+        "ref": "ds_disk"
+      }
+    },
+    {
+      "id": "inf_sla",
+      "viz": "dpx.bar",
+      "title": "SLA 未達率（低いほど良い）",
+      "tab": "infra",
+      "x": 6,
+      "y": 1,
+      "w": 6,
+      "h": 5,
+      "style": {
+        "variant": "noc"
+      },
+      "search": {
+        "ref": "ds_sla"
+      },
+      "options": {
+        "showValues": true,
+        "monochrome": false,
+        "animate": true
+      }
+    },
+    {
+      "id": "inf_ingest",
+      "viz": "dpx.line",
+      "title": "取込量（48時間）",
+      "tab": "infra",
+      "x": 0,
+      "y": 6,
+      "w": 7,
+      "h": 4,
+      "style": {
+        "variant": "noc"
+      },
+      "search": {
+        "ref": "ds_ingest"
+      },
+      "options": {
+        "showArea": true,
+        "showDots": false,
+        "showGrid": true,
+        "showLegend": false,
+        "smooth": true,
+        "animate": true,
+        "lineWidth": 2
+      }
+    },
+    {
+      "id": "inf_nodes",
+      "viz": "dpx.status",
+      "title": "ノード稼働状況",
+      "tab": "infra",
+      "x": 7,
+      "y": 6,
+      "w": 5,
+      "h": 4,
+      "style": {
+        "variant": "noc"
+      },
+      "search": {
+        "ref": "ds_nodes"
+      },
+      "options": {
+        "columns": 3,
+        "showDetail": false,
+        "upperCaseState": false,
+        "pulse": true,
+        "colors": {
+          "mode": "match",
+          "matches": [
+            {
+              "value": "稼働",
+              "color": "#3cdcb4",
+              "label": "稼働"
+            },
+            {
+              "value": "警告",
+              "color": "#ffb020",
+              "label": "警告"
+            },
+            {
+              "value": "障害",
+              "color": "#ff4d6d",
+              "label": "障害"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

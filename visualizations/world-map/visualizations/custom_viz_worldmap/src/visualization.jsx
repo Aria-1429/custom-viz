@@ -4619,6 +4619,13 @@ function ThreatMapVisualization({ mode }) {
 // ---------------------------------------------------------------------------
 // テーマガード付きApp
 // テーマは通常マウントゲートで取得済み。万一未着でも light 既定で必ず描画する
+//
+// ⚠ このファイルに `export` を書いてはいけない（Studio 拡張が壊れる）。
+//    ビルドは esbuild の format:'esm' なので、export が1つでもあると成果物末尾に
+//    `export{...}` が出力される。Studio の iframe はこれをクラシックスクリプトとして
+//    読むため `Uncaught SyntaxError: Unexpected token 'export'` でバンドル全体が
+//    実行されず、パネルが真っ黒になる（2026-08-10 の開発中に実際に発生）。
+//    dash-platform 用の名前付き export は host.js（別エントリ）が担う。
 // ---------------------------------------------------------------------------
 function App() {
     const themeContext = useTheme();
@@ -4657,10 +4664,19 @@ function mountApp() {
     );
 }
 
-(function mountWhenReady() {
-    if (hostReady() || Date.now() - MOUNT_START >= 5000) {
-        mountApp();
-    } else {
-        setTimeout(mountWhenReady, 50);
-    }
-})();
+// dash-platform（apps/dash-platform）が iframe なしでこの viz をホストする場合に
+// 使う受け渡し口。`export` を使わないのは上のコメントの理由（Studio が壊れる）。
+// DPX 側は host.jsx がこのファイルを副作用 import してから App を受け取る。
+globalThis.__WORLDMAP_APP__ = App;
+
+// dash-platform にホストされている場合は自己マウントしない（ホスト側が
+// コンポーネントとして描画する）。iframe（Studio 拡張）では従来どおり。
+if (!globalThis.__DASH_PLATFORM_HOST__) {
+    (function mountWhenReady() {
+        if (hostReady() || Date.now() - MOUNT_START >= 5000) {
+            mountApp();
+        } else {
+            setTimeout(mountWhenReady, 50);
+        }
+    })();
+}

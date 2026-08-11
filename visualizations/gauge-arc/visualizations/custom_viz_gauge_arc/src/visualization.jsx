@@ -2490,10 +2490,20 @@ function mountApp() {
     );
 }
 
-(function mountWhenReady() {
-    if (hostReady() || Date.now() - MOUNT_START >= 5000) {
-        mountApp();
-    } else {
-        setTimeout(mountWhenReady, 50);
-    }
-})();
+// DPX（apps/dash-platform）が iframe なしでこの viz をホストする場合の受け渡し口。
+// `export` を使わないのは、esbuild が成果物末尾に export{} を出力して
+// Studio の iframe が SyntaxError になるため（実機で確認済み）。
+// DPX 側は host.jsx がこのファイルを副作用 import してから受け取る。
+globalThis.__GAUGE_ARC_APP__ = App;
+
+// DPX にホストされている場合は自己マウントしない（ホストがコンポーネントとして描画する）。
+// iframe（Studio 拡張）では従来どおり自己マウントする。
+if (!globalThis.__DASH_PLATFORM_HOST__) {
+    (function mountWhenReady() {
+        if (hostReady() || Date.now() - MOUNT_START >= 5000) {
+            mountApp();
+        } else {
+            setTimeout(mountWhenReady, 50);
+        }
+    })();
+}

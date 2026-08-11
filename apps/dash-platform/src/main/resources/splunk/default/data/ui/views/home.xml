@@ -1,0 +1,3 @@
+<view template="pages/splunk_ui_app.html" type="html" isVisible="False">
+    <label>Dash Platform (旧URL)</label>
+</view>

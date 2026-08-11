@@ -97,6 +97,21 @@ push とパネル撮影には `push-classic.mjs` / `shot-classic.mjs` を使う�
   … **Simple XML と Dashboard Studio の両方で表示できる**唯一の方式。
 - **Studio 拡張**（このリポジトリの `visualizations/<name>/`。`framework_type = studio_visualization` + `config.json`）… Studio 専用。
 
+**⭐ DPX（`apps/dash-platform/`）を触る依頼なら、着手前に必ず
+[references/dpx-platform.md](references/dpx-platform.md) を読む**（2026-08-10 構築・実機検証）。
+DPX は **Studio でも classic でもない完全独自のダッシュボード基盤**（独立 React ページの上に
+自前エンジンを載せたもの）。**Studio 拡張 viz の作法（config.json / editorConfig 配信 /
+splunkd 再起動）はここでは一切通用しない**ので、混同すると手が止まる。同ファイルには:
+- 構成（ビュー XML＋共有 Mako テンプレート＋共有ランタイム）と **DPX スキーマ v1**
+- **viz の作り方・登録**（props を受け取る React コンポーネント＋registry に1行。
+  既存 Studio 拡張 viz の移植も2ステップ）
+- ⚠ **画面が白紙になる最頻バグ＝ React フックのルール違反**（データ有無で early return する viz で
+  フックを return の後に置くと、データ到着の瞬間に落ちる。**コンソールにエラーが出ないことがある**）と
+  機械監査スクリプト
+- ⚠ その他の実機で踏んだ罠（自前ドロップダウンの外側クリック誤判定・ResizeObserver が始まらない・
+  `makeresults format=csv` の列順・ビルドの heap 不足・REST に `output_mode=json` 必須）
+- DPX 専用の E2E / 撮影ツール一覧（`tools/dashboard-loop/src/dp-*.mjs`）と**テストの書き方の注意**
+
 ## 開発方針
 
 - Reactベースで開発する。
