@@ -19,6 +19,9 @@ export const BACKGROUND_OPTIONS = [
     { value: 'dots', label: 'ドット（点描）', group: 'パターン' },
     { value: 'diagonal', label: 'ストライプ（斜線）', group: 'パターン' },
     { value: 'scanlines', label: 'スキャンライン', group: 'パターン' },
+    { value: 'circuit', label: '回路基板', group: 'パターン' },
+    { value: 'topo', label: '等高線', group: 'パターン' },
+    { value: 'starfield', label: '星空（流れる）', group: 'キャンバス' },
     { value: 'glow', label: 'グロー（隅の光）', group: 'グラデーション' },
     { value: 'aurora', label: 'オーロラ（ゆらぐ光幕）', group: 'グラデーション' },
     { value: 'vignette', label: 'ビネット（周辺減光）', group: 'グラデーション' },
@@ -201,6 +204,44 @@ const makeWave = (accent) => ({
     },
 });
 
+// 星空：奥行きの違う3層を別々の速さで流す（視差）。
+// ⚠ シーンの契約は `init(canvas) -> state` と `frame(ctx, canvas, state)`。
+//    他のシーン（makeRain 等）と同じ形にすること（別の形で書いて動かなかった）。
+// ⚠ 「面積に比例する塗り」を作らない。点は 0.5〜1.4px なので
+//    パネル数が増えても raster コストがほぼ増えない（viz-performance.md §2）
+const makeStarfield = (accent) => ({
+    init: (canvas) => {
+        const count = Math.min(150, Math.round(canvas.width / 11));
+        return Array.from({ length: count }, () => {
+            const layer = Math.floor(Math.random() * 3); // 0=遠い 〜 2=近い
+            return {
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                r: 0.5 + layer * 0.45,
+                v: 0.08 + layer * 0.16,
+                a: 0.22 + layer * 0.2,
+            };
+        });
+    },
+    frame: (ctx, canvas, stars) => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = accent;
+        for (const s of stars) {
+            s.x -= s.v;
+            // 左端を越えたら右へ戻す（縦位置も振り直して同じ軌跡の反復に見せない）
+            if (s.x < -2) {
+                s.x = canvas.width + 2;
+                s.y = Math.random() * canvas.height;
+            }
+            ctx.globalAlpha = s.a;
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+    },
+});
+
 export default function BackgroundLayer({ kind, accent }) {
     const scene = React.useMemo(() => {
         if (kind === 'particles') return makeParticles(accent, false);
@@ -208,6 +249,7 @@ export default function BackgroundLayer({ kind, accent }) {
         if (kind === 'rain') return makeRain(accent);
         if (kind === 'ripple') return makeRipple(accent);
         if (kind === 'wave') return makeWave(accent);
+        if (kind === 'starfield') return makeStarfield(accent);
         return null;
     }, [kind, accent]);
 
@@ -226,7 +268,14 @@ export default function BackgroundLayer({ kind, accent }) {
         grid: {
             backgroundImage: `linear-gradient(${accent}14 1px, transparent 1px), linear-gradient(90deg, ${accent}14 1px, transparent 1px)`,
             backgroundSize: '48px 48px',
-            animation: 'dpxGridPan 60s linear infinite',
+            // ⚠ **`background-position` を animate してはいけない。**
+            //    合成でなく毎フレーム「全面の再描画（RasterTask）」になる。
+            //    実測（1920x1080）: この1要素だけで **22fps**、
+            //    止めると **60fps**（他の 37 個のアニメを全部止めても効果ゼロ、
+            //    この1個で決まっていた）。
+            //    → transform で動かす（下の `pan` を参照）。
+            //    viz-performance.md §2「面積に比例する塗り」の典型例
+            __pan: true,
         },
         hex: {
             // 六角形風の斜めグリッド（3方向の線を重ねる）
@@ -250,11 +299,50 @@ export default function BackgroundLayer({ kind, accent }) {
             backgroundImage: `radial-gradient(ellipse 60% 40% at 20% 20%, ${accent}26, transparent 60%), radial-gradient(ellipse 50% 40% at 80% 30%, ${accent}1a, transparent 60%), radial-gradient(ellipse 70% 50% at 50% 90%, ${accent}20, transparent 60%)`,
             animation: 'dpxAurora 24s ease-in-out infinite alternate',
         },
+        circuit: {
+            // 回路基板：直交の線＋ノードの点。線の交点に点を置くと基板らしくなる
+            backgroundImage:
+                `linear-gradient(${accent}12 1px, transparent 1px), linear-gradient(90deg, ${accent}12 1px, transparent 1px),` +
+                `radial-gradient(${accent}30 1.6px, transparent 1.8px)`,
+            backgroundSize: '64px 64px, 64px 64px, 64px 64px',
+            backgroundPosition: '0 0, 0 0, 32px 32px',
+        },
+        topo: {
+            // 等高線：同心の楕円を数枚ずらして重ねる。地形図の意匠
+            backgroundImage:
+                `repeating-radial-gradient(ellipse 46% 34% at 22% 28%, transparent 0px, transparent 26px, ${accent}14 26px, ${accent}14 27px),` +
+                `repeating-radial-gradient(ellipse 40% 30% at 78% 72%, transparent 0px, transparent 30px, ${accent}10 30px, ${accent}10 31px)`,
+        },
         vignette: {
             backgroundImage: 'radial-gradient(ellipse 80% 70% at 50% 45%, transparent 40%, rgba(0,0,0,0.55) 100%)',
         },
     };
 
     const css = cssBackgrounds[kind];
-    return css ? <div style={{ ...common, ...css }} /> : null;
+    if (!css) return null;
+
+    // transform で流すパターン（grid）。
+    // タイル1周期ぶん（48px）だけ動かして戻すと、見た目は無限スクロールになる。
+    // 外側で overflow:hidden、内側を1周期ぶん大きく取って transform を掛ける
+    // ＝ 合成だけで済むので**塗り直しが起きない**（60fps を実測）。
+    if (css.__pan) {
+        const { __pan, ...rest } = css;
+        return (
+            <div style={common}>
+                <div
+                    style={{
+                        position: 'absolute',
+                        // 1周期ぶん外へはみ出させ、動いても隙間ができないようにする
+                        top: -48,
+                        left: -48,
+                        right: -48,
+                        bottom: -48,
+                        ...rest,
+                        animation: 'dpxGridPan 6s linear infinite',
+                    }}
+                />
+            </div>
+        );
+    }
+    return <div style={{ ...common, ...css }} />;
 }

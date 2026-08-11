@@ -400,6 +400,12 @@ renameSeries  divideBy  subtract
 
 **ほぼ公式ドキュメントに無い。** 以下は実機で描画確認したもの。
 
+> ⭐ **DPX なら式を書かずに UI から設定できる**（2026-08-11）。
+> `gradient` / `maxContrast` / `divideBy` / `prefix` と
+> `rangeValue` / `matchValue` は **DPX の編集パネルに項目がある**。
+> → [dpx-platform.md](dpx-platform.md) §6。
+> **Studio を使う場合のみ**、以下の DOS を手書きする必要がある。
+
 **以下、関数ごとに実機画面を1枚ずつ載せる**（同じデータ・同じテーブルで、式だけを変えたもの）。
 
 ##### `gradient(config)` — しきい値を決めずに連続グラデーション

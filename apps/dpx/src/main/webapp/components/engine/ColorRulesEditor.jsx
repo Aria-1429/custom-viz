@@ -96,6 +96,7 @@ const swatch = (color) => ({
 export default function ColorRulesEditor({ t, value, onChange, valueHint = '値' }) {
     const cfg = resolveColorRules(value, defaultColorRules('range'));
     const isRange = cfg.mode === 'range';
+    const isGradient = cfg.mode === 'gradient';
 
     const setCfg = (patch) => onChange({ ...cfg, ...patch });
 
@@ -165,13 +166,102 @@ export default function ColorRulesEditor({ t, value, onChange, valueHint = '値'
                 t={t}
                 value={cfg.mode}
                 options={[
-                    { value: 'range', label: '範囲（数値）' },
-                    { value: 'match', label: '一致（文字列）' },
+                    { value: 'range', label: '範囲' },
+                    { value: 'gradient', label: 'グラデーション' },
+                    { value: 'match', label: '一致' },
                 ]}
                 onChange={(m) => onChange(defaultColorRules(m))}
             />
 
-            {isRange ? (
+            {isGradient ? (
+                <>
+                    {/* しきい値を持たない。最小〜最大を色の並びに連続で写像する */}
+                    <div style={{ fontSize: 10, color: t.subColor, margin: '12px 0 5px' }}>
+                        プリセットパレット（最小 → 最大）
+                    </div>
+                    <div style={{ display: 'grid', gap: 6 }}>
+                        {COLOR_PALETTES.map((p) => (
+                            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span
+                                    style={{ fontSize: 10, color: cfg.palette === p.id ? t.accent : t.subColor, width: 76, flex: 'none' }}
+                                >
+                                    {p.name}
+                                </span>
+                                <PaletteBar
+                                    colors={p.colors}
+                                    onClick={() => setCfg({ palette: p.id, colors: samplePalette(p.id, 3) })}
+                                    title="このパレットを適用"
+                                />
+                            </div>
+                        ))}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 6, margin: '12px 0 8px' }}>
+                        <button type="button" onClick={reverse} title="色の並びを反転" style={iconBtn(t)}>
+                            ⇅
+                        </button>
+                        <Button
+                            t={t}
+                            label="＋ 色を追加"
+                            onClick={() => setCfg({ colors: [...(cfg.colors ?? []), (cfg.colors ?? []).slice(-1)[0] || '#4ea1ff'], palette: undefined })}
+                        />
+                    </div>
+
+                    {(cfg.colors ?? []).map((c, i, arr) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                            <input
+                                type="color"
+                                value={/^#[0-9a-fA-F]{6}$/.test(c ?? '') ? c : '#4ea1ff'}
+                                onChange={(e) => {
+                                    const colors = arr.slice();
+                                    colors[i] = e.target.value;
+                                    setCfg({ colors, palette: undefined });
+                                }}
+                                style={swatch()}
+                            />
+                            <span style={{ fontSize: 11, color: t.subColor, flex: 1 }}>
+                                {i === 0 ? '最小値' : i === arr.length - 1 ? '最大値' : `中間 ${i}`}
+                            </span>
+                            {arr.length > 2 ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setCfg({ colors: arr.filter((x, j) => j !== i), palette: undefined })}
+                                    style={iconBtn(t)}
+                                    title="削除"
+                                >
+                                    ×
+                                </button>
+                            ) : null}
+                        </div>
+                    ))}
+
+                    <div style={{ fontSize: 10, color: t.subColor, margin: '12px 0 5px' }}>
+                        範囲（空ならデータの最小・最大を自動で使う）
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <input
+                            className="dpx-input"
+                            type="number"
+                            placeholder="最小（自動）"
+                            value={cfg.min ?? ''}
+                            onChange={(e) => setCfg({ min: e.target.value === '' ? undefined : Number(e.target.value) })}
+                            style={{ ...inputStyle(t), width: 0, flex: 1 }}
+                        />
+                        <span style={{ fontSize: 11, color: t.subColor, flex: 'none' }}>〜</span>
+                        <input
+                            className="dpx-input"
+                            type="number"
+                            placeholder="最大（自動）"
+                            value={cfg.max ?? ''}
+                            onChange={(e) => setCfg({ max: e.target.value === '' ? undefined : Number(e.target.value) })}
+                            style={{ ...inputStyle(t), width: 0, flex: 1 }}
+                        />
+                    </div>
+                    <div style={{ fontSize: 10, color: t.subColor, marginTop: 6, lineHeight: 1.5 }}>
+                        しきい値を決めずに、値の大小をそのまま色の濃淡にします。
+                    </div>
+                </>
+            ) : isRange ? (
                 <>
                     <div style={{ fontSize: 10, color: t.subColor, margin: '12px 0 5px' }}>プリセットパレット</div>
                     <div style={{ display: 'grid', gap: 6 }}>

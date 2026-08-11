@@ -26,12 +26,42 @@ export function useVizKitStyles() {
     }, []);
 }
 
-/** パネル内に絶対配置するツールチップ。カーソル位置に追従し、端で折り返す。 */
+/**
+ * パネル内に絶対配置するツールチップ。カーソル位置に追従し、端で折り返す。
+ *
+ * ⚠ **行数が多いとパネルからはみ出す。** 10 系列を並べたら高さ 218px になり、
+ *   パネル下端を **20px 超過**して隣のパネルに重なった（実機で計測）。
+ *   `rows.length * 17` で上位置を調整するだけでは足りない
+ *   （そもそも入らない高さのときは調整のしようがない）。
+ *   → **入る行数を高さから逆算して打ち切り**、残りは「ほか N 件」と出す。
+ *   値の大きい順に並べ替えるので、**切られるのは常に小さい系列**。
+ */
 export function VizTooltip({ t, x, y, width, height, title, rows, accent }) {
     if (x == null) return null;
     const W = 168;
+    const ROW_H = 19; // 行の実測高（fontSize 11 + marginTop 2 + 行間）
+    // ⚠ 枠の固定高は**多めに見積もる**。padding(7*2) + border(1*2) +
+    //    タイトル行(≈15+marginBottom 4) + 「ほか N 件」の marginTop(3)。
+    //    ここを小さく見積もると `boxH` が実際より小さくなり、
+    //    下端クランプをすり抜けてパネルからはみ出す（実機で 10〜12px 超過して発覚）。
+    const CHROME = 16 + (title ? 19 : 0);
+    const MARGIN = 8; // パネル内側に残す余白
     const flipX = x + W + 18 > width;
-    const top = Math.max(6, Math.min(y - 10, height - 20 - rows.length * 17));
+
+    // 収まる行数。⚠ 「ほか N 件」の1行ぶんも先に確保しておかないと、
+    //    切り詰めた結果その1行が入らずに再びはみ出す
+    const avail = height - CHROME - MARGIN * 2;
+    let maxRows = Math.floor(avail / ROW_H);
+    const willOverflow = rows.length > maxRows;
+    if (willOverflow) maxRows -= 1; // 「ほか N 件」の行を確保
+    maxRows = Math.max(1, maxRows);
+
+    const overflow = Math.max(0, rows.length - maxRows);
+    const shown = overflow > 0 ? rows.slice(0, maxRows) : rows;
+
+    const boxH = CHROME + shown.length * ROW_H + (overflow ? ROW_H : 0);
+    // 上端・下端の両方でクランプする（下だけ見ていると上にはみ出す）
+    const top = Math.max(MARGIN, Math.min(y - 10, height - boxH - MARGIN));
     return (
         <div
             style={{
@@ -39,6 +69,11 @@ export function VizTooltip({ t, x, y, width, height, title, rows, accent }) {
                 left: flipX ? x - W - 14 : x + 14,
                 top,
                 width: W,
+                // ⚠ 行数計算がズレても**絶対にパネルから出さない**ための保険。
+                //    見積もりだけに頼ると、フォントや行間が変わった瞬間に再発する
+                maxHeight: Math.max(40, height - MARGIN * 2),
+                overflow: 'hidden',
+                boxSizing: 'border-box',
                 pointerEvents: 'none',
                 background: 'rgba(10,16,30,0.94)',
                 border: `1px solid ${accent ?? t.accent}66`,
@@ -51,7 +86,7 @@ export function VizTooltip({ t, x, y, width, height, title, rows, accent }) {
             {title ? (
                 <div style={{ fontSize: 10, color: t.subColor, marginBottom: 4, letterSpacing: '0.04em' }}>{title}</div>
             ) : null}
-            {rows.map((r) => (
+            {shown.map((r) => (
                 <div
                     key={r.label}
                     style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, marginTop: 2 }}
@@ -76,6 +111,10 @@ export function VizTooltip({ t, x, y, width, height, title, rows, accent }) {
                     </span>
                 </div>
             ))}
+            {/* 打ち切ったことを黙って隠さない（「これで全部」と誤解させない） */}
+            {overflow > 0 ? (
+                <div style={{ fontSize: 10, color: t.subColor, marginTop: 3 }}>ほか {overflow} 件</div>
+            ) : null}
         </div>
     );
 }

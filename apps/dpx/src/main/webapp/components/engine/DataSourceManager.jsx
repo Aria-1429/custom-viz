@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { getDataSources, nextSourceId, panelsUsingSource } from './dataSources';
@@ -22,10 +22,18 @@ import { Button, Field, TextInput, inputStyle } from './ui';
 
 const MONO = { fontFamily: 'Menlo, Consolas, monospace', fontSize: 11, lineHeight: 1.55 };
 
-export default function DataSourceManager({ t, definition, patchDef, onClose }) {
+export default function DataSourceManager({ t, definition, patchDef, onClose, focusId, dirty, onSave }) {
     const sources = getDataSources(definition);
     const ids = useMemo(() => Object.keys(sources), [sources]);
-    const [sel, setSel] = useState(() => ids[0] ?? null);
+    // ⚠ **開いたときに選ぶのは「呼び出し元が指定したもの」**。
+    //   常に ids[0] を選ぶと、パネルの「データソースを編集…」から飛んだのに
+    //   一覧の先頭が開いて別のサーチを編集しかける（実機で指摘された）。
+    const [sel, setSel] = useState(() => (focusId && sources[focusId] ? focusId : ids[0] ?? null));
+    // 選択中の項目までスクロールする（一覧が長いと画面外にいる）
+    const selRef = useRef(null);
+    useEffect(() => {
+        selRef.current?.scrollIntoView?.({ block: 'nearest' });
+    }, [sel]);
 
     const patchSource = (id, patch) =>
         patchDef({ dataSources: { ...sources, [id]: { ...sources[id], ...patch } } });
@@ -126,6 +134,16 @@ export default function DataSourceManager({ t, definition, patchDef, onClose }) 
                         サーチはダッシュボードに属します。複数パネルで参照しても実行は1回だけです。
                     </span>
                     <span style={{ flex: 1 }} />
+                    {/* ⚠ ここに「保存」が無いと、SPL を直した後にダイアログを閉じてから
+                        別途保存する必要があり、**保存し忘れて消える**。
+                        未保存のときだけ強調する（押す必要があるかが一目で分かる） */}
+                    <Button
+                        t={t}
+                        kind={dirty ? 'primary' : undefined}
+                        label={dirty ? '保存' : '保存済み'}
+                        disabled={!dirty}
+                        onClick={() => onSave?.()}
+                    />
                     <Button t={t} label="閉じる" onClick={onClose} />
                 </div>
 
@@ -153,6 +171,7 @@ export default function DataSourceManager({ t, definition, patchDef, onClose }) 
                                 <button
                                     key={id}
                                     type="button"
+                                    ref={on ? selRef : undefined}
                                     onClick={() => setSel(id)}
                                     style={{
                                         display: 'block',
@@ -212,9 +231,9 @@ export default function DataSourceManager({ t, definition, patchDef, onClose }) 
                                     <div style={{ paddingBottom: 10 }}>
                                         <Button t={t} label="複製" onClick={() => duplicate(sel)} />
                                     </div>
-                                    <div style={{ paddingBottom: 10 }}>
-                                        <Button t={t} kind="danger" label="削除" onClick={() => removeSource(sel)} />
-                                    </div>
+                                    {/* ⚠ **「削除」をここに置かない。**
+                                        「複製」の真横だと押し間違える。危険な操作は
+                                        下の「危険な操作」枠へ隔離した（下部の DangerZone） */}
                                 </div>
 
                                 {/* ⚠ 打鍵ごとに反映すると、このデータソースを参照している
@@ -247,6 +266,10 @@ export default function DataSourceManager({ t, definition, patchDef, onClose }) 
                                 </Field>
 
                                 <UsageList t={t} definition={definition} id={sel} />
+
+                                {/* ⚠ 削除は「複製」の横に置くと押し間違える。
+                                    離れた位置に、枠で囲って隔離する */}
+                                <DangerZone t={t} onDelete={() => removeSource(sel)} />
                             </>
                         )}
                     </div>
@@ -254,6 +277,59 @@ export default function DataSourceManager({ t, definition, patchDef, onClose }) 
             </div>
         </div>,
         document.body
+    );
+}
+
+/**
+ * 危険な操作の隔離枠。
+ *
+ * ⚠ 以前は「複製」ボタンの真横に「削除」があり、**押し間違えると
+ *   参照している全パネルが壊れる**位置だった。
+ *   離れた場所へ移し、さらに **2段階**（「削除」→「本当に削除」）にする。
+ *   使用中のパネルがある場合は removeSource 側でも確認ダイアログが出る。
+ */
+function DangerZone({ t, onDelete }) {
+    const [armed, setArmed] = useState(false);
+    // 一定時間で自動的に戻す（押しかけて放置したまま誤爆するのを防ぐ）
+    useEffect(() => {
+        if (!armed) return undefined;
+        const id = setTimeout(() => setArmed(false), 5000);
+        return () => clearTimeout(id);
+    }, [armed]);
+
+    return (
+        <div
+            style={{
+                marginTop: 22,
+                paddingTop: 12,
+                borderTop: '1px dashed rgba(220,70,90,0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+            }}
+        >
+            <span style={{ fontSize: 10, color: t.subColor, flex: 1, minWidth: 0 }}>
+                {armed
+                    ? 'このデータソースを削除します。参照しているパネルは表示できなくなります。'
+                    : '危険な操作'}
+            </span>
+            {armed ? (
+                <>
+                    <Button t={t} label="やめる" onClick={() => setArmed(false)} />
+                    <Button
+                        t={t}
+                        kind="danger"
+                        label="本当に削除"
+                        onClick={() => {
+                            setArmed(false);
+                            onDelete();
+                        }}
+                    />
+                </>
+            ) : (
+                <Button t={t} label="削除…" onClick={() => setArmed(true)} />
+            )}
+        </div>
     );
 }
 

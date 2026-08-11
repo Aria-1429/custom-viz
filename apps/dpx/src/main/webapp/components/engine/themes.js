@@ -420,6 +420,53 @@ export function panelSurface(theme, variant, bracketLen = 11) {
             boxShadow: '0 14px 40px rgba(0,0,0,0.45)',
         };
     }
+    if (variant === 'holo') {
+        // ホログラム：斜めの薄い縞＋外周のリムライト。
+        // ⚠ blur は使わない（backdrop-filter は文字のサブピクセルAAを殺し、
+        //    面積に比例して重い。§viz-performance）。縞は repeating-linear-gradient
+        //    の1枚だけなので raster が軽い
+        const base = theme.colorScheme === 'light' ? 'rgba(255,255,255,0.72)' : 'rgba(14, 24, 44, 0.72)';
+        return {
+            backgroundColor: base,
+            backgroundImage: `repeating-linear-gradient(115deg, ${theme.accent}0f 0px, ${theme.accent}0f 1px, transparent 1px, transparent 7px)`,
+            border: `1px solid ${theme.accent}3d`,
+            boxShadow: `inset 0 1px 0 ${theme.accent}33, 0 4px 18px rgba(0,0,0,0.32)`,
+        };
+    }
+    if (variant === 'neonEdge') {
+        // ネオン管：枠だけを強く光らせる。中身は暗いままにして数値を立てる
+        return {
+            backgroundColor: theme.colorScheme === 'light' ? 'rgba(255,255,255,0.86)' : 'rgba(8, 14, 28, 0.86)',
+            border: `1px solid ${theme.accent}`,
+            // ⚠ box-shadow は「静的」なら安い。アニメさせると毎フレーム再描画になる
+            boxShadow: `0 0 0 1px ${theme.accent}33, 0 0 14px ${theme.accent}55, inset 0 0 12px ${theme.accent}1f`,
+        };
+    }
+    if (variant === 'blueprint') {
+        // 方眼紙：設計図の意匠。細い格子を2枚重ねる（16px と 80px）
+        const line = theme.colorScheme === 'light' ? 'rgba(60,110,180,0.16)' : 'rgba(120,170,255,0.10)';
+        const bold = theme.colorScheme === 'light' ? 'rgba(60,110,180,0.28)' : 'rgba(120,170,255,0.18)';
+        return {
+            backgroundColor: theme.colorScheme === 'light' ? 'rgba(238,244,252,0.9)' : 'rgba(9, 18, 34, 0.9)',
+            backgroundImage:
+                `linear-gradient(${line} 1px, transparent 1px), linear-gradient(90deg, ${line} 1px, transparent 1px),` +
+                `linear-gradient(${bold} 1px, transparent 1px), linear-gradient(90deg, ${bold} 1px, transparent 1px)`,
+            backgroundSize: '16px 16px, 16px 16px, 80px 80px, 80px 80px',
+            border: `1px solid ${theme.accent}33`,
+            boxShadow: 'none',
+        };
+    }
+    if (variant === 'ticket') {
+        // 伝票：上辺だけミシン目風の点線。一覧を「札」に見せたいとき
+        return {
+            backgroundColor: theme.colorScheme === 'light' ? '#ffffff' : 'rgba(18, 26, 44, 0.94)',
+            borderTop: `2px dashed ${theme.accent}66`,
+            borderRight: 'none',
+            borderBottom: 'none',
+            borderLeft: 'none',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.28)',
+        };
+    }
     if (variant === 'solid') {
         // 完全不透明。背景エフェクトの上でも中身のコントラストを保ちたいとき用
         return {
@@ -461,6 +508,98 @@ export function effectivePanelColor(key, theme, variant) {
         return m ? m[1] : null;
     }
     return null;
+}
+
+/**
+ * タイトルバーの質感（`panel.style.titleSkin`）。
+ *
+ * これまでタイトルは「左上・小さめ・大文字」で固定だった。パネルの質感は
+ * 14 種選べるのにタイトルだけ動かせないのは不釣り合いなので、位置とあわせて
+ * 選べるようにした。
+ *
+ * 返すのは 3 つ:
+ *   box  … タイトルバー（外側の div）に足す CSS
+ *   text … 文字そのものの CSS
+ *   dot  … 先頭のアクセント丸を出すか
+ *
+ * ⚠ **`background`（一括指定）を使わないこと。** 一括プロパティは
+ *   `background-image` を `none` にリセットするので、コーナーフレームの
+ *   カギ括弧（linear-gradient 8枚）が消える。ここはパネル本体ではないが、
+ *   同じ事故を繰り返さないよう `backgroundColor` / `backgroundImage` を使い分ける。
+ *   （経緯は dpx-platform.md §8.jj）
+ */
+export function panelTitleSkin(skin, theme, variant, accent) {
+    const ac = accent || theme?.accent;
+    // 管制ラベル（従来の noc）。小さめ・大文字・字間広め
+    const control = {
+        fontSize: 11,
+        fontWeight: 500,
+        letterSpacing: '0.18em',
+        textTransform: 'uppercase',
+        color: theme?.subColor,
+    };
+    const plain = { fontSize: 13, fontWeight: 600, color: theme?.titleColor };
+
+    switch (skin) {
+        case 'plain':
+            return { box: {}, text: plain, dot: false };
+        case 'badge':
+            // 従来のカード質感（丸＋通常の文字）
+            return { box: {}, text: plain, dot: true };
+        case 'bold':
+            return {
+                box: {},
+                text: { ...plain, fontSize: 15, fontWeight: 800, letterSpacing: '0.01em' },
+                dot: false,
+            };
+        case 'accentBar':
+            // 左に太いアクセント帯。縦積みの一覧で見出しが立つ
+            return {
+                box: { boxShadow: `inset 3px 0 0 ${ac}`, paddingLeft: 14 },
+                text: plain,
+                dot: false,
+            };
+        case 'filled':
+            // 見出しだけ地を敷く。パネルの中身と切り分けたいとき
+            return {
+                box: { backgroundColor: `${ac}1c` },
+                text: { ...plain, color: ac },
+                dot: false,
+            };
+        case 'ribbon':
+            // 左端から伸びる帯。タイトルが「ラベル」として読める
+            return {
+                box: {
+                    backgroundImage: `linear-gradient(90deg, ${ac}2e, transparent 62%)`,
+                },
+                text: { ...control, color: theme?.titleColor },
+                dot: false,
+            };
+        case 'underline':
+            // 下線つき（区切り線を明示する）
+            return { box: {}, text: plain, dot: false, divider: true };
+        case 'mono':
+            // 等幅。ID やホスト名を見出しにするとき桁が揃う
+            return {
+                box: {},
+                text: {
+                    ...control,
+                    letterSpacing: '0.08em',
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                },
+                dot: false,
+            };
+        case 'control':
+            return { box: {}, text: control, dot: false };
+        default:
+            // 'auto'（既定）＝ 従来どおり質感に追従する。
+            // ⚠ ここを変えると**既存ダッシュボードの見た目が黙って動く**。
+            //   判定は改修前とまったく同じ `variant === 'noc'` のみにする
+            //   （bracketSolid まで含めると従来バッジだったものが変わってしまう）
+            return variant === 'noc'
+                ? { box: {}, text: control, dot: false }
+                : { box: {}, text: plain, dot: true };
+    }
 }
 
 /**

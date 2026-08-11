@@ -304,7 +304,8 @@ function PanelSearchSource({ t, panel, definition, patchSearch, patchDef, onOpen
             dataSources: { ...sources, [id]: { name: panel.title || id, spl: '' } },
         });
         patchSearch(panel.id, { ref: id, spl: undefined });
-        onOpenDataSources?.();
+        // 作ったばかりのデータソースを開いた状態にする
+        onOpenDataSources?.(id);
     };
 
     return (
@@ -345,7 +346,15 @@ function PanelSearchSource({ t, panel, definition, patchSearch, patchDef, onOpen
                 />
             </Field>
             <div style={{ marginBottom: 10 }}>
-                <Button t={t} label="データソースを編集…" onClick={() => onOpenDataSources?.()} full />
+                {/* ⚠ **このパネルが参照している** データソースを開く。
+                    引数なしで開くと一覧の先頭が選ばれてしまい、
+                    「パネルから飛んだのに別のサーチが出る」ことになる（実機で発生） */}
+                <Button
+                    t={t}
+                    label="データソースを編集…"
+                    onClick={() => onOpenDataSources?.(currentRef)}
+                    full
+                />
             </div>
         </>
     );
@@ -768,6 +777,155 @@ export default function Inspector({
                             onChange={(v) => patchDef({ hideHeader: v === 'hide' })}
                         />
                     </Field>
+                    {/* ダッシュボードの見出しも「左上・20px・固定」だったので、
+                        パネルのタイトルと同じ粒度で位置・大きさ・質感を出す */}
+                    {!definition.hideHeader ? (
+                        <>
+                            <Field t={t} label="タイトルの位置">
+                                <Select
+                                    t={t}
+                                    value={definition.style?.header?.align ?? 'left'}
+                                    options={[
+                                        { value: 'left', label: '左' },
+                                        { value: 'center', label: '中央' },
+                                        { value: 'right', label: '右' },
+                                    ]}
+                                    onChange={(v) =>
+                                        patchDef({
+                                            style: {
+                                                ...(definition.style ?? {}),
+                                                header: { ...(definition.style?.header ?? {}), align: v },
+                                            },
+                                        })
+                                    }
+                                />
+                            </Field>
+                            <Field t={t} label="タイトルの質感">
+                                <Select
+                                    t={t}
+                                    value={definition.style?.header?.skin ?? 'plain'}
+                                    options={[
+                                        { value: 'plain', label: '素' },
+                                        { value: 'accentBar', label: '左に色帯' },
+                                        { value: 'underline', label: '下線' },
+                                        { value: 'filled', label: '地を敷く' },
+                                        { value: 'glow', label: '発光' },
+                                        { value: 'mono', label: '等幅' },
+                                    ]}
+                                    onChange={(v) =>
+                                        patchDef({
+                                            style: {
+                                                ...(definition.style ?? {}),
+                                                header: { ...(definition.style?.header ?? {}), skin: v },
+                                            },
+                                        })
+                                    }
+                                />
+                            </Field>
+                            <Field t={t} label={`タイトルの大きさ（${definition.style?.header?.size ?? 20}px）`}>
+                                <Slider
+                                    t={t}
+                                    min={14}
+                                    max={48}
+                                    step={1}
+                                    value={Number(definition.style?.header?.size ?? 20)}
+                                    onChange={(v) =>
+                                        patchDef({
+                                            style: {
+                                                ...(definition.style ?? {}),
+                                                header: { ...(definition.style?.header ?? {}), size: v },
+                                            },
+                                        })
+                                    }
+                                />
+                            </Field>
+                            <Field t={t} label="右端の日付を出す" inline>
+                                <Toggle
+                                    t={t}
+                                    checked={definition.style?.header?.stamp !== false}
+                                    onChange={(v) =>
+                                        patchDef({
+                                            style: {
+                                                ...(definition.style ?? {}),
+                                                header: { ...(definition.style?.header ?? {}), stamp: v },
+                                            },
+                                        })
+                                    }
+                                />
+                            </Field>
+                            {/* 時計はパネルとしても置けるが、
+                                「常に上に出しておきたい」用途が多いのでヘッダにも出せるようにする */}
+                            <Field t={t} label="時計を表示" inline hint="パネルを置かずにヘッダへ出せます">
+                                <Toggle
+                                    t={t}
+                                    checked={definition.style?.header?.clock === true}
+                                    onChange={(v) =>
+                                        patchDef({
+                                            style: {
+                                                ...(definition.style ?? {}),
+                                                header: { ...(definition.style?.header ?? {}), clock: v },
+                                            },
+                                        })
+                                    }
+                                />
+                            </Field>
+                            {definition.style?.header?.clock ? (
+                                <>
+                                    <Field
+                                        t={t}
+                                        label={`時計の大きさ（${definition.style?.header?.clockSize ?? 22}px）`}
+                                    >
+                                        <Slider
+                                            t={t}
+                                            min={12}
+                                            max={64}
+                                            step={1}
+                                            value={Number(definition.style?.header?.clockSize ?? 22)}
+                                            onChange={(v) =>
+                                                patchDef({
+                                                    style: {
+                                                        ...(definition.style ?? {}),
+                                                        header: {
+                                                            ...(definition.style?.header ?? {}),
+                                                            clockSize: v,
+                                                        },
+                                                    },
+                                                })
+                                            }
+                                        />
+                                    </Field>
+                                    <Field t={t} label="秒を表示" inline>
+                                        <Toggle
+                                            t={t}
+                                            checked={definition.style?.header?.seconds !== false}
+                                            onChange={(v) =>
+                                                patchDef({
+                                                    style: {
+                                                        ...(definition.style ?? {}),
+                                                        header: { ...(definition.style?.header ?? {}), seconds: v },
+                                                    },
+                                                })
+                                            }
+                                        />
+                                    </Field>
+                                    <Field t={t} label="日付を添える" inline>
+                                        <Toggle
+                                            t={t}
+                                            checked={definition.style?.header?.clockDate !== false}
+                                            onChange={(v) =>
+                                                patchDef({
+                                                    style: {
+                                                        ...(definition.style ?? {}),
+                                                        header: { ...(definition.style?.header ?? {}), clockDate: v },
+                                                    },
+                                                })
+                                            }
+                                        />
+                                    </Field>
+                                </>
+                            ) : null}
+                        </>
+                    ) : null}
                     <Field t={t} label="Splunk ヘッダ">
                         <Select
                             t={t}
@@ -814,6 +972,10 @@ export default function Inspector({
                             options={[
                                 { value: 'rise', label: 'ライズ（下から）' },
                                 { value: 'fade', label: 'フェード' },
+                                { value: 'zoom', label: 'ズーム' },
+                                { value: 'slide', label: 'スライド（左から）' },
+                                { value: 'flip', label: 'フリップ（奥から起き上がる）' },
+                                { value: 'unfold', label: 'アンフォールド（縦に開く）' },
                                 { value: 'none', label: 'なし' },
                             ]}
                             onChange={(v) => patchDef({ style: { ...(definition.style ?? {}), entrance: v } })}
@@ -1076,6 +1238,10 @@ export default function Inspector({
                             { value: 'sideAccent', label: '左線' },
                             { value: 'inset', label: '沈み込み' },
                             { value: 'elevated', label: '浮き上がり' },
+                            { value: 'holo', label: 'ホログラム（斜め縞）' },
+                            { value: 'neonEdge', label: 'ネオン管（枠が光る）' },
+                            { value: 'blueprint', label: '方眼紙（設計図）' },
+                            { value: 'ticket', label: '伝票（上辺ミシン目）' },
                             { value: 'frameless', label: '枠なし（透過）' },
                         ]}
                         onChange={(v) => patchPanel(p.id, { style: { ...(p.style ?? {}), variant: v } })}
@@ -1087,6 +1253,48 @@ export default function Inspector({
                         checked={!(p.style?.hideTitle || p.style?.variant === 'frameless')}
                         disabled={p.style?.variant === 'frameless'}
                         onChange={(v) => patchPanel(p.id, { style: { ...(p.style ?? {}), hideTitle: !v } })}
+                    />
+                </Field>
+                {/* タイトルは長らく「左上・固定」だった。パネルの質感は選べるのに
+                    見出しだけ動かせないのは不釣り合いなので、位置と質感を出す。
+                    既定（自動）は従来の見た目のままなので既存ボードは変わらない */}
+                <Field t={t} label="タイトルの位置">
+                    <Select
+                        t={t}
+                        value={p.style?.titleAlign ?? 'left'}
+                        options={[
+                            { value: 'left', label: '左' },
+                            { value: 'center', label: '中央' },
+                            { value: 'right', label: '右' },
+                        ]}
+                        onChange={(v) =>
+                            patchPanel(p.id, {
+                                style: { ...(p.style ?? {}), titleAlign: v === 'left' ? undefined : v },
+                            })
+                        }
+                    />
+                </Field>
+                <Field t={t} label="タイトルの質感">
+                    <Select
+                        t={t}
+                        value={p.style?.titleSkin ?? 'auto'}
+                        options={[
+                            { value: 'auto', label: '自動（質感に合わせる）' },
+                            { value: 'control', label: '管制ラベル（小さめ大文字）' },
+                            { value: 'plain', label: '素（通常の文字）' },
+                            { value: 'bold', label: '太字（大きめ）' },
+                            { value: 'badge', label: 'バッジ（先頭に丸）' },
+                            { value: 'accentBar', label: '左に色帯' },
+                            { value: 'filled', label: '地を敷く' },
+                            { value: 'ribbon', label: 'リボン（左から grad）' },
+                            { value: 'underline', label: '下線つき' },
+                            { value: 'mono', label: '等幅（ID 向け）' },
+                        ]}
+                        onChange={(v) =>
+                            patchPanel(p.id, {
+                                style: { ...(p.style ?? {}), titleSkin: v === 'auto' ? undefined : v },
+                            })
+                        }
                     />
                 </Field>
                 <Field t={t} label="重なり順（z）">
@@ -1103,6 +1311,20 @@ export default function Inspector({
                 パネル単位で色・角丸・発光・傾き・透過を触れるようにする。
                 既定は「未指定」＝プリセットのまま（値を入れたときだけ効く）。 */}
             <Section t={t} title="見た目の詳細" defaultOpen={false}>
+                <Field t={t} label="常時アニメ">
+                    <Select
+                        t={t}
+                        value={p.style?.ambient ?? 'none'}
+                        options={[
+                            { value: 'none', label: 'なし' },
+                            { value: 'float', label: 'ふわふわ（上下）' },
+                            { value: 'breathe', label: '明滅（呼吸）' },
+                        ]}
+                        onChange={(v) =>
+                            patchPanel(p.id, { style: { ...(p.style ?? {}), ambient: v === 'none' ? undefined : v } })
+                        }
+                    />
+                </Field>
                 <Field t={t} label="アクセント色（このパネルだけ）">
                     <ColorInput
                         t={t}

@@ -161,7 +161,15 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
     const [pickerTab, setPickerTab] = useState(null); // viz ピッカー（null で非表示）
     const [selectedInputId, setSelectedInputId] = useState(null); // 選択中の入力
     const [history, setHistory] = useState({ past: [], future: [] });
-    const [showDataSources, setShowDataSources] = useState(false); // データソース管理ダイアログ
+    // データソース管理ダイアログ。
+    // ⚠ 開くときに「どのデータソースを選んだ状態にするか」も持つ。
+    //   パネルから飛んだのに一覧の先頭が開くと迷子になる（実機で指摘された）
+    const [showDataSources, setShowDataSources] = useState(false);
+    const [dsFocus, setDsFocus] = useState(null);
+    const openDataSources = (focusId) => {
+        setDsFocus(typeof focusId === 'string' ? focusId : null);
+        setShowDataSources(true);
+    };
     // キオスク表示：トップバーも Splunk ヘッダも消して中身だけにする（壁掛け用）。
     // ⚠ 抜け出せなくならないよう、Esc と画面隅のボタンの両方で戻れるようにする。
     const [kiosk, setKiosk] = useState(false);
@@ -620,7 +628,7 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                     </span>
                     <button
                         type="button"
-                        onClick={() => setShowDataSources(true)}
+                        onClick={() => openDataSources()}
                         style={{
                             border: `1px solid ${t.accent}88`,
                             background: 'transparent',
@@ -672,7 +680,7 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                                         canRedo={history.future.length > 0}
                                         onUndo={undo}
                                         onRedo={redo}
-                                        onOpenDataSources={() => setShowDataSources(true)}
+                                        onOpenDataSources={openDataSources}
                                         dataSourceCount={Object.keys(getDataSources(def)).length}
                                     />
                                 ) : null
@@ -687,6 +695,10 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                                 if (id) setSelectedInputId(null);
                             }}
                             onPanelLayout={patchPanel}
+                            onDuplicatePanel={duplicatePanel}
+                            onRemovePanel={removePanel}
+                            onPatchPanel={patchPanel}
+                            onOpenDataSources={openDataSources}
                             activeTab={activeTab ?? def.tabs?.[0]?.id}
                             onTabChange={setActiveTab}
                         />
@@ -753,7 +765,7 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                             removePanel={removePanel}
                             duplicatePanel={duplicatePanel}
                             activeTab={activeTab ?? def.tabs?.[0]?.id}
-                            onOpenDataSources={() => setShowDataSources(true)}
+                            onOpenDataSources={openDataSources}
                         />
                     )
                 ) : null}
@@ -794,6 +806,9 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                 t={t}
                 definition={def}
                 patchDef={patchDef}
+                focusId={dsFocus}
+                dirty={dirty}
+                onSave={onSave}
                 onClose={() => setShowDataSources(false)}
             />
         ) : null}

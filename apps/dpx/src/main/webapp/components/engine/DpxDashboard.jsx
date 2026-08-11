@@ -7,7 +7,14 @@ import { resolvePanelSearch } from './dataSources';
 import PanelContextMenu, { buildSearchUrl, toCsv } from './PanelContextMenu';
 import InputsBar from './InputsBar';
 import { useRegisterPanelFields } from './panelFields';
-import { DpxThemeContext, bracketArmLength, panelStyleOverrides, panelSurface, resolveTheme } from './themes';
+import {
+    DpxThemeContext,
+    bracketArmLength,
+    panelStyleOverrides,
+    panelSurface,
+    panelTitleSkin,
+    resolveTheme,
+} from './themes';
 import { applyTokens, useDpxTokens } from './tokens';
 import { useDpxGlobalStyles } from './ui';
 import { useSplunkSearch } from './useSplunkSearch';
@@ -51,6 +58,160 @@ function useViewportHeight() {
 /** タブの帯。横（上部）と縦（左サイドバー）の両方に対応する。
  *  ⚠ サイドバー配置は Studio に無い（Studio のタブは上部固定）。
  *     壁掛けディスプレイでは縦に並べた方が本文の横幅を使えるため用意した。 */
+/**
+ * ヘッダに出す時計。
+ *
+ * ⚠ **有効なときだけ 1 秒タイマーを回す。** 常時回すと、時計を出していない
+ *   ダッシュボードでも毎秒 React の再描画が走る（パネルが多いと無駄が大きい）。
+ * ⚠ 秒を出さない設定なら **30 秒間隔**で十分（毎秒起こす必要がない）。
+ */
+function HeaderClock({ t, cfg }) {
+    const showSeconds = cfg.seconds !== false;
+    const [now, setNow] = useState(() => new Date());
+    useEffect(() => {
+        const id = setInterval(() => setNow(new Date()), showSeconds ? 1000 : 30000);
+        return () => clearInterval(id);
+    }, [showSeconds]);
+
+    const size = Number(cfg.clockSize) > 0 ? Number(cfg.clockSize) : 22;
+    const time = now.toLocaleTimeString('ja-JP', {
+        hour: '2-digit',
+        minute: '2-digit',
+        ...(showSeconds ? { second: '2-digit' } : {}),
+    });
+    const date = now.toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit', weekday: 'short' });
+    return (
+        <span style={{ display: 'flex', alignItems: 'baseline', gap: 8, flex: 'none' }}>
+            {cfg.clockDate !== false ? (
+                <span style={{ fontSize: Math.max(10, size * 0.5), color: t.subColor }}>{date}</span>
+            ) : null}
+            <span
+                style={{
+                    fontSize: size,
+                    fontWeight: 700,
+                    color: t.titleColor,
+                    // ⚠ 等幅の数字にしないと秒が変わるたびに幅が動いて隣がガタつく
+                    fontVariantNumeric: 'tabular-nums',
+                    letterSpacing: '0.02em',
+                }}
+            >
+                {time}
+            </span>
+        </span>
+    );
+}
+
+/**
+ * ダッシュボードの見出し。
+ *
+ * パネルのタイトルと同じく、以前は「左上・20px・固定」だった。
+ * 位置・大きさ・質感を選べるようにする（既定は従来どおりの見た目）。
+ *
+ * `style.header`:
+ *   align  … left（既定）| center | right
+ *   size   … 見出しの文字サイズ(px)。既定 20
+ *   skin   … plain（既定）| accentBar | underline | filled | glow | mono
+ *   stamp  … 右端の「DPX v1 / 日付」を出すか（既定 true）
+ *   clock      … ヘッダに時計を出すか（既定 false）
+ *   clockSize  … 時計の文字サイズ(px)。既定 22
+ *   seconds    … 秒を出すか（既定 true）
+ *   clockDate  … 日付を添えるか（既定 true）
+ */
+function DashboardHeader({ t, definition, now }) {
+    const cfg = definition.style?.header ?? {};
+    const align = cfg.align ?? 'left';
+    const size = Number(cfg.size) > 0 ? Number(cfg.size) : 20;
+    const skin = cfg.skin ?? 'plain';
+    const showStamp = cfg.stamp !== false;
+    const showClock = cfg.clock === true;
+    const ac = t.accent;
+
+    // 質感ごとの装飾。⚠ `background`（一括）は使わない（§8.jj と同じ理由）
+    const box = {};
+    const text = { margin: 0, fontSize: size, color: t.titleColor, letterSpacing: '0.04em' };
+    if (skin === 'accentBar') {
+        box.boxShadow = `inset 4px 0 0 ${ac}`;
+        box.paddingLeft = 12;
+    } else if (skin === 'underline') {
+        box.borderBottom = `2px solid ${ac}66`;
+        box.paddingBottom = 8;
+    } else if (skin === 'filled') {
+        box.backgroundColor = `${ac}18`;
+        box.padding = '8px 14px';
+        box.borderRadius = t.radius;
+    } else if (skin === 'glow') {
+        // ⚠ text-shadow は「文字」にしか掛からないので面積が小さく、
+        //    パネル全体に filter を掛けるのと違って再描画コストが小さい
+        text.textShadow = `0 0 18px ${ac}88, 0 0 4px ${ac}55`;
+        text.color = ac;
+    } else if (skin === 'mono') {
+        text.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+        text.letterSpacing = '0.12em';
+    }
+
+    // 中央寄せのときはスタンプを下段に回す（同じ行に置くと見出しが中央からずれる）
+    const stacked = align === 'center';
+
+    return (
+        <div style={{ marginBottom: 12, ...box }}>
+            <div
+                style={{
+                    display: 'flex',
+                    alignItems: 'baseline',
+                    gap: 14,
+                    justifyContent:
+                        align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start',
+                }}
+            >
+                {align === 'right' && (showStamp || showClock) && !stacked ? (
+                    <>
+                        {showStamp ? (
+                            <span style={{ color: t.subColor, fontSize: 11 }}>
+                                DPX v1 / {now.toLocaleDateString()}
+                            </span>
+                        ) : null}
+                        {showClock ? <HeaderClock t={t} cfg={cfg} /> : null}
+                        <span style={{ flex: 1 }} />
+                    </>
+                ) : null}
+                <h1 style={text}>{definition.title ?? ''}</h1>
+                {definition.description ? (
+                    <span style={{ color: t.subColor, fontSize: 12 }}>{definition.description}</span>
+                ) : null}
+                {align === 'left' && (showStamp || showClock) ? (
+                    <>
+                        <span style={{ flex: 1 }} />
+                        {showClock ? <HeaderClock t={t} cfg={cfg} /> : null}
+                        {showStamp ? (
+                            <span style={{ color: t.subColor, fontSize: 11 }}>
+                                DPX v1 / {now.toLocaleDateString()}
+                            </span>
+                        ) : null}
+                    </>
+                ) : null}
+            </div>
+            {stacked && (showStamp || showClock) ? (
+                <div
+                    style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'baseline',
+                        gap: 12,
+                        marginTop: 4,
+                    }}
+                >
+                    {showClock ? <HeaderClock t={t} cfg={cfg} /> : null}
+                    {showStamp ? (
+                        <span style={{ color: t.subColor, fontSize: 11 }}>
+                            DPX v1 / {now.toLocaleDateString()}
+                        </span>
+                    ) : null}
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
 function TabStrip({ t, tabs, currentTab, onTabChange, rotate, mode, vertical, width = 168 }) {
     const auto = rotate?.enabled && mode !== 'edit';
     return (
@@ -114,7 +275,43 @@ function TabStrip({ t, tabs, currentTab, onTabChange, rotate, mode, vertical, wi
     );
 }
 
-function Panel({ panel, grid, theme, mode, selected, onSelect, onDragStart, entrance, index, definition, app }) {
+// 登場アニメの選択肢 → keyframes 名。
+// ⚠ `rotate` を付けたパネルは必ず fade に落とす。他のアニメは transform を
+//    `none` まで動かすので、**後勝ちで傾きが打ち消される**（実機で発覚・§8.aa）
+const ENTRANCE_ANIM = {
+    rise: 'dpxRiseIn',
+    fade: 'dpxFadeIn',
+    zoom: 'dpxZoomIn',
+    slide: 'dpxSlideIn',
+    flip: 'dpxFlipIn',
+    unfold: 'dpxUnfold',
+};
+
+// 常時アニメ（パネル単位）。控えめな動きだけを用意する。
+// ⚠ 動きは transform / opacity に限る。box-shadow や filter を animate すると
+//    毎フレーム再描画になり、パネル数に比例して重くなる（viz-performance.md §2）
+const AMBIENT_ANIM = {
+    float: 'dpxFloat 4.5s ease-in-out infinite',
+    breathe: 'dpxBreathe 3.6s ease-in-out infinite',
+};
+
+function Panel({
+    panel,
+    grid,
+    theme,
+    mode,
+    selected,
+    onSelect,
+    onDragStart,
+    entrance,
+    index,
+    definition,
+    app,
+    onDuplicatePanel,
+    onRemovePanel,
+    onPatchPanel,
+    onOpenDataSources,
+}) {
     const t = theme;
     const [menu, setMenu] = useState(null);      // {x,y} 右クリックメニュー
     const [full, setFull] = useState(false);     // 全画面表示
@@ -199,9 +396,57 @@ function Panel({ panel, grid, theme, mode, selected, onSelect, onDragStart, entr
         }
     };
 
-    // ── 右クリックメニューの項目（表示モードのみ）────────────────
+    // ── 右クリックメニューの項目 ─────────────────────────────────
     // Studio ではパネルが iframe なので親がここを乗っ取れない。DPX だからできる。
-    const menuItems = [
+    //
+    // 編集モードでは「作る側」の操作を出す（表示モードの項目とは別物）。
+    // インスペクタを開いて探さなくても、その場で複製・重なり順・
+    // タイトルの有無を変えられるようにする。
+    // `z` は上で解決済みのものを使う（重複宣言しない）
+    const patchStyle = (patch) =>
+        onPatchPanel?.(panel.id, { style: { ...(panel.style ?? {}), ...patch } });
+
+    const editMenuItems = [
+        {
+            label: '複製',
+            icon: '⧉',
+            hint: 'Ctrl+D',
+            disabled: !onDuplicatePanel,
+            onClick: () => onDuplicatePanel?.(panel.id),
+        },
+        {
+            label: 'このパネルの設定を開く',
+            icon: '⚙',
+            onClick: () => onSelect?.(panel.id),
+        },
+        {
+            label: 'データソースを編集',
+            icon: '⌕',
+            disabled: !onOpenDataSources || !panel.search?.ref,
+            onClick: () => onOpenDataSources?.(panel.search?.ref),
+        },
+        { divider: true },
+        { label: '最前面へ', icon: '↑', onClick: () => patchStyle({ z: z + 1 }) },
+        { label: '最背面へ', icon: '↓', onClick: () => patchStyle({ z: Math.max(0, z - 1) }) },
+        {
+            label: hideTitle ? 'タイトルバーを出す' : 'タイトルバーを隠す',
+            icon: '▤',
+            // frameless はタイトルを持たない質感なので触らせない
+            disabled: variant === 'frameless',
+            onClick: () => patchStyle({ hideTitle: !panel.style?.hideTitle }),
+        },
+        { divider: true },
+        { label: 'SPL をコピー', icon: '⧉', disabled: !splT.text, onClick: () => navigator.clipboard?.writeText(splT.text) },
+        {
+            label: '削除',
+            icon: '✕',
+            danger: true,
+            disabled: !onRemovePanel,
+            onClick: () => onRemovePanel?.(panel.id),
+        },
+    ];
+
+    const viewMenuItems = [
         {
             label: 'サーチで開く',
             icon: '⌕',
@@ -251,18 +496,28 @@ function Panel({ panel, grid, theme, mode, selected, onSelect, onDragStart, entr
         : panel.h * grid.rowHeight + (panel.h - 1) * grid.gap;
     const surface = panelSurface(t, variant, bracketArmLength(panelPxHeight));
 
+    // タイトルバーの位置と質感（既定は 'auto' ＝ 質感に追従＝従来の見た目のまま）
+    const titleAlign = panel.style?.titleAlign ?? 'left';
+    const skin = panelTitleSkin(panel.style?.titleSkin, t, variant, panel.style?.accent);
+    const titleSkin = skin.box;
+    const titleTextStyle = skin.text;
+    const titleDot = skin.dot;
+    const titleDivider = Boolean(skin.divider);
+
     const body = (
         <div
             onPointerDown={editing ? (e) => onSelect?.(panel.id, e) : undefined}
             // 表示モードだけ右クリックメニューを出す（編集中はブラウザ既定に任せる）
-            onContextMenu={
-                editing
-                    ? undefined
-                    : (e) => {
-                          e.preventDefault();
-                          setMenu({ x: e.clientX, y: e.clientY });
-                      }
-            }
+            // ⚠ 編集モードでもメニューを出す（以前はブラウザ既定に任せていた）。
+            //   編集中こそ「複製・重なり順・削除」を手元で出したい。
+            //   ⚠ 右クリックした瞬間に**そのパネルを選択**してから開く。
+            //     選択しないまま「設定を開く」を押すと別のパネルの設定が出る
+            onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (editing) onSelect?.(panel.id);
+                setMenu({ x: e.clientX, y: e.clientY });
+            }}
             style={{
                 // 全画面のときはポータルで body 直下に出しているので、
                 // グリッド配置（gridColumn/gridRow）は付けない。付けたままだと
@@ -296,10 +551,20 @@ function Panel({ panel, grid, theme, mode, selected, onSelect, onDragStart, entr
                 //    dpxRiseIn は transform を `none` まで動かすアニメなので、
                 //    **後勝ちで rotate が打ち消される**（実機で傾かず発覚）。
                 //    傾いているときは transform を触らない fade に落とす。
-                animation:
+                // 登場アニメ＋常時アニメ。両方あるときはカンマで連結する
+                // （CSS の animation は複数指定できる）
+                animation: [
                     !full && mode !== 'edit' && entrance && entrance !== 'none'
-                        ? `${entrance === 'fade' || Number(panel.style?.rotate) ? 'dpxFadeIn' : 'dpxRiseIn'} 0.5s ease both`
-                        : 'none',
+                        ? `${ENTRANCE_ANIM[Number(panel.style?.rotate) ? 'fade' : entrance] ?? 'dpxRiseIn'} 0.5s ease both`
+                        : null,
+                    // ⚠ 常時アニメは編集中と全画面では止める。
+                    //    編集中に動くと掴みにくく、全画面は「読むための表示」なので
+                    !full && mode !== 'edit' && AMBIENT_ANIM[panel.style?.ambient]
+                        ? AMBIENT_ANIM[panel.style.ambient]
+                        : null,
+                ]
+                    .filter(Boolean)
+                    .join(', ') || 'none',
                 animationDelay: full ? undefined : `${Math.min(index * 70, 600)}ms`,
             }}
         >
@@ -311,17 +576,26 @@ function Panel({ panel, grid, theme, mode, selected, onSelect, onDragStart, entr
                         flex: 'none',
                         display: 'flex',
                         alignItems: 'center',
+                        // 位置（左/中央/右）。中央・右寄せは「1枚だけ見せる」構図で効く
+                        justifyContent:
+                            titleAlign === 'center' ? 'center' : titleAlign === 'right' ? 'flex-end' : 'flex-start',
                         padding: '0 12px',
                         gap: 8,
                         // ⚠ NOC 質感ではタイトルと中身の間に線を引かない
                         //    （区切り線があると「枠のある箱」に見えてしまう）
-                        borderBottom: variant === 'noc' ? 'none' : surface.border ?? 'none',
+                        //    質感で「下線」を選んだときだけ明示的に引く
+                        borderBottom: titleDivider
+                            ? `1px solid ${panel.style?.accent || t.accent}55`
+                            : variant === 'noc'
+                              ? 'none'
+                              : surface.border ?? 'none',
+                        ...titleSkin,
                         cursor: editing ? 'move' : 'default',
                         userSelect: 'none',
                     }}
                 >
-                    {/* NOC 質感では丸を出さない。ラベルだけの方が壁面表示で静かに見える */}
-                    {variant === 'noc' ? null : (
+                    {/* 丸は「バッジ」質感のときだけ。NOC はラベルだけの方が壁面表示で静かに見える */}
+                    {titleDot ? (
                         <span
                             style={{
                                 width: 8,
@@ -332,20 +606,10 @@ function Panel({ panel, grid, theme, mode, selected, onSelect, onDragStart, entr
                                 flex: 'none',
                             }}
                         />
-                    )}
+                    ) : null}
                     <span
                         style={{
-                            // NOC 質感は「小さめ・大文字・字間広め」の管制ラベル。
-                            // 情報としては控えめに置き、数値やグラフを主役にする
-                            ...(variant === 'noc'
-                                ? {
-                                      fontSize: 11,
-                                      fontWeight: 500,
-                                      letterSpacing: '0.18em',
-                                      textTransform: 'uppercase',
-                                      color: t.subColor,
-                                  }
-                                : { fontSize: 13, fontWeight: 600 }),
+                            ...titleTextStyle,
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
@@ -353,8 +617,12 @@ function Panel({ panel, grid, theme, mode, selected, onSelect, onDragStart, entr
                     >
                         {titleT.text}
                     </span>
-                    <span style={{ flex: 1 }} />
-                    {loading ? <span style={{ color: t.subColor, fontSize: 11 }}>更新中…</span> : null}
+                    {/* 中央寄せのときに伸縮スペーサを入れると中央がずれるので、
+                        左寄せのときだけ「更新中…」を右端へ押しやる */}
+                    {titleAlign === 'left' ? <span style={{ flex: 1 }} /> : null}
+                    {loading ? (
+                        <span style={{ color: t.subColor, fontSize: 11, flex: 'none' }}>更新中…</span>
+                    ) : null}
                 </div>
             )}
             <div className="dpx-scroll" style={{ flex: 1, minHeight: 0, position: 'relative' }}>
@@ -393,7 +661,13 @@ function Panel({ panel, grid, theme, mode, selected, onSelect, onDragStart, entr
                 ) : null}
             </div>
             {menu ? (
-                <PanelContextMenu t={t} x={menu.x} y={menu.y} items={menuItems} onClose={() => setMenu(null)} />
+                <PanelContextMenu
+                    t={t}
+                    x={menu.x}
+                    y={menu.y}
+                    items={editing ? editMenuItems : viewMenuItems}
+                    onClose={() => setMenu(null)}
+                />
             ) : null}
             {full ? (
                 <button
@@ -480,6 +754,11 @@ export default function DpxDashboard({
     app,
     onReorderInputs,
     toolbar = null,
+    // 編集モードの右クリックメニュー用（無ければその項目を出さない）
+    onDuplicatePanel,
+    onRemovePanel,
+    onPatchPanel,
+    onOpenDataSources,
 }) {
     const t = resolveTheme(definition);
     useDpxGlobalStyles(t);
@@ -534,8 +813,25 @@ export default function DpxDashboard({
         style.textContent =
             '@keyframes dpxRiseIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }' +
             '@keyframes dpxFadeIn { from { opacity: 0; } to { opacity: 1; } }' +
-            '@keyframes dpxGridPan { from { background-position: 0 0; } to { background-position: 480px 480px; } }' +
-            '@keyframes dpxAurora { from { transform: translate3d(-2%, -1%, 0) scale(1.05); } to { transform: translate3d(2%, 1%, 0) scale(1.12); } }';
+            // ⚠ background-position ではなく transform で動かす（合成のみ＝再描画なし）。
+            //    旧実装は 1920x1080 で 22fps だった（実測。詳細は BackgroundLayer.jsx）
+            '@keyframes dpxGridPan { from { transform: translate3d(0,0,0); } to { transform: translate3d(48px,48px,0); } }' +
+            '@keyframes dpxAurora { from { transform: translate3d(-2%, -1%, 0) scale(1.05); } to { transform: translate3d(2%, 1%, 0) scale(1.12); } }' +
+            // ── 登場アニメ（追加分）────────────────────────────
+            // ⚠ すべて transform / opacity だけで作る。GPU 合成に載るので
+            //    面積に比例したコストにならない（viz-performance.md §2）。
+            //    filter / box-shadow をアニメさせると毎フレーム再描画になる。
+            '@keyframes dpxZoomIn { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: none; } }' +
+            '@keyframes dpxSlideIn { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }' +
+            '@keyframes dpxFlipIn { from { opacity: 0; transform: perspective(700px) rotateX(-12deg) translateY(10px); } to { opacity: 1; transform: none; } }' +
+            '@keyframes dpxUnfold { from { opacity: 0; transform: scaleY(0.82); } to { opacity: 1; transform: none; } }' +
+            // ── 常時アニメ（パネル単位で任意に付ける）──────────
+            '@keyframes dpxFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }' +
+            '@keyframes dpxBreathe { 0%,100% { opacity: 1; } 50% { opacity: 0.82; } }' +
+            // 走査線が上から下へ流れる（管制画面の意匠）。1本の細い線を動かすだけ
+            '@keyframes dpxScanSweep { from { transform: translateY(-100%); } to { transform: translateY(2000%); } }' +
+            // 枠を光が一周する。background-position だけを動かす
+            '@keyframes dpxBorderFlow { from { background-position: 0% 50%; } to { background-position: 200% 50%; } }';
         document.head.appendChild(style);
     }, []);
 
@@ -606,16 +902,7 @@ export default function DpxDashboard({
             <BackgroundLayer kind={definition.style?.background} accent={t.accent} />
             <div style={{ position: 'relative', zIndex: 1 }}>
                 {showHeader ? (
-                    <div style={{ marginBottom: 12, display: 'flex', alignItems: 'baseline', gap: 14 }}>
-                        <h1 style={{ margin: 0, fontSize: 20, color: t.titleColor, letterSpacing: '0.04em' }}>
-                            {definition.title ?? ''}
-                        </h1>
-                        {definition.description ? (
-                            <span style={{ color: t.subColor, fontSize: 12 }}>{definition.description}</span>
-                        ) : null}
-                        <span style={{ flex: 1 }} />
-                        <span style={{ color: t.subColor, fontSize: 11 }}>DPX v1 / {now.toLocaleDateString()}</span>
-                    </div>
+                    <DashboardHeader t={t} definition={definition} now={now} />
                 ) : null}
 
                 {tabs && tabPos !== 'left' ? (
@@ -678,6 +965,10 @@ export default function DpxDashboard({
                             onDragStart={onDragStart}
                             entrance={definition.style?.entrance ?? 'rise'}
                             index={i}
+                            onDuplicatePanel={onDuplicatePanel}
+                            onRemovePanel={onRemovePanel}
+                            onPatchPanel={onPatchPanel}
+                            onOpenDataSources={onOpenDataSources}
                             definition={definition}
                             app={app}
                         />

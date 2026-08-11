@@ -10,7 +10,7 @@
 import SpikeViz from '../SpikeViz';
 import { adaptExtensionViz } from '../extensionAdapter';
 import { DecoClock, DecoText } from './decoViz';
-import { DpxBar, DpxLine, DpxStatus, DpxTable, DpxValue } from './nativeViz';
+import { DpxBar, DpxDonut, DpxLine, DpxRanking, DpxStatus, DpxTable, DpxValue } from './nativeViz';
 import { ShapeEllipse, ShapeGlow, ShapeLine, ShapeNocFrame, ShapeRect } from './shapeViz';
 
 // ── 既存カスタム viz（Studio 拡張）────────────────────────────────
@@ -83,6 +83,8 @@ export const VIZ_REGISTRY = {
     // DPX ネイティブ（プラットフォーム標準）
     'dpx.line': DpxLine,
     'dpx.bar': DpxBar,
+    'dpx.ranking': DpxRanking,
+    'dpx.donut': DpxDonut,
     'dpx.value': DpxValue,
     'dpx.status': DpxStatus,
     'dpx.table': DpxTable,

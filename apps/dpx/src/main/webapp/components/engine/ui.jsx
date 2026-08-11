@@ -47,11 +47,45 @@ export function useDpxGlobalStyles(theme) {
             }
             .dpx-scroll::-webkit-scrollbar-thumb:hover { background: ${accent}99; background-clip: content-box; }
             .dpx-scroll::-webkit-scrollbar-corner { background: transparent; }
-            .dpx-input:focus, .dpx-btn:focus-visible { outline: 2px solid ${accent}88; outline-offset: 1px; }
+            /* ── 入力コントロールの質感 ──────────────────────────────
+               「板に線を1本引いただけ」だと安っぽく見えるので、
+               **奥行き（内側の細いハイライト＋落ち影）** と
+               **状態の差（hover / focus）** を付ける。
+               ⚠ ただし box-shadow を **animate はしない**（毎フレーム再描画になる）。
+                 transition は色と影の「切り替わり」だけに使う。 */
+            .dpx-input {
+                box-shadow: ${
+                    theme?.colorScheme === 'light'
+                        ? 'inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 2px rgba(16,24,40,0.06)'
+                        : 'inset 0 1px 0 rgba(255,255,255,0.05), 0 1px 2px rgba(0,0,0,0.35)'
+                };
+                transition: border-color .13s ease, box-shadow .13s ease, background-color .13s ease;
+            }
+            .dpx-input:hover:not(:disabled) {
+                border-color: ${accent}66;
+            }
+            /* ⚠ outline は角丸に沿わないので box-shadow でリングを作る
+                 （2px の矩形アウトラインが丸角からはみ出して安っぽく見えた） */
+            .dpx-input:focus, .dpx-input:focus-visible {
+                outline: none;
+                border-color: ${accent};
+                box-shadow: 0 0 0 3px ${accent}2e, inset 0 1px 0 rgba(255,255,255,0.06);
+            }
+            .dpx-input::placeholder { color: ${theme?.subColor ?? '#8fa3c8'}; opacity: .65; }
+            .dpx-btn {
+                transition: border-color .13s ease, box-shadow .13s ease, background-color .13s ease, transform .08s ease;
+            }
+            .dpx-btn:hover:not(:disabled) { border-color: ${accent}88; }
+            /* 押した瞬間の手応え（1px 沈む）。transform なので合成だけで済む */
+            .dpx-btn:active:not(:disabled) { transform: translateY(1px); }
+            .dpx-btn:focus-visible {
+                outline: none;
+                box-shadow: 0 0 0 3px ${accent}2e;
+            }
         `;
         // ⚠ accent だけを見ていると、**accent が同じで地の色だけ違うプリセット**に
         //   切り替えたときに再実行されず、body が前のテーマのままになる。
-    }, [theme?.accent, theme?.canvasBg, theme?.colorScheme, theme?.titleColor]);
+    }, [theme?.accent, theme?.canvasBg, theme?.colorScheme, theme?.titleColor, theme?.subColor]);
 }
 
 /** 入力コントロールの共通の高さ（px）。

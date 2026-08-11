@@ -117,14 +117,19 @@ export default function PanelContextMenu({ t, x, y, items, onClose }) {
                             borderRadius: 6,
                             border: 'none',
                             background: 'transparent',
-                            color: it.disabled ? t.subColor : t.textColor,
+                            // 破壊的な項目は赤で出す（「削除」を他と同じ見た目にしない）
+                            color: it.disabled ? t.subColor : it.danger ? '#ff8898' : t.textColor,
                             opacity: it.disabled ? 0.45 : 1,
                             cursor: it.disabled ? 'default' : 'pointer',
                             fontSize: 12,
                             fontFamily: 'inherit',
                         }}
                         onMouseEnter={(e) => {
-                            if (!it.disabled) e.currentTarget.style.background = `${t.accent}18`;
+                            if (!it.disabled) {
+                                e.currentTarget.style.background = it.danger
+                                    ? 'rgba(220,70,90,0.16)'
+                                    : `${t.accent}18`;
+                            }
                         }}
                         onMouseLeave={(e) => {
                             e.currentTarget.style.background = 'transparent';

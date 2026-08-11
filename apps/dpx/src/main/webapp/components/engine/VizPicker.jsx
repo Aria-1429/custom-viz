@@ -222,7 +222,8 @@ export default function VizPicker({ t, onPick, onCancel }) {
                                 <div
                                     style={{
                                         display: 'grid',
-                                        gridTemplateColumns: 'repeat(auto-fill, minmax(178px, 1fr))',
+                                        // カスタム viz の type は長いので枠を少し広めに取る
+                                        gridTemplateColumns: 'repeat(auto-fill, minmax(196px, 1fr))',
                                         gap: 8,
                                     }}
                                 >
@@ -255,7 +256,11 @@ export default function VizPicker({ t, onPick, onCancel }) {
                                                 }}
                                             >
                                                 <VizGlyph type={v.type} color={on ? t.accent : t.subColor} />
-                                                <span style={{ minWidth: 0 }}>
+                                                {/* ⚠ **flex の子は既定で縮まない**（min-width:auto）。
+                                                    `minWidth:0` と `flex:1` を付けないと、中の長い文字列が
+                                                    ボタンを押し広げて**隣のカードに重なる**（実機で発生：
+                                                    `custom_viz_attack_globe.custom_viz_…` がはみ出した）。 */}
+                                                <span style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
                                                     <span
                                                         style={{
                                                             display: 'block',
@@ -268,7 +273,19 @@ export default function VizPicker({ t, onPick, onCancel }) {
                                                     >
                                                         {v.name}
                                                     </span>
-                                                    <span style={{ display: 'block', fontSize: 10, color: t.subColor }}>
+                                                    {/* ⚠ こちらにも省略指定が要る（名前だけ付けていて漏れていた）。
+                                                        カスタム viz の type は `app.app` 形式で非常に長い */}
+                                                    <span
+                                                        style={{
+                                                            display: 'block',
+                                                            fontSize: 10,
+                                                            color: t.subColor,
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis',
+                                                            whiteSpace: 'nowrap',
+                                                        }}
+                                                        title={v.type}
+                                                    >
                                                         {v.type}
                                                     </span>
                                                 </span>
