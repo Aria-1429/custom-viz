@@ -2,7 +2,7 @@
 //
 // 使い方:
 //   node src/page-html.mjs <パス> [--grep <文字列>] [--max <bytes>]
-//   例: node src/page-html.mjs /en-US/app/dash_platform/dp_demo --grep STATIC-TEMPLATE-OK
+//   例: node src/page-html.mjs /en-US/app/dpx/dp_demo --grep STATIC-TEMPLATE-OK
 
 import { chromium } from 'playwright';
 import { assertConfig, config, webBase } from './config.mjs';

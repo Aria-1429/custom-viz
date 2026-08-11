@@ -4625,7 +4625,7 @@ function ThreatMapVisualization({ mode }) {
 //    `export{...}` が出力される。Studio の iframe はこれをクラシックスクリプトとして
 //    読むため `Uncaught SyntaxError: Unexpected token 'export'` でバンドル全体が
 //    実行されず、パネルが真っ黒になる（2026-08-10 の開発中に実際に発生）。
-//    dash-platform 用の名前付き export は host.js（別エントリ）が担う。
+//    DPX 用の名前付き export は host.js（別エントリ）が担う。
 // ---------------------------------------------------------------------------
 function App() {
     const themeContext = useTheme();
@@ -4664,12 +4664,12 @@ function mountApp() {
     );
 }
 
-// dash-platform（apps/dash-platform）が iframe なしでこの viz をホストする場合に
+// DPX（apps/dpx）が iframe なしでこの viz をホストする場合に
 // 使う受け渡し口。`export` を使わないのは上のコメントの理由（Studio が壊れる）。
 // DPX 側は host.jsx がこのファイルを副作用 import してから App を受け取る。
 globalThis.__WORLDMAP_APP__ = App;
 
-// dash-platform にホストされている場合は自己マウントしない（ホスト側が
+// DPX にホストされている場合は自己マウントしない（ホスト側が
 // コンポーネントとして描画する）。iframe（Studio 拡張）では従来どおり。
 if (!globalThis.__DASH_PLATFORM_HOST__) {
     (function mountWhenReady() {

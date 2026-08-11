@@ -1,7 +1,7 @@
-# DPX（Dash Platform）— 独自ダッシュボード基盤の実装ナレッジ
+# DPX（DPX）— 独自ダッシュボード基盤の実装ナレッジ
 
-**2026-08-10 に構築・実機検証（Splunk Enterprise 10.4.2）。実装は [apps/dash-platform/](../../../../apps/dash-platform/)、
-アプリ ID は `dash_platform`。この文書は「DPX を触る前に読むファイル」。**
+**2026-08-10 に構築・実機検証（Splunk Enterprise 10.4.2）。実装は [apps/dpx/](../../../../apps/dpx/)、
+アプリ ID は `dpx`。この文書は「DPX を触る前に読むファイル」。**
 
 DPX は **Splunk の上で動く完全独自のダッシュボード基盤**。
 Dashboard Studio でも classic でもなく、**独立 React ページ（[splunk-react-app.md](splunk-react-app.md) の第3の方式）の上に
@@ -20,10 +20,10 @@ Dashboard Studio でも classic でもなく、**独立 React ページ（[splun
 
 | | 内容 |
 |---|---|
-| 成果物 | `dash_platform` アプリ 1 つ。定義は**ビュー XML 1 枚＝1 ダッシュボード**（isVisible=False の入れ物） |
-| 画面 | **ホストビュー `dpx` の1枚だけ**（v0.2.0 で1ビュー集約）。`/app/dash_platform/dpx` がホーム、`?id=<app>/<name>` がダッシュボード。**画面間は pushState の SPA＝再読込ゼロ** |
+| 成果物 | `dpx` アプリ 1 つ。定義は**ビュー XML 1 枚＝1 ダッシュボード**（isVisible=False の入れ物） |
+| 画面 | **ホストビュー `dpx` の1枚だけ**（v0.2.0 で1ビュー集約）。`/app/dpx/dpx` がホーム、`?id=<app>/<name>` がダッシュボード。**画面間は pushState の SPA＝再読込ゼロ** |
 | 描画 | 自前エンジン `DpxDashboard`（CSS grid）。Studio の `@splunk/dashboard-*` に**依存しない** |
-| データ | ページ自身が splunkd に `search/jobs` を投げる（iframe が無いのでセッション認証がそのまま効く）。⚠ **名前空間は所属アプリ**（`SearchAppContext`。URL が常に dash_platform なので明示必須） |
+| データ | ページ自身が splunkd に `search/jobs` を投げる（iframe が無いのでセッション認証がそのまま効く）。⚠ **名前空間は所属アプリ**（`SearchAppContext`。URL が常に dpx なので明示必須） |
 | 保存 | ビュー XML の `<definition><![CDATA[ JSON ]]></definition>`（Studio と同型の入れ物） |
 | 配信 | **Splunk 同梱テンプレート `pages/splunk_ui_app.html`** が同名 JS `pages/dpx.js` を読む。**Mako 不使用**（v0.2.0 で全廃）。ダッシュボードを増やしても**再パッケージ不要** |
 | viz | `vizRegistry.js` の Map に React コンポーネントを登録するだけ。**iframe なし・config.json なし・再起動なし** |
@@ -32,10 +32,10 @@ Dashboard Studio でも classic でもなく、**独立 React ページ（[splun
 **開発ループ**（全部で10秒程度）:
 
 ```bash
-cd apps/dash-platform
+cd apps/dpx
 rm -rf stage && NODE_OPTIONS=--max-old-space-size=8192 yarn build   # ← heap 拡張は必須（後述）
 yarn package && node ../../tools/dashboard-loop/src/install-viz.mjs $(ls -t dist/*.spl | head -1)
-node ../../tools/dashboard-loop/src/shot-page.mjs /en-US/app/dash_platform/<view> --out /tmp/shots
+node ../../tools/dashboard-loop/src/shot-page.mjs /en-US/app/dpx/<view> --out /tmp/shots
 ```
 
 ---
@@ -47,8 +47,8 @@ Splunk Web
  └ ホストビュー dpx（default/data/ui/views/dpx.xml。画面はこの1枚だけ）
     ├ template="pages/splunk_ui_app.html"     ← Splunk 同梱（Mako ではない）
     │   └ pages/dpx.js                        ← 唯一のランタイム（同名 JS 規則）
-    │       /app/dash_platform/dpx            → ホーム（一覧）
-    │       /app/dash_platform/dpx?id=<app>/<name> → ダッシュボード（SPA 切替）
+    │       /app/dpx/dpx            → ホーム（一覧）
+    │       /app/dpx/dpx?id=<app>/<name> → ダッシュボード（SPA 切替）
     └ 定義ビュー（isVisible=False の入れ物。直接開かない）
         └ <definition><![CDATA[ DPX スキーマ v1 の JSON ]]></definition>
                       ↓ ランタイムが ?id= から app/view を判定して REST で読む
@@ -75,7 +75,7 @@ Splunk Web
    mode だけの切替では出さない）。
    **AppInspect 4.3.0 は failure 0 / future_failure 0**（Mako チェック not_applicable）。
 4. **⚠ サーチは所属アプリの名前空間で投げる**（`useSplunkSearch` の `SearchAppContext`）。
-   URL が常に dash_platform になったので、明示しないと**他アプリのマクロ・ルックアップが
+   URL が常に dpx になったので、明示しないと**他アプリのマクロ・ルックアップが
    静かに壊れる**。DashboardPage が Provider で配る。
 5. **所属アプリは自由。** 定義ビューはどのアプリにも作れる（`?id=<app>/<name>` で開く）。
 6. **splunkd 再起動は不要**（この移行も再起動なしで完了）。標準テンプレートは常設・
@@ -93,9 +93,9 @@ $SPLUNK_HOME/etc/apps/<app>/local/data/ui/views/<name>.xml   ← これ1枚が1�
 中身は `<view template="pages/splunk_ui_app.html" type="html" isVisible="False">` に
 `<definition><![CDATA[ DPX の JSON ]]></definition>` が入っているだけ（実機で全文確認済み）。
 **classic の Simple XML と同じ「XML 1枚＝1ダッシュボード」モデル**を意図的に踏襲している。
-開く URL は `/app/dash_platform/dpx?id=<app>/<name>`（ビュー自体は直接開かない）。
+開く URL は `/app/dpx/dpx?id=<app>/<name>`（ビュー自体は直接開かない）。
 
-- 移行先に **`dash_platform` アプリが入っていること**が前提（テンプレートの提供元）
+- 移行先に **`dpx` アプリが入っていること**が前提（テンプレートの提供元）
 - REST でも出し入れできる：`GET/POST /servicesNS/<owner>/<app>/data/ui/views/<name>`
 - カスタム viz を使っているなら、その viz アプリも移行先に必要（classic/Studio と同じ）
 - 権限・共有設定は `metadata/local.meta` 側（これも classic と同じ）
@@ -1088,7 +1088,7 @@ DOM で確かめる**（`<line>` が8本あれば図形、`backgroundImage` が8
 
 ```
 CompileException: No such tag: 'doc' in file
-  '/opt/splunk/etc/apps/dash_platform/appserver/templates/dpx_boot.html' at line: 27
+  '/opt/splunk/etc/apps/dpx/appserver/templates/dpx_boot.html' at line: 27
 ```
 
 **原因**: **Mako は CSS コメントや HTML コメントの中も解釈する**。
@@ -1158,6 +1158,85 @@ CompileException: No such tag: 'doc' in file
 
 ---
 
+### 8.ll `<input type="color">` は「未設定」を表現できない（UI が嘘をつく）
+
+**`<input type="color">` は空の値を持てない。** 何を渡しても必ず色が表示されるので、
+未設定の欄にフォールバック色を渡すと**「その色が設定済み」に見えてしまう**。
+DPX では新規パネルの「見た目の詳細 → 背景色」が `#4ea1ff` に見えていた
+（実際は未指定でプリセットの色が効いている。2026-08-11 にユーザー指摘で発覚）。
+
+→ **未設定のときは「実際に適用されている色」を出す**（v0.5.8 でこの形に落ち着いた）:
+- 未設定 … **実効値をスウォッチに塗り、プレースホルダにも `#4ea1ff（プリセットのまま）`
+  のように出す**。「未設定」であることは**枠を破線**にして区別する。
+  押すとその実効値で確定できる
+  - ⚠ 一度は「未設定なら色を隠す」実装にしたが、**今どの色が効いているのか
+    分からない**のでユーザー指摘で作り直した。**隠すのではなく実物を見せる**
+  - ⚠ 実効値は**描画と同じ関数から導く**こと（DPX では `panelSurface()`。
+    `effectivePanelColor()` が窓口）。値を手で書き写すと質感を足したときに
+    片方だけ古くなり、**UI が実物と食い違う**（この問題の再発そのもの）
+- 指定済み … 通常のピッカー＋**`×`（未設定へ戻す）ボタン**
+  ⚠ 戻す手段を用意しないと、一度色を入れたら未設定に戻せなくなる
+
+⚠ **「未設定」の意味は欄によって違う。取り違えない**:
+- **実効値が必ずある欄**（ダッシュボードのアクセント色・カギ括弧の色）…
+  未設定でも**テーマの色が実際に効いている**。ここは実効値をそのまま見せるのが正しい
+  → `ColorInput` の **`allowUnset={false}`**
+- **未指定＝何も適用しない欄**（パネル個別の背景色・枠線色・アクセント色）…
+  未設定を明示する → 既定の `allowUnset={true}`
+
+**同種の罠**：`placeholder` の文言も「（既定）」だと
+**「何らかの既定色が入っている」**と読めてしまう。「未設定」と書く。
+
+### 8.kk アプリアイコンの置き場所と、10.4 で表示されない件（実機確定）
+
+**アイコンは `<app>/static/` に置く**（公式ドキュメント準拠）。ファイル名と寸法は
+**実機の標準アプリ `search` を計測して確認したもの**（docs の記述ではなく実物に合わせる）:
+
+| ファイル | 寸法 |
+|---|---|
+| `static/appIcon.png` | 36×36 |
+| `static/appIcon_2x.png` | 72×72 |
+| `static/appLogo.png` | 155×43 |
+| `static/appLogo_2x.png` | 310×86 |
+
+⚠ **`appserver/static/` に置いても配信され、しかもそちらが優先される**
+（赤い判定用画像を片側だけに置いて A/B し、画素の色で確定）。
+⚠ **アップグレードでは「消したファイル」が実機から削除されない。**
+誤って `appserver/static/` に置いた版が残っていると、`static/` に正しく置き直しても
+**古いアイコンが出続ける**。→ **同じ絵で上書きして無害化する**（消す手段が無い）。
+§8.bb の「消したファイルは実機から削除されない」と同じ性質。
+
+⚠ **Splunk 10.4 のホーム画面・アプリ管理画面は `appIcon.png` を表示しない**（実機で確認）。
+左袖のアプリ一覧は汎用の「App」プレースホルダのまま。
+**ファイルが配信されていること（HTTP 200・正しい寸法）と、画面に出ることは別**なので、
+「アイコンが出ない＝置き方が間違い」と即断しない。まず URL を直接叩いて確かめる。
+
+⚠ **`appIcon` と `appLogo` は置かれる地が違う。同じ配色を使い回さない**（実機で確認）:
+- **`appIcon`** … 自前の**濃紺タイルを敷く**ので、レターマークは**白**でよい
+- **`appLogo`** … **白地にも暗い地にも置かれる**。白にすると白背景で消え、
+  濃紺にすると暗い背景で消える。→ **中間の色**（青系）にして両方で成立させる
+- 判定は**明地と暗地に並べて1枚に撮る**のが早い（片方だけ見ると気づけない）
+
+⚠ **ブラウザの画像キャッシュで「差し替えたのに古い絵が出る」。**
+`fetch` にだけクエリを付けても `<img>` は古いままなので、**確認用の HTML でも
+URL にクエリを付ける**。**バイト数を比べる**と「実機に届いていない」のか
+「表示が古いだけ」なのかを切り分けられる（これで一度誤診しかけた）。
+
+**アイコンの作り方（このリポジトリの方針）**:
+- 原本は SVG（`apps/dpx/assets/`）、配布は PNG（`static/`）。
+- **ラスタライズは Chromium で行う**（`playwright`）。`ImageMagick` の `convert` は
+  **SVG のグラデーションを落として真っ黒にする**（実際に踏んだ）。
+- **表示用とアイコン用で SVG を分ける。** 36px では線が細ると消え、
+  輪の内側の穴が先に潰れる。小さく焼く版は線を太く・輪を広く取る。
+- 図案の教訓（DPX ロゴで実際に描いて確認）:
+  - 同じ大きさの輪を2つ縦に積むと **B にしか見えない**（非対称にする）。
+    **角を丸めず面取りにする**と直線部が立って D/P として読みやすくなる
+  - 交差する要素は **`stroke` ではなく `path` の塗り**で作る。stroke だと
+    交差部が同色で溶けるが、塗りなら**重ね順で前後（編み込み）**を作れる
+  - 斜線を「左上→右下」に引くと**打ち消し線（禁止マーク）**に見える
+  - **同じ色・同じ太さで重ねた線は輪郭が溶けて1つの塊になる。**
+    別色・別太さにして要素を分離させる
+
 ## 9. 検証ツール（`tools/dashboard-loop/src/`）
 
 DPX 専用の E2E / 撮影ツール。**実装したら必ずどれかで実機確認する。**
@@ -1177,7 +1256,7 @@ DPX 専用の E2E / 撮影ツール。**実装したら必ずどれかで実機�
 | `dp-timemode-e2e.mjs` | パネル時間範囲の入力束縛 |
 | `dp-inputorder-e2e.mjs` | 入力の並べ替え永続化 |
 | `dp-hover-check.mjs` | viz 間ホバー同期（リンクドハイライト） |
-| `apps/dash-platform/tools/probe-views.mjs` | ビュー XML の CRUD（`create` / `get` / `delete`） |
+| `apps/dpx/tools/probe-views.mjs` | ビュー XML の CRUD（`create` / `get` / `delete`） |
 
 ⚠ **E2E を書くときの注意（実際に誤診した）**:
 - 「最初の `.dpx-input`」のような曖昧なセレクタは別要素を掴む → `filter({ hasText })` で特定する

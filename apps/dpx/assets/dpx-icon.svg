@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="DPX">
+  <title>DPX</title>
+  <!--
+    アプリアイコン用（36×36 で焼く）。参考デザインどおり
+    **角丸の濃紺タイル＋シアンの外周グロー**の上にマークを載せる。
+
+    ⚠ 36px 用の調整（実際に焼いて確認した）:
+      - グローは小さく焼くと潰れて「にじんだ縁」にしか見えない。
+        **枠線1本＋控えめな blur** にとどめる
+      - マークはタイルいっぱいに寄せる（余白を取りすぎると豆粒になる）
+    表示用（dpx-mark.svg）は**タイル無しの素のマーク**。用途で使い分ける。
+  -->
+  <defs>
+    <linearGradient id="iconCyan" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#00b4f0"/>
+      <stop offset="100%" stop-color="#5ee0ff"/>
+    </linearGradient>
+    <linearGradient id="tileBg" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0%" stop-color="#0d1b33"/>
+      <stop offset="100%" stop-color="#060c18"/>
+    </linearGradient>
+    <filter id="tileGlow" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="2.5" result="g"/>
+      <feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- タイル本体 -->
+  <rect x="4" y="4" width="120" height="120" rx="26" fill="url(#tileBg)"/>
+  <!-- 外周のシアン枠（グロー付き） -->
+  <rect x="4" y="4" width="120" height="120" rx="26"
+        fill="none" stroke="#37c6f5" stroke-width="2.5" filter="url(#tileGlow)"/>
+
+  <!-- マーク本体（タイル内に収める） -->
+  <g transform="translate(64,64) scale(0.80) translate(-64,-64)">
+    <path d="M44 106 L86 32 L104 32 L62 106 Z" fill="url(#iconCyan)"/>
+    <path fill="#ffffff"
+          d="M20 24 L64 24 Q82 24 88 40 Q92 53 81 63 Q92 72 88 86 Q82 100 64 100
+             L44 100 L44 120 L34 109 L34 100 L20 100 L20 40 L34 40 L34 86 L62 86
+             Q73 86 73 77 Q73 69 62 69 L40 69 L40 55 L62 55 Q73 55 73 46
+             Q73 38 62 38 L25 38 Z"/>
+    <path d="M46 32 L64 32 L106 106 L88 106 Z" fill="url(#iconCyan)"/>
+  </g>
+</svg>

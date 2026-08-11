@@ -26,7 +26,7 @@ Splunk でカスタムビジュアライゼーション（＝ダッシュボー�
 
 > **⭐ 第4の選択肢：DPX（独自ダッシュボード基盤）**。上の2方式は「Splunk のダッシュボードに
 > パネルを載せる」話だが、**ダッシュボードの器そのものを自前で持つ**なら
-> [dpx-platform.md](dpx-platform.md) を読む（`apps/dash-platform/`。2026-08-10 実機検証済み）。
+> [dpx-platform.md](dpx-platform.md) を読む（`apps/dpx/`。2026-08-10 実機検証済み）。
 > DPX の viz は **iframe なし・`config.json` なし・splunkd 再起動なしの素の React コンポーネント**で、
 > registry に1行足すだけで載る。既存の Studio 拡張 viz も2ステップで移植できる（world-map で実証）。
 

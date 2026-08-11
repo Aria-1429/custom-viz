@@ -1,4 +1,4 @@
-// dash-platform（DPX）用のホストエントリ。
+// DPX 用のホストエントリ。
 //
 // なぜ別ファイルなのか:
 //   visualization.jsx は Studio 拡張の esbuild エントリで、format:'esm' でビルドされる。

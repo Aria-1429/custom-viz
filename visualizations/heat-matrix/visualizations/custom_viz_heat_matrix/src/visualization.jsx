@@ -1137,7 +1137,7 @@ function mountApp() {
     );
 }
 
-// DPX（apps/dash-platform）が iframe なしでこの viz をホストする場合の受け渡し口。
+// DPX（apps/dpx）が iframe なしでこの viz をホストする場合の受け渡し口。
 // `export` を使わないのは、esbuild が成果物末尾に export{} を出力して
 // Studio の iframe が SyntaxError になるため（実機で確認済み）。
 // DPX 側は host.jsx がこのファイルを副作用 import してから受け取る。

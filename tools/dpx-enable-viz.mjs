@@ -54,7 +54,7 @@ for (const name of readdirSync(ROOT).sort()) {
 
     const indent = (s) => s.split('\n').map((l) => (l ? `    ${l}` : l)).join('\n');
     const head =
-        `\n// DPX（apps/dash-platform）が iframe なしでこの viz をホストする場合の受け渡し口。\n` +
+        `\n// DPX（apps/dpx）が iframe なしでこの viz をホストする場合の受け渡し口。\n` +
         `// \`export\` を使わないのは、esbuild が成果物末尾に export{} を出力して\n` +
         `// Studio の iframe が SyntaxError になるため（実機で確認済み）。\n` +
         `// DPX 側は host.jsx がこのファイルを副作用 import してから受け取る。\n` +
@@ -96,7 +96,7 @@ for (const name of readdirSync(ROOT).sort()) {
 
 /** host.jsx の中身（DPX 用エントリ。ここにだけ export を書く）。 */
 function makeHost(globalName) {
-    return `// dash-platform（DPX）用のホストエントリ。
+    return `// DPX 用のホストエントリ。
 //
 // なぜ別ファイルなのか:
 //   visualization.jsx は Studio 拡張の esbuild エントリで、format:'esm' でビルドされる。

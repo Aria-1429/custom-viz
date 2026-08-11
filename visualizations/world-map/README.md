@@ -385,7 +385,7 @@ Sydney,Tokyo,low,9000"
 
 #### 変更
 
-- **dash-platform（apps/dash-platform）からの iframe なしホスティングに対応**。
+- **DPX（apps/dpx）からの iframe なしホスティングに対応**。
   自己マウントをホスト検出ガード（`globalThis.__DASH_PLATFORM_HOST__`）で条件化し、
   ホスト側へ `App` を渡す口として **`src/host.jsx`** を追加した。
   **Studio 拡張（iframe）としての動作・見た目に変更はない**（実機で描画確認済み）。

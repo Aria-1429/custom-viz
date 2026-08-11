@@ -97,7 +97,7 @@ push とパネル撮影には `push-classic.mjs` / `shot-classic.mjs` を使う�
   … **Simple XML と Dashboard Studio の両方で表示できる**唯一の方式。
 - **Studio 拡張**（このリポジトリの `visualizations/<name>/`。`framework_type = studio_visualization` + `config.json`）… Studio 専用。
 
-**⭐ DPX（`apps/dash-platform/`）を触る依頼なら、着手前に必ず
+**⭐ DPX（`apps/dpx/`）を触る依頼なら、着手前に必ず
 [references/dpx-platform.md](references/dpx-platform.md) を読む**（2026-08-10 構築・実機検証）。
 DPX は **Studio でも classic でもない完全独自のダッシュボード基盤**（独立 React ページの上に
 自前エンジンを載せたもの）。**Studio 拡張 viz の作法（config.json / editorConfig 配信 /
