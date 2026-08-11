@@ -86,6 +86,40 @@ node tools/dashboard-loop/src/push.mjs apps/dpx/examples/aegis-soc.json --name d
 
 ---
 
+### [0.10.1] - 2026-08-11
+
+#### 修正
+
+- **`[ui] label` が AppInspect の規定（5〜80 文字）を満たしていなかった**のを修正
+  （`DPX` = 3 文字 → `DPX Dashboards`）。
+  `cloud` / `private_*` タグで **failure 1 件**になっていた。
+
+#### その他
+
+- **⭐ AppInspect 4.3.0 を実際に流して Cloud 系タグの通過を確認**（実測）:
+
+  | タグ | failure | future_failure | error | warning |
+  |---|---|---|---|---|
+  | `cloud` | 0 | 0 | 0 | 2 |
+  | `private_victoria` | 0 | 0 | 0 | 2 |
+  | `private_classic` | 0 | 0 | 0 | 2 |
+  | `private_app` | 0 | 0 | 0 | 2 |
+
+  - `check_for_custom_mako_templates` は **`not_applicable`**
+    （v0.2.0 で Mako を全廃済み。パッケージに `.html` は 0 件）
+  - warning 2 件は `@splunk/react-page` 由来で審査を止めない
+    （うち 1 件はメッセージ自身が「無視してよい」と明記するテレメトリ目的）
+  - ⚠ **これは静的検査の結果**。Splunk Cloud の実導入・手動レビューは未実施。
+
+  > **【訂正】** 従来ナレッジにあった「**DPX は Splunk Cloud に持ち込めない**」は**誤り**。
+  > Mako を同梱していた v0.1.x 時点の評価が、**v0.2.0 で前提が消えた後も結論だけ残っていた**。
+
+#### 成果物
+
+- `dist/dpx-0.10.1-431a625.spl`
+
+---
+
 ### [0.10.0] - 2026-08-11
 
 #### 追加

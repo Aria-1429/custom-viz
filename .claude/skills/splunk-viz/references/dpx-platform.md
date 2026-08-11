@@ -166,7 +166,44 @@ $SPLUNK_HOME/etc/apps/<app>/local/data/ui/views/<name>.xml   ← これ1枚が1�
 （ビューから参照して 200 を実測）。停止スイッチを既定 true にすると Splunk 自社製品が壊れるため、
 **この機構が急に消える可能性は低い**。
 
-**⭐ AppInspect は審査で落とし始める（2026-08-11 ソース確認）**:
+> ## 🛑【重要な訂正・2026-08-11】「DPX は Splunk Cloud に持ち込めない」は**誤り**
+>
+> **AppInspect 4.3.0 を v0.10.1 の `.spl` に実際に流した結果（実測）**:
+>
+> | タグ | failure | future_failure | error | warning |
+> |---|---|---|---|---|
+> | `cloud` | **0** | **0** | 0 | 2 |
+> | `private_victoria` | **0** | **0** | 0 | 2 |
+> | `private_classic` | **0** | **0** | 0 | 2 |
+> | `private_app` | **0** | **0** | 0 | 2 |
+>
+> **`check_for_custom_mako_templates` は `not_applicable`。**
+> 下の「持ち込めない」という結論は **Mako を使っていた頃（v0.1.x）の評価**で、
+> **v0.2.0 で Mako を全廃した時点で失効していた**のに、
+> 結論だけが残って**前提の変化が反映されていなかった**。
+> パッケージには `.html` が 0 件（`appserver/templates` も `appserver/modules` も無い）＝
+> **このチェックは発火しようがない**。
+>
+> **唯一の failure だったもの**（v0.10.0 で検出 → v0.10.1 で修正済み）:
+> `check_for_valid_ui_label` … `[ui] label` は **5〜80 文字**必要で、`DPX`（3 文字）が短すぎた。
+> → `DPX Dashboards` に変更。**Mako とは無関係の、1 行で直る指摘だった。**
+>
+> **残る warning 2 件**（いずれも審査を止めない）:
+> `check_for_splunk_js`（テレメトリ目的。メッセージ自身が "Please ignore this warning" と明記）と
+> `check_for_splunk_js_header_and_footer_view`（6.5 で非推奨の API 名がバンドル文字列に含まれる）。
+> どちらも **`@splunk/react-page` 由来**で、DPX が直接呼んでいるわけではない。
+>
+> **教訓（強く効く）**:
+> 1. **「審査で落ちる」は実行して確かめる。** AppInspect はローカルで流せる
+>    （`splunk-appinspect inspect <spl> --included-tags cloud`）。**ソースを読んで推論しない。**
+> 2. **前提が変わったら結論も見直す。** 「Mako があるから落ちる」は正しかったが、
+>    **Mako を消した自分の変更で前提が消えていた**。
+>    ナレッジに否定的な結論を書いたら、**その根拠が生きているかを毎回確かめる**。
+> 3. **否定的な結論ほど検証コストを払う。** 「できない」は相手の選択肢を奪う主張なので、
+>    肯定的な主張より強い根拠が要る。
+
+**⭐ AppInspect のチェック内容（2026-08-11 ソース確認）**
+※ **以下は「Mako を同梱していた場合」の話。現在の DPX には該当しない**（上の訂正を参照）:
 `check_for_custom_mako_templates` = **`appserver/templates/`（または `appserver/modules/`）に
 `.html` が存在するだけで `FailMessage`**（内容不問。DPX の dashboard.html / home.html は無条件該当。
 空ファイルでも引っかかる）。
@@ -175,7 +212,9 @@ $SPLUNK_HOME/etc/apps/<app>/local/data/ui/views/<name>.xml   ← これ1枚が1�
 - 対象タグは `cloud` / `private_app` / `private_victoria` / `private_classic` / `migration_victoria`
   ＝ **Splunkbase 提出と Splunk Cloud の私有アプリ審査**。**セルフマネージド Enterprise の実行時には
   何も強制されない**
-- → **DPX は Splunk Cloud には持ち込めない**（審査で落ちる）。Enterprise 専用と割り切る
+- → ~~**DPX は Splunk Cloud には持ち込めない**（審査で落ちる）。Enterprise 専用と割り切る~~
+  **【訂正】この結論は誤り**（上の訂正ブロックを参照）。Mako 全廃後は
+  このチェックが `not_applicable` になり、**cloud / private_* すべて failure 0** で通る（実測）
 - 是正指示は「UCC ≥6.3.0 か `@splunk/create` ≥11.0.0 で作り直せ」＝標準テンプレート移行
   （上の全数調査で棄却済みの道）。**新しい逃げ道は示されていない**
 - ⚠ 公式 10.4 非推奨ページの「AppInspect version 3.81 で置き換え勧告開始」は**不正確**。

@@ -1,6 +1,6 @@
 {
     "name": "@splunk/dpx",
-    "version": "0.10.0",
+    "version": "0.10.1",
     "license": "UNLICENSED",
     "private": true,
     "description": "新ダッシュボード基盤（Dashboard Framework を独立 React ページでホストする実証）",
