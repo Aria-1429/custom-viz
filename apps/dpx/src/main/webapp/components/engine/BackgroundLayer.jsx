@@ -26,6 +26,7 @@ export const BACKGROUND_OPTIONS = [
     { value: 'graphPaper', label: '方眼（図面の升目）', group: 'パターン' },
     { value: 'halftone', label: 'ハーフトーン（網点）', group: 'パターン' },
     { value: 'thermalScan', label: 'サーマル（走査線と熱溜まり）', group: 'グラデーション' },
+    { value: 'washBlooms', label: '水彩のにじみ（乾いた縁）', group: 'グラデーション' },
     { value: 'starfield', label: '星空（流れる）', group: 'キャンバス' },
     { value: 'glow', label: 'グロー（隅の光）', group: 'グラデーション' },
     { value: 'aurora', label: 'オーロラ（ゆらぐ光幕）', group: 'グラデーション' },
@@ -357,6 +358,17 @@ export default function BackgroundLayer({ kind, accent }) {
                 `repeating-linear-gradient(0deg, transparent 0px, transparent 2px, rgba(0,0,0,0.16) 2px, rgba(0,0,0,0.16) 3px),` +
                 `radial-gradient(ellipse 70% 45% at 30% 105%, ${accent}30, transparent 60%),` +
                 `radial-gradient(ellipse 55% 40% at 80% 100%, ${accent}22, transparent 60%)`,
+        },
+        washBlooms: {
+            // 水彩のにじみ：乾くとき顔料が縁に寄る「エッジの濃まり」＝**輪の染み**。
+            // ⚠ 中を薄膜で塗らない。当初は内側にも 5% の薄膜を敷いたら、
+            //   生成りの紙地の上で青が濁って**灰色の卵形の染み**に見えた（実機で確認）。
+            //   染みは「縁の輪だけ」にし、輪の立ち上がりもなだらかにする。
+            // 大中小の3滴。静的＝合成は一度きりで raster が軽い
+            backgroundImage:
+                `radial-gradient(ellipse 34% 26% at 22% 24%, transparent 0%, transparent 58%, ${accent}08 70%, ${accent}24 80%, transparent 88%),` +
+                `radial-gradient(ellipse 28% 22% at 76% 62%, transparent 0%, transparent 56%, ${accent}07 70%, ${accent}1f 80%, transparent 88%),` +
+                `radial-gradient(ellipse 18% 15% at 46% 88%, transparent 0%, transparent 54%, ${accent}06 68%, ${accent}1b 79%, transparent 88%)`,
         },
         vignette: {
             backgroundImage: 'radial-gradient(ellipse 80% 70% at 50% 45%, transparent 40%, rgba(0,0,0,0.55) 100%)',

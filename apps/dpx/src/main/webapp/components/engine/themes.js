@@ -36,10 +36,25 @@ const PALETTES = {
     thermal: ['#ff9d2e', '#ff5a3c', '#ffd447', '#c2447f', '#7a3fa8', '#39c2c9'],
     // E Ink：電子ペーパー。彩度をほぼ持たず、濃淡で系列を分ける
     eink: ['#2b2b2b', '#6b6b6b', '#4a5a6a', '#8a8a8a', '#3f4f45', '#a0a0a0'],
+    // 水彩：透明水彩の定番顔料（セルリアン・ローズマダー・サップグリーン・
+    // イエローオーカー・すみれ・バーントシェンナ）。
+    // ⚠ 紙地の上に `linear-gradient(色 → 色+77)` で面塗りされるので、
+    //   絵具の「薄めた一段」に相当する中明度で持つ（letterpress と同じ理由）
+    watercolor: ['#4a90bd', '#c46a84', '#6aa06f', '#c9973f', '#8a74b8', '#bd7a55'],
+    // クレヨン：黒画用紙に描く蝋の色。混色できない画材なので原色寄りの6色
+    crayon: ['#ff6b4a', '#ffce3d', '#4db8e8', '#7ed957', '#ff5fa2', '#ffa03d'],
+    // 色鉛筆：芯の色。紙の白が透けるぶん、彩度を一段落とした「粉っぽい」色
+    pencil: ['#4a78b5', '#c0504d', '#5f9455', '#d9a33d', '#8a68a8', '#3f9a9a'],
+    // インク＋水彩：ペン画に置くウォッシュ。インクの黒に負けない濁りのない中間色
+    inkwash: ['#4a80ad', '#bf6a55', '#6a9a70', '#c99a45', '#7d6ba8', '#528fa0'],
 };
 
 /** 明るい地のプリセット（colorScheme=light 扱い）。 */
-const LIGHT_PRESETS = new Set(['light', 'paper', 'letterpress', 'eink']);
+const LIGHT_PRESETS = new Set([
+    'light', 'paper', 'letterpress', 'eink',
+    // 手描き系は「紙」が地なのでライト扱い（クレヨンだけ黒画用紙＝ダーク）
+    'watercolor', 'pencil', 'inkwash',
+]);
 
 export const DPX_PRESETS = {
     midnight: {
@@ -344,6 +359,140 @@ export const DPX_PRESETS = {
             },
         },
     },
+    watercolor: {
+        ...base,
+        name: '水彩（にじみの紙）',
+        // コールドプレスの水彩紙。地は生成りで、隅に薄めた顔料のウォッシュを
+        // 乾かした跡を置く。**にじみは「縁が中心より濃い」**（乾くとき顔料が
+        // 縁に寄る＝エッジの濃まり）。radial-gradient の段差でその縁を作る。
+        // ⚠ 全レイヤ静的（animate しない）。合成は一度きり
+        // 濃度は控えめ→「もっと露骨に」の指示で一段上げた（2026-08-12）。
+        // 4隅に別顔料のウォッシュを置き、縁（78%付近）を中より2倍濃くする
+        canvasBg:
+            'radial-gradient(ellipse 52% 40% at 8% 4%, rgba(74,144,189,0.10) 0%, rgba(74,144,189,0.10) 58%, rgba(74,144,189,0.22) 76%, transparent 84%),' +
+            ' radial-gradient(ellipse 44% 36% at 96% 90%, rgba(196,106,132,0.09) 0%, rgba(196,106,132,0.09) 56%, rgba(196,106,132,0.20) 76%, transparent 84%),' +
+            ' radial-gradient(ellipse 30% 24% at 80% 8%, rgba(201,151,63,0.08) 0%, rgba(201,151,63,0.08) 54%, rgba(201,151,63,0.17) 74%, transparent 83%),' +
+            ' radial-gradient(ellipse 26% 20% at 30% 96%, rgba(106,160,111,0.07) 0%, rgba(106,160,111,0.07) 52%, rgba(106,160,111,0.15) 74%, transparent 83%),' +
+            ' linear-gradient(180deg, #f8f5ee 0%, #f2eee2 100%)',
+        titleColor: '#2b3440', // ペインズグレー（水彩の「黒」は青みの灰）
+        subColor: 'rgba(43, 52, 64, 0.6)',
+        accent: '#3f8fbf', // セルリアンブルー
+        errorColor: '#b8434e',
+        selection: '#3f8fbf',
+        // 手描きの温度は丸ゴシックで出す（無い環境は素直にサンセリフへ落ちる）
+        fontFamily:
+            "'Hiragino Maru Gothic ProN', 'BIZ UDPGothic', 'Yu Gothic', 'Meiryo', sans-serif",
+        panel: {
+            card: {
+                // 紙の上の「白を残した一枠」。輪郭線ではなく薄い顔料の縁で示す
+                background: 'rgba(255, 255, 253, 0.72)',
+                border: '1px solid rgba(63, 143, 191, 0.26)',
+                boxShadow: 'inset 0 0 10px rgba(63, 143, 191, 0.08)',
+            },
+            glass: {
+                background: 'rgba(255, 255, 253, 0.55)',
+                border: '1px solid rgba(63, 143, 191, 0.2)',
+                boxShadow: 'none',
+                backdropFilter: 'blur(4px)',
+            },
+        },
+    },
+    crayon: {
+        ...base,
+        name: 'クレヨン（黒画用紙）',
+        // 黒画用紙にオイルパステル。手描き系4種で唯一の暗い地。
+        // 紙の目（tooth）は 1px の明るい粒＝面積比例の塗りにならない。
+        // パステルの「こすった跡」を隅に2枚だけ、ごく薄く置く
+        // ⚠ canvasBg は `background:` 一括指定で使われる（DpxDashboard/HomePage）。
+        //   紙の目のタイルは「位置 / サイズ」構文（`0 0 / 5px 5px`）で書く
+        //   （backgroundSize を別プロパティで足す口が無いため）
+        canvasBg:
+            'radial-gradient(rgba(255,255,255,0.055) 1px, transparent 1px) 0 0 / 5px 5px, ' +
+            'radial-gradient(ellipse 40% 30% at 8% 100%, rgba(255,107,74,0.13), transparent 62%),' +
+            ' radial-gradient(ellipse 36% 28% at 96% 4%, rgba(77,184,232,0.11), transparent 62%),' +
+            ' radial-gradient(ellipse 26% 22% at 55% 100%, rgba(126,217,87,0.08), transparent 60%),' +
+            ' linear-gradient(180deg, #262220 0%, #1f1c19 100%)',
+        titleColor: '#f3ece1', // チョークの白
+        subColor: 'rgba(243, 236, 225, 0.55)',
+        accent: '#ffce3d', // クロムイエロー
+        errorColor: '#ff5c5c',
+        selection: '#ffce3d',
+        fontFamily:
+            "'Hiragino Maru Gothic ProN', 'BIZ UDPGothic', 'Yu Gothic', 'Meiryo', sans-serif",
+        panel: {
+            card: {
+                background: 'rgba(40, 36, 31, 0.88)',
+                border: '1px solid rgba(243, 236, 225, 0.14)',
+                boxShadow: 'none',
+            },
+            glass: {
+                background: 'rgba(46, 41, 35, 0.5)',
+                border: '1px solid rgba(255, 206, 61, 0.22)',
+                boxShadow: 'none',
+                backdropFilter: 'blur(5px)',
+            },
+        },
+    },
+    pencil: {
+        ...base,
+        name: '色鉛筆（スケッチブック）',
+        // スケッチブックの紙。細かい紙目（4px 間隔の 1px 粒）だけを敷き、
+        // 色は乗せない（色は系列色＝芯の色に任せる。地が主張すると芯が濁る）
+        canvasBg:
+            'radial-gradient(rgba(70, 75, 85, 0.09) 1px, transparent 1px) 0 0 / 4px 4px, ' +
+            'linear-gradient(180deg, #f5f3ee 0%, #efede5 100%)',
+        titleColor: '#2e3138', // グラファイト
+        subColor: 'rgba(46, 49, 56, 0.58)',
+        accent: '#4a78b5', // 青鉛筆（校正の青）
+        errorColor: '#c0504d', // 赤鉛筆
+        selection: '#4a78b5',
+        fontFamily:
+            "'Hiragino Maru Gothic ProN', 'BIZ UDPGothic', 'Yu Gothic', 'Meiryo', sans-serif",
+        panel: {
+            card: {
+                // 鉛筆の枠線は「二度引き」＝本線＋わずかにずれた薄い線
+                background: 'rgba(255, 255, 255, 0.75)',
+                border: '1px solid rgba(46, 49, 56, 0.42)',
+                boxShadow: '1.5px 1.5px 0 0 rgba(46, 49, 56, 0.14)',
+            },
+            glass: {
+                background: 'rgba(255, 255, 255, 0.58)',
+                border: '1px solid rgba(46, 49, 56, 0.3)',
+                boxShadow: 'none',
+                backdropFilter: 'blur(4px)',
+            },
+        },
+    },
+    inkwash: {
+        ...base,
+        name: 'インク＋水彩（ペン画）',
+        // アーバンスケッチ（ペン＋淡彩）。地は旅帳の生成り。
+        // 群青のウォッシュを上辺に一刷け、隅は紙の日焼けでわずかに沈める
+        canvasBg:
+            'radial-gradient(ellipse 60% 30% at 70% 0%, rgba(74,128,173,0.15), transparent 62%),' +
+            ' radial-gradient(ellipse 34% 24% at 6% 92%, rgba(191,106,85,0.10), transparent 62%),' +
+            ' radial-gradient(ellipse 120% 90% at 50% 50%, transparent 60%, rgba(110,90,60,0.10) 100%),' +
+            ' linear-gradient(180deg, #f6f1e4 0%, #f1ebdc 100%)',
+        titleColor: '#262119', // セピアの製図インク
+        subColor: 'rgba(38, 33, 25, 0.6)',
+        accent: '#3b78a8', // ウルトラマリンのウォッシュ
+        errorColor: '#a8433a',
+        selection: '#3b78a8',
+        panel: {
+            card: {
+                // インクの輪郭線＋右下に「ペンの溜まり」を落とす
+                background: 'rgba(252, 249, 241, 0.8)',
+                border: '1px solid rgba(38, 33, 25, 0.55)',
+                boxShadow: '2px 2px 0 -0.5px rgba(38, 33, 25, 0.18)',
+            },
+            glass: {
+                background: 'rgba(252, 249, 241, 0.6)',
+                border: '1px solid rgba(38, 33, 25, 0.35)',
+                boxShadow: 'none',
+                backdropFilter: 'blur(4px)',
+            },
+        },
+    },
     light: {
         ...base,
         name: 'ライト',
@@ -537,6 +686,10 @@ export const PANEL_VARIANTS = [
     { value: 'blueprint', label: '方眼紙（設計図）' },
     { value: 'ticket', label: '伝票（上辺ミシン目）' },
     { value: 'letterpress', label: '活版（細罫）' },
+    { value: 'watercolor', label: '水彩（にじみの縁）' },
+    { value: 'crayon', label: 'クレヨン（蝋の縁取り）' },
+    { value: 'pencil', label: '色鉛筆（ハッチング）' },
+    { value: 'inkwash', label: 'インク＋水彩（ペン画）' },
     { value: 'polaroid', label: '印画紙（下に広い余白）' },
     { value: 'punchCard', label: 'パンチカード（上辺に切り欠き）' },
     { value: 'titleBlock', label: '表題欄（図面の枠）' },
@@ -677,6 +830,75 @@ export function panelSurface(theme, variant, bracketLen = 11) {
             boxShadow: 'none',
             // 中身を縁から少し離す（罫に文字やスクロールバーが貼り付かないように）
             padding: PANEL_INNER_PAD,
+        };
+    }
+    if (variant === 'watercolor') {
+        // 水彩のウォッシュ：輪郭線を引かず、**乾いた縁に顔料が寄る**現象
+        // （エッジの濃まり）を inset shadow の2枚重ねで作る。
+        // 中心はほぼ紙のまま、縁に向かってアクセントの顔料が濃くなる。
+        // ⚠ backgroundImage を使うので色は backgroundColor で指定する（§background 一括の罠）
+        return {
+            backgroundColor:
+                theme.colorScheme === 'light' ? 'rgba(255, 255, 253, 0.66)' : 'rgba(22, 30, 44, 0.6)',
+            // 塗りムラ：一隅からの薄いウォッシュを1枚だけ（静的・面積の小さい塗り）
+            backgroundImage: `radial-gradient(ellipse 120% 90% at 28% 18%, ${theme.accent}1f, transparent 70%)`,
+            border: 'none',
+            // 実機で「ほぼ普通のカード」に見えたため2回濃くした
+            // （「もっと露骨に」のユーザー指示。24/2e → 2b/38 → 45/52）
+            boxShadow: `inset 0 0 22px ${theme.accent}45, inset 0 0 5px ${theme.accent}52`,
+            // 水の縁は角張らない。質感側で丸みを持つ（個別指定があれば後勝ちで上書きされる）
+            borderRadius: 9,
+        };
+    }
+    if (variant === 'crayon') {
+        // クレヨンの縁取り：太く・少し透ける蝋の線。
+        // 蝋は完全に紙を覆わないので不透明にしない（b8=72%）。
+        // 内側にもう一周「こすった跡」を薄く回すと、単なる太枠に見えなくなる。
+        // 角は丸く（クレヨンで直角は引けない＝角丸はこの質感の意匠の一部）
+        return {
+            backgroundColor:
+                theme.colorScheme === 'light' ? 'rgba(255, 255, 255, 0.6)' : 'rgba(30, 27, 23, 0.72)',
+            border: `4px solid ${theme.accent}cc`,
+            // 蝋の二度塗り：内側にもう一周＋**外側にずらしたもう一筆**
+            // （クレヨンは同じ線を2回なぞる。ずれが「手」の証拠になる）
+            boxShadow: `inset 0 0 0 3px ${theme.accent}33, 3px 3px 0 0 ${theme.accent}59`,
+            borderRadius: 12,
+        };
+    }
+    if (variant === 'pencil') {
+        // 色鉛筆：**二度引きの輪郭線**（本線＋わずかにずれた薄い線）と、
+        // アクセント色の斜めハッチング。手の角度（115deg）で、
+        // holo（7px 間隔）より細かい 4px 間隔にして「塗り」に見せる
+        const graphite =
+            theme.colorScheme === 'light' ? 'rgba(52, 56, 64, 0.62)' : 'rgba(220, 224, 232, 0.5)';
+        return {
+            backgroundColor:
+                theme.colorScheme === 'light' ? 'rgba(255, 255, 255, 0.62)' : 'rgba(18, 24, 36, 0.6)',
+            // クロスハッチ：主方向（手の角度 115deg・濃く密）＋交差方向（25deg・薄く粗く）。
+            // 1方向だけだと「薄い縞」にしか見えなかったので交差させて「塗り」にする
+            backgroundImage:
+                `repeating-linear-gradient(115deg, ${theme.accent}24 0px, ${theme.accent}24 1px, transparent 1px, transparent 4px),` +
+                ` repeating-linear-gradient(25deg, ${theme.accent}0f 0px, ${theme.accent}0f 1px, transparent 1px, transparent 7px)`,
+            border: `1px solid ${graphite}`,
+            boxShadow: `2.5px 2.5px 0 0 ${
+                theme.colorScheme === 'light' ? 'rgba(52, 56, 64, 0.28)' : 'rgba(220, 224, 232, 0.2)'
+            }`,
+        };
+    }
+    if (variant === 'inkwash') {
+        // ペン画（インク＋淡彩）：くっきりしたインクの輪郭線と、
+        // **線と重ならない位置に置いたウォッシュ**（淡彩は線からはみ出すのが流儀）。
+        // 右下の box-shadow はペンの「入りと抜き」で線が太る癖の表現
+        const ink =
+            theme.colorScheme === 'light' ? 'rgba(38, 33, 25, 0.72)' : 'rgba(235, 228, 214, 0.6)';
+        return {
+            backgroundColor:
+                theme.colorScheme === 'light' ? 'rgba(253, 250, 243, 0.7)' : 'rgba(24, 28, 38, 0.7)',
+            backgroundImage: `radial-gradient(ellipse 90% 70% at 16% 0%, ${theme.accent}38, transparent 64%)`,
+            border: `2px solid ${ink}`,
+            boxShadow: `3px 3px 0 -1px ${
+                theme.colorScheme === 'light' ? 'rgba(38, 33, 25, 0.3)' : 'rgba(0, 0, 0, 0.5)'
+            }`,
         };
     }
     if (variant === 'polaroid') {
