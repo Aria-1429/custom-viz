@@ -47,6 +47,9 @@ const PALETTES = {
     pencil: ['#4a78b5', '#c0504d', '#5f9455', '#d9a33d', '#8a68a8', '#3f9a9a'],
     // インク＋水彩：ペン画に置くウォッシュ。インクの黒に負けない濁りのない中間色
     inkwash: ['#4a80ad', '#bf6a55', '#6a9a70', '#c99a45', '#7d6ba8', '#528fa0'],
+    // Liquid Glass（iOS 26）：Apple のシステムカラー系。銀地のガラス越しでも
+    // 沈まない、彩度の高い中明度6色（blue/green/orange/red/purple/teal）
+    liquidGlass: ['#007aff', '#34c759', '#ff9500', '#ff3b30', '#af52de', '#30b0c7'],
 };
 
 /** 明るい地のプリセット（colorScheme=light 扱い）。 */
@@ -54,6 +57,8 @@ const LIGHT_PRESETS = new Set([
     'light', 'paper', 'letterpress', 'eink',
     // 手描き系は「紙」が地なのでライト扱い（クレヨンだけ黒画用紙＝ダーク）
     'watercolor', 'pencil', 'inkwash',
+    // Liquid Glass は WWDC25 の銀地（ライト）
+    'liquidGlass',
 ]);
 
 export const DPX_PRESETS = {
@@ -493,6 +498,44 @@ export const DPX_PRESETS = {
             },
         },
     },
+    liquidGlass: {
+        ...base,
+        name: 'Liquid Glass（iOS 26）',
+        // WWDC25 のキービジュアルの舞台＝銀のグラデーションに細いグリッド。
+        // ガラスは「背景を屈折させて見せる」材質なので、地には
+        // (1) 淡い色の溜まり（屈折で見えるもの）と (2) グリッド（歪みの基準線）を敷く。
+        // ⚠ 全レイヤ静的。**この上のガラス質感は backdrop-filter を使う**ので、
+        //   動く背景（particles 等）と組み合わせると毎フレーム再ブラーになる。
+        //   プリセットの地は静的にして、その組み合わせを既定にしない
+        canvasBg:
+            'linear-gradient(rgba(110,120,140,0.15) 1px, transparent 1px) 0 0 / 120px 120px, ' +
+            'linear-gradient(90deg, rgba(110,120,140,0.15) 1px, transparent 1px) 0 0 / 120px 120px, ' +
+            'radial-gradient(ellipse 55% 45% at 18% 8%, rgba(0,122,255,0.18), transparent 62%),' +
+            ' radial-gradient(ellipse 45% 40% at 90% 92%, rgba(255,149,0,0.14), transparent 62%),' +
+            ' radial-gradient(ellipse 40% 35% at 8% 96%, rgba(175,82,222,0.12), transparent 60%),' +
+            ' linear-gradient(160deg, #eceef2 0%, #dde0e6 55%, #cfd3da 100%)',
+        titleColor: '#1c1f26',
+        subColor: 'rgba(28, 31, 38, 0.55)',
+        accent: '#007aff', // iOS システムブルー
+        errorColor: '#ff3b30',
+        selection: '#007aff',
+        // SF Pro 系。無い環境は各 OS のシステムフォントへ
+        fontFamily:
+            "-apple-system, 'SF Pro Text', 'Segoe UI Variable', 'Segoe UI', 'Hiragino Sans', sans-serif",
+        panel: {
+            card: {
+                background: 'rgba(255, 255, 255, 0.55)',
+                border: '1px solid rgba(255, 255, 255, 0.75)',
+                boxShadow: '0 8px 24px rgba(24, 32, 48, 0.14)',
+            },
+            glass: {
+                background: 'rgba(255, 255, 255, 0.32)',
+                border: '1px solid rgba(255, 255, 255, 0.65)',
+                boxShadow: '0 8px 24px rgba(24, 32, 48, 0.16)',
+                backdropFilter: 'blur(10px) saturate(150%)',
+            },
+        },
+    },
     light: {
         ...base,
         name: 'ライト',
@@ -690,6 +733,7 @@ export const PANEL_VARIANTS = [
     { value: 'crayon', label: 'クレヨン（蝋の縁取り）' },
     { value: 'pencil', label: '色鉛筆（ハッチング）' },
     { value: 'inkwash', label: 'インク＋水彩（ペン画）' },
+    { value: 'liquidGlass', label: 'Liquid Glass（iOS 26 のガラス）' },
     { value: 'polaroid', label: '印画紙（下に広い余白）' },
     { value: 'punchCard', label: 'パンチカード（上辺に切り欠き）' },
     { value: 'titleBlock', label: '表題欄（図面の枠）' },
@@ -899,6 +943,65 @@ export function panelSurface(theme, variant, bracketLen = 11) {
             boxShadow: `3px 3px 0 -1px ${
                 theme.colorScheme === 'light' ? 'rgba(38, 33, 25, 0.3)' : 'rgba(0, 0, 0, 0.5)'
             }`,
+        };
+    }
+    if (variant === 'liquidGlass') {
+        // Liquid Glass（iOS 26 / WWDC25）：**ほぼ透明な「厚いガラスのレンズ」**。
+        // 既存の glass（すりガラス）との違いは、曇らせて隠すのではなく
+        // **縁で光が屈折している**ように見せること。要素は4つ:
+        //   (1) 上辺のスペキュラハイライト（inset 0 1px）＝光源の写り込み
+        //   (2) 全周のヘアラインの明縁＋内側への光の回り込み（厚みの表現）
+        //   (3) 下辺の分光（薄い虹の帯）＝WWDC25 キービジュアルの縁の虹
+        //   (4) 浮遊感のある柔らかい落ち影
+        // ⚠ backdrop-filter を使う（この質感の本質なので例外的に許容。
+        //   ただし**動く背景と組み合わせると毎フレーム再ブラー**になるので、
+        //   静的背景（グラデ／パターン系）との組み合わせを推奨）
+        const isLight = theme.colorScheme === 'light';
+        return {
+            // 白濁させない：塗りは最小限にして「透けている」ことを最優先する
+            // （初版 0.22 では白いカードに見えた。実機スクショで確認して下げた）
+            backgroundColor: isLight ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.06)',
+            // 4レイヤ：**湾曲したシートグレア**（上半分に大きく回り込む照り。
+            // 平面のグラデでは「板」に、楕円の照りは「湾曲したガラス」に見える）／
+            // 斜めの窓映り込み（反射ストリーク）／面の照度差／下辺の分光
+            // ⚠ **ダークテーマでは光り物を大幅に絞る**（2026-08-12 ユーザー指摘「やりすぎ」）。
+            //   暗い地では白いグレアが「油膜の汚れ」に見える。ダーク側は
+            //   屈折（フィルタ）とヘアラインに語らせ、面の照りはほぼ消す
+            // ⚠ **ダークは照りのレイヤを持たない**（分光ラインのみ）。
+            //   微弱（2〜7%）でも紺地では「霧状の滲み」に見える（2026-08-12「まだ滲んでる」）。
+            //   ダークのガラスらしさは縁の屈折・ヘアライン・スペキュラだけで出す
+            backgroundImage: isLight
+                ? `radial-gradient(ellipse 130% 70% at 50% -25%, rgba(255,255,255,0.36) 38%, rgba(255,255,255,0.09) 55%, transparent 68%), ` +
+                  `linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.4) 36%, rgba(255,255,255,0.12) 46%, transparent 55%), ` +
+                  `linear-gradient(165deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.02) 42%, rgba(255,255,255,0.1) 100%), ` +
+                  'linear-gradient(90deg, transparent 16%, rgba(255,80,80,0.38) 36%, rgba(90,235,130,0.38) 52%, rgba(120,110,255,0.38) 68%, transparent 86%)'
+                : 'linear-gradient(90deg, transparent 16%, rgba(255,80,80,0.22) 36%, rgba(90,235,130,0.22) 52%, rgba(120,110,255,0.22) 68%, transparent 86%)',
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: isLight ? '100% 100%, 100% 100%, 100% 100%, 100% 2px' : '100% 2px',
+            backgroundPosition: isLight ? '0 0, 0 0, 0 0, 0 100%' : '0 100%',
+            border: 'none',
+            boxShadow: [
+                // (1) 上辺のスペキュラ
+                `inset 0 1.5px 1px rgba(255,255,255,${isLight ? 0.95 : 0.4})`,
+                // (2) ヘアラインの明縁＋光の回り込み（厚いガラスの縁）。
+                //     ⚠ ダークの回り込みは半径・濃度とも最小に（広いと縁の霧になる）
+                `inset 0 0 0 1px rgba(255,255,255,${isLight ? 0.7 : 0.24})`,
+                `inset 0 0 ${isLight ? 24 : 8}px rgba(255,255,255,${isLight ? 0.42 : 0.06})`,
+                // (3) 下縁の沈み＝ガラスの厚みが落とす内側の影
+                `inset 0 -1.5px 2px rgba(30, 40, 60, ${isLight ? 0.22 : 0.4})`,
+                // (4) 浮遊感（ガラスは面から浮いている）
+                isLight ? '0 10px 30px rgba(24, 32, 48, 0.2)' : '0 10px 30px rgba(0, 0, 0, 0.5)',
+            ].join(', '),
+            // ⭐ レンズの屈折（本質）。SVG の変位マップで backdrop を縁だけ歪ませる。
+            //   フィルタ定義は LiquidGlassDefs（DpxDashboard が常設。同一 DOM だから届く）。
+            // ⚠ ダークは blur も saturate も掛けない（url のみ）。
+            //   ソフトなグローの背景に 2px のブラーが乗るだけで全面の滲みに見える
+            backdropFilter: isLight
+                ? 'url(#dpx-liquid-lens) blur(2px) saturate(150%)'
+                : 'url(#dpx-liquid-lens)',
+            // カプセルに近い大きな丸み＝この材質の造形言語。
+            // ダッシュボード側の radius 既定（2px）に任せると板ガラスに見えない
+            borderRadius: 24,
         };
     }
     if (variant === 'polaroid') {

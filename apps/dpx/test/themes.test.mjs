@@ -77,6 +77,21 @@ const sInk = panelSurface(wt, 'inkwash');
 ok(/^2px solid /.test(String(sInk.border)), 'インク＋水彩: インクの輪郭線（2px）');
 ok(String(sInk.backgroundImage).includes('radial-gradient'), 'インク＋水彩: ウォッシュがある');
 
+// ── 4.5 Liquid Glass（iOS 26） ─────────────────────────────────
+ok(resolveTheme({ style: { preset: 'liquidGlass' } }).colorScheme === 'light', 'Liquid Glass はライト扱い（銀地）');
+for (const scheme of ['midnight', 'liquidGlass']) {
+    const t = resolveTheme({ style: { preset: scheme } });
+    const s = panelSurface(t, 'liquidGlass');
+    ok(s.border === 'none', `${scheme}/liquidGlass: 枠線ではなく縁の光で見せる`);
+    // ダークは blur/saturate を掛けない（滲み対策）ので「レンズフィルタ参照」を本質とする
+    ok(
+        String(s.backdropFilter).includes('url(#dpx-liquid-lens)'),
+        `${scheme}/liquidGlass: レンズフィルタ（屈折＝ガラスの本質）を参照している`
+    );
+    ok(/inset 0 1(\.5)?px/.test(String(s.boxShadow)), `${scheme}/liquidGlass: 上辺のスペキュラがある`);
+    ok(Number(s.borderRadius) >= 20, `${scheme}/liquidGlass: カプセルの大きな丸みを自前で持つ`);
+}
+
 // ── 5. 区画（グループ）流用でも壊れない ────────────────────────
 for (const v of ['watercolor', 'crayon', 'pencil', 'inkwash']) {
     const g = groupSurface(wt, v);

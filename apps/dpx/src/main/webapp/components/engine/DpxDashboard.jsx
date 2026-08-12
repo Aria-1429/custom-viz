@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { createURL } from '@splunk/splunk-utils/url';
 
 import BackgroundLayer from './BackgroundLayer';
+import LiquidGlassDefs from './liquidGlassDefs';
 import { resolvePanelSearch } from './dataSources';
 import PanelContextMenu, { buildSearchUrl, toCsv } from './PanelContextMenu';
 import InputsBar from './InputsBar';
@@ -1317,6 +1318,7 @@ export default function DpxDashboard({
             }}
         >
             <BackgroundLayer kind={definition.style?.background} accent={t.accent} />
+            <LiquidGlassDefs />
             <div style={{ position: 'relative', zIndex: 1 }}>
                 {showHeader ? (
                     <DashboardHeader t={t} definition={definition} now={now} />
