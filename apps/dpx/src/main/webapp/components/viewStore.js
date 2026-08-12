@@ -188,21 +188,52 @@ export async function createView({ app, name, label, definition: providedDefinit
         .catch(handleError('共有設定の変更に失敗しました'));
 }
 
-/** 削除。 */
-export async function deleteView({ app, name }) {
-    let lastErr = null;
-    for (const owner of [username, 'nobody']) {
-        try {
-            const url = createRESTURL(`data/ui/views/${encodeURIComponent(name)}`, { app, owner });
-            await fetch(`${url}?output_mode=json`, { ...defaultFetchInit, method: 'DELETE' }).then(
-                handleResponse(200)
-            );
-            return;
-        } catch (err) {
-            lastErr = err;
-        }
+/** 失敗レスポンスから人間が読める文言を取り出す。
+ *  ⚠ これを通さず Response をそのまま throw すると、画面に
+ *  「削除に失敗: [object Response]」と出る（実機で発生した不具合）。 */
+async function messageFromResponse(res, fallback) {
+    try {
+        const body = await res.json();
+        const text = body?.messages?.[0]?.text;
+        if (text) return `${fallback}（HTTP ${res.status}: ${text}）`;
+    } catch {
+        /* JSON でない応答はそのまま落ちる */
     }
-    throw lastErr ?? new Error('削除に失敗しました');
+    return `${fallback}（HTTP ${res.status}）`;
+}
+
+/** 削除。
+ *
+ *  ⚠ **試す名前空間は ACL の実態から決める**（2026-08-13 修正）:
+ *    - アプリ/グローバル共有 … 実体は **nobody** 名前空間（owner 名では 404。実機で確認）
+ *    - プライベート … **所有者**の名前空間（自分以外の private は一覧に出ない）
+ *    旧実装は [username, 'nobody'] 固定だったため、他ユーザーが所有する
+ *    共有ボードでも順に舐めれば消せたが、**404 以外の失敗（403 権限なし等）も
+ *    「次の owner を試す」で握り潰し、最後に生の Response を throw していた**
+ *    → 画面が「削除に失敗: [object Response]」になっていた。
+ *    404（そこに実体が無い）だけ次を試し、**403 等は即座に理由を表示する**。 */
+export async function deleteView({ app, name, owner, sharing }) {
+    const namespaces =
+        sharing === 'user'
+            ? [...new Set([owner, username].filter(Boolean))]
+            : [...new Set(['nobody', owner, username].filter(Boolean))];
+    let lastMessage = null;
+    for (const ns of namespaces) {
+        const url = createRESTURL(`data/ui/views/${encodeURIComponent(name)}`, { app, owner: ns });
+        const res = await fetch(`${url}?output_mode=json`, {
+            ...defaultFetchInit,
+            method: 'DELETE',
+        });
+        if (res.ok) return;
+        if (res.status === 404) {
+            // この名前空間に実体が無いだけ。次の候補を試す
+            lastMessage = await messageFromResponse(res, '削除対象が見つかりません');
+            continue;
+        }
+        // 404 以外（403 権限なし・405 削除不可 等）は理由が確定しているので即座に伝える
+        throw new Error(await messageFromResponse(res, '削除できません'));
+    }
+    throw new Error(lastMessage ?? '削除に失敗しました');
 }
 
 /** このプラットフォームのダッシュボードを全アプリ横断で一覧する。
@@ -231,8 +262,18 @@ export async function listDashboards() {
                     app: e.acl.app,
                     owner: e.acl.owner,
                     sharing: e.acl.sharing,
+                    // 削除・保存の可否（UI 側でボタンの活性に使う）。
+                    // ⚠ nobody 所有の共有ビュー等は can_write=False が返る（実機で確認）。
+                    //   押せるのに必ず失敗するボタンを出さないための情報
+                    canWrite: e.acl.can_write !== false && e.acl.removable !== false,
                     label: label || e.name,
                     updated: e.updated,
+                    // ホーム一覧の「顔」になる定義由来のメタ（ここで定義は既にパース済み＝無料）
+                    preset:
+                        definition.style?.preset ??
+                        (definition.theme === 'light' ? 'light' : 'midnight'),
+                    panelCount: Array.isArray(definition.panels) ? definition.panels.length : 0,
+                    tabCount: Array.isArray(definition.tabs) ? definition.tabs.length : 0,
                 };
             } catch {
                 // 定義が読めないものは DPX ではないと判断して出さない

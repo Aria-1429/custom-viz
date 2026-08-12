@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import DpxBootScreen, { dismissBootSplash } from '../engine/BootScreen';
 import { emptyDashboard } from '../engine/templates';
-import { resolveTheme } from '../engine/themes';
+import { DPX_PRESETS, resolveTheme } from '../engine/themes';
 import { Button, Field, Select, TextInput, inputStyle, useDpxGlobalStyles } from '../engine/ui';
 import { dashboardHref, listDashboards, listApps, createView, deleteView } from '../viewStore';
 import SplunkHomeLink from '../engine/SplunkHomeLink';
@@ -24,6 +24,21 @@ const slugify = (s) =>
 
 // dashboardHref はロケール接頭辞付きのパスを返す（?id= 形式）
 const dashboardUrl = (d, mode) => dashboardHref({ app: d.app, name: d.name, mode });
+
+/** 相対時刻（「3時間前」）。正確な日時はツールチップで出すので、ここは読みやすさ優先。 */
+function relTime(iso) {
+    const ms = Date.now() - new Date(iso).getTime();
+    if (!Number.isFinite(ms)) return '';
+    const m = Math.floor(ms / 60000);
+    if (m < 1) return 'たった今';
+    if (m < 60) return `${m}分前`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}時間前`;
+    const d = Math.floor(h / 24);
+    if (d === 1) return '昨日';
+    if (d < 7) return `${d}日前`;
+    return new Date(iso).toLocaleDateString();
+}
 
 function useHiddenSplunkChrome() {
     useEffect(() => {
@@ -73,6 +88,17 @@ const HomePage = ({ navigate }) => {
             .sort((a, b) => (a.updated < b.updated ? 1 : -1));
     }, [dashboards, query]);
 
+    // アプリ別のグループ。sorted は更新降順なので、
+    // 「最初に現れた順」＝最近触ったアプリが上に来る
+    const groups = useMemo(() => {
+        const m = new Map();
+        for (const d of sorted) {
+            if (!m.has(d.app)) m.set(d.app, []);
+            m.get(d.app).push(d);
+        }
+        return [...m.entries()];
+    }, [sorted]);
+
     const onCreate = () => {
         const name = form.name || slugify(form.label);
         if (!form.label.trim() || !name) return;
@@ -95,7 +121,8 @@ const HomePage = ({ navigate }) => {
     const onDelete = (d) => {
         // eslint-disable-next-line no-alert
         if (!window.confirm(`「${d.label}」(${d.app}/${d.name}) を削除しますか？`)) return;
-        deleteView({ app: d.app, name: d.name })
+        // ⚠ owner / sharing も渡す（削除を試す名前空間の決定に使う。viewStore 参照）
+        deleteView({ app: d.app, name: d.name, owner: d.owner, sharing: d.sharing })
             .then(reload)
             .catch((err) => setError(`削除に失敗: ${String(err?.message ?? err)}`));
     };
@@ -198,82 +225,168 @@ const HomePage = ({ navigate }) => {
                         <Button t={t} kind="primary" label="＋ 新規作成" onClick={() => setCreating(true)} />
                     </div>
                 ) : (
-                    <div
-                        style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                            gap: 14,
-                        }}
-                    >
-                        {sorted.map((d) => (
-                            <div
-                                key={`${d.app}/${d.name}`}
-                                style={{
-                                    ...t.panel.glass,
-                                    borderRadius: 12,
-                                    padding: 16,
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: 8,
-                                }}
-                            >
-                                <a
-                                    href={dashboardUrl(d, 'view')}
-                                    // SPA 遷移（再読込なし＝フラッシュなし）。
-                                    // href は残すので Ctrl/⌘ クリックの別タブは効く
-                                    onClick={(e) => {
-                                        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-                                        e.preventDefault();
-                                        navigate(dashboardUrl(d, 'view'));
-                                    }}
+                    <div style={{ maxWidth: 1080, margin: '0 auto' }}>
+                        {/* 行のホバー効果。inline style では :hover が書けないのでここに置く */}
+                        <style>{`
+                            .dpx-home-row { border: 1px solid transparent; background: transparent; }
+                            .dpx-home-row:hover {
+                                background: rgba(120, 160, 255, 0.07);
+                                border-color: rgba(120, 160, 255, 0.28);
+                            }
+                            .dpx-home-row .dpx-row-actions { opacity: 0.55; }
+                            .dpx-home-row:hover .dpx-row-actions { opacity: 1; }
+                        `}</style>
+                        {groups.map(([app, rows]) => (
+                            <section key={app}>
+                                {/* アプリ見出し：管制ラベル（小・大文字・字間広め）＋ヘアライン */}
+                                <div
                                     style={{
-                                        color: t.titleColor,
-                                        fontSize: 15,
-                                        fontWeight: 700,
-                                        textDecoration: 'none',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                        whiteSpace: 'nowrap',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 12,
+                                        margin: '22px 4px 6px',
+                                        color: t.subColor,
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        letterSpacing: '0.18em',
+                                        textTransform: 'uppercase',
                                     }}
                                 >
-                                    {d.label}
-                                </a>
-                                <div style={{ fontSize: 11, color: t.subColor, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                    <span
-                                        style={{
-                                            padding: '2px 8px',
-                                            borderRadius: 10,
-                                            background: `${t.accent}1f`,
-                                            color: t.accent,
-                                        }}
-                                    >
-                                        {d.app}
-                                    </span>
-                                    <code style={{ opacity: 0.8 }}>{d.name}</code>
+                                    <span style={{ color: t.accent }}>{app}</span>
+                                    <span style={{ flex: 1, height: 1, background: 'rgba(140,175,235,0.18)' }} />
+                                    <span>{rows.length}件</span>
                                 </div>
-                                <div style={{ fontSize: 11, color: t.subColor }}>
-                                    更新 {new Date(d.updated).toLocaleString()}
-                                </div>
-                                <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                                    <Button
-                                        t={t}
-                                        kind="primary"
-                                        label="開く"
-                                        onClick={() => {
-                                            navigate(dashboardUrl(d, 'view'));
-                                        }}
-                                    />
-                                    <Button
-                                        t={t}
-                                        label="編集"
-                                        onClick={() => {
-                                            navigate(dashboardUrl(d, 'edit'));
-                                        }}
-                                    />
-                                    <span style={{ flex: 1 }} />
-                                    <Button t={t} kind="danger" label="削除" onClick={() => onDelete(d)} />
-                                </div>
-                            </div>
+                                {rows.map((d) => {
+                                    // ボードの「顔」＝そのボードのプリセットの地とアクセント。
+                                    // 定義由来の実情報であり飾りではない（開く前に配色が分かる）
+                                    const st = resolveTheme({ style: { preset: d.preset } });
+                                    const presetName = DPX_PRESETS[d.preset]?.name ?? d.preset;
+                                    const meta = [
+                                        presetName,
+                                        `パネル ${d.panelCount}`,
+                                        d.tabCount > 1 ? `タブ ${d.tabCount}` : null,
+                                    ]
+                                        .filter(Boolean)
+                                        .join('・');
+                                    return (
+                                        <a
+                                            key={`${d.app}/${d.name}`}
+                                            className="dpx-home-row"
+                                            href={dashboardUrl(d, 'view')}
+                                            // SPA 遷移（再読込なし＝フラッシュなし）。
+                                            // href は残すので Ctrl/⌘ クリックの別タブは効く
+                                            onClick={(e) => {
+                                                if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+                                                e.preventDefault();
+                                                navigate(dashboardUrl(d, 'view'));
+                                            }}
+                                            style={{
+                                                display: 'grid',
+                                                gridTemplateColumns: '46px minmax(0,1fr) auto auto',
+                                                alignItems: 'center',
+                                                gap: 14,
+                                                padding: '9px 12px',
+                                                borderRadius: 9,
+                                                textDecoration: 'none',
+                                                color: t.titleColor,
+                                            }}
+                                        >
+                                            {/* テーマスウォッチ：プリセットの canvasBg をそのまま塗る */}
+                                            <span
+                                                aria-hidden
+                                                style={{
+                                                    width: 46,
+                                                    height: 34,
+                                                    borderRadius: 6,
+                                                    background: st.canvasBg,
+                                                    border: '1px solid rgba(255,255,255,0.16)',
+                                                    position: 'relative',
+                                                    overflow: 'hidden',
+                                                    flex: 'none',
+                                                }}
+                                            >
+                                                <span
+                                                    style={{
+                                                        position: 'absolute',
+                                                        left: 6,
+                                                        bottom: 5,
+                                                        width: 8,
+                                                        height: 8,
+                                                        borderRadius: '50%',
+                                                        background: st.accent,
+                                                    }}
+                                                />
+                                            </span>
+                                            <span style={{ minWidth: 0 }}>
+                                                <span
+                                                    style={{
+                                                        display: 'block',
+                                                        fontSize: 14,
+                                                        fontWeight: 700,
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        whiteSpace: 'nowrap',
+                                                    }}
+                                                >
+                                                    {d.label}
+                                                </span>
+                                                <span
+                                                    style={{
+                                                        display: 'block',
+                                                        fontSize: 11,
+                                                        color: t.subColor,
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        whiteSpace: 'nowrap',
+                                                    }}
+                                                >
+                                                    <code style={{ opacity: 0.85 }}>{d.name}</code>
+                                                    <span style={{ opacity: 0.6 }}>　{meta}</span>
+                                                </span>
+                                            </span>
+                                            <span
+                                                title={new Date(d.updated).toLocaleString()}
+                                                style={{ fontSize: 11, color: t.subColor, whiteSpace: 'nowrap' }}
+                                            >
+                                                {relTime(d.updated)}
+                                            </span>
+                                            {/* 行クリック＝開く なので、ボタンは編集と削除だけ。
+                                                アンカー内のボタンなので既定遷移を必ず止める */}
+                                            <span
+                                                className="dpx-row-actions"
+                                                style={{ display: 'flex', gap: 6 }}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                }}
+                                            >
+                                                <Button
+                                                    t={t}
+                                                    label="編集"
+                                                    onClick={() => navigate(dashboardUrl(d, 'edit'))}
+                                                />
+                                                {/* 権限が無いビュー（nobody 所有の共有等）は押せて必ず
+                                                    失敗するボタンを出さない。理由はツールチップで示す */}
+                                                <span
+                                                    title={
+                                                        d.canWrite
+                                                            ? undefined
+                                                            : '削除する権限がありません（所有者または管理者のみ）'
+                                                    }
+                                                >
+                                                    <Button
+                                                        t={t}
+                                                        kind="danger"
+                                                        label="削除"
+                                                        disabled={!d.canWrite}
+                                                        onClick={() => onDelete(d)}
+                                                    />
+                                                </span>
+                                            </span>
+                                        </a>
+                                    );
+                                })}
+                            </section>
                         ))}
                     </div>
                 )}
