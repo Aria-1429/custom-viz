@@ -9,10 +9,12 @@ import {
     getGroups,
     groupOfPanel,
     groupRect,
+    groupInset,
     groupTab,
     movePanelsBy,
     nextGroupId,
     removeGroup,
+    reserveHeaderRows,
 } from '../src/main/webapp/components/engine/groups.js';
 
 let ng = 0;
@@ -133,6 +135,58 @@ ok(movePanelsBy(panels, ['nope'], 2, 2, 12) === panels, '存在しない ID な�
 ok(movePanelsBy(null, ['p1'], 1, 1, 12) === null, 'panels が null でも落ちない');
 ok(movePanelsBy(panels, ['p1'], NaN, 1, 12) !== panels, 'NaN は 0 として扱い y だけ動く');
 ok(at(movePanelsBy(panels, ['p1'], NaN, 1, 12), 'p1').y === 1, 'NaN の軸は動かさない');
+
+console.log('--- 外へ広げる量（区画外のパネルに食い込まないこと）---');
+// ⚠ **gap の内側を超えてはいけない**。パネルは元のサイズのまま動かないので、
+//   区画が gap を超えて広がると隣・下の（区画外の）パネルに食い込む。
+//   実測で下端の余白が 4px しか残らず、下のパネルのカギ括弧と重なっていた。
+ok(groupInset(8, 12) === 5, `gap=12 なら上限5px（希望8でも丸める） (${groupInset(8, 12)})`);
+ok(groupInset(2, 12) === 2, '希望値が上限より小さければそのまま');
+ok(groupInset(24, 12) === 5, '大きな希望値でも gap の内側に収まる');
+ok(groupInset(8, 40) === 8, 'gap が広ければ希望値が通る');
+ok(groupInset(8, 2) === 0, 'gap が極小なら 0（広げない）');
+ok(groupInset(8, 0) === 0, 'gap=0 なら広げない');
+// 4辺すべて同じ規則＝構造的に重ならないことの担保
+ok(groupInset(8, 12) * 2 < 12, '左右に広げても gap を食い尽くさない');
+console.log('--- 外へ広げる量（異常系）---');
+ok(groupInset(undefined, 12) === 5, '未指定は既定8として丸める');
+ok(groupInset(NaN, 12) === 5, 'NaN でも落ちない');
+ok(groupInset(-5, 12) === 0, '負の希望値は 0 にする');
+ok(groupInset(8, undefined) === 5, 'gap 未指定は 12 とみなす');
+
+console.log('--- 見出し行の確保（最上段以外でも領域を取る）---');
+// ⚠ 最上段（y=0）はグリッド上部の余白を使うので行は要らない。
+//   途中の行だけ、区画が始まる手前に1行挿し込む。
+const gsTop = [{ id: 'g1', label: 'A', panels: ['p1'] }];       // p1 は y=0
+const rTop = reserveHeaderRows(gsTop, panels);
+ok(rTop.headerRows.size === 0, '最上段の区画は行を挿し込まない');
+ok(rTop.rowOf(0) === 1, '最上段：行はずれない（grid は1始まり）');
+
+const gsMid = [{ id: 'g2', label: 'B', panels: ['p3'] }];        // p3 は y=2
+const rMid = reserveHeaderRows(gsMid, panels);
+ok(rMid.headerRows.has(2), '途中の区画は開始行に見出し行を確保する');
+ok(rMid.rowOf(0) === 1, '見出し行より上は 影響を受けない');
+ok(rMid.rowOf(1) === 2, '見出し行の直前も 影響なし');
+ok(rMid.rowOf(2) === 4, `区画の開始行は1つ下へずれる (${rMid.rowOf(2)})`);
+ok(rMid.rowOf(3) === 5, '区画より下も同じだけずれる');
+
+// 見出しが無い区画は行を取らない（枠だけ）
+const gsNoLabel = [{ id: 'g3', label: '', panels: ['p3'] }];
+ok(reserveHeaderRows(gsNoLabel, panels).headerRows.size === 0, '名前なしの区画は行を取らない');
+
+// 複数の区画があるときは累積してずれる
+const gsMulti = [
+    { id: 'ga', label: 'A', panels: ['p3'] },   // y=2
+    { id: 'gb', label: 'B', panels: ['p4'] },   // y=0 → 最上段なので対象外
+];
+const rMulti = reserveHeaderRows(gsMulti, panels);
+ok(rMulti.headerRows.size === 1, '最上段のものは数に入らない');
+
+console.log('--- 見出し行の確保（異常系）---');
+ok(reserveHeaderRows(null, panels).headerRows.size === 0, 'groups が null でも落ちない');
+ok(reserveHeaderRows([], null).headerRows.size === 0, 'panels が null でも落ちない');
+ok(reserveHeaderRows([{ id: 'x', label: 'X', panels: ['nope'] }], panels).headerRows.size === 0,
+   'メンバーが居ない区画は行を取らない');
 
 console.log(ng === 0 ? '\n全て成功' : `\n${ng} 件失敗`);
 process.exit(ng === 0 ? 0 : 1);

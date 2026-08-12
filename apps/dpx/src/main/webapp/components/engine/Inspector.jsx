@@ -16,7 +16,7 @@ import { needsChoices, normalizeChoices } from './inputChoices';
 import SplEditor from './SplEditor';
 import { usePanelFields } from './panelFields';
 import TimeRangePicker from './TimeRangePicker';
-import { DPX_PRESETS, PANEL_VARIANTS, effectivePanelColor, resolveTheme } from './themes';
+import { DPX_PRESETS, PANEL_VARIANTS, effectivePanelColor, groupVariants, resolveTheme } from './themes';
 import { Button, ColorInput, Field, NumberInput, Section, Select, Slider, TextInput, Toggle, inputStyle, isTransparent } from './ui';
 import { VIZ_CATEGORY_LABELS, defaultVariantFor, listViz, vizEditorConfig, vizOptionsSchema } from './vizRegistry';
 
@@ -226,7 +226,7 @@ function GroupEditor({ t, group, definition, patchDef, onRemoved, onDuplicate })
                     value={group.variant ?? 'rule'}
                     // ⭐ **パネルと同じ質感を流用する**（実装も一覧も1か所）。
                     //   区画固有の「上辺の罫」だけ先頭に足す
-                    options={[{ value: 'rule', label: '上辺の罫（区画の既定）' }, ...PANEL_VARIANTS]}
+                    options={[{ value: 'rule', label: '上辺の罫（区画の既定）' }, ...groupVariants()]}
                     onChange={(v) => patch({ variant: v })}
                 />
             </Field>

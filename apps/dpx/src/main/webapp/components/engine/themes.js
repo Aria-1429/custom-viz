@@ -498,6 +498,29 @@ const PANEL_INNER_PAD = 6;
  *   `panelSurface()` の実装と**同じファイルに置いて**、増減を1か所で済ませる。
  *   区画（グループ）の質感選択も同じ一覧を使う（§groupSurface）。
  */
+/**
+ * **区画（グループ）で使えない質感**（2026-08-12 実機で確認）。
+ *
+ * CSS は流用できるが、**この2つは「中身がある箱」を前提にした造り**なので、
+ * 中身を持たない区画（パネルの背面に敷く空の箱）では意図した絵にならない:
+ *
+ * | 質感 | 区画で何が起きるか |
+ * |---|---|
+ * | `polaroid` | 白縁は **`padding` で中身を押し込んで**作る。中身が無い区画では縁が成立せず、**印画面がベタ塗りの明るい面**になってパネルを覆う |
+ * | `punchCard` | `clip-path` で輪郭を欠けさせる質感。区画では**濃い地がパネルの背面全体を覆い**、切り欠きだけが上辺に残って意図が伝わらない |
+ *
+ * ⚠ **「CSS が同じ＝流用できる」ではない。** `groupSurface` は
+ *   `panelSurface` と**バイト単位で同じ値**を返すのに、実機では破綻していた
+ *   （JSON 比較のテストだけでは検出できず、スクリーンショットで気づいた）。
+ *   質感を足すときは「中身の有無に依存していないか」を必ず見る。
+ */
+export const GROUP_INCOMPATIBLE_VARIANTS = new Set(['polaroid', 'punchCard']);
+
+/** 区画の質感として選べるもの（構造依存の2種を除いた一覧）。 */
+export function groupVariants() {
+    return PANEL_VARIANTS.filter((v) => !GROUP_INCOMPATIBLE_VARIANTS.has(v.value));
+}
+
 export const PANEL_VARIANTS = [
     { value: 'noc', label: 'コーナーフレーム（四隅のカギ括弧）' },
     { value: 'bracketSolid', label: 'コーナーフレーム＋不透明' },
@@ -816,6 +839,34 @@ export function effectivePanelColor(key, theme, variant) {
  *   同じ事故を繰り返さないよう `backgroundColor` / `backgroundImage` を使い分ける。
  *   （経緯は dpx-platform.md §8.jj）
  */
+/**
+ * 区画（グループ）の見出しの字面。**パネルのタイトル質感から導く**。
+ *
+ * ⚠ **独自にベタ書きしない**（2026-08-12・ユーザー指摘で修正）。
+ *   以前は `fontSize: 10` / 字間 0.22em / 大文字を**区画だけ決め打ち**していたため、
+ *   パネルのタイトル質感（`panelTitleSkin` の10種）を変えても区画名だけが
+ *   取り残され、**「文字が小さい」「質感が違う」**状態になっていた。
+ *   → **同じ関数から取り、区画らしく一段弱めるだけ**にする。
+ *
+ * 区画はパネルの「親」なので、**同じ字面のまま少しだけ控えめ**にする
+ * （大きさで competing させない。字間と色で階層を作る）。
+ *
+ * @param skin  パネルと同じ質感キー（区画側で未指定ならダッシュボードの既定）
+ */
+export function groupTitleStyle(skin, theme, accent) {
+    const base = panelTitleSkin(skin, theme, undefined, accent).text ?? {};
+    const size = Number(base.fontSize) || 13;
+    return {
+        ...base,
+        // ⚠ パネルより**わずかに小さく**（1px）。大きく差を付けると
+        //   「小さくて読めない」になる（実機のスクリーンショットで指摘された症状）
+        fontSize: Math.max(10, size - 1),
+        // 親であることは**字間**で示す（大きさではなく）
+        letterSpacing: base.letterSpacing ?? '0.14em',
+        color: base.color ?? theme?.titleColor,
+    };
+}
+
 export function panelTitleSkin(skin, theme, variant, accent) {
     const ac = accent || theme?.accent;
     // 管制ラベル（従来の noc）。小さめ・大文字・字間広め
@@ -967,7 +1018,9 @@ export function groupSurface(theme, variant = 'rule', color) {
 
     // ⭐ 区画固有の `rule` 以外は**パネルの質感をそのまま使う**。
     //   区画は面積が大きいので、カギ括弧の腕だけ長め（22px）にする。
-    if (variant && variant !== 'rule') {
+    // ⚠ 中身がある前提の質感（polaroid / punchCard）は区画では破綻するので、
+    //   既存の定義に入っていても**既定（rule）に落とす**（黙って壊れた絵を出さない）
+    if (variant && variant !== 'rule' && !GROUP_INCOMPATIBLE_VARIANTS.has(variant)) {
         const surface = panelSurface(theme, variant, 22);
         if (!color) return surface;
 

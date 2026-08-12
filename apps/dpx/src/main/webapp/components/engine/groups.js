@@ -25,6 +25,69 @@
 //   ]
 // ────────────────────────────────────────────────────────────────
 
+/**
+ * 区画が**パネルの外へ広げてよい量**(px)を決める。
+ *
+ * ⚠ **gap の内側を超えてはいけない**（2026-08-12・ユーザー指摘で修正）。
+ *   パネルは元のサイズのまま動かないので、区画が gap を超えて広がると
+ *   **隣・下の（区画外の）パネルに食い込む**。
+ *   実測では下端の余白が 4px しか残らず、下のパネルのカギ括弧と
+ *   区画の返しが重なっていた。
+ *
+ * ⚠ 以前は**左右だけ gap/2、下は生の `pad`** という非対称な実装だった。
+ *   「隣り合う区画の罫が繋がる」問題だけを見て左右を直したため、
+ *   **区画の外にあるパネル**への食い込みを見落とした。
+ *   → 4辺すべて同じ規則にして、**構造的に重ならないことを保証する**。
+ *
+ * @param pad 利用者の希望値（区画の「外側の余白」）
+ * @param gap グリッドの間隔
+ */
+export function groupInset(pad, gap = 12) {
+    const p = Number(pad);
+    const g = Number(gap);
+    const want = Number.isFinite(p) ? Math.max(0, p) : 8;
+    const limit = Math.max(0, Math.floor((Number.isFinite(g) ? g : 12) / 2) - 1);
+    return Math.min(want, limit);
+}
+
+/**
+ * ⭐ **区画の見出し用の行を確保する**（2026-08-12・ユーザー指定）。
+ *
+ * 最上段の区画はグリッド上部の余白に見出しを置けるが、**途中の行では
+ * 上のパネルとの隙間が `gap` しか無く、見出しの居場所が無い**。
+ * → **区画が始まる行の手前に「細い行」を1本挿し込む**。
+ *
+ * CSS grid の行番号は 1 始まりで、`gridAutoRows` は全行同じ高さになるため、
+ * **`gridTemplateRows` を明示して「見出し行だけ低く」する**。
+ *
+ * ⚠ 定義（`panel.y`）は**書き換えない**。あくまで**描画時の行番号**を
+ *   ずらすだけ。座標を書き換えると、保存された定義が見出しの有無で
+ *   変わってしまい、区画を消したときに元へ戻せなくなる。
+ *
+ * @param groups  表示中の区画（見出しを持つものだけが対象）
+ * @param panels  表示中のパネル
+ * @returns {{headerRows:Set<number>, rowOf:(y:number)=>number, rowCount:number}}
+ *   - `headerRows` … 見出し行を挿し込む「元の行番号」の集合
+ *   - `rowOf(y)`   … 元の行 y が描画上どの行になるか（1 始まり）
+ */
+export function reserveHeaderRows(groups, panels, maxRow = 0) {
+    const headerRows = new Set();
+    for (const g of groups ?? []) {
+        if (!String(g?.label ?? '').trim()) continue;
+        const r = groupRect(g, panels);
+        // 最上段（y=0）はグリッド上部の余白を使うので行は要らない
+        if (r && r.y > 0) headerRows.add(r.y);
+    }
+    // 元の行 y の手前に、y より小さい見出し行の数だけ挿し込む
+    const rowOf = (y) => {
+        const n = Number(y) || 0;
+        let shift = 0;
+        for (const h of headerRows) if (h <= n) shift += 1;
+        return n + shift + 1; // grid は 1 始まり
+    };
+    return { headerRows, rowOf, rowCount: (Number(maxRow) || 0) + headerRows.size };
+}
+
 /** 定義から groups を取り出す（無ければ空配列）。 */
 export function getGroups(definition) {
     const g = definition?.groups;

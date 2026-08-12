@@ -7,7 +7,16 @@
 //   素朴に `if (s.border) s.border = ...` と書くと
 //   **コーナーフレームに全周の枠が生え、枠なしにも枠が付く**（実際に発生させた）。
 //   見た目では気づきにくいので数値（文字列）で押さえる。
-import { PANEL_VARIANTS, groupSurface, panelSurface, resolveTheme } from '../src/main/webapp/components/engine/themes.js';
+import {
+    GROUP_INCOMPATIBLE_VARIANTS,
+    PANEL_VARIANTS,
+    groupSurface,
+    groupTitleStyle,
+    groupVariants,
+    panelSurface,
+    panelTitleSkin,
+    resolveTheme,
+} from '../src/main/webapp/components/engine/themes.js';
 
 let ng = 0;
 const ok = (c, m) => {
@@ -36,6 +45,24 @@ ok(
     PANEL_VARIANTS.every((v) => groupSurface(t, v.value) && typeof groupSurface(t, v.value) === 'object'),
     '一覧の全質感が区画でも解決できる'
 );
+
+console.log('--- ⚠ 「CSS が同じ＝流用できる」ではない（実機で判明）---');
+// polaroid / punchCard は「中身がある箱」前提の造りなので、中身を持たない区画では破綻する。
+// **CSS はバイト単位で同じ**だったため、JSON 比較のテストでは検出できなかった
+// （スクリーンショットで気づいた）。選択肢から外し、指定されても既定に落とす。
+const ruleTop = groupSurface(t, 'rule').borderTop;
+for (const v of ['polaroid', 'punchCard']) {
+    ok(GROUP_INCOMPATIBLE_VARIANTS.has(v), `${v}: 区画で使えない質感として登録されている`);
+    ok(groupSurface(t, v).borderTop === ruleTop, `${v}: 指定されても既定(rule)に落ちる`);
+    ok(!groupVariants().some((x) => x.value === v), `${v}: 区画の選択肢に出さない`);
+}
+ok(
+    groupVariants().length === PANEL_VARIANTS.length - GROUP_INCOMPATIBLE_VARIANTS.size,
+    `区画の選択肢は ${groupVariants().length} 種（パネル ${PANEL_VARIANTS.length} 種 − 除外 ${GROUP_INCOMPATIBLE_VARIANTS.size} 種）`
+);
+// 除外したもの以外は従来どおり選べる
+ok(groupVariants().some((x) => x.value === 'noc'), 'noc は引き続き選べる');
+ok(groupVariants().some((x) => x.value === 'card'), 'card は引き続き選べる');
 
 console.log('--- 色を指定しても質感の構造を壊さない（最重要）---');
 const C = '#ff0000';
@@ -77,6 +104,24 @@ console.log('--- 異常系 ---');
 ok(typeof groupSurface(t, 'nope') === 'object', '未知の質感でも落ちない');
 ok(typeof groupSurface(t, '') === 'object', '空文字でも落ちない');
 ok(typeof groupSurface(t, null) === 'object', 'null でも落ちない');
+
+console.log('--- 区画の見出しはパネルのタイトル質感から導く ---');
+// ⚠ 区画だけ決め打ちすると、パネルのタイトル質感を変えたとき
+//   **区画名だけが取り残されて「小さい・質感が違う」**状態になる（ユーザー指摘）。
+for (const skin of ['plain', 'bold', 'control', 'stamp', 'ribbon']) {
+    const panelText = panelTitleSkin(skin, t).text ?? {};
+    const g = groupTitleStyle(skin, t);
+    // 大きさは「パネルより 1px 小さい」だけ（決め打ちの 10px ではない）
+    const expected = Math.max(10, (Number(panelText.fontSize) || 13) - 1);
+    ok(g.fontSize === expected, `${skin}: 大きさがパネル(${panelText.fontSize})に追随する → ${g.fontSize}`);
+    // 質感の指定（太さ・大文字化）はパネルと同じものを引き継ぐ
+    ok(g.fontWeight === panelText.fontWeight, `${skin}: 太さがパネルと揃う`);
+    ok(g.textTransform === panelText.textTransform, `${skin}: 大文字化の有無がパネルと揃う`);
+}
+// 極端に小さい質感でも 10px を下回らない（読めなくならない）
+ok(groupTitleStyle('control', t).fontSize >= 10, '最小 10px を下回らない');
+ok(typeof groupTitleStyle(undefined, t).fontSize === 'number', '未指定でも既定の質感で解決する');
+ok(groupTitleStyle('nope', t).fontSize > 0, '未知の質感でも落ちない');
 
 console.log(ng === 0 ? '\n全て成功' : `\n${ng} 件失敗`);
 process.exit(ng === 0 ? 0 : 1);

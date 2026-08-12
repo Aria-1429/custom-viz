@@ -13,10 +13,11 @@ import {
     panelStyleOverrides,
     panelSurface,
     groupSurface,
+    groupTitleStyle,
     panelTitleSkin,
     resolveTheme,
 } from './themes';
-import { getGroups, groupRect, groupTab } from './groups';
+import { getGroups, groupInset as groupInsetPx, groupRect, groupTab, reserveHeaderRows } from './groups';
 import { resolveBrushToken } from './timeBrush';
 import { applyTokens, useDpxTokens } from './tokens';
 import { useDpxGlobalStyles } from './ui';
@@ -81,21 +82,63 @@ function useViewportHeight() {
  * ⚠ 見出しは**枠の罫を切り欠いて**置く（設計図・計器盤の意匠）。
  *   罫の上に文字を重ねると線が文字を貫いて読みにくい。
  */
-function GroupFrame({ group, panels, grid, t, mode, selected, onSelect, onDragStart }) {
+function GroupFrame({ group, panels, grid, t, mode, selected, onSelect, onDragStart, rowOf, headerRows }) {
     const rect = groupRect(group, panels);
     if (!rect) return null;
 
     const pad = Number.isFinite(Number(group.pad)) ? Number(group.pad) : 8;
+    // 区画が外へ広がってよい量。**gap の内側を超えない**（超えると隣のパネルに食い込む）。
+    // `pad` は利用者の希望値だが、ここで必ず上限に丸める。
+    const inset = groupInsetPx(pad, grid.gap);
+    // ⚠ **上へ伸ばせる量は「その区画の真上が空いているか」で変わる**。
+    //   最上段（y=0）は grid の paddingTop に帯ぶんの余白があるので伸ばせるが、
+    //   途中の行では**上のパネルとの隙間は gap しかない**ので、
+    //   帯（18px）をそのまま出すと必ず食い込む（実測 6px。ユーザー指摘）。
+    //   → 上に何かある場合は `inset` までに留め、足りないぶんは
+    //   見出しを中身側へ寄せて確保する。
+    const atTop = rect.y === 0;
+    // ⭐ 途中の区画は**手前に見出し行が確保されている**（2026-08-12・ユーザー指定）。
+    //   その行を使えるので、最上段と同じように見出しの領域が取れる。
+    const hasHeaderRow = !atTop && headerRows?.has?.(rect.y);
+    // 見出しの帯を上へ伸ばす量。見出し行がある場合はその行が帯そのものなので伸ばさない
+    const topRoom = atTop ? GROUP_HEADER_H : 0;
+    // ⚠ **最上段でない区画は「見出しの居場所」が無い**（2026-08-12・実測で確定）。
+    //   上はパネル（gap 12px しかない）、下はメンバーのタイトル。どちらへ逃がしても重なる:
+    //     - 下へ（`top: 4`）→ **メンバーのタイトルに重なって文字が潰れた**
+    //     - 上へ（`top: -13`）→ **上のパネルへ 5px 食い込んだ**（枠の箱は 7px 空いていたが、
+    //       **見出しは箱の外に出る**ので、箱だけ測って「直った」と誤判定した）
+    //   → **最上段でない区画では見出しを出さない**。区画の存在は罫と返しで示し、
+    //   名前はインスペクタで確認する。**重なった文字を出すより、出さない方がよい**。
+    //   （行を1つ空ける案は、全パネルの座標に触るので影響が大きく採らない）
+    //   ⚠ ただし**編集モードでは必ず出す**。見出しは区画を選択・ドラッグする
+    //   唯一の掴み手なので、隠すと区画を触れなくなる（重なっても操作性を優先する）。
+    const editing = mode === 'edit';
+    // 見出しを出せる条件＝**居場所がある**こと。
+    // 最上段＝グリッド上部の余白／途中＝確保した見出し行。
+    // 編集中は掴み手として必ず出す（重なっても操作性を優先）。
+    const showLabel = atTop || hasHeaderRow || editing;
+    const labelTop = 4;
     const label = String(group.label ?? '').trim();
     const surface = groupSurface(t, group.variant, group.color);
-    const editing = mode === 'edit';
+    // ⭐ 見出しの字面は**パネルのタイトル質感から導く**（区画だけ決め打ちしない）。
+    //   区画側の指定 > ダッシュボードの既定、の順で解決する
+    // 既定は**メンバー（先頭のパネル）のタイトル質感**に合わせる。
+    // 区画は「その区画のパネル群の親」なので、中身と字面が揃う方が自然。
+    const memberSkin = (panels ?? []).find((p) => (group.panels ?? []).map(String).includes(String(p.id)))
+        ?.style?.titleSkin;
+    const labelStyle = groupTitleStyle(group.titleSkin ?? memberSkin, t, group.color);
 
     return (
         <div
             data-group-id={group.id}
             style={{
                 gridColumn: `${rect.x + 1} / span ${rect.w}`,
-                gridRow: `${rect.y + 1} / span ${rect.h}`,
+                // ⚠ 見出しを持つ途中の区画は、**手前に確保した見出し行から**始める
+                //   （その行が区画タイトルの領域になる）。最上段はグリッド上部の
+                //   余白を使うので従来どおり
+                gridRow: hasHeaderRow
+                    ? `${rowOf(rect.y) - 1} / span ${rect.h + 1}`
+                    : `${rowOf(rect.y)} / span ${rect.h}`,
                 // パネル（既定 z=1）より必ず後ろへ
                 zIndex: 0,
                 position: 'relative',
@@ -105,17 +148,27 @@ function GroupFrame({ group, panels, grid, t, mode, selected, onSelect, onDragSt
                 //   以前は見出しを枠の外（`top:-13`）へ逃がしていたため、
                 //   **区画の上辺とパネルの上端が同じ帯に重なっていた**
                 //   （ユーザー指摘・2x 拡大で確認）。
-                //   上へ HEADER_H だけ伸ばし、その帯に罫と見出しを置く。
-                //   グリッド上部の余白（paddingTop）はこの帯のために空けてある
-                marginTop: -GROUP_HEADER_H,
-                // ⚠ **左右いっぱいに広げない。** 隣り合う区画の罫が突き当たって
-                //   **1本の線に繋がり、2つの区画が1つに見える**（実機の 2x 拡大で確認）。
-                //   gap の半分だけ内側に留めて、区画と区画の間に必ず切れ目を作る。
-                //   `pad` は「パネルからどれだけ外へ広げるか」なので、
-                //   gap/2 を超えない範囲に収める
-                marginLeft: -Math.min(pad, Math.max(0, Math.floor((grid.gap ?? 12) / 2) - 1)),
-                marginRight: -Math.min(pad, Math.max(0, Math.floor((grid.gap ?? 12) / 2) - 1)),
-                marginBottom: -pad,
+                //   上へ伸ばした帯に罫と見出しを置く。
+                //   グリッド上部の余白（paddingTop）はこの帯のために空けてある。
+                // ⚠ **上へも `inset` までしか伸ばせない**（2026-08-12・ユーザー指摘で修正）。
+                //   ヘッダ帯（18px）をそのまま上へ出すと gap(12px) を超えるため、
+                //   **区画の真上にパネルがあると必ず食い込む**（実測 6px）。
+                //   最上段は grid の paddingTop に余白があるので伸ばせるが、
+                //   途中の行では伸ばせない。→ **上のパネルの有無で切り替える**。
+                //   伸ばせないぶんは中身側（下）へ寄せて帯の高さを確保する（headerPad）
+                marginTop: -topRoom,
+                // ⚠ **外へ広げてよいのは「gap の内側」まで**（2026-08-12・ユーザー指摘で修正）。
+                //   パネルは元のサイズのまま動かないので、区画が gap を超えて広がると
+                //   **隣・下の（区画外の）パネルに食い込む**。実測でも下端の余白が
+                //   4px しか残らず、下のパネルのカギ括弧と区画の返しが重なっていた。
+                //   → **4辺すべて同じ規則**（gap/2 − 1px）で丸める。
+                //   こうすると「区画は必ず gap の中に収まる」ので、
+                //   どのパネルとも重ならないことが**構造的に保証される**。
+                //   ⚠ 以前は左右だけ gap/2、**下は生の `pad`** という非対称な実装だった
+                //   （隣り合う区画の罫の連結だけを見て直したため、外側パネルを見落とした）
+                marginLeft: -inset,
+                marginRight: -inset,
+                marginBottom: -inset,
                 // ⚠ 枠自体はクリックを通す（下のパネルを触れなくなるため）。
                 //   選択させたいのは**見出しだけ**なので、そこだけ pointerEvents を戻す
                 pointerEvents: 'none',
@@ -124,7 +177,7 @@ function GroupFrame({ group, panels, grid, t, mode, selected, onSelect, onDragSt
                 ...(selected ? { borderTopColor: t.selection, borderColor: t.selection } : null),
             }}
         >
-            {label || editing ? (
+            {showLabel && (label || editing) ? (
                 <div
                     onPointerDown={
                         editing
@@ -154,24 +207,40 @@ function GroupFrame({ group, panels, grid, t, mode, selected, onSelect, onDragSt
                         // ⚠ **見出しは枠が確保したヘッダ帯の中に置く**（枠の外へ出さない）。
                         //   外へ逃がすと、上にあるもの（パネル・ダッシュボードの見出し）と
                         //   必ず重なる。帯の中なら重なりようがない。
-                        //   罫（borderTop）は帯の上端に引かれるので、見出しはその下に座る
-                        top: 4,
-                        left: 2,
+                        //   罫（borderTop）は帯の上端に引かれるので、見出しはその下に座る。
+                        //   ⚠ 上へ伸ばせなかったぶんは下げる（`labelTop`）。
+                        //   固定値にすると、途中の行の区画で**見出しがメンバーのタイトルに重なる**
+                        top: labelTop,
+                        // ⚠ **左端に寄せすぎない。** 罫の上に載せる配置（途中の行）では、
+                        //   `left:2` だと**上のパネルの左下カギ括弧に文字が重なる**
+                        //   （実機のスクリーンショットで確認）。括弧の腕（11px）を
+                        //   避ける位置まで寄せる。最上段は帯の中なので従来どおりでよい
+                        left: atTop ? 2 : 16,
                         padding: 0,
                         lineHeight: 1,
-                        fontSize: 10,
-                        // ⚠ グループの見出しは**パネルのタイトルより弱く**する。
-                        //   同じ強さだと「大きなパネル」に見えて階層が伝わらない。
-                        //   字間を広く・色を落として「区画のラベル」に徹させる
-                        letterSpacing: '0.22em',
-                        textTransform: 'uppercase',
-                        // ⚠ **薄くしすぎない。** subColor（既に半透明）へさらに
-                        //   opacity を掛けると壁面表示で読めなくなる
-                        //   （実機で確認。カギ括弧を 0.42→0.62 に上げたのと同じ話）。
-                        //   区画名は「読めること」が最低条件なので、
-                        //   弱さは**字間と大きさ**で表現し、色は落とさない
-                        color: selected ? t.selection : t.titleColor,
-                        opacity: selected ? 1 : 0.72,
+                        // ⭐ 字面は**パネルのタイトル質感から導く**（`groupTitleStyle`）。
+                        //   ⚠ ここに fontSize / letterSpacing をベタ書きしない。
+                        //   以前は決め打ちだったため、パネルのタイトル質感を変えても
+                        //   **区画名だけが取り残されて「小さい・質感が違う」**状態になった
+                        //   （ユーザー指摘・2026-08-12）
+                        ...labelStyle,
+                        // ⚠ **薄くしすぎない。** 区画名は「読めること」が最低条件。
+                        //   選択中は選択色で上書きする
+                        ...(selected ? { color: t.selection } : null),
+                        opacity: selected ? 1 : 0.85,
+                        // ⚠ 編集モードで最上段以外の区画は、見出しが**メンバーのタイトルの上**に
+                        //   出る（掴み手を消せないため）。素のままだと文字が重なって読めないので、
+                        //   **編集中だけ**地を敷いて可読性を確保する（表示モードでは出さない）
+                        ...(editing && !atTop
+                            ? {
+                                  background:
+                                      t.colorScheme === 'light'
+                                          ? 'rgba(255,255,255,0.92)'
+                                          : 'rgba(10, 16, 30, 0.92)',
+                                  paddingLeft: 4,
+                                  borderRadius: 3,
+                              }
+                            : null),
                         whiteSpace: 'nowrap',
                         maxWidth: 'calc(100% - 32px)',
                         overflow: 'hidden',
@@ -444,6 +513,7 @@ function Panel({
     onPatchPanel,
     onOpenDataSources,
     onDetachSettings,
+    rowOf,
 }) {
     const t = theme;
     const [menu, setMenu] = useState(null);      // {x,y} 右クリックメニュー
@@ -699,7 +769,9 @@ function Panel({
                     ? { width: '100%', height: '100%' }
                     : {
                           gridColumn: `${panel.x + 1} / span ${panel.w}`,
-                          gridRow: `${panel.y + 1} / span ${panel.h}`,
+                          // ⚠ 行番号は `rowOf()` を通す。区画の見出し行が
+                          //   挿し込まれると、その下の全パネルが1行ずつずれる
+                          gridRow: `${rowOf(panel.y)} / span ${panel.h}`,
                           zIndex: z,
                       }),
                 ...surface,
@@ -1012,6 +1084,22 @@ export default function DpxDashboard({
         return r != null && r.y === 0;
     });
 
+    // ⭐ **区画の見出し用の行を確保する**（最上段以外でも領域を取る）。
+    //   区画が始まる行の手前に細い行を挿し込み、その下の全パネルを1行ずらす。
+    //   ⚠ 定義（panel.y）は書き換えない。**描画時の行番号だけ**をずらす
+    const maxRow = panels.reduce((m, p) => Math.max(m, (Number(p.y) || 0) + (Number(p.h) || 1)), 0);
+    const { headerRows, rowOf } = reserveHeaderRows(visibleGroups, panels, maxRow);
+    // 見出し行だけ低く、他は rowHeight。gridTemplateRows で明示する
+    const rowTemplate = (() => {
+        if (headerRows.size === 0) return undefined; // 従来どおり gridAutoRows に任せる
+        const rows = [];
+        for (let y = 0; y < maxRow; y += 1) {
+            if (headerRows.has(y)) rows.push(`${GROUP_HEADER_H}px`);
+            rows.push(`${grid.rowHeight}px`);
+        }
+        return rows.join(' ');
+    })();
+
     // ── タブ自動送り（ローテーション）──────────────────────────
     // ⚠ setInterval の発火回数で数えない（非アクティブタブで詰まる）。
     //    「最後に切り替えた時刻」からの経過で判定する（noc-wall の実機知見）。
@@ -1231,6 +1319,11 @@ export default function DpxDashboard({
                         minWidth: 0,
                         display: 'grid',
                         gridTemplateColumns: `repeat(${grid.columns}, 1fr)`,
+                        // ⚠ **見出し行を挿し込むため `gridTemplateRows` を明示する**
+                        //   （2026-08-12・ユーザー指定）。`gridAutoRows` は全行が同じ高さに
+                        //   なるので、「見出し行だけ低く」ができない。
+                        //   区画が始まる行の手前に GROUP_HEADER_H の細い行を入れる
+                        gridTemplateRows: rowTemplate,
                         gridAutoRows: `${grid.rowHeight}px`,
                         // ⚠ 最上段の区画はヘッダ帯のぶん上へ伸びるので、その居場所を空ける。
                         //   空けないとダッシュボードのタイトルに重なる（実機で発生）。
@@ -1255,6 +1348,8 @@ export default function DpxDashboard({
                             selected={selectedGroupId === g.id}
                             onSelect={onSelectGroup}
                             onDragStart={onGroupDragStart}
+                            rowOf={rowOf}
+                            headerRows={headerRows}
                         />
                     ))}
                     {panels.map((p, i) => (
@@ -1279,6 +1374,7 @@ export default function DpxDashboard({
                             onDetachSettings={onDetachSettings}
                             definition={definition}
                             app={app}
+                            rowOf={rowOf}
                         />
                     ))}
                 </div>
