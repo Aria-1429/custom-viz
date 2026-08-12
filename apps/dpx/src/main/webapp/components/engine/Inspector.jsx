@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { BACKGROUND_OPTIONS } from './BackgroundLayer';
 import ColorRulesEditor from './ColorRulesEditor';
 import { getDataSources, nextSourceId, panelsUsingSource } from './dataSources';
+import { assignPanelToGroup, getGroups, groupOfPanel, nextGroupId, removeGroup } from './groups';
 import {
     ColumnMultiSelector,
     ColumnSelector,
@@ -15,7 +16,7 @@ import { needsChoices, normalizeChoices } from './inputChoices';
 import SplEditor from './SplEditor';
 import { usePanelFields } from './panelFields';
 import TimeRangePicker from './TimeRangePicker';
-import { DPX_PRESETS, effectivePanelColor, resolveTheme } from './themes';
+import { DPX_PRESETS, PANEL_VARIANTS, effectivePanelColor, resolveTheme } from './themes';
 import { Button, ColorInput, Field, NumberInput, Section, Select, Slider, TextInput, Toggle, inputStyle, isTransparent } from './ui';
 import { VIZ_CATEGORY_LABELS, defaultVariantFor, listViz, vizEditorConfig, vizOptionsSchema } from './vizRegistry';
 
@@ -186,6 +187,121 @@ function OptionsJson({ t, panel, patchPanel }) {
  *  後者は earliest/latest に `$<token>.earliest$` / `$<token>.latest$` を入れる
  *  （トークン置換はエンジン側が行う）。 */
 // ── 共有データソースの一覧・編集（ダッシュボード単位）─────────────
+/**
+ * グループ（区画）1つ分の設定。
+ *
+ * ⚠ **グループはパネル・入力と並ぶ「選択できるもの」**（2026-08-12 ユーザー指定）。
+ *   キャンバスで区画の見出しをクリックすると、右ペインがこの編集に切り替わる。
+ *   ダッシュボード設定の中に一覧として埋めると、
+ *   「どの区画のことか」をキャンバスと突き合わせられない。
+ */
+function GroupEditor({ t, group, definition, patchDef, onRemoved, onDuplicate }) {
+    const groups = getGroups(definition);
+    const panels = definition.panels ?? [];
+    const patch = (p) => patchDef({ groups: groups.map((g) => (g.id === group.id ? { ...g, ...p } : g)) });
+
+    const members = (group.panels ?? []).filter((id) => panels.some((p) => String(p.id) === String(id)));
+
+    const removeSelf = () => {
+        if (members.length > 0) {
+            // ⚠ **枠が消えるだけでパネルは残る**ことを明示する。
+            //   「パネルごと消える」と誤解させない
+            const ok = window.confirm(
+                `区画「${group.label || group.id}」を削除します。枠が消えるだけで、${members.length} 個のパネルは残ります。続けますか？`
+            );
+            if (!ok) return;
+        }
+        patchDef({ groups: removeGroup(definition, group.id) });
+        onRemoved?.();
+    };
+
+    return (
+        <>
+            <Field t={t} label="区画名（空で名前なし）">
+                <TextInput t={t} value={group.label ?? ''} onChange={(v) => patch({ label: v })} />
+            </Field>
+            <Field t={t} label="枠の質感">
+                <Select
+                    t={t}
+                    value={group.variant ?? 'rule'}
+                    // ⭐ **パネルと同じ質感を流用する**（実装も一覧も1か所）。
+                    //   区画固有の「上辺の罫」だけ先頭に足す
+                    options={[{ value: 'rule', label: '上辺の罫（区画の既定）' }, ...PANEL_VARIANTS]}
+                    onChange={(v) => patch({ variant: v })}
+                />
+            </Field>
+            <Field t={t} label="枠の色（空でテーマ既定）">
+                <ColorInput t={t} value={group.color ?? ''} onChange={(v) => patch({ color: v })} />
+            </Field>
+            <Field t={t} label="外側の余白(px)">
+                <Slider t={t} value={Number(group.pad ?? 8)} min={0} max={24} step={1} onChange={(v) => patch({ pad: v })} />
+            </Field>
+
+            {/* メンバー。ここで**外す**ことはできるが、入れるのはパネル側から。
+                「どのパネルか」はキャンバスで見た方が早い */}
+            <div style={{ fontSize: 11, color: t.subColor, margin: '10px 0 6px', lineHeight: 1.6 }}>
+                {members.length === 0 ? (
+                    <span style={{ color: t.errorColor }}>
+                        パネルが入っていません（枠は表示されません）。パネルを選んで「スタイル」の
+                        <b>所属する区画</b>で入れます。
+                    </span>
+                ) : (
+                    <>この区画のパネル（{members.length}）</>
+                )}
+            </div>
+            {members.map((id) => {
+                const p = panels.find((x) => String(x.id) === String(id));
+                return (
+                    <div
+                        key={id}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            padding: '5px 8px',
+                            marginBottom: 5,
+                            border: '1px solid rgba(140,175,235,0.18)',
+                            borderRadius: 6,
+                        }}
+                    >
+                        <span
+                            style={{
+                                flex: 1,
+                                minWidth: 0,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                            }}
+                        >
+                            {p?.title || id}
+                        </span>
+                        <Button
+                            t={t}
+                            label="外す"
+                            onClick={() => patchDef({ groups: assignPanelToGroup(definition, id, '') })}
+                        />
+                    </div>
+                );
+            })}
+
+            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 7 }}>
+                {/* 「同じ構成をもう1系統」を1操作で。パネルもまとめて複製する */}
+                <Button
+                    t={t}
+                    full
+                    label="区画ごと複製"
+                    disabled={members.length === 0}
+                    onClick={() => onDuplicate?.(group.id)}
+                />
+                <Button t={t} full danger label="この区画を削除" onClick={removeSelf} />
+            </div>
+            <div style={{ fontSize: 11, color: t.subColor, marginTop: 9, lineHeight: 1.6 }}>
+                キャンバスの区画名を<b>ドラッグすると区画ごと移動</b>できます（矢印キーでも移動）。
+            </div>
+        </>
+    );
+}
+
 function DataSourcesEditor({ t, definition, patchDef }) {
     const sources = getDataSources(definition);
     const ids = Object.keys(sources);
@@ -785,6 +901,10 @@ export default function Inspector({
     selectedPanel,
     selectedInputId,
     onSelectInput,
+    // グループ（区画）＝パネル・入力と並ぶ第3の選択対象
+    selectedGroupId,
+    onSelectGroup,
+    onDuplicateGroup,
     patchDef,
     patchPanel,
     patchSearch,
@@ -857,6 +977,30 @@ export default function Inspector({
                     <Button t={t} full label="選択を解除" onClick={() => onSelectInput?.(null)} />
                 </div>
             </div>
+            </div>
+        );
+    }
+
+    // グループが選ばれているときは、その区画の設定だけを出す（入力と同じ考え方）
+    const selectedGroup = getGroups(definition).find((g) => g.id === selectedGroupId) ?? null;
+    if (selectedGroup) {
+        return (
+            <div style={paneStyle} className={wide ? undefined : 'dpx-scroll'}>
+                <div className="dpx-scroll" style={wide ? { flex: 1, minHeight: 0, overflowY: 'auto' } : undefined}>
+                    <Section t={t} title={`区画：${selectedGroup.label || selectedGroup.id}`}>
+                        <GroupEditor
+                            t={t}
+                            group={selectedGroup}
+                            definition={definition}
+                            patchDef={patchDef}
+                            onRemoved={() => onSelectGroup?.(null)}
+                            onDuplicate={onDuplicateGroup}
+                        />
+                    </Section>
+                    <div style={{ padding: '0 14px 14px' }}>
+                        <Button t={t} full label="選択を解除" onClick={() => onSelectGroup?.(null)} />
+                    </div>
+                </div>
             </div>
         );
     }
@@ -1360,34 +1504,32 @@ export default function Inspector({
     );
     const secStyle = (
             <Section t={t} title="スタイル">
+                {/* 所属する区画。**入れるのはここから**（区画側からパネル名を選ぶ形だと
+                    どれがどれか分からない。キャンバスで対象を見ながら操作させる） */}
+                <Field t={t} label="所属する区画">
+                    <Select
+                        t={t}
+                        value={groupOfPanel(definition, p.id)?.id ?? ''}
+                        options={[
+                            { value: '', label: '（区画に入れない）' },
+                            ...getGroups(definition).map((g) => ({
+                                value: g.id,
+                                label: g.label || g.id,
+                            })),
+                        ]}
+                        onChange={(v) => patchDef({ groups: assignPanelToGroup(definition, p.id, v) })}
+                    />
+                </Field>
                 <Field t={t} label="質感">
                     <Select
                         t={t}
                         // ⚠ 既定は defaultVariantFor() から取る。描画側と同じ関数を使うこと
                         //    （別々にベタ書きして「実物は NOC なのに UI はカード」とズレた前科あり）
                         value={panelVariant}
-                        options={[
-                            { value: 'noc', label: 'コーナーフレーム（四隅のカギ括弧）' },
-                            { value: 'bracketSolid', label: 'コーナーフレーム＋不透明' },
-                            { value: 'card', label: 'カード（枠あり）' },
-                            { value: 'glass', label: 'すりガラス' },
-                            { value: 'solid', label: '不透明' },
-                            { value: 'outline', label: '枠線のみ' },
-                            { value: 'underline', label: '上線' },
-                            { value: 'sideAccent', label: '左線' },
-                            { value: 'inset', label: '沈み込み' },
-                            { value: 'elevated', label: '浮き上がり' },
-                            { value: 'holo', label: 'ホログラム（斜め縞）' },
-                            { value: 'neonEdge', label: 'ネオン管（枠が光る）' },
-                            { value: 'blueprint', label: '方眼紙（設計図）' },
-                            { value: 'ticket', label: '伝票（上辺ミシン目）' },
-                            { value: 'letterpress', label: '活版（細罫）' },
-                            { value: 'polaroid', label: '印画紙（下に広い余白）' },
-                            { value: 'punchCard', label: 'パンチカード（上辺に切り欠き）' },
-                            { value: 'titleBlock', label: '表題欄（図面の枠）' },
-                            { value: 'eink', label: '電子ペーパー（平坦）' },
-                            { value: 'frameless', label: '枠なし（透過）' },
-                        ]}
+                        // ⚠ 一覧は themes.js（panelSurface と同じファイル）から取る。
+                        //   ここにベタ書きすると、質感を足したとき
+                        //   「描画は対応したのに選べない」というズレが起きる
+                        options={PANEL_VARIANTS}
                         onChange={(v) => patchPanel(p.id, { style: { ...(p.style ?? {}), variant: v } })}
                     />
                 </Field>

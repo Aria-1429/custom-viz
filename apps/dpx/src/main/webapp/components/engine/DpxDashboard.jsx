@@ -12,9 +12,11 @@ import {
     bracketArmLength,
     panelStyleOverrides,
     panelSurface,
+    groupSurface,
     panelTitleSkin,
     resolveTheme,
 } from './themes';
+import { getGroups, groupRect, groupTab } from './groups';
 import { resolveBrushToken } from './timeBrush';
 import { applyTokens, useDpxTokens } from './tokens';
 import { useDpxGlobalStyles } from './ui';
@@ -40,6 +42,15 @@ import { defaultVariantFor, resolveViz } from './vizRegistry';
 
 const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
 const TITLE_H = 36;
+/**
+ * 区画（グループ）のヘッダ帯の高さ(px)。罫と区画名がここに入る。
+ *
+ * ⚠ **区画は自分の見出しの場所を自分で持つ。** 帯を持たずに見出しを枠の外へ
+ *   逃がすと、上にあるもの（パネルの上端・ダッシュボードの見出し）と
+ *   **必ず重なる**（実機で発生）。最上段の区画のためにグリッド側にも
+ *   同じ高さの余白を空ける（`paddingTop`）。
+ */
+const GROUP_HEADER_H = 18;
 /** 全画面表示のときに画面端に残す余白（px）。 */
 const FULL_INSET = 12;
 
@@ -55,6 +66,126 @@ function useViewportHeight() {
     return vh;
 }
 
+
+/**
+ * パネルグループの枠（★Studio では原理的に不可能）。
+ *
+ * **パネルと同じ CSS grid に、背面レイヤとして敷く。**
+ * メンバーの座標から外接矩形を出すので、パネルを動かせば枠が追従する
+ * （図形を手で合わせる方式と違い、ズレようがない）。
+ *
+ * ⚠ **`pointerEvents: 'none'` を必ず付ける。** 枠はパネルの下に敷くが、
+ *   グリッドの重なり順ではパネルより手前に来る領域が生じるため、
+ *   付けないと**枠の上のクリックがパネルに届かない**（選択もドリルダウンも死ぬ）。
+ *
+ * ⚠ 見出しは**枠の罫を切り欠いて**置く（設計図・計器盤の意匠）。
+ *   罫の上に文字を重ねると線が文字を貫いて読みにくい。
+ */
+function GroupFrame({ group, panels, grid, t, mode, selected, onSelect, onDragStart }) {
+    const rect = groupRect(group, panels);
+    if (!rect) return null;
+
+    const pad = Number.isFinite(Number(group.pad)) ? Number(group.pad) : 8;
+    const label = String(group.label ?? '').trim();
+    const surface = groupSurface(t, group.variant, group.color);
+    const editing = mode === 'edit';
+
+    return (
+        <div
+            data-group-id={group.id}
+            style={{
+                gridColumn: `${rect.x + 1} / span ${rect.w}`,
+                gridRow: `${rect.y + 1} / span ${rect.h}`,
+                // パネル（既定 z=1）より必ず後ろへ
+                zIndex: 0,
+                position: 'relative',
+                // ⚠ グリッドのセル境界ぴったりだとパネルの縁と枠が重なって
+                //   線が二重に見える。gap の内側へ少し広げて「囲っている」形にする。
+                // ⚠ **見出しの居場所を枠自身が持つ**（2026-08-12 修正）。
+                //   以前は見出しを枠の外（`top:-13`）へ逃がしていたため、
+                //   **区画の上辺とパネルの上端が同じ帯に重なっていた**
+                //   （ユーザー指摘・2x 拡大で確認）。
+                //   上へ HEADER_H だけ伸ばし、その帯に罫と見出しを置く。
+                //   グリッド上部の余白（paddingTop）はこの帯のために空けてある
+                marginTop: -GROUP_HEADER_H,
+                // ⚠ **左右いっぱいに広げない。** 隣り合う区画の罫が突き当たって
+                //   **1本の線に繋がり、2つの区画が1つに見える**（実機の 2x 拡大で確認）。
+                //   gap の半分だけ内側に留めて、区画と区画の間に必ず切れ目を作る。
+                //   `pad` は「パネルからどれだけ外へ広げるか」なので、
+                //   gap/2 を超えない範囲に収める
+                marginLeft: -Math.min(pad, Math.max(0, Math.floor((grid.gap ?? 12) / 2) - 1)),
+                marginRight: -Math.min(pad, Math.max(0, Math.floor((grid.gap ?? 12) / 2) - 1)),
+                marginBottom: -pad,
+                // ⚠ 枠自体はクリックを通す（下のパネルを触れなくなるため）。
+                //   選択させたいのは**見出しだけ**なので、そこだけ pointerEvents を戻す
+                pointerEvents: 'none',
+                ...surface,
+                // 選択中は枠を強調する（どの区画を編集しているか分かるように）
+                ...(selected ? { borderTopColor: t.selection, borderColor: t.selection } : null),
+            }}
+        >
+            {label || editing ? (
+                <div
+                    onPointerDown={
+                        editing
+                            ? (e) => {
+                                  // ⚠ パネルの選択解除（キャンバスの空きクリック）に
+                                  //   飲まれないよう伝播を止める
+                                  e.stopPropagation();
+                                  onSelect?.(group.id);
+                                  // ⭐ 掴んだらそのまま**区画ごと移動**できる
+                                  //   （パネルのタイトルバーと同じ操作感）
+                                  onDragStart?.(group.id, e);
+                              }
+                            : undefined
+                    }
+                    title={editing ? 'ドラッグで区画ごと移動 / クリックで編集' : undefined}
+                    style={{
+                        position: 'absolute',
+                        // ⚠ 編集中だけ掴めるようにする（表示モードでは邪魔をしない）
+                        pointerEvents: editing ? 'auto' : 'none',
+                        // 掴んで動かせることを示す（パネルのタイトルバーと同じ move）
+                        cursor: editing ? 'move' : 'default',
+                        // ⚠ 区画名は短いので、**文字の幅だけ**だと掴む場所が小さすぎる。
+                        //   編集中はヘッダ帯の高さぶんの当たり判定を持たせる
+                        ...(editing
+                            ? { paddingRight: 10, paddingBottom: 4, minWidth: 40 }
+                            : null),
+                        // ⚠ **見出しは枠が確保したヘッダ帯の中に置く**（枠の外へ出さない）。
+                        //   外へ逃がすと、上にあるもの（パネル・ダッシュボードの見出し）と
+                        //   必ず重なる。帯の中なら重なりようがない。
+                        //   罫（borderTop）は帯の上端に引かれるので、見出しはその下に座る
+                        top: 4,
+                        left: 2,
+                        padding: 0,
+                        lineHeight: 1,
+                        fontSize: 10,
+                        // ⚠ グループの見出しは**パネルのタイトルより弱く**する。
+                        //   同じ強さだと「大きなパネル」に見えて階層が伝わらない。
+                        //   字間を広く・色を落として「区画のラベル」に徹させる
+                        letterSpacing: '0.22em',
+                        textTransform: 'uppercase',
+                        // ⚠ **薄くしすぎない。** subColor（既に半透明）へさらに
+                        //   opacity を掛けると壁面表示で読めなくなる
+                        //   （実機で確認。カギ括弧を 0.42→0.62 に上げたのと同じ話）。
+                        //   区画名は「読めること」が最低条件なので、
+                        //   弱さは**字間と大きさ**で表現し、色は落とさない
+                        color: selected ? t.selection : t.titleColor,
+                        opacity: selected ? 1 : 0.72,
+                        whiteSpace: 'nowrap',
+                        maxWidth: 'calc(100% - 32px)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                    }}
+                >
+                    {/* 名前なしの区画は編集中だけ掴めるように印を出す
+                        （出さないとクリックする場所が無く、選べなくなる） */}
+                    {label || '（区画）'}
+                </div>
+            ) : null}
+        </div>
+    );
+}
 
 /** タブの帯。横（上部）と縦（左サイドバー）の両方に対応する。
  *  ⚠ サイドバー配置は Studio に無い（Studio のタブは上部固定）。
@@ -830,6 +961,10 @@ export default function DpxDashboard({
     onTabChange,
     selectedInputId = null,
     onSelectInput,
+    // 区画（グループ）＝パネル・入力と並ぶ第3の選択対象
+    selectedGroupId = null,
+    onSelectGroup,
+    onMoveGroup,
     app,
     onReorderInputs,
     toolbar = null,
@@ -862,6 +997,20 @@ export default function DpxDashboard({
     const panels = tabs
         ? allPanels.filter((p) => (p.tab ?? tabs[0].id) === currentTab)
         : allPanels;
+
+    // 見出し付きのグループが**最上段（y=0）**にあるか。
+    // ある時だけグリッド上部に隙間を作る（見出しの居場所）。
+    // ⚠ 「グループがある」ではなく「最上段にある」で判定する。
+    //   下段だけのグループで隙間を作ると、既存ボードが理由もなく間延びする
+    const visibleGroups = getGroups(definition).filter(
+        (g) => !tabs || (groupTab(g, allPanels) ?? tabs[0].id) === currentTab
+    );
+    // ⚠ **ラベルの有無で判定しない。** 名前が無い区画もヘッダ帯のぶん上へ伸びるので、
+    //   空けないと罫がダッシュボードの見出しに重なる（ラベル有無に関係なく起きる）
+    const hasLabeledGroup = visibleGroups.some((g) => {
+        const r = groupRect(g, panels);
+        return r != null && r.y === 0;
+    });
 
     // ── タブ自動送り（ローテーション）──────────────────────────
     // ⚠ setInterval の発火回数で数えない（非アクティブタブで詰まる）。
@@ -916,6 +1065,47 @@ export default function DpxDashboard({
             '@keyframes dpxBorderFlow { from { background-position: 0% 50%; } to { background-position: 200% 50%; } }';
         document.head.appendChild(style);
     }, []);
+
+    /**
+     * ⭐ **区画ごとドラッグして動かす**（メンバー全員が付いてくる）。
+     *
+     * これが無いと区画は「枠がパネルを追いかけるだけの飾り」になる。
+     * ヘッダ帯（罫と区画名の帯）を掴んで動かす＝パネルのタイトルバーと同じ操作感。
+     *
+     * ⚠ **移動量は毎回「掴んだ時点の座標」から計算する**（累積で足さない）。
+     *   前フレームからの差分を足し込む形にすると、クランプで止まった後に
+     *   戻すときズレる（パネルのドラッグが `start.panel` を持つのと同じ理由）。
+     */
+    const onGroupDragStart = (groupId, e) => {
+        if (mode !== 'edit' || !onMoveGroup) return;
+        const gridEl = gridRef.current;
+        if (!gridEl) return;
+        e.preventDefault();
+        e.stopPropagation();
+        onSelectGroup?.(groupId);
+
+        const rect = gridEl.getBoundingClientRect();
+        const cellW = (rect.width - grid.gap * (grid.columns - 1)) / grid.columns;
+        const start = { x: e.clientX, y: e.clientY };
+        let last = { dx: 0, dy: 0 };
+
+        const onMove = (ev) => {
+            const dx = Math.round((ev.clientX - start.x) / (cellW + grid.gap));
+            const dy = Math.round((ev.clientY - start.y) / (grid.rowHeight + grid.gap));
+            // 前回と同じセル量なら何もしない（毎フレーム定義を作り替えない）
+            if (dx === last.dx && dy === last.dy) return;
+            // ⚠ **差分だけ**を渡す（累積値ではない）。呼び出し側は現在の座標に
+            //   足すので、累積を渡すと二重に動く
+            onMoveGroup(groupId, dx - last.dx, dy - last.dy);
+            last = { dx, dy };
+        };
+        const onUp = () => {
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+        };
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+    };
 
     const onDragStart = (id, kind, e) => {
         if (mode !== 'edit' || !onPanelLayout) return;
@@ -1042,9 +1232,31 @@ export default function DpxDashboard({
                         display: 'grid',
                         gridTemplateColumns: `repeat(${grid.columns}, 1fr)`,
                         gridAutoRows: `${grid.rowHeight}px`,
+                        // ⚠ 最上段の区画はヘッダ帯のぶん上へ伸びるので、その居場所を空ける。
+                        //   空けないとダッシュボードのタイトルに重なる（実機で発生）。
+                        // ⚠ **帯のぶんだけでは足りない。** ぴったりだと罫が見出しの
+                        //   すぐ下（12px）に来て窮屈に見えた（実機で計測）。
+                        //   帯＋余白で「見出しとは別の段」に見せる
+                        //   区画が最上段に無い時は従来どおり（既存ボードの間延びを防ぐ）
+                        paddingTop: hasLabeledGroup ? GROUP_HEADER_H + 10 : 0,
                         gap: grid.gap,
                     }}
                 >
+                    {/* グループ枠。パネルより先に描き、zIndex:0 で背面に置く。
+                        ⚠ 現在のタブに属するものだけ（切り替えても枠が残らないように） */}
+                    {visibleGroups.map((g) => (
+                        <GroupFrame
+                            key={g.id}
+                            group={g}
+                            panels={panels}
+                            grid={grid}
+                            t={t}
+                            mode={mode}
+                            selected={selectedGroupId === g.id}
+                            onSelect={onSelectGroup}
+                            onDragStart={onGroupDragStart}
+                        />
+                    ))}
                     {panels.map((p, i) => (
                         <Panel
                             key={p.id}

@@ -60,6 +60,15 @@ function Icon({ name, color }) {
                 <path d="M3 10 L10 10 L10 6" />
             </g>
         ),
+        // 区画：上辺の罫と、その下にくくられた2枚のパネル
+        // （実際の見た目＝上辺の罫と揃える。中身を暗示する図にしない）
+        group: (
+            <g {...c}>
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <rect x="4" y="10" width="7" height="9" rx="1" />
+                <rect x="13" y="10" width="7" height="9" rx="1" />
+            </g>
+        ),
         data: (
             <g {...c}>
                 <ellipse cx="12" cy="6" rx="7.5" ry="3" />
@@ -209,6 +218,7 @@ export default function EditToolbar({
     onAddViz,
     onAddInput,
     onAddTab,
+    onAddGroup,
     canUndo,
     onUndo,
     canRedo,
@@ -260,6 +270,11 @@ export default function EditToolbar({
             <Menu t={t} label="装飾" icon="deco" items={byCat('deco')} onPick={onAddViz} />
             <Menu t={t} label="図形" icon="shape" items={byCat('shape')} onPick={onAddViz} />
             {sep()}
+            {/* 区画（グループ）＝複数パネルを1つの領域としてくくる。
+                パネル・入力と並ぶ「追加できるもの」なのでツールバーに置く */}
+            <button type="button" title="区画を追加（パネルをくくる枠）" style={iconBtn(true)} onClick={onAddGroup}>
+                <Icon name="group" color={t.subColor} />
+            </button>
             <button type="button" title="タブを追加" style={iconBtn(true)} onClick={onAddTab}>
                 <Icon name="tab" color={t.subColor} />
             </button>

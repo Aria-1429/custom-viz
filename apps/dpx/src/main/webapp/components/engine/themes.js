@@ -490,6 +490,37 @@ export function bracketArmLength(panelHeightPx, base = 11) {
  */
 const PANEL_INNER_PAD = 6;
 
+/**
+ * パネル質感の一覧（表示名つき）。**インスペクタのドロップダウンはこれを使う。**
+ *
+ * ⚠ **UI 側にベタ書きしない。** 以前はインスペクタに直接並べていたため、
+ *   質感を足すたびに「描画は対応したのに選べない」というズレが起きうる状態だった。
+ *   `panelSurface()` の実装と**同じファイルに置いて**、増減を1か所で済ませる。
+ *   区画（グループ）の質感選択も同じ一覧を使う（§groupSurface）。
+ */
+export const PANEL_VARIANTS = [
+    { value: 'noc', label: 'コーナーフレーム（四隅のカギ括弧）' },
+    { value: 'bracketSolid', label: 'コーナーフレーム＋不透明' },
+    { value: 'card', label: 'カード（枠あり）' },
+    { value: 'glass', label: 'すりガラス' },
+    { value: 'solid', label: '不透明' },
+    { value: 'outline', label: '枠線のみ' },
+    { value: 'underline', label: '上線' },
+    { value: 'sideAccent', label: '左線' },
+    { value: 'inset', label: '沈み込み' },
+    { value: 'elevated', label: '浮き上がり' },
+    { value: 'holo', label: 'ホログラム（斜め縞）' },
+    { value: 'neonEdge', label: 'ネオン管（枠が光る）' },
+    { value: 'blueprint', label: '方眼紙（設計図）' },
+    { value: 'ticket', label: '伝票（上辺ミシン目）' },
+    { value: 'letterpress', label: '活版（細罫）' },
+    { value: 'polaroid', label: '印画紙（下に広い余白）' },
+    { value: 'punchCard', label: 'パンチカード（上辺に切り欠き）' },
+    { value: 'titleBlock', label: '表題欄（図面の枠）' },
+    { value: 'eink', label: '電子ペーパー（平坦）' },
+    { value: 'frameless', label: '枠なし（透過）' },
+];
+
 export function panelSurface(theme, variant, bracketLen = 11) {
     if (variant === 'frameless') {
         return { background: 'transparent', border: 'none', boxShadow: 'none' };
@@ -905,6 +936,94 @@ export function panelTitleSkin(skin, theme, variant, accent) {
  *   rotate      … 傾き（deg）。⚠ transform は position:fixed を壊すので
  *                  0 のときは指定そのものを出さない（§8.z）
  */
+/**
+ * パネルグループの枠。**複数パネルを1つの領域としてくくる**ための意匠。
+ *
+ * Studio では iframe の外に描けないので作れない（＝DPX 固有）。
+ *
+ * 意匠の方針（既存の DPX 言語に合わせる）:
+ *   - **新しい色を持ち込まない。** 既定は `t.bracketColor` と同系の中性色。
+ *     グループが主張すると中身（数値・グラフ）が引っ込むため
+ *   - **塗らない。** 面積に比例する半透明の塗りは raster が重く、
+ *     性能方針（§7.1）に反する。枠と見出しだけで領域を示す
+ *   - 角の丸みはテーマの `radius` に従う（ここだけ丸いと浮く）
+ *
+ * ⭐ **質感は `panelSurface()` をそのまま流用する**（2026-08-12・ユーザー指定）。
+ * 区画専用の質感を別実装で持つと、**質感を足すたびに2か所を直す**ことになり
+ * 必ず片方が古くなる（`radius` を決め打ちして全廃した前科と同じ構図）。
+ * 区画固有なのは `rule`（上辺の罫＋下辺の返し）だけで、
+ * **残り20種はパネルと同じ関数から取る**。
+ *
+ * ⚠ 流用にあたっての注意:
+ *   - **カギ括弧の腕はパネルより長くする**（区画の方が大きいので、
+ *     同じ 11px だと角の印が小さすぎて枠に見えない）
+ *   - `色` を指定されたときは**枠線系のプロパティだけ**上書きする
+ *     （地色まで塗り替えると質感の意図が壊れる）
+ *
+ * @param variant 'rule'（既定・区画固有）ほか `PANEL_VARIANTS` の全種
+ */
+export function groupSurface(theme, variant = 'rule', color) {
+    const c = color || theme.bracketColor || `${theme.accent}66`;
+
+    // ⭐ 区画固有の `rule` 以外は**パネルの質感をそのまま使う**。
+    //   区画は面積が大きいので、カギ括弧の腕だけ長め（22px）にする。
+    if (variant && variant !== 'rule') {
+        const surface = panelSurface(theme, variant, 22);
+        if (!color) return surface;
+
+        // 色の指定があるときは**もともと線を持っているプロパティだけ**差し替える。
+        // ⚠ `panelSurface` は「線なし」を **`border: 'none'`** で表す（truthy）。
+        //   単純に `if (tinted.border)` で書き換えると、
+        //   **コーナーフレームに全周の枠が生えたり、枠なしに枠が付く**
+        //   （実際にこの実装で発生させ、値を出力して気づいた）。
+        //   `none` を除外し、**線幅と種別は元のまま**色だけ入れ替える。
+        const tinted = { ...surface };
+        const recolor = (v) => {
+            if (typeof v !== 'string' || v === 'none' || !v.trim()) return v;
+            // 「<幅> <種別> <色>」の色だけを置き換える（幅・種別は質感の意図）
+            const m = v.match(/^(\S+\s+\S+)\s+.+$/);
+            return m ? `${m[1]} ${c}` : v;
+        };
+        for (const k of ['border', 'borderTop', 'borderLeft', 'borderRight', 'borderBottom']) {
+            if (k in tinted) tinted[k] = recolor(tinted[k]);
+        }
+        // コーナーフレーム系は backgroundImage が線そのものなので引き直す
+        if (variant === 'noc' || variant === 'bracketSolid') {
+            Object.assign(tinted, cornerBrackets(c, 22, 1));
+        }
+        return tinted;
+    }
+    // 既定＝**上辺の罫＋下辺の返し**（設計図の表題欄の語彙）。
+    //
+    // ⚠ 当初は四隅のカギ括弧にしたが、**パネルの `noc` 質感と見分けが付かなかった**
+    //   （実機のスクリーンショットで確認。腕の長さを変えても、括弧が並ぶだけで
+    //   「どれがグループでどれがパネルか」が読めない）。
+    //   グループは**パネルが持たない device** を使う必要がある。
+    //
+    // ⚠ **上辺の罫だけでは「区画の終わり」が分からない**（2026-08-12・2x 拡大で判明）。
+    //   下に境界が無いので、次のパネルとの境目が読めなかった。
+    //   → **下辺の左右だけに短い垂直の「返し」**を足す。全周を囲うと
+    //   パネルの枠と競合するので、**線量は最小**にして区画の下端だけを示す。
+    //
+    // 実装は linear-gradient の重ね（`cornerBrackets` と同じ方式）。
+    // 面積比例の塗りではないので raster が軽い（§7.1 の性能方針）。
+    // ⚠ 返しを**垂直線**にしたら、パネルのカギ括弧と近接して
+    //   「見分けが付かない一塊」に見えた（2x 拡大で確認）。
+    //   → **水平の短い罫**にする。上辺の罫と同じ語彙なので
+    //   「同じものの下端」と読め、括弧（パネル）とは競合しない。
+    const line = `linear-gradient(${c}, ${c})`;
+    const RETURN_W = 26; // 返しの長さ(px)。上辺の罫の「続き」に見える程度に短く
+    return {
+        borderRadius: 0,
+        backgroundColor: 'transparent',
+        borderTop: `1px solid ${c}`,
+        backgroundImage: [line, line].join(', '),
+        backgroundRepeat: 'no-repeat',
+        backgroundSize: [`${RETURN_W}px 1px`, `${RETURN_W}px 1px`].join(', '),
+        backgroundPosition: ['left bottom', 'right bottom'].join(', '),
+    };
+}
+
 export function panelStyleOverrides(style = {}, theme) {
     const css = {};
     const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);

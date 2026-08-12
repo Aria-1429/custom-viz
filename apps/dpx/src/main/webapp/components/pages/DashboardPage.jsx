@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import DpxBootScreen, { dismissBootSplash } from '../engine/BootScreen';
 import DataSourceManager from '../engine/DataSourceManager';
 import { getDataSources, migrateToDataSources, nextSourceId } from '../engine/dataSources';
+import { movePanelsBy } from '../engine/groups';
 import EditToolbar from '../engine/EditToolbar';
 import VizPicker from '../engine/VizPicker';
 import { listViz } from '../engine/vizRegistry';
@@ -173,6 +174,7 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
     const [activeTab, setActiveTab] = useState(null);
     const [pickerTab, setPickerTab] = useState(null); // viz ピッカー（null で非表示）
     const [selectedInputId, setSelectedInputId] = useState(null); // 選択中の入力
+    const [selectedGroupId, setSelectedGroupId] = useState(null); // 選択中の区画（グループ）
     // 設定を別ウィンドウに出しているか。true の間は**右カラムを畳んで**
     // ダッシュボードを全幅で見せる（「全幅で見たまま調整したい」という要件）
     const [detached, setDetached] = useState(false);
@@ -312,6 +314,105 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
 
     const reorderInputs = (next) => {
         setDef((d) => ({ ...d, inputs: next }));
+        touch();
+    };
+
+    /**
+     * 区画（グループ）を追加する。
+     *
+     * ⚠ **選択中のパネルがあれば、それを最初のメンバーにする。**
+     *   空の区画を作っても枠は描かれないので（メンバーの外接矩形が無い）、
+     *   「追加したのに何も出ない」に見える。選択中のパネルから始めれば
+     *   その場で枠が出て、何が起きたか分かる。
+     */
+    const addGroup = () => {
+        setDef((d) => {
+            const groups = Array.isArray(d.groups) ? d.groups : [];
+            let n = groups.length + 1;
+            while (groups.some((g) => g.id === `g${n}`)) n += 1;
+            const id = `g${n}`;
+            const seed = selectedId ? [String(selectedId)] : [];
+            setSelectedGroupId(id);
+            setSelectedId(null);
+            setSelectedInputId(null);
+            return {
+                ...d,
+                groups: [...groups, { id, label: `区画 ${n}`, panels: seed, variant: 'rule' }],
+            };
+        });
+        touch();
+    };
+
+    /**
+     * ⭐ 区画ごと移動する（メンバー全員が相対位置を保ったまま動く）。
+     *
+     * ⚠ クランプは `movePanelsBy` が**グループ全体で**判定する。
+     *   パネルごとに丸めると端で形が崩れる（テストで押さえてある）。
+     */
+    const moveGroup = (groupId, dx, dy) => {
+        setDef((d) => {
+            const g = (d.groups ?? []).find((x) => x.id === groupId);
+            if (!g) return d;
+            const panels = movePanelsBy(d.panels ?? [], g.panels ?? [], dx, dy, d.grid?.columns ?? 12);
+            // 動けなかった（端に当たった）ときは定義を作り替えない＝dirty にしない
+            if (panels === d.panels) return d;
+            return { ...d, panels };
+        });
+        touch();
+    };
+
+    /**
+     * ⭐ 区画ごと複製する（メンバーのパネルもまとめて複製して新しい区画に入れる）。
+     *
+     * 「同じ構成をもう1系統」を1操作で作るためのもの。
+     *
+     * ⚠ **サーチ（`search.ref`）はそのまま共有する。** データソースまで複製すると
+     *   同じ SPL が2つに増えて管理が破綻する（dataSources.js の設計方針と同じ）。
+     *   複製後にパネル側で参照先を変えれば済む。
+     * ⚠ 複製先は**区画の真下**（右に置くと 12 列に収まらないことが多い）。
+     */
+    const duplicateGroup = (groupId) => {
+        setDef((d) => {
+            const g = (d.groups ?? []).find((x) => x.id === groupId);
+            if (!g) return d;
+            const memberIds = new Set((g.panels ?? []).map(String));
+            const members = (d.panels ?? []).filter((p) => memberIds.has(String(p.id)));
+            if (members.length === 0) return d;
+
+            // 区画の高さぶん下へずらす
+            const bottom = Math.max(...members.map((p) => (Number(p.y) || 0) + (Number(p.h) || 1)));
+            const top = Math.min(...members.map((p) => Number(p.y) || 0));
+            const dy = bottom - top;
+
+            let pn = (d.panels ?? []).length + 1;
+            const nextPanelId = () => {
+                while ((d.panels ?? []).some((p) => p.id === `p${pn}`)) pn += 1;
+                return `p${pn++}`;
+            };
+            const newPanels = [];
+            const newIds = [];
+            for (const src of members) {
+                const nid = nextPanelId();
+                newIds.push(nid);
+                newPanels.push({
+                    ...JSON.parse(JSON.stringify(src)),
+                    id: nid,
+                    y: (Number(src.y) || 0) + dy,
+                });
+            }
+
+            const groups = d.groups ?? [];
+            let gn = groups.length + 1;
+            while (groups.some((x) => x.id === `g${gn}`)) gn += 1;
+            const gid = `g${gn}`;
+            setSelectedGroupId(gid);
+            setSelectedId(null);
+            return {
+                ...d,
+                panels: [...(d.panels ?? []), ...newPanels],
+                groups: [...groups, { ...g, id: gid, label: `${g.label || g.id} のコピー`, panels: newIds }],
+            };
+        });
         touch();
     };
 
@@ -466,7 +567,10 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
         else url.searchParams.delete('mode');
         window.history.pushState({ dpxMode: nextMode }, '', url.toString());
         setMode(nextMode);
-        if (nextMode !== 'edit') setSelectedId(null);
+        if (nextMode !== 'edit') {
+            setSelectedId(null);
+            setSelectedGroupId(null);
+        }
     };
 
     // ── 編集モードのキーボード操作 ──────────────────────────────
@@ -481,6 +585,7 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
             if (e.key === 'Escape') {
                 setSelectedId(null);
                 setSelectedInputId(null);
+                setSelectedGroupId(null);
                 return;
             }
             if (typing(document.activeElement)) return;
@@ -502,6 +607,16 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
             if (mod && e.key.toLowerCase() === 'y') {
                 e.preventDefault();
                 redo();
+                return;
+            }
+            // ⭐ 区画が選択されているときは**矢印で区画ごと移動**（パネルと同じ操作系）。
+            //   パネルの処理より前に置く（両方選ばれることは無いが、順序を明示する）
+            if (selectedGroupId) {
+                const gd = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+                if (gd) {
+                    e.preventDefault();
+                    moveGroup(selectedGroupId, gd[0], gd[1]);
+                }
                 return;
             }
             if (!selectedId) return;
@@ -527,7 +642,9 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mode, selectedId, dirty, onSave, def]);
+        // ⚠ selectedGroupId を依存に入れる。入れないと**古い選択値を掴んだまま**の
+        //   ハンドラが残り、区画を選び直しても矢印が効かない（クロージャの罠）
+    }, [mode, selectedId, selectedGroupId, dirty, onSave, def]);
 
     // 表示モードのキー操作：K でキオスク切替、Esc で解除
     useEffect(() => {
@@ -589,6 +706,9 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
             selectedPanel={selectedPanel}
             selectedInputId={selectedInputId}
             onSelectInput={setSelectedInputId}
+            selectedGroupId={selectedGroupId}
+            onSelectGroup={setSelectedGroupId}
+            onDuplicateGroup={duplicateGroup}
             patchDef={patchDef}
             patchPanel={patchPanel}
             patchSearch={patchSearch}
@@ -719,7 +839,16 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                             onSelectInput={(id) => {
                                 setSelectedInputId(id);
                                 setSelectedId(null);
+                                setSelectedGroupId(null);
                             }}
+                            selectedGroupId={selectedGroupId}
+                            onSelectGroup={(id) => {
+                                // 3種（パネル / 入力 / 区画）の選択は排他
+                                setSelectedGroupId(id);
+                                setSelectedId(null);
+                                setSelectedInputId(null);
+                            }}
+                            onMoveGroup={moveGroup}
                             onReorderInputs={reorderInputs}
                             toolbar={
                                 mode === 'edit' ? (
@@ -728,6 +857,7 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                                         onAddViz={(vizType) => createPanel(vizType)}
                                         onAddInput={addInput}
                                         onAddTab={addTab}
+                                        onAddGroup={addGroup}
                                         canUndo={history.past.length > 0}
                                         canRedo={history.future.length > 0}
                                         onUndo={undo}
@@ -742,9 +872,12 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                             app={app}
                             selectedId={selectedId}
                             onSelect={(id) => {
-                                // パネルと入力の選択は排他。どちらかを選んだら他方は外す
+                                // パネル / 入力 / 区画の選択は排他。1つ選んだら他は外す
                                 setSelectedId(id);
-                                if (id) setSelectedInputId(null);
+                                if (id) {
+                                    setSelectedInputId(null);
+                                    setSelectedGroupId(null);
+                                }
                             }}
                             onPanelLayout={patchPanel}
                             onDuplicatePanel={duplicatePanel}
