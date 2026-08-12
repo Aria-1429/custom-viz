@@ -17,7 +17,14 @@ import {
     panelTitleSkin,
     resolveTheme,
 } from './themes';
-import { getGroups, groupInset as groupInsetPx, groupRect, groupTab, reserveHeaderRows } from './groups';
+import {
+    applyLayoutPreview,
+    getGroups,
+    groupInset as groupInsetPx,
+    groupRect,
+    groupTab,
+    reserveHeaderRows,
+} from './groups';
 import { resolveBrushToken } from './timeBrush';
 import { applyTokens, useDpxTokens } from './tokens';
 import { useDpxGlobalStyles } from './ui';
@@ -1053,7 +1060,14 @@ export default function DpxDashboard({
         () => ({ columns: 12, rowHeight: 72, gap: 12, ...(definition.grid ?? {}) }),
         [definition.grid]
     );
-    const allPanels = Array.isArray(definition.panels) ? definition.panels : [];
+    // ⭐ **ドラッグ中の配置は定義に書かず、ここで見た目だけ差し替える**。
+    //   離した時に1回だけ定義へ書くので、**JSON の変化＝1操作**が保たれる。
+    //   → 履歴のまとめキーがドラッグには要らなくなる（§6.8.6b）
+    const [layoutPreview, setLayoutPreview] = useState(null);
+    const allPanels = useMemo(
+        () => applyLayoutPreview(Array.isArray(definition.panels) ? definition.panels : [], layoutPreview),
+        [definition.panels, layoutPreview]
+    );
     const tabs = Array.isArray(definition.tabs) && definition.tabs.length > 0 ? definition.tabs : null;
     // タブの配置：'top'（既定）/ 'left'（サイドバー。Studio には無い）
     const tabPos = definition.tabPosition === 'left' ? 'left' : 'top';
@@ -1172,24 +1186,43 @@ export default function DpxDashboard({
         e.stopPropagation();
         onSelectGroup?.(groupId);
 
+        const group = visibleGroups.find((g) => g.id === groupId);
+        const memberIds = (group?.panels ?? []).map(String);
+        if (memberIds.length === 0) return;
+        // 掴んだ時点のメンバーの座標を控える（プレビューの基準）
+        const base = allPanels.filter((p) => memberIds.includes(String(p.id))).map((p) => ({ ...p }));
+        const minX = Math.min(...base.map((p) => Number(p.x) || 0));
+        const minY = Math.min(...base.map((p) => Number(p.y) || 0));
+        const maxRight = Math.max(...base.map((p) => (Number(p.x) || 0) + (Number(p.w) || 1)));
+
         const rect = gridEl.getBoundingClientRect();
         const cellW = (rect.width - grid.gap * (grid.columns - 1)) / grid.columns;
         const start = { x: e.clientX, y: e.clientY };
         let last = { dx: 0, dy: 0 };
 
         const onMove = (ev) => {
-            const dx = Math.round((ev.clientX - start.x) / (cellW + grid.gap));
-            const dy = Math.round((ev.clientY - start.y) / (grid.rowHeight + grid.gap));
-            // 前回と同じセル量なら何もしない（毎フレーム定義を作り替えない）
+            const rawDx = Math.round((ev.clientX - start.x) / (cellW + grid.gap));
+            const rawDy = Math.round((ev.clientY - start.y) / (grid.rowHeight + grid.gap));
+            // ⚠ クランプは**区画全体**で judging する（メンバーごとに丸めると形が崩れる。
+            //   movePanelsBy と同じ規則をプレビューでも守る）
+            const dx = Math.max(-minX, Math.min(rawDx, grid.columns - maxRight));
+            const dy = Math.max(-minY, rawDy);
             if (dx === last.dx && dy === last.dy) return;
-            // ⚠ **差分だけ**を渡す（累積値ではない）。呼び出し側は現在の座標に
-            //   足すので、累積を渡すと二重に動く
-            onMoveGroup(groupId, dx - last.dx, dy - last.dy);
             last = { dx, dy };
+            // ⭐ 定義は書き換えず、見た目だけ動かす
+            setLayoutPreview({
+                ids: memberIds,
+                byId: Object.fromEntries(
+                    base.map((p) => [String(p.id), { x: (Number(p.x) || 0) + dx, y: (Number(p.y) || 0) + dy }])
+                ),
+            });
         };
         const onUp = () => {
             window.removeEventListener('pointermove', onMove);
             window.removeEventListener('pointerup', onUp);
+            setLayoutPreview(null);
+            // ⭐ **離した時に1回だけ定義へ書く**＝履歴も1手・JSON の変化も1回
+            if (last.dx !== 0 || last.dy !== 0) onMoveGroup(groupId, last.dx, last.dy);
         };
         window.addEventListener('pointermove', onMove);
         window.addEventListener('pointerup', onUp);
@@ -1209,28 +1242,39 @@ export default function DpxDashboard({
         const start = { x: e.clientX, y: e.clientY, panel: { ...panel } };
         dragRef.current = { id, kind, start, cellW };
 
+        // ⭐ ドラッグ中は**定義を書き換えない**。最後に確定した値だけを持っておく
+        let pending = null;
+
         const onMove = (ev) => {
             const d = dragRef.current;
             if (!d) return;
             const dxCells = Math.round((ev.clientX - d.start.x) / (d.cellW + grid.gap));
             const dyRows = Math.round((ev.clientY - d.start.y) / (grid.rowHeight + grid.gap));
             const p0 = d.start.panel;
-            if (d.kind === 'move') {
-                onPanelLayout(d.id, {
-                    x: clamp(p0.x + dxCells, 0, grid.columns - p0.w),
-                    y: Math.max(p0.y + dyRows, 0),
-                });
-            } else {
-                onPanelLayout(d.id, {
-                    w: clamp(p0.w + dxCells, 1, grid.columns - p0.x),
-                    h: Math.max(p0.h + dyRows, 1),
-                });
-            }
+            const next =
+                d.kind === 'move'
+                    ? {
+                          x: clamp(p0.x + dxCells, 0, grid.columns - p0.w),
+                          y: Math.max(p0.y + dyRows, 0),
+                      }
+                    : {
+                          w: clamp(p0.w + dxCells, 1, grid.columns - p0.x),
+                          h: Math.max(p0.h + dyRows, 1),
+                      };
+            // 掴んだ時点と同じなら「動いていない」＝保存対象にしない
+            const same = Object.keys(next).every((k) => next[k] === p0[k]);
+            pending = same ? null : next;
+            setLayoutPreview(same ? null : { id: d.id, patch: next });
         };
         const onUp = () => {
+            const d = dragRef.current;
             dragRef.current = null;
             window.removeEventListener('pointermove', onMove);
             window.removeEventListener('pointerup', onUp);
+            setLayoutPreview(null);
+            // ⭐ **離した時に1回だけ定義へ書く**。
+            //   これで「JSON の変化＝1操作」になり、履歴のまとめキーが要らない
+            if (d && pending) onPanelLayout(d.id, pending);
         };
         window.addEventListener('pointermove', onMove);
         window.addEventListener('pointerup', onUp);

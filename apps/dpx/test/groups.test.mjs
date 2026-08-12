@@ -5,6 +5,7 @@
 //    それらしく見える）。メンバーの座標から正しく外接矩形が出ることを
 //    数値で押さえる。
 import {
+    applyLayoutPreview,
     assignPanelToGroup,
     getGroups,
     groupOfPanel,
@@ -187,6 +188,38 @@ ok(reserveHeaderRows(null, panels).headerRows.size === 0, 'groups が null で�
 ok(reserveHeaderRows([], null).headerRows.size === 0, 'panels が null でも落ちない');
 ok(reserveHeaderRows([{ id: 'x', label: 'X', panels: ['nope'] }], panels).headerRows.size === 0,
    'メンバーが居ない区画は行を取らない');
+
+console.log('--- ⭐ ドラッグ中のプレビュー（定義は書き換えない）---');
+// ⚠ ドラッグ中の座標は「一時的な表示状態」。定義に書くと履歴が中間状態で埋まる。
+//   ここで見た目だけ差し替え、離した時に1回だけ定義へ書く。
+{
+    const src = [
+        { id: 'p1', x: 0, y: 0, w: 4, h: 3 },
+        { id: 'p2', x: 4, y: 0, w: 4, h: 3 },
+    ];
+    // 1枚だけ差し替える形（パネルの移動・リサイズ）
+    const one = applyLayoutPreview(src, { id: 'p1', patch: { x: 6, y: 2 } });
+    ok(one[0].x === 6 && one[0].y === 2, 'パネル1枚の位置が差し替わる');
+    ok(one[0].w === 4 && one[0].h === 3, '指定していない値はそのまま残る');
+    ok(one[1].x === 4, '対象外のパネルは動かない');
+    ok(src[0].x === 0, '⭐ 元の定義は書き換わらない（プレビューは非破壊）');
+
+    // 複数をそれぞれ違う値で差し替える形（区画ごと移動）
+    const many = applyLayoutPreview(src, {
+        byId: { p1: { x: 1, y: 1 }, p2: { x: 5, y: 1 } },
+    });
+    ok(many[0].x === 1 && many[1].x === 5, '区画のメンバーがそれぞれの値で差し替わる');
+    ok(many[0].y === 1 && many[1].y === 1, '相対位置が保たれる');
+
+    // プレビューが無いときは**同じ参照**を返す（無駄な再描画を避ける）
+    ok(applyLayoutPreview(src, null) === src, 'プレビュー無しなら同じ参照を返す');
+    ok(applyLayoutPreview(src, {}) === src, '空のプレビューでも同じ参照');
+    ok(applyLayoutPreview(src, { byId: {} }) === src, '空の byId でも同じ参照');
+    ok(applyLayoutPreview(null, { id: 'p1', patch: { x: 1 } }).length === 0, 'panels が null でも落ちない');
+    // 存在しない ID を指しても壊れない
+    const miss = applyLayoutPreview(src, { id: 'nope', patch: { x: 9 } });
+    ok(miss[0].x === 0 && miss[1].x === 4, '知らない ID なら何も変えない');
+}
 
 console.log(ng === 0 ? '\n全て成功' : `\n${ng} 件失敗`);
 process.exit(ng === 0 ? 0 : 1);

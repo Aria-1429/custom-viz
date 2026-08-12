@@ -242,3 +242,44 @@ export function movePanelsBy(panels, memberIds, dx, dy, columns = 12) {
  * 「グループに入れたら透明にした」パネルを覚えておくためのキー。
  */
 export const GROUPED_VARIANT = 'frameless';
+
+/**
+ * ⭐ **ドラッグ中の見た目だけを差し替える**（2026-08-12・定義には書かない）。
+ *
+ * ドラッグ中の座標は**一時的な表示状態**であって、保存される定義ではない。
+ * 中間状態を定義に書くと:
+ *   - 履歴がドラッグの途中経過で埋まる（Ctrl+Z が1セルずつになる）
+ *   - 「JSON が変わった＝編集された」という素直な判定が使えなくなる
+ * → **掴んでいる間はここで上書きして描き、離した時に1回だけ定義へ書く。**
+ *
+ * ⚠ **区画の枠もこれを通す。** パネルだけ差し替えると、ドラッグ中に
+ *   枠だけが元の位置に取り残される（区画は所属パネルの外接矩形で描くため）。
+ *
+ * 2つの形を受ける（パネル1枚のドラッグと、区画ごとの移動で必要な形が違う）:
+ *   - `{ id, patch }`  … 1枚だけ差し替える（パネルの移動・リサイズ）
+ *   - `{ byId: { <id>: patch } }` … 複数をそれぞれ違う値で差し替える（区画ごと移動）
+ *
+ * @param panels  定義上のパネル配列
+ * @param preview 上記いずれか。null / 空なら**同じ参照をそのまま返す**
+ * @returns 差し替え後の配列
+ */
+export function applyLayoutPreview(panels, preview) {
+    if (!preview) return panels;
+    const list = Array.isArray(panels) ? panels : [];
+
+    if (preview.byId && typeof preview.byId === 'object') {
+        const map = preview.byId;
+        if (Object.keys(map).length === 0) return panels;
+        return list.map((p) => {
+            const patch = map[String(p?.id)];
+            return patch ? { ...p, ...patch } : p;
+        });
+    }
+
+    if (preview.id != null && preview.patch) {
+        const id = String(preview.id);
+        return list.map((p) => (String(p?.id) === id ? { ...p, ...preview.patch } : p));
+    }
+
+    return panels;
+}

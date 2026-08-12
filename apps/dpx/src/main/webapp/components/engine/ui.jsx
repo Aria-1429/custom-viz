@@ -348,15 +348,33 @@ export function Select({ t, value, options, onChange, placeholder = '選択…' 
 }
 
 /** テキスト入力。
- *  - 打鍵ごとに即反映（プレビューが遅れない）。ただし **IME 変換中は反映しない**
- *    （composition 中に確定させると日本語入力が壊れる）
+ *
+ *  ⭐ **確定（blur / Enter）のときだけ定義へ書く**（2026-08-12 変更）。
+ *
+ *  ⚠ 以前は**打鍵ごとに `onChange` を親へ流していた**。そのため
+ *    「タイトルを8文字打ち直す」だけで定義が8回書き換わり、
+ *    **Ctrl+Z が8回必要**になっていた（履歴のまとめキーで誤魔化していた）。
+ *    ドラッグを「離した時に1回だけ書く」に直したのと**同じ整理**で、
+ *    **打っている最中の文字列は一時的な表示状態**として `draft` だけに持つ。
+ *
+ *  これで「JSON が1回変わる＝1操作」が文字入力でも成立し、
+ *  まとめキーに頼らず Ctrl+Z 一発で打つ前に戻せる。
+ *
+ *  - 打鍵中は `draft`（内部 state）だけが変わる＝入力欄の見た目は普通に追従する
+ *  - **Enter / フォーカスを外す**で確定して親へ通知
+ *  - **Escape** で打ちかけを捨てて元の値へ戻す
  *  - 外部から value が変わったら追従する（テンプレ切替・タブ切替など）
- *  - クリアボタン付き
+ *  - クリアボタンは押した時点で確定（ボタンは「操作」なので即書いてよい）
+ *
+ *  ⚠ IME（日本語入力）は `composition` 中に確定させない。変換候補を選んでいる
+ *    最中に親が再描画すると入力が壊れる。
  */
 export function TextInput({ t, value, onChange, placeholder, mono = false, clearable = true }) {
     const [draft, setDraft] = useState(value ?? '');
     const composing = useRef(false);
     const lastPropValue = useRef(value);
+    // Escape で打ちかけを捨てた直後かどうか（続く blur で確定させないための印）
+    const cancelled = useRef(false);
 
     useEffect(() => {
         // 自分の編集で親が更新した場合は書き戻さない（カーソルが飛ぶため）
@@ -367,6 +385,8 @@ export function TextInput({ t, value, onChange, placeholder, mono = false, clear
     }, [value]);
 
     const commit = (v) => {
+        // 変わっていないなら書かない（blur のたびに履歴が増えるのを防ぐ）
+        if (v === (lastPropValue.current ?? '')) return;
         lastPropValue.current = v;
         onChange(v);
     };
@@ -386,19 +406,41 @@ export function TextInput({ t, value, onChange, placeholder, mono = false, clear
                     composing.current = true;
                 }}
                 onCompositionEnd={(e) => {
+                    // ⚠ ここでは**確定しない**（変換が終わっただけで、入力は続くため）。
+                    //   draft に載せるだけにして、blur / Enter を待つ
                     composing.current = false;
                     setDraft(e.target.value);
-                    commit(e.target.value);
                 }}
                 onChange={(e) => {
+                    // ⭐ 打鍵中は draft だけ。定義（JSON）には書かない
                     setDraft(e.target.value);
-                    if (!composing.current) commit(e.target.value);
+                }}
+                onBlur={(e) => {
+                    // IME 変換中に外れた場合も、見えている文字列で確定する
+                    composing.current = false;
+                    // ⚠ **Escape 直後の blur では確定しない。**
+                    //   Escape は `setDraft` で戻すが、それは非同期なので
+                    //   `e.target.value` には**まだ捨てたはずの文字列が入っている**。
+                    //   そのまま commit すると「Escape したのに書き込まれる」ことになる
+                    //   （実機の E2E で検出。DOM の値を信じた結果の取りこぼし）
+                    if (cancelled.current) {
+                        cancelled.current = false;
+                        return;
+                    }
+                    commit(e.target.value);
                 }}
                 onKeyDown={(e) => {
-                    if (e.key === 'Enter') e.currentTarget.blur();
+                    // ⚠ **変換確定の Enter で確定してはいけない**（「あい」の変換を
+                    //   決めただけで入力欄から抜けてしまう）。
+                    //   `keydown` は `compositionend` より先に来ることがあるので、
+                    //   ref だけでなく **`isComposing`** も見る（こちらが確実）
+                    const ime = e.nativeEvent?.isComposing || composing.current;
+                    if (e.key === 'Enter' && !ime) e.currentTarget.blur();
                     if (e.key === 'Escape') {
+                        // 打ちかけを捨てる（定義は書き換わっていないので戻すだけ）。
+                        // 続けて起きる blur に「確定するな」と伝える
+                        cancelled.current = true;
                         setDraft(value ?? '');
-                        commit(value ?? '');
                         e.currentTarget.blur();
                     }
                 }}

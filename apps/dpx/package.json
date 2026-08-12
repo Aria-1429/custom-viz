@@ -1,6 +1,6 @@
 {
     "name": "@splunk/dpx",
-    "version": "1.4.1",
+    "version": "1.5.2",
     "license": "MIT",
     "private": true,
     "description": "新ダッシュボード基盤（Dashboard Framework を独立 React ページでホストする実証）",
@@ -9,7 +9,7 @@
         "build:dev": "webpack --mode=development",
         "start": "webpack --watch",
         "package": "node bin/package.mjs",
-        "test": "node test/colorRules.test.mjs && node test/scale.test.mjs && node test/spl.test.mjs && node test/timeBrush.test.mjs && node test/groups.test.mjs && node test/groupSurface.test.mjs"
+        "test": "node test/colorRules.test.mjs && node test/scale.test.mjs && node test/spl.test.mjs && node test/timeBrush.test.mjs && node test/groups.test.mjs && node test/groupSurface.test.mjs && node test/history.test.mjs"
     },
     "dependencies": {
         "@splunk/dashboard": "^29.8.0",

@@ -4,6 +4,17 @@ import DpxBootScreen, { dismissBootSplash } from '../engine/BootScreen';
 import DataSourceManager from '../engine/DataSourceManager';
 import { getDataSources, migrateToDataSources, nextSourceId } from '../engine/dataSources';
 import { movePanelsBy } from '../engine/groups';
+import {
+    canRedo as histCanRedo,
+    canUndo as histCanUndo,
+    coalesceKeyFor,
+    initHistory,
+    isDirty as histIsDirty,
+    markSaved,
+    pushHistory,
+    redoHistory,
+    undoHistory,
+} from '../engine/history';
 import EditToolbar from '../engine/EditToolbar';
 import VizPicker from '../engine/VizPicker';
 import { listViz } from '../engine/vizRegistry';
@@ -165,7 +176,6 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
     const [def, setDef] = useState(null);
     const [meta, setMeta] = useState({ owner: null, template: null, label: '' });
     const [selectedId, setSelectedId] = useState(null);
-    const [dirty, setDirty] = useState(false);
     const [saveMsg, setSaveMsg] = useState(null);
     const [migratedCount, setMigratedCount] = useState(0); // 旧形式から移行したパネル数（通知用）
     const [showSource, setShowSource] = useState(false);
@@ -178,7 +188,9 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
     // 設定を別ウィンドウに出しているか。true の間は**右カラムを畳んで**
     // ダッシュボードを全幅で見せる（「全幅で見たまま調整したい」という要件）
     const [detached, setDetached] = useState(false);
-    const [history, setHistory] = useState({ past: [], future: [] });
+    // 編集履歴。`base`（保存済みの姿）も持つので、**dirty はここから導出する**
+    // （別 state に持つと undo で戻しきっても true のまま残る）
+    const [history, setHistory] = useState(() => initHistory(null));
     // データソース管理ダイアログ。
     // ⚠ 開くときに「どのデータソースを選んだ状態にするか」も持つ。
     //   パネルから飛んだのに一覧の先頭が開くと迷子になる（実機で指摘された）
@@ -204,6 +216,9 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                 const { definition, migrated } = migrateToDataSources(v.definition);
                 if (migrated > 0) setMigratedCount(migrated);
                 setDef(definition);
+                // 読み込んだ姿を「戻る先の基準」にする。これが無いと
+                // 開いた直後から未保存扱いになる
+                setHistory(initHistory(definition));
                 setPhase('ready');
             })
             .catch((err) => {
@@ -215,6 +230,13 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
             cancelled = true;
         };
     }, [app, view]);
+
+    // ⭐ **未保存かどうかは履歴から導出する**（別 state に持たない）。
+    //   「Ctrl+Z で戻しきったら保存ボタンが押せなくなる」はこれで成立する。
+    //   ⚠ 中身の比較なので、手で元の値に戻した場合も押せなくなる（意図どおり）。
+    const dirty = useMemo(() => histIsDirty(history, def), [history, def]);
+    const canUndo = histCanUndo(history);
+    const canRedo = histCanRedo(history);
 
     const t = resolveTheme(def ?? {});
     const theme = t.colorScheme; // 既存 viz 向け（PlatformThemeContext）
@@ -237,85 +259,111 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
     }, [mode, dirty]);
 
     // ── 定義の編集ヘルパ（def が唯一の真実。ソースタブは表示時に直列化）──
-    // 変更を積む（undo 用）。def の差し替え前に呼ぶこと。
-    const pushHistory = useCallback(() => {
-        setHistory((h) => ({ past: [...h.past.slice(-49), def], future: [] }));
-    }, [def]);
-
-    const touch = () => {
-        pushHistory();
-        setDirty(true);
+    //
+    // ⭐ **編集は必ず `edit()` を通す**（2026-08-12 の改修）。
+    //
+    // ⚠ 以前は「`touch()` で履歴を積む → 別途 `setDef()` で書き換える」の
+    //   2 段構えだったが、`touch()` が積むのは **レンダー時の `def`**（クロージャ）で、
+    //   `setDef` の更新関数が受け取る最新値とは限らなかった。
+    //   1 レンダー内で 2 回編集すると **同じ古い定義が 2 回積まれ**、
+    //   Ctrl+Z が 1 手前ではなく 2 手前へ飛ぶ。
+    //   → **1 回の `setDef` の中で「変更前」を掴んで履歴に積む**形に統一した。
+    //     これなら React が渡す最新の `d` が必ず「変更前」になる。
+    //
+    // @param fn  変更前の定義を受け取り、新しい定義を返す関数
+    // @param key まとめキー（ドラッグ・文字入力を1手にまとめる）。省略で毎回1手
+    const edit = useCallback((fn, key = null) => {
+        setDef((d) => {
+            if (!d) return d;
+            const next = fn(d);
+            // 中身が変わらないなら履歴も汚さない（端に当たったドラッグなど）
+            if (next === d) return d;
+            setHistory((h) => pushHistory(h, d, key));
+            return next;
+        });
         setSaveMsg(null);
-    };
+    }, []);
 
-    const undo = () => {
-        setHistory((h) => {
-            if (h.past.length === 0) return h;
-            const prev = h.past[h.past.length - 1];
-            setDef(prev);
-            setDirty(true);
-            return { past: h.past.slice(0, -1), future: [def, ...h.future].slice(0, 50) };
-        });
-    };
+    // ⚠ **`setDef` の中で `setHistory` の結果を読んではいけない。**
+    //   React は更新関数を即時には走らせないので、外側の変数に書き戻す形
+    //   （`let applied = d; setHistory(... applied = r.definition ...); return applied`）は
+    //   **古い値を返す**。矢印キーの移動が戻らない不具合として実機に出た。
+    //   → **履歴を「正」にして、そこから def を setDef で流し込む**。
+    //     `defRef` は「今の定義」を同期的に読むための控え（state は非同期）。
+    const defRef = React.useRef(null);
+    defRef.current = def;
 
-    const redo = () => {
+    const undo = useCallback(() => {
         setHistory((h) => {
-            if (h.future.length === 0) return h;
-            const next = h.future[0];
-            setDef(next);
-            setDirty(true);
-            return { past: [...h.past, def], future: h.future.slice(1) };
+            const r = undoHistory(h, defRef.current);
+            if (!r) return h;
+            setDef(r.definition);
+            return r.history;
         });
-    };
-    const patchDef = (patch) => {
-        setDef((d) => ({ ...d, ...patch }));
-        touch();
-    };
-    const patchPanel = (id, patch) => {
-        setDef((d) => ({ ...d, panels: d.panels.map((p) => (p.id === id ? { ...p, ...patch } : p)) }));
-        touch();
-    };
-    const patchSearch = (id, patch) => {
-        setDef((d) => ({
-            ...d,
-            panels: d.panels.map((p) => (p.id === id ? { ...p, search: { ...(p.search ?? {}), ...patch } } : p)),
-        }));
-        touch();
-    };
-    const setOption = (id, key, value) => {
-        setDef((d) => ({
-            ...d,
-            panels: d.panels.map((p) =>
-                p.id === id ? { ...p, options: { ...(p.options ?? {}), [key]: value } } : p
-            ),
-        }));
-        touch();
-    };
+        setSaveMsg(null);
+    }, []);
+
+    const redo = useCallback(() => {
+        setHistory((h) => {
+            const r = redoHistory(h, defRef.current);
+            if (!r) return h;
+            setDef(r.definition);
+            return r.history;
+        });
+        setSaveMsg(null);
+    }, []);
+
+    // ⚠ **まとめキーは patch の形から自動で決める**（`coalesceKeyFor`）。
+    //   インスペクタの入力は ~100 箇所あるので、呼び出し側に手で配ると必ず漏れる。
+    //   明示したいとき（ドラッグなど）は最後の引数で上書きできる。
+    const patchDef = (patch, key) =>
+        edit((d) => ({ ...d, ...patch }), key === undefined ? coalesceKeyFor('def', patch) : key);
+    const patchPanel = (id, patch, key) =>
+        edit(
+            (d) => ({ ...d, panels: d.panels.map((p) => (p.id === id ? { ...p, ...patch } : p)) }),
+            key === undefined ? coalesceKeyFor(id, patch) : key
+        );
+    const patchSearch = (id, patch, key) =>
+        edit(
+            (d) => ({
+                ...d,
+                panels: d.panels.map((p) =>
+                    p.id === id ? { ...p, search: { ...(p.search ?? {}), ...patch } } : p
+                ),
+            }),
+            key === undefined ? coalesceKeyFor(`${id}/search`, patch) : key
+        );
+    const setOption = (id, key, value, coalesceKey) =>
+        edit(
+            (d) => ({
+                ...d,
+                panels: d.panels.map((p) =>
+                    p.id === id ? { ...p, options: { ...(p.options ?? {}), [key]: value } } : p
+                ),
+            }),
+            coalesceKey === undefined ? coalesceKeyFor(`${id}/options`, { [key]: value }) : coalesceKey
+        );
 
     // ── 入力（キャンバス上で選択・ドラッグ並べ替え）────────────────
     const addInput = (type) => {
-        setDef((d) => {
-            const inputs = Array.isArray(d.inputs) ? d.inputs : [];
-            let n = inputs.length + 1;
-            while (inputs.some((x) => x.id === `in${n}`)) n += 1;
-            const id = `in${n}`;
-            const base = { id, type, token: `tok${n}`, label: INPUT_LABELS[type] ?? '入力', width: 190 };
-            // 選択肢が要る型には、空だと何も選べないので雛形を入れておく
-            const withChoices =
-                type === 'dropdown' || type === 'multiselect'
-                    ? { ...base, choices: [{ label: 'すべて', value: '*' }] }
-                    : base;
-            setSelectedInputId(id);
-            setSelectedId(null);
-            return { ...d, inputs: [...inputs, withChoices] };
-        });
-        touch();
+        // ⚠ ID の採番は「今の定義」から先に決める。setDef の更新関数の中で
+        //   選択状態を触ると、React が更新関数を 2 回呼んだときに二重に走る
+        const inputs = Array.isArray(def?.inputs) ? def.inputs : [];
+        let n = inputs.length + 1;
+        while (inputs.some((x) => x.id === `in${n}`)) n += 1;
+        const id = `in${n}`;
+        const base = { id, type, token: `tok${n}`, label: INPUT_LABELS[type] ?? '入力', width: 190 };
+        // 選択肢が要る型には、空だと何も選べないので雛形を入れておく
+        const withChoices =
+            type === 'dropdown' || type === 'multiselect'
+                ? { ...base, choices: [{ label: 'すべて', value: '*' }] }
+                : base;
+        edit((d) => ({ ...d, inputs: [...(Array.isArray(d.inputs) ? d.inputs : []), withChoices] }));
+        setSelectedInputId(id);
+        setSelectedId(null);
     };
 
-    const reorderInputs = (next) => {
-        setDef((d) => ({ ...d, inputs: next }));
-        touch();
-    };
+    const reorderInputs = (next) => edit((d) => ({ ...d, inputs: next }));
 
     /**
      * 区画（グループ）を追加する。
@@ -326,21 +374,21 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
      *   その場で枠が出て、何が起きたか分かる。
      */
     const addGroup = () => {
-        setDef((d) => {
-            const groups = Array.isArray(d.groups) ? d.groups : [];
-            let n = groups.length + 1;
-            while (groups.some((g) => g.id === `g${n}`)) n += 1;
-            const id = `g${n}`;
-            const seed = selectedId ? [String(selectedId)] : [];
-            setSelectedGroupId(id);
-            setSelectedId(null);
-            setSelectedInputId(null);
-            return {
-                ...d,
-                groups: [...groups, { id, label: `区画 ${n}`, panels: seed, variant: 'rule' }],
-            };
-        });
-        touch();
+        const groups = Array.isArray(def?.groups) ? def.groups : [];
+        let n = groups.length + 1;
+        while (groups.some((g) => g.id === `g${n}`)) n += 1;
+        const id = `g${n}`;
+        const seed = selectedId ? [String(selectedId)] : [];
+        edit((d) => ({
+            ...d,
+            groups: [
+                ...(Array.isArray(d.groups) ? d.groups : []),
+                { id, label: `区画 ${n}`, panels: seed, variant: 'rule' },
+            ],
+        }));
+        setSelectedGroupId(id);
+        setSelectedId(null);
+        setSelectedInputId(null);
     };
 
     /**
@@ -349,16 +397,15 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
      * ⚠ クランプは `movePanelsBy` が**グループ全体で**判定する。
      *   パネルごとに丸めると端で形が崩れる（テストで押さえてある）。
      */
-    const moveGroup = (groupId, dx, dy) => {
-        setDef((d) => {
+    const moveGroup = (groupId, dx, dy, key = null) => {
+        edit((d) => {
             const g = (d.groups ?? []).find((x) => x.id === groupId);
             if (!g) return d;
             const panels = movePanelsBy(d.panels ?? [], g.panels ?? [], dx, dy, d.grid?.columns ?? 12);
             // 動けなかった（端に当たった）ときは定義を作り替えない＝dirty にしない
             if (panels === d.panels) return d;
             return { ...d, panels };
-        });
-        touch();
+        }, key);
     };
 
     /**
@@ -372,7 +419,13 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
      * ⚠ 複製先は**区画の真下**（右に置くと 12 列に収まらないことが多い）。
      */
     const duplicateGroup = (groupId) => {
-        setDef((d) => {
+        // 新しい区画 ID は先に決める（選択の切替を更新関数の外でやるため）
+        const groups0 = def?.groups ?? [];
+        let gn = groups0.length + 1;
+        while (groups0.some((x) => x.id === `g${gn}`)) gn += 1;
+        const gid = `g${gn}`;
+
+        edit((d) => {
             const g = (d.groups ?? []).find((x) => x.id === groupId);
             if (!g) return d;
             const memberIds = new Set((g.panels ?? []).map(String));
@@ -401,30 +454,26 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                 });
             }
 
-            const groups = d.groups ?? [];
-            let gn = groups.length + 1;
-            while (groups.some((x) => x.id === `g${gn}`)) gn += 1;
-            const gid = `g${gn}`;
-            setSelectedGroupId(gid);
-            setSelectedId(null);
             return {
                 ...d,
                 panels: [...(d.panels ?? []), ...newPanels],
-                groups: [...groups, { ...g, id: gid, label: `${g.label || g.id} のコピー`, panels: newIds }],
+                groups: [
+                    ...(d.groups ?? []),
+                    { ...g, id: gid, label: `${g.label || g.id} のコピー`, panels: newIds },
+                ],
             };
         });
-        touch();
+        setSelectedGroupId(gid);
+        setSelectedId(null);
     };
 
-    const addTab = () => {
-        setDef((d) => {
+    const addTab = () =>
+        edit((d) => {
             const tabs = Array.isArray(d.tabs) ? d.tabs : [];
             let n = tabs.length + 1;
             while (tabs.some((x) => x.id === `tab${n}`)) n += 1;
             return { ...d, tabs: [...tabs, { id: `tab${n}`, label: `タブ ${n}` }] };
         });
-        touch();
-    };
 
     // パネル追加は「まず viz を選ぶ」。ピッカーを開くだけで、実際の追加は
     // 選択後の createPanel が行う（作業順に UI を合わせる）。
@@ -432,7 +481,11 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
 
     const createPanel = (vizType) => {
         setPickerTab(null);
-        setDef((d) => {
+        // パネル ID は先に決める（選択の切替を更新関数の外でやるため）
+        let n0 = (def?.panels ?? []).length + 1;
+        while ((def?.panels ?? []).some((p) => p.id === `p${n0}`)) n0 += 1;
+        const newId = `p${n0}`;
+        edit((d) => {
             const tabs = d.tabs ?? [];
             const targetTab = tabs.length > 0 ? (pickerTab?.tabId ?? tabs[0].id) : undefined;
             // 追加先タブ内の最下段の下に置く
@@ -447,7 +500,6 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
             const firstDs = Object.keys(existingSources)[0];
             // 1つも無いときに作る新規データソースの ID
             const newDsId = nextSourceId(d);
-            setSelectedId(id);
             return {
                 ...d,
                 panels: [
@@ -481,22 +533,21 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                       }),
             };
         });
-        touch();
+        setSelectedId(newId);
     };
     const removePanel = (id) => {
-        setDef((d) => ({ ...d, panels: d.panels.filter((p) => p.id !== id) }));
+        edit((d) => ({ ...d, panels: d.panels.filter((p) => p.id !== id) }));
         setSelectedId(null);
-        touch();
     };
 
     /** パネルを複製する（右か下の空きに置く）。 */
     const duplicatePanel = (id) => {
-        setDef((d) => {
+        let n0 = (def?.panels ?? []).length + 1;
+        while ((def?.panels ?? []).some((p) => p.id === `p${n0}`)) n0 += 1;
+        const nid = `p${n0}`;
+        edit((d) => {
             const src = d.panels.find((p) => p.id === id);
             if (!src) return d;
-            let n = d.panels.length + 1;
-            while (d.panels.some((p) => p.id === `p${n}`)) n += 1;
-            const nid = `p${n}`;
             const cols = d.grid?.columns ?? 12;
             // 右に置けるならそこ、無理なら真下
             const right = src.x + src.w * 2 <= cols;
@@ -506,34 +557,40 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                 x: right ? src.x + src.w : src.x,
                 y: right ? src.y : src.y + src.h,
             };
-            setSelectedId(nid);
             return { ...d, panels: [...d.panels, copy] };
         });
-        touch();
+        setSelectedId(nid);
     };
 
-    /** 選択パネルの配置を少しずつ動かす（矢印キー用）。 */
+    /**
+     * 選択パネルの配置を少しずつ動かす（矢印キー用）。
+     *
+     * ⚠ **まとめキーを付ける。** 矢印を押しっぱなしにすると 1 秒で数十回飛ぶので、
+     *   1 回ずつ積むと Ctrl+Z が何十回も要る。連続した同種操作は 1 手にまとめる。
+     */
     const nudgePanel = (id, dx, dy, resize) => {
-        setDef((d) => ({
-            ...d,
-            panels: d.panels.map((p) => {
-                if (p.id !== id) return p;
-                const cols = d.grid?.columns ?? 12;
-                if (resize) {
+        edit(
+            (d) => ({
+                ...d,
+                panels: d.panels.map((p) => {
+                    if (p.id !== id) return p;
+                    const cols = d.grid?.columns ?? 12;
+                    if (resize) {
+                        return {
+                            ...p,
+                            w: Math.max(1, Math.min(p.w + dx, cols - p.x)),
+                            h: Math.max(1, p.h + dy),
+                        };
+                    }
                     return {
                         ...p,
-                        w: Math.max(1, Math.min(p.w + dx, cols - p.x)),
-                        h: Math.max(1, p.h + dy),
+                        x: Math.max(0, Math.min(p.x + dx, cols - p.w)),
+                        y: Math.max(0, p.y + dy),
                     };
-                }
-                return {
-                    ...p,
-                    x: Math.max(0, Math.min(p.x + dx, cols - p.w)),
-                    y: Math.max(0, p.y + dy),
-                };
+                }),
             }),
-        }));
-        touch();
+            `${resize ? 'nudge-resize' : 'nudge'}:${id}`
+        );
     };
 
     const onSave = useCallback(() => {
@@ -547,7 +604,9 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
             template: meta.template,
         })
             .then(() => {
-                setDirty(false);
+                // 保存した姿を新しい基準にする（＝dirty が消える）。
+                // ⚠ 履歴自体は残す。保存後も Ctrl+Z で戻せるほうが自然
+                setHistory((h) => markSaved(h, def));
                 setSaveMsg({ type: 'success', text: `保存しました ${new Date().toLocaleTimeString()}` });
             })
             .catch((err) => {
@@ -858,8 +917,8 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                                         onAddInput={addInput}
                                         onAddTab={addTab}
                                         onAddGroup={addGroup}
-                                        canUndo={history.past.length > 0}
-                                        canRedo={history.future.length > 0}
+                                        canUndo={canUndo}
+                                        canRedo={canRedo}
                                         onUndo={undo}
                                         onRedo={redo}
                                         onOpenDataSources={openDataSources}
@@ -917,8 +976,9 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                                     try {
                                         const parsed = JSON.parse(e.target.value);
                                         setSourceError(null);
-                                        setDef(parsed);
-                                        touch();
+                                        // ⚠ 1文字ごとに1手積むと Ctrl+Z が使い物にならない。
+                                        //   連続した打鍵は1手にまとめる
+                                        edit(() => parsed, 'source-edit');
                                     } catch (err) {
                                         setSourceError(String(err?.message ?? err));
                                     }
