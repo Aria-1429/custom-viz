@@ -697,6 +697,89 @@ function InputEditor({ t, input, index, definition, patchDef, onRemoved }) {
     );
 }
 
+/**
+ * 広いウィンドウ用のタブ切り替え。
+ *
+ * 縦に積んだセクションを**タブで切り替える**ことで、
+ *   1) スクロールしないと辿り着けない項目を無くす
+ *   2) 「今どのカテゴリを触っているか」を常に見せる（境界が曖昧という問題への答え）
+ * ⚠ タブは**選択対象が変わったら先頭に戻す**（パネルAの「オプション」を見たまま
+ *   パネルBに切り替わると、Bに無いタブが選ばれたままになりうる）。
+ */
+function WideTabs({ t, tabs }) {
+    const keys = tabs.map((x) => x.key).join('|');
+    const [cur, setCur] = useState(tabs[0]?.key);
+    useEffect(() => {
+        // 対象が変わってタブ構成が変わったら先頭に戻す
+        if (!tabs.some((x) => x.key === cur)) setCur(tabs[0]?.key);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [keys]);
+    const active = tabs.find((x) => x.key === cur) ?? tabs[0];
+    return (
+        <>
+            <div
+                style={{
+                    display: 'flex',
+                    gap: 2,
+                    padding: '8px 10px 0',
+                    borderBottom: `1px solid ${t.colorScheme === 'light' ? 'rgba(20,24,31,0.14)' : 'rgba(140,175,235,0.2)'}`,
+                    flex: 'none',
+                    flexWrap: 'wrap',
+                }}
+            >
+                {tabs.map((x) => {
+                    const on = x.key === active?.key;
+                    return (
+                        <button
+                            key={x.key}
+                            type="button"
+                            onClick={() => setCur(x.key)}
+                            style={{
+                                border: 'none',
+                                background: on ? `${t.accent}1f` : 'transparent',
+                                // 選択中のタブだけ下線を出して「今ここ」を明示する
+                                boxShadow: on ? `inset 0 -2px 0 ${t.accent}` : 'none',
+                                color: on ? t.titleColor : t.subColor,
+                                fontSize: 12,
+                                fontWeight: on ? 700 : 500,
+                                padding: '8px 14px',
+                                cursor: 'pointer',
+                                borderRadius: '6px 6px 0 0',
+                                fontFamily: 'inherit',
+                            }}
+                        >
+                            {x.label}
+                        </button>
+                    );
+                })}
+            </div>
+            {/* ⚠ **スクロールする器と段組みの器を分ける。**
+                CSS の段組みは「高さが決まっていると、あふれたぶんを**右へ新しい段**として作る」。
+                そのため器自体を高さ固定＋縦スクロールにすると、
+                **あふれた項目が画面外の右側に置かれて見えなくなる**
+                （実機で `scrollWidth 1499 / clientWidth 1000` を実測＝オプションが切れていた原因）。
+                → 外側だけを縦スクロールにし、内側の段組みには高さを与えない。
+                  こうすると段は**下へ伸びて**、普通に縦スクロールで全部読める。 */}
+            <div
+                className="dpx-scroll"
+                style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}
+            >
+                <div
+                    className="dpx-wide-cols"
+                    style={{
+                        padding: '12px 14px 20px',
+                        // 幅に応じて列数が自動で決まる（メディアクエリ不要）
+                        columnWidth: 320,
+                        columnGap: 26,
+                    }}
+                >
+                    {active?.content}
+                </div>
+            </div>
+        </>
+    );
+}
+
 export default function Inspector({
     definition,
     selectedPanel,
@@ -711,6 +794,10 @@ export default function Inspector({
     duplicatePanel,
     activeTab,
     onOpenDataSources,
+    // 別ウィンドウ用の広いレイアウト。
+    // true のとき: 幅を固定せず、セクションを**タブに分けて**横に並べる。
+    // 右カラム（幅 330px 固定）では縦積みのままにする（従来の見た目を変えない）。
+    wide = false,
 }) {
     const t = resolveTheme(definition);
     // 列を選ぶ editor の候補に使う。⚠ フックなので早期 return より前に置くこと
@@ -723,22 +810,39 @@ export default function Inspector({
     }));
     const tabs = definition.tabs ?? [];
 
-    const paneStyle = {
-        width: 330,
-        flex: 'none',
-        overflowY: 'auto',
-        background: t.colorScheme === 'light' ? '#ffffff' : 'rgba(12, 20, 38, 0.96)',
-        borderLeft: '1px solid rgba(140,175,235,0.2)',
-        color: t.titleColor,
-        fontSize: 12,
-    };
+    // ⚠ 右カラムは幅 330px 固定。**wide のときは固定しない**
+    //   （固定したままだと、別ウィンドウを広げても中身が細い1列のままで、
+    //   「縦長でやりにくい」という元の問題が何も解決しない）
+    const paneStyle = wide
+        ? {
+              width: '100%',
+              height: '100%',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              background: t.colorScheme === 'light' ? '#ffffff' : 'rgba(12, 20, 38, 0.96)',
+              color: t.titleColor,
+              fontSize: 12,
+          }
+        : {
+              width: 330,
+              flex: 'none',
+              overflowY: 'auto',
+              background: t.colorScheme === 'light' ? '#ffffff' : 'rgba(12, 20, 38, 0.96)',
+              borderLeft: '1px solid rgba(140,175,235,0.2)',
+              color: t.titleColor,
+              fontSize: 12,
+          };
 
     // 入力が選ばれているときは、その入力の設定だけを出す（Studio と同じ考え方）。
     const selectedInput = (definition.inputs ?? []).find((x) => (x.id ?? x.token) === selectedInputId) ?? null;
     if (selectedInput) {
         const idx = (definition.inputs ?? []).indexOf(selectedInput);
+        // ⚠ wide の paneStyle は overflow:hidden なので、
+        //   スクロールする子を必ず内側に置く（入力はセクション1つなのでタブにしない）
         return (
-            <div style={paneStyle} className="dpx-scroll">
+            <div style={paneStyle} className={wide ? undefined : 'dpx-scroll'}>
+            <div className="dpx-scroll" style={wide ? { flex: 1, minHeight: 0, overflowY: 'auto' } : undefined}>
                 <Section t={t} title={`入力：${selectedInput.label || selectedInput.token}`}>
                     <InputEditor
                         t={t}
@@ -753,12 +857,13 @@ export default function Inspector({
                     <Button t={t} full label="選択を解除" onClick={() => onSelectInput?.(null)} />
                 </div>
             </div>
+            </div>
         );
     }
 
     if (!selectedPanel) {
-        return (
-            <div className="dpx-scroll" style={paneStyle}>
+        // ⚠ パネル側と同じく、セクションを変数にして縦積み／タブで使い回す
+        const dashBoard = (
                 <Section t={t} title="ダッシュボード">
                     <Field t={t} label="タイトル">
                         <TextInput t={t} value={definition.title} onChange={(v) => patchDef({ title: v })} />
@@ -938,7 +1043,8 @@ export default function Inspector({
                         />
                     </Field>
                 </Section>
-
+        );
+        const dashDesign = (
                 <Section t={t} title="デザイン">
                     <Field t={t} label="配色プリセット">
                         <Select
@@ -1010,7 +1116,7 @@ export default function Inspector({
                         {/* 透明にすると枠が完全に見えなくなる。「壊れた」と誤解されるので
                             意図的な設定であることを明示し、戻し方も添える */}
                         {isTransparent(definition.style?.bracketColor) ? (
-                            <div style={{ fontSize: 10, color: '#ffb020', marginTop: 4, lineHeight: 1.5 }}>
+                            <div style={{ fontSize: 10, color: t.errorColor, marginTop: 4, lineHeight: 1.5 }}>
                                 透明のため<b>コーナーフレームは表示されません</b>。
                                 「透明」ボタンをもう一度押すと戻ります。
                             </div>
@@ -1045,7 +1151,8 @@ export default function Inspector({
                         />
                     </Field>
                 </Section>
-
+        );
+        const dashTabs = (
                 <Section t={t} title="タブ" defaultOpen={tabs.length > 0}>
                     <Field t={t} label="タブの配置" hint="サイドバーは Studio には無い配置です">
                         <Select
@@ -1136,7 +1243,8 @@ export default function Inspector({
                         </div>
                     ) : null}
                 </Section>
-
+        );
+        const dashSources = (
                 <Section
                     t={t}
                     title="データソース（共有サーチ）"
@@ -1144,7 +1252,8 @@ export default function Inspector({
                 >
                     <DataSourcesEditor t={t} definition={definition} patchDef={patchDef} />
                 </Section>
-
+        );
+        const dashPanels = (
                 <Section t={t} title="パネル">
                     <Button t={t} kind="primary" full label="＋ パネルを追加" onClick={() => addPanel(activeTab)} />
                     <div style={{ fontSize: 11, color: t.subColor, marginTop: 10, lineHeight: 1.6 }}>
@@ -1152,6 +1261,33 @@ export default function Inspector({
                         SPL・タイトル・時間範囲では <code>$トークン$</code> が使えます。
                     </div>
                 </Section>
+        );
+
+        // 広いウィンドウ：カテゴリをタブで分ける
+        if (wide) {
+            return (
+                <div style={paneStyle}>
+                    <WideTabs
+                        t={t}
+                        tabs={[
+                            { key: 'board', label: 'ダッシュボード', content: dashBoard },
+                            { key: 'design', label: 'デザイン', content: dashDesign },
+                            { key: 'tabs', label: 'タブ', content: dashTabs },
+                            { key: 'sources', label: 'データソース', content: dashSources },
+                            { key: 'panels', label: 'パネル', content: dashPanels },
+                        ]}
+                    />
+                </div>
+            );
+        }
+
+        return (
+            <div className="dpx-scroll" style={paneStyle}>
+                {dashBoard}
+                {dashDesign}
+                {dashTabs}
+                {dashSources}
+                {dashPanels}
             </div>
         );
     }
@@ -1160,8 +1296,9 @@ export default function Inspector({
     // ⚠ 質感は**描画側と同じ解決**にする（`defaultVariantFor`）。
     //    色欄の「実効値」はこの質感から導くので、ここがズレると UI が実物と食い違う。
     const panelVariant = p.style?.variant ?? defaultVariantFor(p.viz);
-    return (
-        <div className="dpx-scroll" style={paneStyle}>
+    // ⚠ セクションは**一度だけ書いて**、縦積み（右カラム）とタブ（別ウィンドウ）で
+    //   同じものを使い回す。二重に書くと必ず片方が古くなる。
+    const secPanel = (
             <Section t={t} title={`パネル：${p.title || p.id}`}>
                 <Field t={t} label="タイトル">
                     <TextInput t={t} value={p.title} onChange={(v) => patchPanel(p.id, { title: v })} />
@@ -1199,7 +1336,8 @@ export default function Inspector({
                     </div>
                 </Field>
             </Section>
-
+    );
+    const secSearch = (
             <Section t={t} title="サーチ">
                 <PanelSearchSource
                     t={t}
@@ -1219,7 +1357,8 @@ export default function Inspector({
                     />
                 </Field>
             </Section>
-
+    );
+    const secStyle = (
             <Section t={t} title="スタイル">
                 <Field t={t} label="質感">
                     <Select
@@ -1242,6 +1381,11 @@ export default function Inspector({
                             { value: 'neonEdge', label: 'ネオン管（枠が光る）' },
                             { value: 'blueprint', label: '方眼紙（設計図）' },
                             { value: 'ticket', label: '伝票（上辺ミシン目）' },
+                            { value: 'letterpress', label: '活版（細罫）' },
+                            { value: 'polaroid', label: '印画紙（下に広い余白）' },
+                            { value: 'punchCard', label: 'パンチカード（上辺に切り欠き）' },
+                            { value: 'titleBlock', label: '表題欄（図面の枠）' },
+                            { value: 'eink', label: '電子ペーパー（平坦）' },
                             { value: 'frameless', label: '枠なし（透過）' },
                         ]}
                         onChange={(v) => patchPanel(p.id, { style: { ...(p.style ?? {}), variant: v } })}
@@ -1289,6 +1433,7 @@ export default function Inspector({
                             { value: 'ribbon', label: 'リボン（左から grad）' },
                             { value: 'underline', label: '下線つき' },
                             { value: 'mono', label: '等幅（ID 向け）' },
+                            { value: 'stamp', label: 'ゴム印（二重枠）' },
                         ]}
                         onChange={(v) =>
                             patchPanel(p.id, {
@@ -1305,11 +1450,8 @@ export default function Inspector({
                     />
                 </Field>
             </Section>
-
-            {/* ── 1枚ごとの見た目の作り込み ────────────────────────────
-                質感プリセットだけでは「もっと自由に」に応えられないので、
-                パネル単位で色・角丸・発光・傾き・透過を触れるようにする。
-                既定は「未指定」＝プリセットのまま（値を入れたときだけ効く）。 */}
+    );
+    const secDetail = (
             <Section t={t} title="見た目の詳細" defaultOpen={false}>
                 <Field t={t} label="常時アニメ">
                     <Select
@@ -1394,7 +1536,8 @@ export default function Inspector({
                     />
                 </Field>
             </Section>
-
+    );
+    const secOptions = (
             <Section t={t} title="オプション">
                 <OptionsForm
                     t={t}
@@ -1407,7 +1550,8 @@ export default function Inspector({
                 <div style={{ marginTop: 10, fontSize: 10, color: t.subColor, marginBottom: 4 }}>JSON で編集</div>
                 <OptionsJson t={t} panel={p} patchPanel={patchPanel} />
             </Section>
-
+    );
+    const secInteract = (
             <Section t={t} title="インタラクション" defaultOpen={Object.keys(p.onEvent?.setTokens ?? {}).length > 0}>
                 {/* ── ドリルダウン（クリックで別画面へ）────────────────
                     Studio の「リンク」相当。押した行の値を URL に差し込める。 */}
@@ -1522,7 +1666,9 @@ export default function Inspector({
                     payload キー例: <code>value</code> / <code>name</code> / <code>row.&lt;フィールド&gt;.value</code>
                 </div>
             </Section>
+    );
 
+    const panelActions = (
             <div style={{ padding: 14 }}>
                 <div style={{ marginBottom: 8 }}>
                     <Button
@@ -1534,6 +1680,36 @@ export default function Inspector({
                 </div>
                 <Button t={t} kind="danger" full label="パネルを削除（Delete）" onClick={() => removePanel(p.id)} />
             </div>
+    );
+
+    // 広いウィンドウ：カテゴリをタブに分ける（スクロールと境界の曖昧さを解消）
+    if (wide) {
+        return (
+            <div style={paneStyle}>
+                <WideTabs
+                    t={t}
+                    tabs={[
+                        { key: 'panel', label: 'パネル', content: <>{secPanel}{panelActions}</> },
+                        { key: 'search', label: 'サーチ', content: secSearch },
+                        { key: 'style', label: 'スタイル', content: <>{secStyle}{secDetail}</> },
+                        { key: 'options', label: 'オプション', content: secOptions },
+                        { key: 'interact', label: 'インタラクション', content: secInteract },
+                    ]}
+                />
+            </div>
+        );
+    }
+
+    // 右カラム（従来）：縦積みのまま
+    return (
+        <div className="dpx-scroll" style={paneStyle}>
+            {secPanel}
+            {secSearch}
+            {secStyle}
+            {secDetail}
+            {secOptions}
+            {secInteract}
+            {panelActions}
         </div>
     );
 }

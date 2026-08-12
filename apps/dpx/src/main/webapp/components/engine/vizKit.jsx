@@ -75,11 +75,19 @@ export function VizTooltip({ t, x, y, width, height, title, rows, accent }) {
                 overflow: 'hidden',
                 boxSizing: 'border-box',
                 pointerEvents: 'none',
-                background: 'rgba(10,16,30,0.94)',
+                // ⚠ **地の色を決め打ちにしない。** 以前は暗色固定だったので、
+                //    明るいプリセット（light / paper / letterpress）では
+                //    「暗い箱の上に暗いインクの文字」になり、**中身が空に見えた**
+                //    （実機で発生）。文字色は t.titleColor / t.subColor＝テーマ由来なので、
+                //    地だけ固定すると必ずどちらかの配色で潰れる
+                background: t.colorScheme === 'light' ? 'rgba(255,255,255,0.97)' : 'rgba(10,16,30,0.94)',
                 border: `1px solid ${accent ?? t.accent}66`,
                 borderRadius: 8,
                 padding: '7px 9px',
-                boxShadow: '0 8px 22px rgba(0,0,0,0.5)',
+                boxShadow:
+                    t.colorScheme === 'light'
+                        ? '0 8px 22px rgba(16,24,40,0.18)'
+                        : '0 8px 22px rgba(0,0,0,0.5)',
                 zIndex: 20,
             }}
         >

@@ -21,6 +21,11 @@ export const BACKGROUND_OPTIONS = [
     { value: 'scanlines', label: 'スキャンライン', group: 'パターン' },
     { value: 'circuit', label: '回路基板', group: 'パターン' },
     { value: 'topo', label: '等高線', group: 'パターン' },
+    { value: 'weave', label: 'クロスハッチ（布目）', group: 'パターン' },
+    { value: 'laid', label: 'レイド紙（簀の目）', group: 'パターン' },
+    { value: 'graphPaper', label: '方眼（図面の升目）', group: 'パターン' },
+    { value: 'halftone', label: 'ハーフトーン（網点）', group: 'パターン' },
+    { value: 'thermalScan', label: 'サーマル（走査線と熱溜まり）', group: 'グラデーション' },
     { value: 'starfield', label: '星空（流れる）', group: 'キャンバス' },
     { value: 'glow', label: 'グロー（隅の光）', group: 'グラデーション' },
     { value: 'aurora', label: 'オーロラ（ゆらぐ光幕）', group: 'グラデーション' },
@@ -312,6 +317,46 @@ export default function BackgroundLayer({ kind, accent }) {
             backgroundImage:
                 `repeating-radial-gradient(ellipse 46% 34% at 22% 28%, transparent 0px, transparent 26px, ${accent}14 26px, ${accent}14 27px),` +
                 `repeating-radial-gradient(ellipse 40% 30% at 78% 72%, transparent 0px, transparent 30px, ${accent}10 30px, ${accent}10 31px)`,
+        },
+        weave: {
+            // 布目：45度の交差ハッチ。紙や装丁クロスの地。
+            //
+            // ⚠ **アクセント色を使わない。** 布目は「紙そのものの地」なので、
+            //   差し色で染めると素材ではなく模様に見える。中性のインク色を薄く敷く。
+            // ⚠ 静的（animate しない）＝合成は一度きりで毎フレームの塗りが無い。
+            //   background-position を動かすと全面再描画になる（下の grid の注記）
+            backgroundImage:
+                `repeating-linear-gradient(45deg, rgba(90,80,60,0.055) 0px, rgba(90,80,60,0.055) 1px, transparent 1px, transparent 5px),` +
+                `repeating-linear-gradient(-45deg, rgba(90,80,60,0.055) 0px, rgba(90,80,60,0.055) 1px, transparent 1px, transparent 5px)`,
+        },
+        laid: {
+            // 簀の目（レイド紙）：手漉き紙の細い横線と、25mm ごとの太い鎖線。
+            // 布目より穏やかで、文字の下に敷いても可読性を落としにくい
+            backgroundImage:
+                `repeating-linear-gradient(0deg, rgba(90,80,60,0.05) 0px, rgba(90,80,60,0.05) 1px, transparent 1px, transparent 4px),` +
+                `repeating-linear-gradient(90deg, rgba(90,80,60,0.07) 0px, rgba(90,80,60,0.07) 1px, transparent 1px, transparent 26px)`,
+        },
+        graphPaper: {
+            // 方眼：細い升目＋5マスごとの太線。図面の下敷き。
+            // 既存の `grid` と違い**流れない**（青焼きは静止した紙なので動かさない）
+            backgroundImage:
+                `linear-gradient(${accent}14 1px, transparent 1px), linear-gradient(90deg, ${accent}14 1px, transparent 1px),` +
+                `linear-gradient(${accent}26 1px, transparent 1px), linear-gradient(90deg, ${accent}26 1px, transparent 1px)`,
+            backgroundSize: '13px 13px, 13px 13px, 65px 65px, 65px 65px',
+        },
+        halftone: {
+            // 網点：印刷の階調表現。ドットより粒が大きく、斜めに並べて紙らしくする
+            backgroundImage: `radial-gradient(${accent}1f 1.6px, transparent 1.7px)`,
+            backgroundSize: '10px 10px',
+            backgroundPosition: '0 0',
+        },
+        thermalScan: {
+            // 熱画像：下方に溜まる熱＋細い走査線。
+            // ⚠ 走査線は 1px 幅の繰り返しなので塗り面積が小さい（raster が軽い）
+            backgroundImage:
+                `repeating-linear-gradient(0deg, transparent 0px, transparent 2px, rgba(0,0,0,0.16) 2px, rgba(0,0,0,0.16) 3px),` +
+                `radial-gradient(ellipse 70% 45% at 30% 105%, ${accent}30, transparent 60%),` +
+                `radial-gradient(ellipse 55% 40% at 80% 100%, ${accent}22, transparent 60%)`,
         },
         vignette: {
             backgroundImage: 'radial-gradient(ellipse 80% 70% at 50% 45%, transparent 40%, rgba(0,0,0,0.55) 100%)',

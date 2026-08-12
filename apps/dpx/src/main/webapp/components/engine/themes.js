@@ -25,10 +25,21 @@ const PALETTES = {
     slate: ['#5b9bd5', '#8f7fd8', '#4fb99f', '#d9a441', '#cf6b7a', '#6fa8bd'],
     matrix: ['#3cff9e', '#7dffc4', '#22d47c', '#c8ff8a', '#4fe8d0', '#a0ff5c'],
     paper: ['#2f6f9f', '#8a5cc4', '#2f8f6a', '#c98a2e', '#c05464', '#5a7f99'],
+    // 活版：刷り色のパレット。藍・臙脂・緑青・褐色といった実際の印刷インクに寄せる。
+    // ⚠ ネイティブ viz は色を `linear-gradient(色 → 色+77)` で塗るので、
+    //   暗すぎるインクだと**濁った灰色の面**になる（実機で確認）。
+    //   地が紙色なので、面で塗っても沈まない**中明度**にしてある
+    letterpress: ['#3d6389', '#a8544f', '#4a7d66', '#a8873f', '#6a6a8c', '#7f9478'],
+    // 青焼き：製図の線色。白／シアン／黄が図面のインク
+    blueprint: ['#8fd3ff', '#ffffff', '#ffd97a', '#7ae0c8', '#c3b6ff', '#ff9fb0'],
+    // サーマル：熱の偽色スケール（冷→熱）。系列色もこの順に並べる
+    thermal: ['#ff9d2e', '#ff5a3c', '#ffd447', '#c2447f', '#7a3fa8', '#39c2c9'],
+    // E Ink：電子ペーパー。彩度をほぼ持たず、濃淡で系列を分ける
+    eink: ['#2b2b2b', '#6b6b6b', '#4a5a6a', '#8a8a8a', '#3f4f45', '#a0a0a0'],
 };
 
 /** 明るい地のプリセット（colorScheme=light 扱い）。 */
-const LIGHT_PRESETS = new Set(['light', 'paper']);
+const LIGHT_PRESETS = new Set(['light', 'paper', 'letterpress', 'eink']);
 
 export const DPX_PRESETS = {
     midnight: {
@@ -221,6 +232,118 @@ export const DPX_PRESETS = {
             },
         },
     },
+    letterpress: {
+        ...base,
+        name: 'レタープレス（活版・紙の質感）',
+        // 生成りの紙。完全な平坦にせず、隅をわずかに焼けさせて「刷り物」に寄せる。
+        // ⚠ ここは静的なグラデーション1枚だけ。animate しないので合成は一度きり
+        //   （background-position を動かすと全面再描画になる。BackgroundLayer.jsx 参照）
+        canvasBg:
+            'radial-gradient(ellipse at 50% 0%, rgba(120,100,70,0.05), transparent 60%), linear-gradient(180deg, #e8e4d9 0%, #e2ddd0 100%)',
+        titleColor: '#1a1f2b',
+        subColor: 'rgba(26, 31, 43, 0.62)',
+        accent: '#1f3a5f', // 藍のインク
+        errorColor: '#8c3b3b', // 臙脂
+        selection: '#2f5d4a', // 緑青
+        // 見出しに明朝、機械ラベルに等幅。日本語の明朝は環境差が大きいので
+        // 游明朝→ヒラギノ→IPA の順に落とし、最後は総称 serif で必ず着地させる
+        fontFamily:
+            "'Yu Mincho', 'YuMincho', 'Hiragino Mincho ProN', 'Noto Serif JP', 'IPAexMincho', Georgia, serif",
+        panel: {
+            card: {
+                // 紙より少し白い「貼り込んだ紙片」。影ではなく罫で浮かせる
+                background: 'rgba(250, 248, 242, 0.92)',
+                border: '1px solid rgba(26, 31, 43, 0.28)',
+                boxShadow: 'none',
+            },
+            glass: {
+                background: 'rgba(250, 248, 242, 0.75)',
+                border: '1px solid rgba(26, 31, 43, 0.20)',
+                boxShadow: 'none',
+            },
+        },
+    },
+    blueprint: {
+        ...base,
+        name: 'ブループリント（青焼き図面）',
+        // 青焼き（シアノタイプ）：濃いプルシアンブルーの地に白とシアンの線。
+        // 暗色だが**発光させない**のが要点。ネオン系との差はここにある
+        canvasBg: 'linear-gradient(180deg, #0d2b52 0%, #10315c 100%)',
+        titleColor: '#eaf4ff',
+        subColor: 'rgba(234, 244, 255, 0.62)',
+        accent: '#8fd3ff',
+        errorColor: '#ff9fb0',
+        selection: '#ffd97a',
+        // 製図の文字＝等幅。図面の注記らしさが出る
+        fontFamily: "'DejaVu Sans Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+        panel: {
+            card: {
+                // 地よりわずかに明るい「貼り込んだ図面」。影ではなく線で見せる
+                background: 'rgba(20, 58, 104, 0.72)',
+                border: '1px solid rgba(143, 211, 255, 0.34)',
+                boxShadow: 'none',
+            },
+            glass: {
+                background: 'rgba(20, 58, 104, 0.45)',
+                border: '1px solid rgba(143, 211, 255, 0.28)',
+                boxShadow: 'none',
+            },
+        },
+    },
+    thermal: {
+        ...base,
+        name: 'サーマル（熱画像）',
+        // 赤外カメラの偽色。地は「冷たい側」＝黒〜暗紫、
+        // 差し色は「熱い側」＝橙〜白。既存プリセットに無い暖色の連続スケール
+        canvasBg:
+            'radial-gradient(ellipse at 50% 120%, rgba(255,90,60,0.16), transparent 55%), linear-gradient(180deg, #0a0610 0%, #140a1c 100%)',
+        titleColor: '#ffe9d6',
+        subColor: 'rgba(255, 233, 214, 0.58)',
+        accent: '#ff9d2e',
+        errorColor: '#ff5a3c',
+        selection: '#ffd447',
+        panel: {
+            card: {
+                background: 'rgba(30, 16, 38, 0.86)',
+                border: '1px solid rgba(255, 157, 46, 0.26)',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+            },
+            glass: {
+                background: 'rgba(34, 18, 44, 0.5)',
+                border: '1px solid rgba(255, 157, 46, 0.3)',
+                boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
+            },
+        },
+    },
+    eink: {
+        ...base,
+        name: 'E Ink（電子ペーパー・低コントラスト）',
+        // 電子ペーパー：ほぼ無彩色・低コントラスト。
+        // 長時間つけっぱなしの壁面表示で目が疲れないことを狙う。
+        // ⚠ 彩度を持たせない（色で主張しないのがこのプリセットの存在理由）
+        canvasBg: '#d8d8d4',
+        titleColor: '#1c1c1c',
+        subColor: 'rgba(28, 28, 28, 0.58)',
+        accent: '#2b2b2b',
+        errorColor: '#6b2020',
+        selection: '#4a5a6a',
+        // ⚠ 増減の色も無彩色にする（既定の緑／ピンクだとここだけ色が浮く）。
+        //   濃淡で「悪い＝濃い」を表し、向きは矢印（▲▼）が担う
+        goodColor: 'rgba(28, 28, 28, 0.55)',
+        badColor: '#1c1c1c',
+        panel: {
+            card: {
+                background: '#e9e9e5',
+                border: '1px solid rgba(28, 28, 28, 0.24)',
+                boxShadow: 'none',
+            },
+            glass: {
+                background: 'rgba(233, 233, 229, 0.8)',
+                border: '1px solid rgba(28, 28, 28, 0.18)',
+                boxShadow: 'none',
+            },
+        },
+    },
     light: {
         ...base,
         name: 'ライト',
@@ -258,6 +381,20 @@ export function resolveTheme(definition) {
         presetName,
         palette: PALETTES[presetName] ?? PALETTES.midnight,
         colorScheme: LIGHT_PRESETS.has(presetName) ? 'light' : 'dark',
+        // ⚠ **本文の文字色。プリセット側には定義が無い（`titleColor` と同義）。**
+        //   UI 側（VizPicker / EditToolbar / PanelContextMenu / DateInput /
+        //   optionEditors）は以前から `t.textColor` を読んでいたが、
+        //   どのプリセットもこのキーを持っていなかったため **常に undefined** で、
+        //   `color: undefined` ＝ 親からの継承になっていた。
+        //   暗いテーマでは親が明るい文字色なので偶然読めていたが、
+        //   **ライト系テーマでは白のまま継承されて文字が消えた**（実機で発生）。
+        //   ここで一度だけ定義して、全参照箇所をまとめて正す。
+        textColor: preset.titleColor,
+        // ⚠ 同じく「読まれているのに定義が無かった」キー（定義ソース欄が使う）。
+        //   undefined だと地が透明・仕切り線が消える。カード質感から導く
+        //   （手で色を書くと質感を直したとき片方だけ古くなる）
+        panelBg: preset.panel.card.background,
+        panelBorder: preset.panel.card.border,
         // パネルの角の丸み（px）。**既定は 2**＝ほぼ角のある硬い印象。
         // 丸すぎると「アプリの UI」に見えてしまい、管制画面の硬質さが出ない。
         // ダッシュボード単位で `style.radius`、パネル単位で `panel.style.radius` で上書き。
@@ -283,6 +420,9 @@ export function useDpxTheme() {
             palette: PALETTES.midnight,
             presetName: 'midnight',
             colorScheme: 'dark',
+            // resolveTheme と同じ派生キーをここにも持たせる
+            // （フォールバック側だけ欠けると同じ不具合が再発する）
+            textColor: DPX_PRESETS.midnight.titleColor,
         }
     );
 }
@@ -340,6 +480,15 @@ export function bracketArmLength(panelHeightPx, base = 11) {
     if (!Number.isFinite(panelHeightPx) || panelHeightPx <= 0) return base;
     return Math.max(6, Math.min(base, Math.floor(panelHeightPx / 6)));
 }
+
+/**
+ * 内側に罫を持つ質感（letterpress）で、中身を罫より内側に寄せるための余白。
+ *
+ * ⚠ **罫の位置（inset 5px）より大きい値**にすること。inset box-shadow は
+ *   レイアウト上の場所を取らないので、この padding だけが
+ *   「中身が罫を踏まない」ことを保証している。
+ */
+const PANEL_INNER_PAD = 6;
 
 export function panelSurface(theme, variant, bracketLen = 11) {
     if (variant === 'frameless') {
@@ -453,6 +602,114 @@ export function panelSurface(theme, variant, bracketLen = 11) {
                 `linear-gradient(${bold} 1px, transparent 1px), linear-gradient(90deg, ${bold} 1px, transparent 1px)`,
             backgroundSize: '16px 16px, 16px 16px, 80px 80px, 80px 80px',
             border: `1px solid ${theme.accent}33`,
+            boxShadow: 'none',
+        };
+    }
+    if (variant === 'letterpress') {
+        // 活版：**細いヘアラインの枠1本だけ**。
+        //
+        // ⚠ **二重罫にしない。** 以前は外罫＋内罫（4px 間隔）だったが、
+        //   離れた2本の線は少し引くと**1本の太い帯**に見え、
+        //   「線が太い」という印象になる（実機で確認して1本へ変更）。
+        //   紙らしさは「線の細さ」と「地の色」で出し、線の本数では出さない。
+        // ⚠ 影を付けない（活版は平ら）。animate もしない。
+        const rgb = theme.colorScheme === 'light' ? '26, 31, 43' : '226, 221, 208';
+        const ink = (a) => `rgba(${rgb}, ${a})`;
+        return {
+            backgroundColor:
+                theme.colorScheme === 'light' ? 'rgba(250, 248, 242, 0.92)' : 'rgba(20, 24, 34, 0.92)',
+            // ヘアライン1本。濃さも落として、罫が主張しないようにする
+            border: `1px solid ${ink(0.28)}`,
+            boxShadow: 'none',
+            // 中身を縁から少し離す（罫に文字やスクロールバーが貼り付かないように）
+            padding: PANEL_INNER_PAD,
+        };
+    }
+    if (variant === 'polaroid') {
+        // インスタント写真：**下辺だけ極端に広い白縁**。左右と上は細い。
+        //
+        // ⚠ この質感の肝は「四辺が非対称であること」。既存の質感はすべて
+        //   四辺対称なので、対称にした瞬間ただの白いカードになる。
+        // ⚠ 余白は `padding` で作る（border だと色が付いてしまい、
+        //   「印画紙の白い縁」ではなく「太い枠線」に見える）。
+        //   padding なら中身が押し込まれるだけで、地の色がそのまま縁になる。
+        // ⚠ **白い縁だけでは「ただの白いカード」にしか見えない**（実機で確認）。
+        //   印画紙に見せるには「**印画された面**」が縁と別の色で見えている必要がある。
+        //
+        // ⚠ 印画面は `background-image` ＋ **`background-clip: content-box`** で作る。
+        //   `inset box-shadow` は padding box 全体を塗ってしまい**白縁ごと潰れる**ので使えない
+        //   （content-box に限定する手段が box-shadow には無い）。
+        //   backgroundColor（＝白紙）は padding box 全体に残るので、
+        //   「白い縁の内側に印画面がある」状態が1要素で作れる。
+        const paper = theme.colorScheme === 'light' ? '#fbfaf7' : '#ece9e3';
+        const photo = theme.colorScheme === 'light' ? 'rgba(24,28,38,0.06)' : 'rgba(24,28,38,0.11)';
+        return {
+            backgroundColor: paper,
+            backgroundImage: `linear-gradient(${photo}, ${photo})`,
+            backgroundClip: 'content-box',
+            backgroundOrigin: 'content-box',
+            backgroundRepeat: 'no-repeat',
+            border: 'none',
+            // 印画紙は実体のある「もの」なので、ここだけは影を持たせる
+            boxShadow:
+                theme.colorScheme === 'light'
+                    ? '0 2px 8px rgba(16,24,40,0.18)'
+                    : '0 3px 12px rgba(0,0,0,0.5)',
+            // 上・左右は細く、下だけ広い（写真の下に書き込む余白）
+            padding: '11px 11px 32px',
+            // ⚠ 印画紙の縁は角が立っている。丸めない
+            borderRadius: 0,
+        };
+    }
+    if (variant === 'punchCard') {
+        // パンチカード：**上辺に等間隔の矩形ノッチ＋左上の角落とし**。
+        //
+        // ⚠ 輪郭そのものを欠けさせるので `clip-path` を使う。
+        //   border では表現できない（border は矩形の外周にしか引けない）。
+        // ⚠ clip-path は**枠線も一緒に切る**ので、border は使わず
+        //   地の色だけで面を作る（切った断面に線は残らない）。
+        // ⚠ 角丸と併用しない（clip-path が優先され、丸みは見えなくなる）。
+        const card = theme.colorScheme === 'light' ? '#efe7d2' : 'rgba(46, 40, 28, 0.94)';
+        // 上辺のノッチ：8等分の位置に凹みを作る。polygon の頂点を並べる
+        const notches = [];
+        const N = 8;
+        for (let i = 0; i < N; i++) {
+            const a = (i + 0.28) * (100 / N);
+            const b = (i + 0.72) * (100 / N);
+            notches.push(`${a.toFixed(2)}% 0`, `${a.toFixed(2)}% 7px`, `${b.toFixed(2)}% 7px`, `${b.toFixed(2)}% 0`);
+        }
+        return {
+            backgroundColor: card,
+            border: 'none',
+            boxShadow: 'none',
+            // 左上を斜めに落とす（カードの向きを示す実際の意匠）＋上辺のノッチ
+            clipPath: `polygon(0 14px, 14px 0, ${notches.join(', ')}, 100% 0, 100% 100%, 0 100%)`,
+            // ノッチのぶん中身を下げ、左上の角落としに文字がかからないようにする
+            padding: '10px 8px 6px',
+            borderRadius: 0,
+        };
+    }
+    if (variant === 'titleBlock') {
+        // 図面のタイトルブロック：右下だけ角を落とした枠。
+        // 製図では表題欄が角にあるので、その意匠を borderImage ではなく
+        // 単純な枠＋角のノッチで表す（DOM を増やさない）。
+        // ⚠ 塗りは薄く。青焼きの地の上に「もう1枚の紙」として乗る想定
+        const line = theme.colorScheme === 'light' ? 'rgba(20,40,70,0.4)' : `${theme.accent}55`;
+        return {
+            backgroundColor:
+                theme.colorScheme === 'light' ? 'rgba(255,255,255,0.72)' : 'rgba(16, 46, 84, 0.62)',
+            border: `1px solid ${line}`,
+            // 右下に「表題欄」を思わせる二重線を1本だけ入れる
+            boxShadow: `inset -1px -1px 0 0 ${line}, inset -4px -4px 0 -3px ${line}`,
+        };
+    }
+    if (variant === 'eink') {
+        // 電子ペーパー：影も光沢も持たない完全に平らな面。
+        // ⚠ **影を付けない**。E Ink は反射型ディスプレイで、
+        //   浮き上がりや発光は原理的に存在しない。付けると嘘になる
+        return {
+            backgroundColor: theme.colorScheme === 'light' ? '#e9e9e5' : 'rgba(24,24,24,0.9)',
+            border: `1px solid ${theme.colorScheme === 'light' ? 'rgba(28,28,28,0.28)' : 'rgba(220,220,214,0.24)'}`,
             boxShadow: 'none',
         };
     }
@@ -578,6 +835,35 @@ export function panelTitleSkin(skin, theme, variant, accent) {
         case 'underline':
             // 下線つき（区切り線を明示する）
             return { box: {}, text: plain, dot: false, divider: true };
+        case 'stamp':
+            // ゴム印：二重の枠で囲った大文字・等幅のラベル。
+            //
+            // ⚠ **枠は `text`（文字の span）側に付ける。** `box` はタイトルバー
+            //   （幅いっぱいの flex コンテナ）に当たるので、そちらに border を
+            //   置くと**判子ではなく帯**になる（実機で確認して直した）。
+            // ⚠ **傾けない**。transform を持たせると子孫の position:fixed が
+            //   祖先基準になり、全画面表示とツールチップが壊れる（§8.z）。
+            //   紙の意匠は枠と字間で出し、傾きには頼らない
+            return {
+                box: {},
+                text: {
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: '0.16em',
+                    textTransform: 'uppercase',
+                    color: ac,
+                    fontFamily: "'DejaVu Sans Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+                    border: `2px solid ${ac}`,
+                    // 外側にもう1本の細罫を回して「二重枠の判子」にする
+                    boxShadow: `0 0 0 1px ${ac}`,
+                    padding: '2px 8px',
+                    borderRadius: 2,
+                    // 枠が文字に貼り付くよう、span を行ボックスとして扱う
+                    display: 'inline-block',
+                    lineHeight: 1.35,
+                },
+                dot: false,
+            };
         case 'mono':
             // 等幅。ID やホスト名を見出しにするとき桁が揃う
             return {

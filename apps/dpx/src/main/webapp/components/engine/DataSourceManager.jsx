@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { usePortalHost } from './DetachedWindow';
 
 import { getDataSources, nextSourceId, panelsUsingSource } from './dataSources';
 import TimeRangePicker from './TimeRangePicker';
@@ -23,6 +24,7 @@ import { Button, Field, TextInput, inputStyle } from './ui';
 const MONO = { fontFamily: 'Menlo, Consolas, monospace', fontSize: 11, lineHeight: 1.55 };
 
 export default function DataSourceManager({ t, definition, patchDef, onClose, focusId, dirty, onSave }) {
+    const portalHost = usePortalHost();
     const sources = getDataSources(definition);
     const ids = useMemo(() => Object.keys(sources), [sources]);
     // ⚠ **開いたときに選ぶのは「呼び出し元が指定したもの」**。
@@ -276,7 +278,7 @@ export default function DataSourceManager({ t, definition, patchDef, onClose, fo
                 </div>
             </div>
         </div>,
-        document.body
+        portalHost
     );
 }
 

@@ -44,14 +44,60 @@ function loadAce() {
  * SPL モードが出すトークン（バンドルから抽出）:
  *   command / function / operator / argument / modifier / quoted / pipe / subsearch / invalid
  */
-function useAceThemeCss(t) {
+/**
+ * Ace 本体の CSS を、エディタが居る document へ複製する。
+ *
+ * ⚠ **これが無いと別ウィンドウでレイアウトが崩壊する**（実機で原因特定済み）。
+ *   Ace は `ace_editor.css` / `ace_scrollbar.css` などを
+ *   **モジュール読み込み時に一度だけ `document.head`（＝親ページ）へ注入**する。
+ *   別ウィンドウを開いた後にエディタを作っても、これらは**子ウィンドウに存在しない**。
+ *   その結果 `.ace_scroller { position: absolute }` が効かず static のままになり、
+ *   テキスト層が **y≒1,000,000px** に飛んで**何も見えない**
+ *   （実測: 本体 `hasAceCoreCss: true` / 窓 `false`、`.ace_scroller` の position が static）。
+ *
+ * ⚠ 「metrics が 0」でも「スクロール位置」でもない。
+ *   実測では charWidth 9.63 / lineHeight 24 と**正しく測れていた**。
+ *   原因は**素の CSS が無いこと**だった（推測で 2 回外したので記録しておく）。
+ */
+function copyAceCoreCss(doc) {
+    if (!doc || doc === document) return;
+    if (doc.getElementById('dpx-ace-core-css')) return;
+    const out = [];
+    for (const sheet of Array.from(document.styleSheets)) {
+        try {
+            const rules = sheet.cssRules;
+            if (!rules) continue;
+            const text = Array.from(rules)
+                .map((r) => r.cssText)
+                .join('\n');
+            // Ace 由来のものだけを拾う（全部写すと重いので）
+            if (/\.ace_(editor|scroller|content|layer|gutter|scrollbar|cursor)/.test(text)) {
+                out.push(text);
+            }
+        } catch {
+            /* クロスオリジンの CSS は読めない。Ace のものではないので無視してよい */
+        }
+    }
+    if (!out.length) return;
+    const el = doc.createElement('style');
+    el.id = 'dpx-ace-core-css';
+    el.textContent = out.join('\n');
+    doc.head.appendChild(el);
+}
+
+function useAceThemeCss(t, hostRef, ready) {
     useEffect(() => {
+        // ⚠ **CSS は「エディタが実際に居る document」へ入れる。**
+        //   別ウィンドウ（設定ウィンドウ）で開いたとき、`document.head` は
+        //   **親ページの head** を指すので、子ウィンドウには何も届かず
+        //   **配色が当たらない＝全部黒**になる（実機で再現・確認済み 2026-08-12）。
+        const doc = hostRef?.current?.ownerDocument ?? document;
         const id = 'dpx-ace-spl-css';
-        let el = document.getElementById(id);
+        let el = doc.getElementById(id);
         if (!el) {
-            el = document.createElement('style');
+            el = doc.createElement('style');
             el.id = id;
-            document.head.appendChild(el);
+            doc.head.appendChild(el);
         }
         const light = t?.colorScheme === 'light';
         const c = light
@@ -85,7 +131,9 @@ function useAceThemeCss(t) {
 .dpx-ace .ace_invalid{color:#ff7b7b;text-decoration:underline wavy}
 .dpx-ace .ace_print-margin{display:none}
 `;
-    }, [t?.colorScheme]);
+        // ⚠ `ready` を依存に入れる。初回は hostRef.current が null で
+        //   親ページ側に入ってしまうため、マウント後にもう一度流し込む
+    }, [t?.colorScheme, ready]);
 }
 
 export default function SplAce({ t, value, onCommit, height = 120, placeholder }) {
@@ -96,7 +144,7 @@ export default function SplAce({ t, value, onCommit, height = 120, placeholder }
     const [dirty, setDirty] = useState(false);
     const [info, setInfo] = useState({ lines: 1, chars: 0 });
     const [ready, setReady] = useState(false);
-    useAceThemeCss(t);
+    useAceThemeCss(t, hostRef, ready);
 
     // ⚠ ハンドラは ref 経由で呼ぶ。Ace の初期化を value 依存にすると
     //    打鍵のたびにエディタが作り直されてカーソルが飛ぶ
@@ -173,8 +221,57 @@ export default function SplAce({ t, value, onCommit, height = 120, placeholder }
         onChange();
         setReady(true);
 
+        // ⚠ **別ウィンドウでは文字の実寸が測れず、中身が描かれない**（実機で発生）。
+        //   Ace は文字幅・行高を「隠しノードを1回測る」方式で決めるが、
+        //   その測定はマウント直後に走る。別ウィンドウでは
+        //   （CSS が未適用・レイアウト未確定の段階で測るため）**0 が返り**、
+        //   結果として**行が1行に潰れて何も見えない**状態になる。
+        //   `onResize(true)` は強制再計算、`updateFontSize` はフォント実寸の測り直し。
+        //   次フレームまで待ってから呼ぶ（この時点で CSS が当たっている）。
+        const remeasure = () => {
+            try {
+                // ⚠ **ここで写す。** Ace は「最初のエディタを作った時」に
+                //   初めて自分の CSS を親ページへ注入するので、
+                //   エディタ生成より前に写そうとしても**まだ存在しない**
+                //   （実測: 生成前は styleSheets に .ace_ ルールが 0 件）。
+                copyAceCoreCss(hostRef.current?.ownerDocument);
+                ed.renderer.onResize(true);
+                ed.renderer.updateFontSize();
+                ed.resize(true);
+                // ⚠ **スクロール位置を明示的に戻す。**
+                //   別ウィンドウでは、レイアウト確定前の測定値でスクロール量が
+                //   計算されてしまい、テキスト層が **y=1,000,000px** 付近まで
+                //   飛ばされて**画面に何も見えない**状態になる（実機で実測）。
+                //   文字幅・行高自体は正しく測れている（charWidth 9.63 / lineHeight 24）ので、
+                //   原因は「metrics が 0」ではなく**スクロール位置の暴走**。
+                ed.renderer.scrollToY(0);
+                ed.renderer.scrollToX(0);
+                ed.renderer.updateFull(true);
+            } catch {
+                /* 破棄済みなら何もしない */
+            }
+        };
+        // ⚠ タイマー・ResizeObserver は**そのウィンドウのもの**を使う。
+        //   親ページの rAF/ResizeObserver は子ウィンドウが背面のとき止まることがあり、
+        //   測り直しが走らない（＝空のまま）。
+        const w = hostRef.current.ownerDocument.defaultView ?? window;
+        const raf1 = w.requestAnimationFrame(() => {
+            remeasure();
+            // フォント読み込み直後は 1 回では足りないことがあるので二段構え
+            w.requestAnimationFrame(remeasure);
+        });
+        const timer = w.setTimeout(remeasure, 250);
+
+        // 器のサイズが変わったら測り直す（ウィンドウのリサイズにも追従）
+        const RO = w.ResizeObserver ?? ResizeObserver;
+        const ro = new RO(remeasure);
+        ro.observe(hostRef.current);
+
         return () => {
             disposed = true;
+            w.cancelAnimationFrame(raf1);
+            w.clearTimeout(timer);
+            ro.disconnect();
             ed.off('change', onChange);
             ed.off('blur', onBlur);
             // ⚠ 破棄しないとダイアログを開き直すたびにエディタが残る

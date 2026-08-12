@@ -1154,7 +1154,15 @@ export function DpxValue({ dataSources, options = {}, height, loading }) {
     const showSpark = options.showSpark !== false && values.length > 1;
     const decimals = Number.isFinite(Number(options.decimals)) ? Number(options.decimals) : 1;
     const deltaUp = delta !== null && delta >= 0;
-    const deltaColor = delta === null ? t.subColor : deltaUp === (options.upIsBad === true) ? '#ff5c8a' : '#3cdcb4';
+    // ⚠ 良化／悪化の色を**決め打ちにしない**。テーマが持つ色を使う。
+    //   固定色（緑・ピンク）だと、無彩色前提のプリセット（E Ink）で
+    //   そこだけ色が浮く（実機で発生）。テーマ側で定義されていなければ従来色に落とす
+    const deltaColor =
+        delta === null
+            ? t.subColor
+            : deltaUp === (options.upIsBad === true)
+              ? t.badColor ?? t.errorColor ?? '#ff5c8a'
+              : t.goodColor ?? '#3cdcb4';
 
     const sparkW = 120;
     const sparkH = 30;
@@ -1603,7 +1611,9 @@ export function DpxTable({ dataSources, options = {}, height, loading, onEventTr
                     }}
                 />
             ) : null}
-            <div className="dpx-scroll" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+            {/* ⚠ 表だけは溝を確保する（右端の列にバーが被るため）。
+                他のパネルには付けない（常時みぞができて質感に合わない） */}
+            <div className="dpx-scroll dpx-scroll-gutter" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: dense ? 11 : 12 }}>
                     <thead>
                         <tr>

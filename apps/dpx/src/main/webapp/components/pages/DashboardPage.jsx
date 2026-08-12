@@ -16,6 +16,7 @@ import { SearchAppContext } from '../engine/useSplunkSearch';
 import { useDpxGlobalStyles } from '../engine/ui';
 import { TokenProvider, initialTokensFromInputs } from '../engine/tokens';
 import { VizBusProvider } from '../vizBus';
+import DetachedWindow from '../engine/DetachedWindow';
 
 // ── ダッシュボード画面（ホストビュー dpx の ?id= ルート）──────────
 // 定義（DPX スキーマ v1）を自前エンジンで描画・編集する。
@@ -160,6 +161,9 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
     const [activeTab, setActiveTab] = useState(null);
     const [pickerTab, setPickerTab] = useState(null); // viz ピッカー（null で非表示）
     const [selectedInputId, setSelectedInputId] = useState(null); // 選択中の入力
+    // 設定を別ウィンドウに出しているか。true の間は**右カラムを畳んで**
+    // ダッシュボードを全幅で見せる（「全幅で見たまま調整したい」という要件）
+    const [detached, setDetached] = useState(false);
     const [history, setHistory] = useState({ past: [], future: [] });
     // データソース管理ダイアログ。
     // ⚠ 開くときに「どのデータソースを選んだ状態にするか」も持つ。
@@ -563,6 +567,42 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
     const isLegacy = def?.version !== 1;
     const outerHeight = chromeHidden ? '100vh' : 'calc(100vh - 80px)';
 
+    // インスペクタ本体。**右カラムと別ウィンドウで同じものを使い回す**
+    // （設定項目を二重に持つと必ず片方が古くなるため）。
+    // 選択（パネル / 入力 / どちらも無し＝ダッシュボード）に追従する仕組みは
+    // Inspector が既に持っているので、別ウィンドウでもそのまま効く。
+    const inspectorEl = (
+        <Inspector
+            definition={def}
+            selectedPanel={selectedPanel}
+            selectedInputId={selectedInputId}
+            onSelectInput={setSelectedInputId}
+            patchDef={patchDef}
+            patchPanel={patchPanel}
+            patchSearch={patchSearch}
+            setOption={setOption}
+            addPanel={addPanel}
+            removePanel={removePanel}
+            duplicatePanel={duplicatePanel}
+            activeTab={activeTab ?? def.tabs?.[0]?.id}
+            onOpenDataSources={openDataSources}
+            // 別ウィンドウのときだけ広いレイアウト（タブ＋段組み）にする
+            wide={detached}
+        />
+    );
+
+    const dataSourceDialog = (
+        <DataSourceManager
+            t={t}
+            definition={def}
+            patchDef={patchDef}
+            focusId={dsFocus}
+            dirty={dirty}
+            onSave={onSave}
+            onClose={() => setShowDataSources(false)}
+        />
+    );
+
     return (
         <PlatformThemeContext.Provider value={theme}>
         {/* サーチは必ず所属アプリの名前空間で走らせる（1ビュー集約の必須項目） */}
@@ -600,7 +640,7 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
             />
             )}
             {isLegacy ? (
-                <div style={{ padding: 16, color: '#ffb020', fontSize: 13 }}>
+                <div style={{ padding: 16, color: t.errorColor, fontSize: 13 }}>
                     この定義は旧形式です。DPX スキーマ v1（{'{"version":1, "panels":[...]}'}）へ書き換えてください
                     （「ソース」から編集できます）。
                 </div>
@@ -699,6 +739,7 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                             onRemovePanel={removePanel}
                             onPatchPanel={patchPanel}
                             onOpenDataSources={openDataSources}
+                            onDetachSettings={() => setDetached(true)}
                             activeTab={activeTab ?? def.tabs?.[0]?.id}
                             onTabChange={setActiveTab}
                         />
@@ -719,7 +760,7 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                             <div style={{ padding: '6px 10px', fontSize: 11, color: t.subColor }}>
                                 定義ソース（編集すると即プレビュー反映）
                                 {sourceError ? (
-                                    <span style={{ color: '#ff7b7b', marginLeft: 8 }}>JSON エラー</span>
+                                    <span style={{ color: t.errorColor, marginLeft: 8 }}>JSON エラー</span>
                                 ) : null}
                             </div>
                             <textarea
@@ -746,27 +787,15 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                                     fontFamily: 'Menlo, Consolas, monospace',
                                     fontSize: 12,
                                     lineHeight: 1.5,
-                                    background: '#10192e',
-                                    color: '#d7e3ff',
+                                    // ⚠ ライト系テーマでは暗い地＋明るい文字だと浮くうえ、
+                                    //    地だけ暗くして文字色を変えないと読めなくなる。必ず対で分岐する
+                                    background: t.colorScheme === 'light' ? '#ffffff' : '#10192e',
+                                    color: t.colorScheme === 'light' ? '#1a2333' : '#d7e3ff',
                                 }}
                             />
                         </div>
-                    ) : (
-                        <Inspector
-                            definition={def}
-                            selectedPanel={selectedPanel}
-                            selectedInputId={selectedInputId}
-                            onSelectInput={setSelectedInputId}
-                            patchDef={patchDef}
-                            patchPanel={patchPanel}
-                            patchSearch={patchSearch}
-                            setOption={setOption}
-                            addPanel={addPanel}
-                            removePanel={removePanel}
-                            duplicatePanel={duplicatePanel}
-                            activeTab={activeTab ?? def.tabs?.[0]?.id}
-                            onOpenDataSources={openDataSources}
-                        />
+                    ) : detached ? null : (
+                        inspectorEl
                     )
                 ) : null}
             </div>
@@ -786,7 +815,7 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                     height: 26,
                     borderRadius: 6,
                     border: '1px solid rgba(140,175,235,0.25)',
-                    background: 'rgba(10,16,30,0.5)',
+                    background: t.colorScheme === 'light' ? 'rgba(255,255,255,0.7)' : 'rgba(10,16,30,0.5)',
                     color: t.subColor,
                     cursor: 'pointer',
                     fontSize: 12,
@@ -801,17 +830,32 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
             </button>
         ) : null}
         {pickerTab ? <VizPicker t={t} onPick={createPanel} onCancel={() => setPickerTab(null)} /> : null}
-        {showDataSources ? (
-            <DataSourceManager
-                t={t}
-                definition={def}
-                patchDef={patchDef}
-                focusId={dsFocus}
-                dirty={dirty}
-                onSave={onSave}
-                onClose={() => setShowDataSources(false)}
-            />
+        {/* 設定の別ウィンドウ。開いている間、右カラムは畳まれている（上の detached 判定）。
+            ⚠ 編集モードを抜けたら閉じる（表示モードに設定ウィンドウが残ると迷子になる） */}
+        {detached && mode === 'edit' && !showSource ? (
+            <DetachedWindow title="DPX 設定" width={920} height={560} onClose={() => setDetached(false)}>
+                <div
+                    style={{
+                        height: '100%',
+                        // ⚠ ここでスクロールさせない。タブの中身側がスクロールを持つ
+                        //   （二重スクロールになるとタブ帯まで流れて見出しが消える）
+                        overflow: 'hidden',
+                        background: t.panelBg,
+                        color: t.textColor,
+                        fontFamily: t.fontFamily,
+                    }}
+                >
+                    {inspectorEl}
+                    {/* ⚠ データソースのダイアログは**ウィンドウの中**に出す。
+                        外（本体ページ側）に置くと createPortal の行き先が親ページの body になり、
+                        「ボタンを押したのに何も起きない（実は後ろのダッシュボードに出ている）」
+                        という状態になる（実機で再現・確認済み） */}
+                    {showDataSources ? dataSourceDialog : null}
+                </div>
+            </DetachedWindow>
         ) : null}
+        {/* 別ウィンドウを開いていないときは従来どおり本体ページに出す */}
+        {showDataSources && !detached ? dataSourceDialog : null}
         </TokenProvider>
         </PanelFieldsProvider>
         </VizBusProvider>

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { usePortalHost } from './DetachedWindow';
 import { createURL } from '@splunk/splunk-utils/url';
 
 // ── パネルの右クリックメニュー（表示モード）─────────────────────
@@ -47,6 +48,7 @@ export function toCsv(data) {
 }
 
 export default function PanelContextMenu({ t, x, y, items, onClose }) {
+    const portalHost = usePortalHost();
     const ref = useRef(null);
 
     useEffect(() => {
@@ -118,7 +120,7 @@ export default function PanelContextMenu({ t, x, y, items, onClose }) {
                             border: 'none',
                             background: 'transparent',
                             // 破壊的な項目は赤で出す（「削除」を他と同じ見た目にしない）
-                            color: it.disabled ? t.subColor : it.danger ? '#ff8898' : t.textColor,
+                            color: it.disabled ? t.subColor : it.danger ? t.errorColor : t.textColor,
                             opacity: it.disabled ? 0.45 : 1,
                             cursor: it.disabled ? 'default' : 'pointer',
                             fontSize: 12,
@@ -142,6 +144,6 @@ export default function PanelContextMenu({ t, x, y, items, onClose }) {
                 )
             )}
         </div>,
-        document.body
+        portalHost
     );
 }

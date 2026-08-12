@@ -311,6 +311,7 @@ function Panel({
     onRemovePanel,
     onPatchPanel,
     onOpenDataSources,
+    onDetachSettings,
 }) {
     const t = theme;
     const [menu, setMenu] = useState(null);      // {x,y} 右クリックメニュー
@@ -418,6 +419,16 @@ function Panel({
             label: 'このパネルの設定を開く',
             icon: '⚙',
             onClick: () => onSelect?.(panel.id),
+        },
+        {
+            // 別ウィンドウ版。ダッシュボードを全幅で見たまま調整するための導線
+            label: '設定を別ウィンドウで開く',
+            icon: '⧉',
+            disabled: !onDetachSettings,
+            onClick: () => {
+                onSelect?.(panel.id);
+                onDetachSettings?.();
+            },
         },
         {
             label: 'データソースを編集',
@@ -531,8 +542,16 @@ function Panel({
                       }),
                 ...surface,
                 // 角の丸みはテーマ由来（既定 2px）。パネル個別指定は下の
-                // panelStyleOverrides が後勝ちで上書きする
-                borderRadius: variant === 'frameless' && !full ? 0 : t.radius,
+                // panelStyleOverrides が後勝ちで上書きする。
+                // ⚠ ただし**質感が自分で borderRadius を決めている場合はそれを尊重する**
+                //   （印画紙・パンチカードのように「角が立っていること」が
+                //   意匠の一部の質感がある。ここで t.radius を上書きすると丸まってしまう）
+                borderRadius:
+                    variant === 'frameless' && !full
+                        ? 0
+                        : surface.borderRadius !== undefined
+                          ? surface.borderRadius
+                          : t.radius,
                 // パネル個別の見た目上書き（色・角丸・発光・傾きなど）。
                 // 全画面のときは構図用の傾き・不透明度を無効化する（読むための表示なので）
                 ...panelStyleOverrides(full ? { ...panel.style, rotate: 0, opacity: 1 } : panel.style, t),
@@ -683,7 +702,7 @@ function Panel({
                         height: 26,
                         borderRadius: 6,
                         border: '1px solid rgba(140,175,235,0.3)',
-                        background: 'rgba(10,16,30,0.7)',
+                        background: t.colorScheme === 'light' ? 'rgba(255,255,255,0.82)' : 'rgba(10,16,30,0.7)',
                         color: t.subColor,
                         cursor: 'pointer',
                         fontSize: 13,
@@ -759,6 +778,7 @@ export default function DpxDashboard({
     onRemovePanel,
     onPatchPanel,
     onOpenDataSources,
+    onDetachSettings,
 }) {
     const t = resolveTheme(definition);
     useDpxGlobalStyles(t);
@@ -773,6 +793,8 @@ export default function DpxDashboard({
     const gridRef = useRef(null);
     const dragRef = useRef(null);
     const [now] = useState(() => new Date());
+    // キャンバス余白の右クリックメニュー（ダッシュボード設定への入口）
+    const [canvasMenu, setCanvasMenu] = useState(null);
     const showHeader = definition.hideHeader !== true;
 
     // タブ未指定のパネルは最初のタブに属する
@@ -890,6 +912,19 @@ export default function DpxDashboard({
                       }
                     : undefined
             }
+            // 余白の右クリック＝**ダッシュボード自体**の設定への入口。
+            // ⚠ パネル側の onContextMenu は stopPropagation しているので、
+            //    ここに来るのは「本当に余白を押したとき」だけ（実機で確認）
+            onContextMenu={
+                mode === 'edit'
+                    ? (e) => {
+                          e.preventDefault();
+                          onSelect?.(null);
+                          onSelectInput?.(null);
+                          setCanvasMenu({ x: e.clientX, y: e.clientY });
+                      }
+                    : undefined
+            }
             style={{
                 background: t.canvasBg,
                 minHeight: '100%',
@@ -969,6 +1004,7 @@ export default function DpxDashboard({
                             onRemovePanel={onRemovePanel}
                             onPatchPanel={onPatchPanel}
                             onOpenDataSources={onOpenDataSources}
+                            onDetachSettings={onDetachSettings}
                             definition={definition}
                             app={app}
                         />
@@ -976,6 +1012,34 @@ export default function DpxDashboard({
                 </div>
                 </div>
             </div>
+            {canvasMenu ? (
+                <PanelContextMenu
+                    t={t}
+                    x={canvasMenu.x}
+                    y={canvasMenu.y}
+                    items={[
+                        {
+                            label: 'ダッシュボードの設定',
+                            icon: '⚙',
+                            onClick: () => {
+                                onSelect?.(null);
+                                onSelectInput?.(null);
+                            },
+                        },
+                        {
+                            label: '設定を別ウィンドウで開く',
+                            icon: '⧉',
+                            disabled: !onDetachSettings,
+                            onClick: () => {
+                                onSelect?.(null);
+                                onSelectInput?.(null);
+                                onDetachSettings?.();
+                            },
+                        },
+                    ]}
+                    onClose={() => setCanvasMenu(null)}
+                />
+            ) : null}
         </div>
         </DpxThemeContext.Provider>
     );

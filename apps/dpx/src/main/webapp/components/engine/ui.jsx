@@ -39,7 +39,23 @@ export function useDpxGlobalStyles(theme) {
                 background-color: ${base} !important;
                 color: ${theme?.titleColor ?? '#e8eefc'};
             }
+            /* ⚠ スクロールバーのぶんの幅を必ず確保する。
+               既定のオーバーレイ表示では offsetWidth - clientWidth が 0 ＝
+               バーが中身の上に重なって描かれるため、表の右端の列や数値に
+               つまみが被る（実機で発生・実測で確認）。
+               scrollbar-gutter: stable で溝を先に確保すると、
+               バーが出ても中身が動かず、重なりも起きない。
+               ⚠ この文字列はテンプレートリテラルの中なので
+                  バッククォートを書かないこと（文字列が終わって構文エラーになる）。 */
             .dpx-scroll { scrollbar-width: thin; scrollbar-color: ${accent}66 transparent; }
+            /* ⚠ scrollbar-gutter: stable を dpx-scroll 全体に掛けないこと。
+               v0.15.1 で表の列にバーが被る問題を直すために全体へ入れたが、
+               dpx-scroll はパネル本体にも付いているため、
+               すべてのパネルに常時みぞができ、質感（コーナーフレーム・活版など）に
+               合わない見た目になった（ユーザー指摘）。
+               溝が要るのは「中身が端まで詰まる表」だけなので専用クラスに限定する。
+               ⚠ ここはテンプレートリテラルの中。バッククォートを書かないこと。 */
+            .dpx-scroll-gutter { scrollbar-gutter: stable; }
             .dpx-scroll::-webkit-scrollbar { width: 9px; height: 9px; }
             .dpx-scroll::-webkit-scrollbar-track { background: transparent; }
             .dpx-scroll::-webkit-scrollbar-thumb {
@@ -47,6 +63,19 @@ export function useDpxGlobalStyles(theme) {
             }
             .dpx-scroll::-webkit-scrollbar-thumb:hover { background: ${accent}99; background-clip: content-box; }
             .dpx-scroll::-webkit-scrollbar-corner { background: transparent; }
+            /* ⚠ 段組み（column-width）にしたとき、項目やセクションが
+               段の境界で真っ二つに割れるのを防ぐ。これが無いと
+               「ラベルだけ左段・入力欄だけ右段」という読めない配置になる。
+               ⚠ セレクタは wide なインスペクタ配下だけに限定する
+                 （dpx-scroll 全体に掛けると表など無関係な場所にも効く）。
+               ⚠⚠ ここは JS のテンプレートリテラルの内側。
+                   バッククォートを1つでも書くと文字列がそこで終わり、
+                   残りが**タグ付きテンプレート**として評価されて
+                   CSS 全体が "NaN" になる（実際に発生。CSS が丸ごと死ぬ） */
+            .dpx-wide-cols > div {
+                break-inside: avoid;
+                -webkit-column-break-inside: avoid;
+            }
             /* ── 入力コントロールの質感 ──────────────────────────────
                「板に線を1本引いただけ」だと安っぽく見えるので、
                **奥行き（内側の細いハイライト＋落ち影）** と

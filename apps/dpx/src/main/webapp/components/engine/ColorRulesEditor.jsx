@@ -374,7 +374,7 @@ export default function ColorRulesEditor({ t, value, onChange, valueHint = '値'
                             <button
                                 type="button"
                                 onClick={() => setCfg({ matches: matches.filter((x, j) => j !== i) })}
-                                style={{ ...iconBtn(t), color: '#ff8a9c' }}
+                                style={{ ...iconBtn(t), color: t.errorColor }}
                                 title="削除"
                             >
                                 ×
