@@ -181,7 +181,7 @@ export default function InputsBar({
     onSelectInput,
     onReorder,
 }) {
-    const { tokens, setToken, setTokens } = useDpxTokens();
+    const { tokens, setToken, setTokens, undoTokens, canUndo } = useDpxTokens();
     const inputs = Array.isArray(definition.inputs) ? definition.inputs : [];
     const [dragIdx, setDragIdx] = useState(null);
     const [overIdx, setOverIdx] = useState(null);
@@ -307,6 +307,39 @@ export default function InputsBar({
                     </div>
                 );
             })}
+
+            {/* 時間ブラシ・クリック絞り込みの「1手戻す」。
+                ⚠ **絞る操作には必ず戻り道を用意する**（キオスク表示に ✕ を
+                  常設するのと同じ原則）。ドラッグで期間を絞ると必ず
+                  「絞りすぎ」が起きるので、戻せないと時間ピッカーを手で
+                  打ち直すことになり、ブラシの速さという利点が消える。
+                操作されるまでは出さない（何もしていない画面にボタンを増やさない）。 */}
+            {!editing && canUndo ? (
+                <button
+                    type="button"
+                    onClick={undoTokens}
+                    title="直前の絞り込み（時間ブラシ・クリック）を取り消す"
+                    style={{
+                        alignSelf: 'flex-end',
+                        marginBottom: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        height: 30,
+                        padding: '0 11px',
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        fontSize: 11,
+                        color: t.titleColor,
+                        background: 'transparent',
+                        border: `1px solid ${t.accent}55`,
+                    }}
+                >
+                    <span style={{ color: t.accent }}>↩</span>
+                    絞り込みを戻す
+                </button>
+            ) : null}
         </div>
     );
 }

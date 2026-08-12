@@ -6,17 +6,48 @@ import React, { createContext, useCallback, useContext, useMemo, useState } from
 // `$name$` 置換が読む。全パネルが同一 React ツリーなので配信は即時。
 // ────────────────────────────────────────────────────────────────
 
-const TokenContext = createContext({ tokens: {}, setToken: () => {}, setTokens: () => {} });
+const TokenContext = createContext({
+    tokens: {},
+    setToken: () => {},
+    setTokens: () => {},
+    undoTokens: () => {},
+    canUndo: false,
+});
 
 export function TokenProvider({ initial = {}, children }) {
     const [tokens, setTokensState] = useState(initial);
+    // ⚠ **時間ブラシで絞ったら戻れなければならない。**
+    //   ドラッグで期間を絞る操作は必ず「絞りすぎ」を起こすので、
+    //   1手で戻せないと時間ピッカーを手で打ち直すことになり、
+    //   ブラシの利点（速さ）が丸ごと消える。
+    //   直前のトークン状態だけを持つ（履歴は深追いしない。
+    //   複数段は「戻る」の意味が曖昧になるため）。
+    const [prev, setPrev] = useState(null);
+
     const setToken = useCallback((name, value) => {
-        setTokensState((t) => ({ ...t, [name]: value }));
+        setTokensState((t) => {
+            setPrev(t);
+            return { ...t, [name]: value };
+        });
     }, []);
     const setTokens = useCallback((map) => {
-        setTokensState((t) => ({ ...t, ...map }));
+        setTokensState((t) => {
+            setPrev(t);
+            return { ...t, ...map };
+        });
     }, []);
-    const value = useMemo(() => ({ tokens, setToken, setTokens }), [tokens, setToken, setTokens]);
+    const undoTokens = useCallback(() => {
+        setTokensState((t) => {
+            if (prev === null) return t;
+            setPrev(null);
+            return prev;
+        });
+    }, [prev]);
+
+    const value = useMemo(
+        () => ({ tokens, setToken, setTokens, undoTokens, canUndo: prev !== null }),
+        [tokens, setToken, setTokens, undoTokens, prev]
+    );
     return <TokenContext.Provider value={value}>{children}</TokenContext.Provider>;
 }
 

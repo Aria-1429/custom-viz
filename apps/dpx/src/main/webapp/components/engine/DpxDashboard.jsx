@@ -15,6 +15,7 @@ import {
     panelTitleSkin,
     resolveTheme,
 } from './themes';
+import { resolveBrushToken } from './timeBrush';
 import { applyTokens, useDpxTokens } from './tokens';
 import { useDpxGlobalStyles } from './ui';
 import { useSplunkSearch } from './useSplunkSearch';
@@ -367,6 +368,31 @@ function Panel({
     useRegisterPanelFields(panel.id, (data?.fields ?? []).map((f) => f?.name ?? f));
 
     const onEventTrigger = (e) => {
+        // (0) 時間ブラシ（★Studio では原理的に不可能）
+        // viz の上を横にドラッグして選んだ区間で、**ダッシュボード全体の
+        // 時間範囲**（時間範囲入力のトークン）を書き換える。
+        //
+        // Studio はパネルが iframe なので、パネル内のドラッグ座標をホストの
+        // 時間ピッカーへ渡せない。DPX は全パネルが同一 React ツリーにいるので
+        // TokenProvider を直接叩ける。
+        //
+        // ⚠ 書き込み先は**時間範囲入力のトークン**であって、パネル固有の
+        //   earliest/latest ではない。パネル側を直接書くと「そのパネルだけ
+        //   期間が変わる」ことになり、**全体に効く**という肝心の価値が消える。
+        if (e?.type === 'time.brush') {
+            const token = resolveBrushToken(definition?.inputs, panel.options?.brushToken);
+            // 時間範囲入力が無ければ何もしない（黙って別のトークンを書かない）。
+            // viz 側でも入力の有無を見てブラシ自体を無効にしているが、
+            // **書き込む側でも必ず確かめる**（片方だけの防御にしない）。
+            if (token && e.payload?.earliest && e.payload?.latest) {
+                setTokens({
+                    [`${token}.earliest`]: e.payload.earliest,
+                    [`${token}.latest`]: e.payload.latest,
+                });
+            }
+            return;
+        }
+
         // (1) クリック値をトークンへ
         const map = panel.onEvent?.setTokens;
         if (map) {
@@ -687,6 +713,9 @@ function Panel({
                                 : undefined
                         }
                         onEventTrigger={onEventTrigger}
+                        // 時間ブラシの書き込み先。**null なら viz 側でブラシを出さない**
+                        // （ドラッグできるのに何も起きない、という無反応 UI を作らないため）。
+                        brushTarget={resolveBrushToken(definition?.inputs, panel.options?.brushToken)}
                     />
                 )}
                 {/* 編集モードの移動用オーバーレイ。

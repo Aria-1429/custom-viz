@@ -5,6 +5,7 @@ import { dosToField } from './optionEditors';
 import { useDpxTheme } from './themes';
 import { VizTooltip, useCountUp, usePointer, useVizKitStyles } from './vizKit';
 import { formatAxisLabels, niceScale, niceTicks } from './scale';
+import { axisTimes, formatSpan, rangeFromIndices } from './timeBrush';
 import { useVizHover } from '../vizBus';
 
 // ── DPX ネイティブ viz スイート ──────────────────────────────────
@@ -82,13 +83,20 @@ function EmptyHint({ loading, message }) {
 //   - 系列クリックで固定（ピン）。もう一度で解除
 //   - 初回描画は stroke-dashoffset で「引かれていく」アニメ（ジオメトリを動かさない）
 
-export function DpxLine({ dataSources, options = {}, height, loading }) {
+export function DpxLine({ dataSources, options = {}, height, loading, onEventTrigger, brushTarget, mode }) {
     const t = useDpxTheme();
     useVizKitStyles();
     const [ref, width] = useContainerSize();
     const [pt, pointerHandlers] = usePointer();
     const [hoverSeries, setHoverSeries] = React.useState(null);
     const [pinned, setPinned] = React.useState(null);
+    // ⚠ **フックは必ず early return より前に置く**（§8.1）。
+    //    データ到着で「なし→あり」に変わった瞬間にフック数が変わると画面が白紙になる。
+    //    ブラシの選択状態も例外ではない。
+    const [brush, setBrush] = React.useState(null); // {from, to} … X インデックス
+    // 「たった今ブラシで確定した」フラグ。直後に来る click（系列の固定）を捨てる。
+    // state ではなく ref を使う（再描画を挟まずに同じイベントループで読むため）。
+    const justBrushedRef = React.useRef(false);
     const data = dataSources?.primary?.data;
     const cols = data?.columns ?? [];
     const fields = (data?.fields ?? []).map((f) => f?.name ?? f);
@@ -229,8 +237,110 @@ export function DpxLine({ dataSources, options = {}, height, loading }) {
             : null;
     const showCrosshair = hoverIdx != null && pt.x >= padL - 8 && pt.x <= padL + plotW + 8;
 
+    // ── 時間ブラシ（★Studio では原理的に不可能）─────────────────────
+    // 横にドラッグして選んだ区間を、ダッシュボード全体の時間範囲へ流す。
+    //
+    // 出す条件を厳しくしている。**ドラッグできるのに何も起きない**のが
+    // 一番たちの悪い UI なので、確実に効く場合だけカーソルと選択帯を出す:
+    //   (1) X 軸が時刻として読める（ホスト名の軸では時間範囲を作れない）
+    //   (2) 書き込み先の時間範囲入力がある（brushTarget）
+    //   (3) 表示モード（編集中はパネルの移動・選択が優先。掴めなくなる）
+    const times = options.timeBrush === false ? null : axisTimes(xLabels);
+    const brushable = times != null && Boolean(brushTarget) && mode !== 'edit';
+
+    // ドラッグ中の見た目。確定は onPointerUp（クリックとの取り違えを防ぐため、
+    // **1バケット以上動いたときだけ**範囲として扱う）
+    const idxAt = (clientX, rect) => {
+        const x = clientX - rect.left;
+        return Math.max(
+            0,
+            Math.min(
+                xLabels.length - 1,
+                Math.round(((x - padL) / Math.max(plotW, 1)) * (xLabels.length - 1))
+            )
+        );
+    };
+
+    const brushHandlers = brushable
+        ? {
+              onPointerDown: (e) => {
+                  // 左ボタンのみ。右クリックはパネルのコンテキストメニュー用
+                  if (e.button !== 0) return;
+                  // ⚠ 既定動作（文字の範囲選択・画像のドラッグ）を止める。
+                  //   これが無いと横ドラッグが軸ラベルの選択になり、
+                  //   ラベルが青く反転する（実機で発生）
+                  e.preventDefault();
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const i = idxAt(e.clientX, rect);
+                  setBrush({ from: i, to: i });
+                  // ⚠ ドラッグ開始時に系列のフォーカスを解除する。
+                  //   ブラシは線の上を通るので、掴んだ瞬間に「その系列に固定」が
+                  //   効いてしまい、**絞り込んだ後も他系列が減光したまま**になる
+                  //   （実機のスクリーンショットで発覚）。範囲を選ぶ操作と
+                  //   系列を選ぶ操作を混ぜない。
+                  setHoverSeries(null);
+                  // ⚠ ポインタを捕捉する。捕捉しないとパネルの外へ出た瞬間に
+                  //    pointermove が来なくなり、**選択帯が途中で固まる**
+                  e.currentTarget.setPointerCapture?.(e.pointerId);
+              },
+              onPointerMove: (e) => {
+                  if (!brush) return;
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setBrush((b) => (b ? { ...b, to: idxAt(e.clientX, rect) } : b));
+              },
+              onPointerUp: (e) => {
+                  e.currentTarget.releasePointerCapture?.(e.pointerId);
+                  // 掴む前に始まっていた選択が残ることがあるので、確定時に消す
+                  window.getSelection?.()?.removeAllRanges?.();
+                  const b = brush;
+                  setBrush(null);
+                  if (!b) return;
+                  // 1バケットも動いていなければ「ただのクリック」。
+                  // ここで範囲にすると、系列を固定しようとしただけで
+                  // 期間が1バケットに絞られる事故になる
+                  if (b.from === b.to) return;
+                  // この後に来る click（系列の固定）を1回だけ捨てる
+                  justBrushedRef.current = true;
+                  setTimeout(() => {
+                      justBrushedRef.current = false;
+                  }, 0);
+                  const range = rangeFromIndices(times, b.from, b.to);
+                  if (range) {
+                      onEventTrigger?.({
+                          type: 'time.brush',
+                          originalEvent: e,
+                          payload: { earliest: range.earliest, latest: range.latest },
+                      });
+                  }
+              },
+              onPointerCancel: () => setBrush(null),
+          }
+        : null;
+
+    // 選択帯の描画位置（ドラッグ中のみ）
+    const brushLo = brush ? Math.min(brush.from, brush.to) : null;
+    const brushHi = brush ? Math.max(brush.from, brush.to) : null;
+    const brushRange = brush && brushLo !== brushHi ? rangeFromIndices(times, brushLo, brushHi) : null;
+
     return (
-        <div ref={ref} style={{ height: h, position: 'relative' }} {...pointerHandlers}>
+        <div
+            ref={ref}
+            style={{
+                height: h,
+                position: 'relative',
+                touchAction: brushable ? 'none' : undefined,
+                // ⚠ **ブラシ中に軸ラベルの文字が選択されるのを防ぐ**（実機で発生）。
+                //   横ドラッグはブラウザから見れば「文字の範囲選択」なので、
+                //   放っておくと軸ラベルが青く反転してコピー状態になる。
+                //   ブラシを出すパネルでは選択自体を殺す（表ではないので
+                //   文字を選ぶ用途が無い）。`preventDefault` だけでは
+                //   既に始まった選択が残るため、CSS と両方で止める。
+                userSelect: brushable ? 'none' : undefined,
+                WebkitUserSelect: brushable ? 'none' : undefined,
+            }}
+            {...pointerHandlers}
+            {...brushHandlers}
+        >
             <svg width="100%" height={h - legendH} style={{ display: 'block' }} className="dpx-hit">
                 {showGrid
                     ? ticks.map((v) => (
@@ -296,8 +406,28 @@ export function DpxLine({ dataSources, options = {}, height, loading }) {
                     ) : null
                 )}
 
+                {/* 時間ブラシの選択帯。ドラッグ中だけ出る。
+                    ⚠ 塗りは**選択部分だけ**（面積が小さい）。「選択外を暗くする」
+                      表現にすると常にパネル全面の半透明塗りになり、
+                      面積比例の raster コストが乗る（§7.1 の性能方針）。 */}
+                {brush && brushLo !== brushHi ? (
+                    <g pointerEvents="none">
+                        <rect
+                            x={px(brushLo)}
+                            y={padT}
+                            width={Math.max(px(brushHi) - px(brushLo), 1)}
+                            height={plotH}
+                            fill={t.accent}
+                            fillOpacity={0.16}
+                        />
+                        {/* 両端の掴み線。どこからどこまで選んだかを明示する */}
+                        <line x1={px(brushLo)} x2={px(brushLo)} y1={padT} y2={padT + plotH} stroke={t.accent} strokeWidth={1.5} />
+                        <line x1={px(brushHi)} x2={px(brushHi)} y1={padT} y2={padT + plotH} stroke={t.accent} strokeWidth={1.5} />
+                    </g>
+                ) : null}
+
                 {/* クロスヘア（縦線）。ジオメトリの再ラスタライズを避けるため線1本のみ */}
-                {showCrosshair ? (
+                {showCrosshair && !brush ? (
                     <line
                         x1={px(hoverIdx)}
                         x2={px(hoverIdx)}
@@ -322,9 +452,15 @@ export function DpxLine({ dataSources, options = {}, height, loading }) {
                         <g
                             key={s.name}
                             style={{ opacity: dim ? 0.18 : 1, transition: 'opacity 0.18s ease' }}
-                            onMouseEnter={() => setHoverSeries(s.name)}
+                            onMouseEnter={() => (brush ? null : setHoverSeries(s.name))}
                             onMouseLeave={() => setHoverSeries(null)}
-                            onClick={() => setPinned((prev) => (prev === s.name ? null : s.name))}
+                            // ⚠ ブラシで範囲を選んだ直後の click は無視する。
+                            //   ドラッグの終点がたまたま線の上だと「系列を固定」が
+                            //   同時に起きて、絞り込みと固定が一度に発動してしまう。
+                            onClick={() => {
+                                if (justBrushedRef.current) return;
+                                setPinned((prev) => (prev === s.name ? null : s.name));
+                            }}
                         >
                             {showArea && firstIdx >= 0 ? (
                                 <path
@@ -403,7 +539,38 @@ export function DpxLine({ dataSources, options = {}, height, loading }) {
                 })}
             </svg>
 
-            {showCrosshair ? (
+            {/* ドラッグ中の範囲表示。ツールチップと同時に出すと重なって読めないので、
+                ブラシ中はこちらだけを出す（上の crosshair も止めてある）。
+                ⚠ 期間（3.5時間 など）を必ず添える。開始と終了の時刻だけだと
+                  「どれくらいの幅を選んだか」が読み取りづらい。 */}
+            {brushRange ? (
+                <div
+                    style={{
+                        position: 'absolute',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        top: 6,
+                        pointerEvents: 'none',
+                        background: t.colorScheme === 'light' ? 'rgba(255,255,255,0.97)' : 'rgba(10,16,30,0.94)',
+                        border: `1px solid ${t.accent}88`,
+                        borderRadius: 6,
+                        padding: '4px 10px',
+                        fontSize: 11,
+                        color: t.titleColor,
+                        whiteSpace: 'nowrap',
+                        zIndex: 21,
+                    }}
+                >
+                    <span style={{ color: t.accent, fontWeight: 600 }}>
+                        {formatSpan(brushRange.from, brushRange.to)}
+                    </span>
+                    <span style={{ color: t.subColor, marginLeft: 8 }}>
+                        {brushRange.earliest.replace('T', ' ')} → {brushRange.latest.replace('T', ' ')}
+                    </span>
+                </div>
+            ) : null}
+
+            {showCrosshair && !brush ? (
                 <VizTooltip
                     t={t}
                     x={pt.x}
@@ -547,6 +714,8 @@ DpxLine.config = {
         legendPos: { type: 'string', default: 'auto' },
         axisRight: { type: 'array', default: [] },
         autoSplitAxis: { type: 'boolean', default: false },
+        timeBrush: { type: 'boolean', default: true },
+        brushToken: { type: 'string', default: '' },
     },
     editorConfig: [
         {
@@ -586,6 +755,21 @@ DpxLine.config = {
                         label: '右軸で描く系列',
                         option: 'axisRight',
                         editor: 'editor.columnMultiSelectionByFieldNameEditor',
+                    },
+                ],
+            ],
+        },
+        {
+            // 横ドラッグで選んだ区間をダッシュボード全体の時間範囲にする。
+            // 時間範囲入力が無いダッシュボードでは自動的に無効になる（viz 側で判定）。
+            label: '時間ブラシ（ドラッグで期間を絞る）',
+            layout: [
+                [{ label: 'ドラッグで期間を絞る', option: 'timeBrush', editor: 'editor.checkbox' }],
+                [
+                    {
+                        label: '書き込む時間範囲入力（空で先頭）',
+                        option: 'brushToken',
+                        editor: 'editor.text',
                     },
                 ],
             ],
