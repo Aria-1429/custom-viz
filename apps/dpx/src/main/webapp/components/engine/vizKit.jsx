@@ -19,6 +19,10 @@ export function useVizKitStyles() {
             @keyframes dpxDraw { from { stroke-dashoffset: var(--dpx-len); } to { stroke-dashoffset: 0; } }
             @keyframes dpxPulse { 0%,100% { opacity: .35; transform: scale(1); } 50% { opacity: .9; transform: scale(1.35); } }
             @keyframes dpxGrow { from { transform: scaleY(0.001); } to { transform: scaleY(1); } }
+            /* コネクタ線の「流れ」。⚠ animate するのは stroke-dashoffset だけに保つ
+               （合成に載るプロパティ。filter や background-position を動かすと
+               面積ぶん毎フレーム再描画になる。§7.1 / §6.7.1） */
+            @keyframes dpxLinkFlow { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -100; } }
             .dpx-bar-rect { transform-origin: bottom center; }
             .dpx-hit { cursor: crosshair; }
         `;

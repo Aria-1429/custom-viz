@@ -17,7 +17,7 @@
 //   「ビューを増やさない」ことで同名 JS 制約そのものを消した。
 
 import { createRESTURL, createURL } from '@splunk/splunk-utils/url';
-import { defaultFetchInit, handleResponse } from '@splunk/splunk-utils/fetch';
+import { defaultFetchInit, handleError, handleResponse } from '@splunk/splunk-utils/fetch';
 import { username } from '@splunk/splunk-utils/config';
 
 /** Splunk 同梱の第一党テンプレート（Mako ではない）。 */
@@ -142,7 +142,9 @@ export async function saveView({ app, name, owner, label, definition, template }
                 method: 'POST',
                 headers: FORM_HEADERS,
                 body: body.toString(),
-            }).then(handleResponse(200));
+            })
+                .then(handleResponse(200))
+                .catch(handleError('ダッシュボードの保存に失敗しました'));
             return;
         } catch (err) {
             lastErr = err;
@@ -161,7 +163,9 @@ export async function createView({ app, name, label, definition: providedDefinit
         method: 'POST',
         headers: FORM_HEADERS,
         body: body.toString(),
-    }).then(handleResponse(201));
+    })
+        .then(handleResponse(201))
+        .catch(handleError('ダッシュボードの作成に失敗しました'));
 
     // アプリ共有にする（private のままだと他の人が UI から開けない）
     const aclUrl = createRESTURL(`data/ui/views/${encodeURIComponent(name)}/acl`, {
@@ -179,7 +183,9 @@ export async function createView({ app, name, label, definition: providedDefinit
         method: 'POST',
         headers: FORM_HEADERS,
         body: aclBody.toString(),
-    }).then(handleResponse(200));
+    })
+        .then(handleResponse(200))
+        .catch(handleError('共有設定の変更に失敗しました'));
 }
 
 /** 削除。 */

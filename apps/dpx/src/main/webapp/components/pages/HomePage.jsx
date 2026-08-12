@@ -5,6 +5,7 @@ import { emptyDashboard } from '../engine/templates';
 import { resolveTheme } from '../engine/themes';
 import { Button, Field, Select, TextInput, inputStyle, useDpxGlobalStyles } from '../engine/ui';
 import { dashboardHref, listDashboards, listApps, createView, deleteView } from '../viewStore';
+import SplunkHomeLink from '../engine/SplunkHomeLink';
 
 // ── DPX ホーム（ダッシュボード管理）──────────────────────────────
 // ホストビュー dpx の「?id= なし」ルート。ダッシュボード本体と同じ
@@ -137,6 +138,16 @@ const HomePage = ({ navigate }) => {
                     borderBottom: '1px solid rgba(90,130,200,0.3)',
                 }}
             >
+                {/* Splunk 本体への出口（ダッシュボード側のトップバーと同じ位置・同じ形） */}
+                <SplunkHomeLink t={t} />
+                <span
+                    style={{
+                        width: 1,
+                        height: 18,
+                        flex: 'none',
+                        background: 'rgba(140,175,235,0.26)',
+                    }}
+                />
                 <span style={{ color: t.accent, fontWeight: 800, fontSize: 15, letterSpacing: '0.12em' }}>DPX</span>
                 <span style={{ opacity: 0.35 }}>/</span>
                 <span style={{ fontWeight: 600, fontSize: 13 }}>ダッシュボード</span>

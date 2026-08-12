@@ -12,6 +12,7 @@ import { adaptExtensionViz } from '../extensionAdapter';
 import { DecoClock, DecoText } from './decoViz';
 import { DpxBar, DpxDonut, DpxLine, DpxRanking, DpxStatus, DpxTable, DpxValue } from './nativeViz';
 import { ShapeEllipse, ShapeGlow, ShapeLine, ShapeNocFrame, ShapeRect } from './shapeViz';
+import { DpxLinkLine } from './linkLineViz';
 
 // ── 既存カスタム viz（Studio 拡張）────────────────────────────────
 // ⚠ import するのは host.jsx。visualization.jsx を直接 import しないこと
@@ -96,6 +97,9 @@ export const VIZ_REGISTRY = {
     'shape.ellipse': ShapeEllipse,
     'shape.line': ShapeLine,
     'shape.glow': ShapeGlow,
+    // コネクタ線：shape.line と違い**サーチ結果で色が変わる**（link-line 相当）。
+    // パネル同士を結んで死活・遅延を線の色で見せる用途
+    'dpx.linkLine': DpxLinkLine,
     // NOC 枠：パネル質感 `noc` と同じ意匠を図形として置ける。
     // カスタム viz を frameless にしてこれを裏に敷くと意匠が揃う
     'shape.nocFrame': ShapeNocFrame,

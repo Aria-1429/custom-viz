@@ -517,6 +517,11 @@ function Panel({
 
     const body = (
         <div
+            // E2E / 撮影ツールがパネルを一意に狙うための目印。
+            // これが無いと「ページ全体から circle を拾って別パネルを掴む」ような
+            // 取り違えが起きる（コネクタ線のドラッグ検証で実際に踏んだ）
+            data-panel-id={panel.id}
+            data-viz={panel.viz}
             onPointerDown={editing ? (e) => onSelect?.(panel.id, e) : undefined}
             // 表示モードだけ右クリックメニューを出す（編集中はブラウザ既定に任せる）
             // ⚠ 編集モードでもメニューを出す（以前はブラウザ既定に任せていた）。
@@ -668,14 +673,40 @@ function Panel({
                         width="100%"
                         height={contentHeight}
                         mode={mode}
-                        onOptionsChange={() => {}}
+                        // viz 自身がオプションを書き戻す口（コネクタ線の点列など、
+                        // **キャンバス上のドラッグでしか決まらない値**のために要る）。
+                        // ⚠ 以前は `() => {}` の空実装だった。viz 側は「保存された」と
+                        //   思って描き続けるので、**動くのに保存されない**という
+                        //   分かりにくい壊れ方をする。
+                        onOptionsChange={
+                            onPatchPanel
+                                ? (patch) =>
+                                      onPatchPanel(panel.id, {
+                                          options: { ...(panel.options ?? {}), ...patch },
+                                      })
+                                : undefined
+                        }
                         onEventTrigger={onEventTrigger}
                     />
                 )}
-                {editing ? (
+                {/* 編集モードの移動用オーバーレイ。
+                    ⚠ **viz が自前でキャンバス編集を持つ場合は敷かない**（`canvasEdit`）。
+                      敷くと viz のハンドルにポインタが一切届かず、
+                      「編集モードでは線をいじれない」という Studio と同じ制約が
+                      DPX にも生まれてしまう（コネクタ線で実際に踏んだ）。
+                    そのぶん移動手段が減るので、**タイトルバーのドラッグは従来どおり効く**。
+                    タイトル非表示のときは掴む場所が無くなるため、上端に細い帯を残す。 */}
+                {editing && !Viz?.config?.canvasEdit ? (
                     <div
                         onPointerDown={(e) => onDragStart?.(panel.id, 'move', e)}
                         style={{ position: 'absolute', inset: 0, cursor: 'move' }}
+                    />
+                ) : null}
+                {editing && Viz?.config?.canvasEdit && hideTitle ? (
+                    <div
+                        title="ドラッグでパネルを移動"
+                        onPointerDown={(e) => onDragStart?.(panel.id, 'move', e)}
+                        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 10, cursor: 'move' }}
                     />
                 ) : null}
             </div>

@@ -12,6 +12,7 @@ import Inspector from '../engine/Inspector';
 import { parseDpxRoute, homeHref, fetchView, saveView } from '../viewStore';
 import { PlatformThemeContext } from '../extensionAdapter';
 import { PanelFieldsProvider } from '../engine/panelFields';
+import SplunkHomeLink from '../engine/SplunkHomeLink';
 import { SearchAppContext } from '../engine/useSplunkSearch';
 import { useDpxGlobalStyles } from '../engine/ui';
 import { TokenProvider, initialTokensFromInputs } from '../engine/tokens';
@@ -85,6 +86,17 @@ function TopBar({ t, definition, app, view, mode, dirty, saveMsg, showSource, on
                 color: t.titleColor,
             }}
         >
+            {/* Splunk 本体への出口。DPX は Splunk ヘッダを隠すので、
+                これが無いとブラウザの戻るしか帰り道が無い */}
+            <SplunkHomeLink t={t} />
+            <span
+                style={{
+                    width: 1,
+                    height: 18,
+                    flex: 'none',
+                    background: t.colorScheme === 'light' ? 'rgba(20,24,31,0.16)' : 'rgba(140,175,235,0.26)',
+                }}
+            />
             <a
                 href={homeHref()}
                 // SPA 内遷移（pushState）。ページ再読込が無いのでフラッシュ自体が出ない。

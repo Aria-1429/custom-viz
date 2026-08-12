@@ -681,6 +681,17 @@ undo/redo は `def` のスナップショットを 50 段まで保持する方�
   `useRef` に最終切替時刻を持ち、effect は張り直さない
 - **Splunk ヘッダの非表示**: `body > header { display: none }` を注入（クラス名は
   ビルドごとに変わるので**構造で指定**する。noc-wall の実機知見）
+- ⚠ **ヘッダを隠すなら「戻る導線」を自前で用意する**（v1.1.0 で追加。`SplunkHomeLink.jsx`）。
+  Splunk ヘッダを消すと**Splunk 本体へ帰る手段が画面から消える**（ブラウザの戻るだけになる）。
+  キオスク表示に ✕ を必ず残すのと同じ原則＝**抜け出せなくなる UI を作らない**（§6.8.8）。
+  - 行き先は**実機のヘッダロゴの href に合わせる**：`<a data-test="header-logo"
+    href="/en-US/app/launcher">`（DOM を読んで確認。推測で `app/launcher/home` と書かない）。
+    ロケール接頭辞は **`createURL('app/launcher')`** に付けさせる
+  - **Splunk 本体へ出るリンクは SPA 遷移にしない**（素の `<a href>`。DPX の
+    pushState ルータの管轄外なので、`navigate()` に渡すとルートが解決できない）
+  - ⚠ **Splunk のロゴ SVG を複製して同梱しない。** ヘッダから取れるので手軽に見えるが、
+    **登録商標**であり「同梱素材は著作権フリーのみ」という本リポジトリの方針に反する。
+    汎用のホーム記号＋「Splunk」の文字で用は足りる
 
 ---
 
@@ -862,6 +873,38 @@ SPL を打っている最中に Delete でパネルが消えたら事故にな�
 ⚠ **抜け出せなくなる UI を作らない。** キーだけだと気づけないので、
 薄く常設した ✕ ボタンを必ず残す（ホバーで濃くなる）。
 
+### 6.8.9 ⭐ 編集モードで viz 自身にポインタを渡す（`canvasEdit`）★Studio では不可能
+
+**Studio 拡張 viz は編集モード中にドラッグ編集ができない**。パネルが iframe に隔離され、
+ホストがポインタ入力をパネル選択に使ってしまうため（link-line が「表示モードで
+線を整える」設計になっているのはこの制約が理由）。
+
+**DPX では可能**（2026-08-12 実機で永続化まで確認）。ただし**2か所の壁**がある:
+
+| 壁 | 症状 | 対処 |
+|---|---|---|
+| **編集モードの移動用オーバーレイ** | `DpxDashboard` が `position:absolute; inset:0` の div を viz の**上に**敷いており、viz のハンドルにポインタが**一切届かない** | `Viz.config.canvasEdit = true` を宣言した viz には**敷かない**。パネル移動はタイトルバー（タイトル非表示なら上端 10px の帯）で行う |
+| **`onOptionsChange` が空実装だった** | `() => {}` が渡っていたため、viz からの書き戻しが**黙って捨てられる**。viz 側は保存された前提で描き続けるので**「動くのに保存されない」** | `onPatchPanel(panel.id, { options: {...} })` に接続（v1.2.0 で修正済み） |
+
+```jsx
+MyViz.config = { key: 'my.viz', canvasEdit: true, /* … */ };
+// ハンドル側では必ず stopPropagation する（親の onSelect でパネル選択が動くため）
+<circle onPointerDown={(e) => { e.stopPropagation(); setDragging(i); }} />
+```
+
+- **キャンバスで決まる値（点列・ラベル位置）は `optionsSchema` に載せない。**
+  載せると編集パネルに JSON 欄が出るだけ。**スキーマ外のキーも定義に保存され viz に届く**
+- ⚠ **`optionsSchema` の `default` は viz に届かない**（Inspector が表示に使うだけで
+  options にマージされない）。「未設定なら既定で色分け」は**viz 側で自分でフォールバックする**。
+  これを怠ると、置いた直後の viz が一律アクセント色になり「値で色が変わらない」と見える（実機で踏んだ）
+- ⚠ **共通の既定パレット `trafficDark` は「低い値ほど赤」**（スコア向け）。
+  遅延・エラー率のような **low=good の指標では good/bad が逆**になる。実機で 12ms が赤・
+  95ms が緑になって発覚した。用途に合う並びを viz 側の既定で持つこと
+- **E2E でパネルを狙えるように `data-panel-id` / `data-viz` が付いている**。
+  これが無いと「ページ全体から `circle` を拾って別パネルを掴む」取り違えが起きる（実際に踏んだ）。
+  ⚠ 画面外の要素は `scrollIntoViewIfNeeded()` してから掴む（mouse.move はビューポート座標）
+- 検証は `tools/dashboard-loop/src/dp-linkline-e2e.mjs`（ドラッグ→保存→REST で永続化確認）
+
 ### 6.9 図形（★Studio に無い）
 
 `shape.rect` / `shape.ellipse` / `shape.line`（矢印つき）/ `shape.glow`（グラデ面）/
@@ -898,6 +941,7 @@ SPL を打っている最中に Delete でパネルが消えたら事故にな�
 | `dpx.ranking` | ランキング（横棒） | 1列目=ラベル、2列目=値 | 上位 N 件を順位つきで。**ラベルが長いときは縦棒より読める** |
 | `dpx.donut` | ドーナツ（構成比） | 1列目=ラベル、2列目=値 | 中央に合計、ホバーで割合、凡例（実数/割合を切替）、クリックでトークン |
 | `dpx.table` | テーブル | 全列 | **ヘッダで並び替え**（昇順→降順→解除）、**値による色分け**（文字/セル/行）、**絞り込み**、**合計行**、数値書式、値バー、行クリックでトークン |
+| `dpx.linkLine` | コネクタ線 | 値列の最終行（シングルバリュー） | **編集モードでキャンバスをドラッグして整形**（点移動・＋で折れ点追加・ダブルクリックで削除・ラベル移動）。値→色の3モード、質感4種、流れアニメ。データ無しは N/A グレーで描き続ける |
 | `deco.text` | テキスト | 不要 | `$トークン$` 展開・グロー |
 | `deco.clock` | 時計 | 不要 | ライブ更新 |
 
@@ -1002,6 +1046,56 @@ dataContract を見る。**
 → **ダッシュボードを push する前に、全データソースの SPL を
 `search/jobs/export` に投げて「行数 > 0」を確認する。** 描画を見て切り分けるより速い。
 `(t.match(/"result"/g)||[]).length` で行数が取れる。
+
+### 8.4.2 ⚠ `exec_mode=blocking` を使わない（Studio に合わせる）★実機で確定
+
+**症状**: リバースプロキシ（Cloudflare トンネル）越しにダッシュボードを開くと、
+一部のパネルが **`[object Response]`** になって描画されない。**IP 直では出ない**。
+しかも**落ちるパネルが毎回変わる**（2026-08-12 実機で再現・原因確定）。
+
+**原因は3層あり、どれも「Cloudflare のせい」ではない**:
+
+| 層 | 事実 |
+|---|---|
+| 表示 | `handleResponse` は**生の `Response` を reject する**（`Error` ではない）。受け側の `String(err?.message ?? err)` が `[object Response]` になる |
+| 直接原因 | `exec_mode=blocking` が**ジョブ完了まで HTTP 接続を握る**ので同時実行ジョブが並走し、`srchJobsQuota`（既定10）超過で **HTTP 503** |
+| 露出条件 | HTTP/1.1 は**1オリジン同時6接続**でブラウザが偶然スロットリングしていた。トンネルは **h3/HTTP/2 で多重化**が効き、12本が一斉到達して上限に届く |
+
+**Studio はどうしているか（実機で POST body を観測）**:
+```
+output_mode=json / preview=true / search=... / sid= / check_risky_command=true
+label=<dsName> / provenance=UI:dashboard:<name>
+```
+**`exec_mode` を送っていない**。標準 Studio ダッシュボードは 12 パネルを **19ms 以内に
+一斉ディスパッチしても 503 が出ない**（同じ実機・同じ h3）。
+**キューで絞っているのではなく、blocking を使っていないから**。
+
+**実測（同一実機・同時12本・同じ URL）**:
+
+| 条件 | 結果 |
+|---|---|
+| `exec_mode=blocking` | 201×10 / **503×2** |
+| `exec_mode` 指定なし（Studio 相当） | **201×12** |
+| トンネル h3 のまま `--disable-http2` | **201×12**（多重化を切ると露出しない） |
+
+→ **非ブロッキングで投げ、`dispatchState` を 250ms 間隔でポーリングして完了を待つ**
+（`waitForJob()` in `useSplunkSearch.js`）。`FAILED` は `messages[]` から理由を取り出して throw。
+
+⚠ **`handleResponse` は必ず `handleError` と対で使う。**
+Splunk 自身の `splunk-utils/search.js` が全箇所でそうしている:
+```js
+.then(handleResponse(201))
+.catch(handleError('サーチジョブの作成に失敗しました'))  // ← messages[].text を本物の Error にする
+```
+片方だけだと**サーバがちゃんと返している理由を捨てて** `[object Response]` になる。
+
+**教訓**:
+- **「プロキシ経由でだけ壊れる」はプロキシが原因とは限らない。**
+  多重化で並列度が上がり、**元からあった上限違反が見えるようになっただけ**だった
+- **推測を3回外した**: ①CSRF のポート依存（実機では `MRSPARKLE_PORT_NUMBER` は
+  トンネルでも 8000 のままで無罪）②RTT が長いから滞留（実測 71ms vs 61ms で
+  説明がつかない）③クライアント側キューが要る（**Studio は queue を持っていない**）。
+  **標準実装が何を送っているかを最初に見るべきだった**
 
 ### 8.5 その他
 
@@ -1566,6 +1660,8 @@ DPX 専用の E2E / 撮影ツール。**実装したら必ずどれかで実機�
 | `dp-click-shot.mjs` / `dp-hover-viz.mjs`（座標）/ `dp-hover-el.mjs`（要素） | クリック・ホバー状態の撮影 |
 | `dp-save-check.mjs` | 編集→保存→REST 永続化の E2E |
 | `dp-settings-e2e.mjs` | **ドロップダウン＋テキストを変更→保存→REST 検証** |
+| `dp-push.mjs <def.json> <app> <view> [label]` | **DPX 定義（JSON）を実機のビューへ push**（作成／更新。owner は自動で切替） |
+| `dp-linkline-e2e.mjs <app> <view> <panelId>` | **編集モードでハンドルをドラッグ→保存→REST で永続化を確認**（canvasEdit の回帰テスト） |
 | `dp-drag-check.mjs` | パネルのドラッグ移動→保存→REST 検証 |
 | `dp-token-check.mjs` | クリック→トークン→再サーチの連鎖 |
 | `dp-tab-check.mjs` | タブ自動送りの間隔測定 |
