@@ -8,6 +8,9 @@
 //   **コーナーフレームに全周の枠が生え、枠なしにも枠が付く**（実際に発生させた）。
 //   見た目では気づきにくいので数値（文字列）で押さえる。
 import {
+    resolveTheme,
+} from '../src/main/webapp/components/design/theme/index.js';
+import {
     GROUP_INCOMPATIBLE_VARIANTS,
     PANEL_VARIANTS,
     groupSurface,
@@ -15,8 +18,7 @@ import {
     groupVariants,
     panelSurface,
     panelTitleSkin,
-    resolveTheme,
-} from '../src/main/webapp/components/engine/themes.js';
+} from '../src/main/webapp/components/design/surface/index.js';
 
 let ng = 0;
 const ok = (c, m) => {

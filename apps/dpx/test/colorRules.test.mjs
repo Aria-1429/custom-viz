@@ -3,7 +3,7 @@
 // ⚠ 色の計算は実機で目視しても「合っているか」が判定しづらいので、
 //    境界値（最小・最大・同値・非数値）を数値で押さえておく。
 import { colorForValue, defaultColorRules, pickTextColor, relativeLuminance, sampleGradient }
-  from '../src/main/webapp/components/engine/colorRules.js';
+  from '../src/main/webapp/components/viz/colorRules.js';
 let ng=0; const ok=(c,m)=>{ if(!c){console.log('✗',m);ng++;} else console.log('✓',m); };
 
 // sampleGradient: 両端と中間

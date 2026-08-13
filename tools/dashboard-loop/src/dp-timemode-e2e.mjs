@@ -29,7 +29,7 @@ await page.locator('input[name="username"]').first().fill(config.user);
 await page.locator('input[name="password"]').first().fill(config.pass);
 await Promise.all([page.waitForNavigation({waitUntil:'domcontentloaded'}).catch(()=>{}), page.locator('input[name="password"]').first().press('Enter')]);
 await page.waitForTimeout(1200);
-await page.goto(`${webBase()}/en-US/app/${app}/${view}?mode=edit`, { waitUntil: 'domcontentloaded' });
+await page.goto(`${webBase()}/en-US/app/dpx/dpx?id=${app}/${view}&mode=edit`, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(10000);
 await page.getByText(panelTitle, { exact: true }).first().click();
 await page.waitForTimeout(800);

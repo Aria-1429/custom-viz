@@ -5,7 +5,7 @@
 //   単純に `split('|')` すると、文字列リテラルの中の `|` まで割ってしまい
 //   SPL が壊れる（`eval x="a|b"` や rex の正規表現で普通に出てくる）。
 //   壊れても画面上は「改行されただけ」に見えるので目視では気づけない。
-import { formatSpl } from '../src/main/webapp/components/engine/spl.js';
+import { formatSpl } from '../src/main/webapp/components/data/spl.js';
 
 let ng = 0;
 const ok = (c, m) => {

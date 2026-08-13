@@ -27,22 +27,54 @@ await page.locator('input[name="username"]').first().fill(config.user);
 await page.locator('input[name="password"]').first().fill(config.pass);
 await Promise.all([page.waitForNavigation({waitUntil:'domcontentloaded'}).catch(()=>{}), page.locator('input[name="password"]').first().press('Enter')]);
 await page.waitForTimeout(1200);
-await page.goto(`${webBase()}/en-US/app/${app}/${view}?mode=edit`, { waitUntil: 'domcontentloaded' });
+await page.goto(`${webBase()}/en-US/app/dpx/dpx?id=${app}/${view}&mode=edit`, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(10000);
 
-// 「入力（トークン）」セクションを開く
-// ⚠ セクションは開いていることがある。クリックでトグルすると閉じてしまうので、
-//    「並べ替えボタンが見えているか」で判定してから必要な時だけ開く。
-const upSel = 'button[title="左（上）へ"]';
-if ((await page.locator(upSel).count()) === 0) {
-    await page.locator('button', { hasText: '入力（トークン）' }).first().click();
-    await page.waitForTimeout(700);
+// ⚠ 並べ替えボタンは**キャンバス上の入力カード**に出る（インスペクタではない）。
+//   以前は「入力（トークン）」セクションを開こうとしていたが、
+//   **そのセクションは既に存在しない**（入力ごとの `入力：<名前>` に変わった）。
+//   フィクスチャには入力が 2 つ以上必要。
+//
+// ⚠ **並べ替えは「↑↓ ボタン」ではなく HTML5 のドラッグ&ドロップ**（2026-08 時点）。
+//   以前このツールは `button[title="左（上）へ"]` を押していたが、
+//   **その UI は既に存在しない**（`draggable` なカードを掴んで動かす形に変わった）。
+//   実装が変わったのに古い操作を試し続けると「壊れている」と誤診する。
+
+const cards = page.locator('[draggable="true"]');
+const n = await cards.count();
+console.log('入力カード数:', n);
+if (n < 2) {
+    console.error('NG: 入力が 2 つ未満（フィクスチャを確認）');
+    process.exit(1);
 }
-// 2番目の入力カードの「↑」を押す（title="左（上）へ"）
-const upBtns = page.locator('button[title="左（上）へ"]');
-console.log('並べ替えボタン数:', await upBtns.count());
-await upBtns.nth(1).click();
-await page.waitForTimeout(600);
+
+// 2 番目のカードを 1 番目の位置へドラッグする。
+// ⚠ Playwright の dragTo は HTML5 DnD を再現しないことがあるので、
+//    DataTransfer を自前で作って dragstart / dragover / drop を送る。
+// ⚠ **1 回の evaluate で全部投げない。** `dragstart` が呼ぶ `setDragIdx` は
+//   React の状態更新なので**次のレンダーまで反映されない**。同じ同期ブロックで
+//   `drop` まで投げると、ハンドラが `dragIdx == null` を見て**何もせず終わる**
+//   （「イベントは届いているのに動かない」ように見える）。
+//   → dragstart と drop の間で必ず待つ。
+await page.evaluate(() => {
+    window.__dt = new DataTransfer();
+    const el = document.querySelectorAll('[draggable="true"]')[1];
+    el.dispatchEvent(
+        new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: window.__dt })
+    );
+});
+await page.waitForTimeout(300);
+await page.evaluate(() => {
+    const el = document.querySelectorAll('[draggable="true"]')[0];
+    const fire = (type) =>
+        el.dispatchEvent(
+            new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: window.__dt })
+        );
+    fire('dragenter');
+    fire('dragover');
+    fire('drop');
+});
+await page.waitForTimeout(800);
 
 const saveBtn = page.getByRole('button', { name: '保存' });
 if (!(await saveBtn.isEnabled())) { console.error('NG: 保存が活性にならない'); process.exit(1); }

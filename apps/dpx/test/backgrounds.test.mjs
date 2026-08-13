@@ -18,9 +18,9 @@ const ok = (c, m) => {
     } else console.log('✓', m);
 };
 
-const bg = readFileSync(new URL('../src/main/webapp/components/engine/BackgroundLayer.jsx', import.meta.url), 'utf8');
-const dash = readFileSync(new URL('../src/main/webapp/components/engine/DpxDashboard.jsx', import.meta.url), 'utf8');
-const insp = readFileSync(new URL('../src/main/webapp/components/engine/Inspector.jsx', import.meta.url), 'utf8');
+const bg = readFileSync(new URL('../src/main/webapp/components/renderer/BackgroundLayer.jsx', import.meta.url), 'utf8');
+const dash = readFileSync(new URL('../src/main/webapp/components/renderer/DashboardRenderer.jsx', import.meta.url), 'utf8');
+const insp = readFileSync(new URL('../src/main/webapp/components/builder/Inspector.jsx', import.meta.url), 'utf8');
 
 // ── 背景：選択肢 ↔ 実装 ─────────────────────────────────────
 const optBlock = bg.slice(bg.indexOf('BACKGROUND_OPTIONS'), bg.indexOf('];', bg.indexOf('BACKGROUND_OPTIONS')));

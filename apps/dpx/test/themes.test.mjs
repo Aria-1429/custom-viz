@@ -8,13 +8,15 @@
 //   - ライト／ダークの分類漏れ（ライト地に白文字で消える。実機で前科あり）
 import {
     DPX_PRESETS,
-    PANEL_VARIANTS,
     PRESET_ORDER,
-    groupSurface,
     orderedPresets,
-    panelSurface,
     resolveTheme,
-} from '../src/main/webapp/components/engine/themes.js';
+} from '../src/main/webapp/components/design/theme/index.js';
+import {
+    PANEL_VARIANTS,
+    groupSurface,
+    panelSurface,
+} from '../src/main/webapp/components/design/surface/index.js';
 
 let ng = 0;
 const ok = (c, m) => {

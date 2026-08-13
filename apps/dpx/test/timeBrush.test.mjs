@@ -11,7 +11,7 @@ import {
     rangeFromIndices,
     resolveBrushToken,
     toSplunkTime,
-} from '../src/main/webapp/components/engine/timeBrush.js';
+} from '../src/main/webapp/components/viz/timeBrush.js';
 
 let ng = 0;
 const ok = (c, m) => {

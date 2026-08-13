@@ -98,9 +98,17 @@ ok(/枠の質感/.test(paneText), '区画の設定（枠の質感）が出てい
 //    `input[type="text"]` では1件も当たらない（実機で確認）。
 //    さらに「最初の .dpx-input」は別のコントロールを掴むので、
 //    現在値（元の区画名）で特定する
-const nameBox = page.locator('input.dpx-input').first();
-await nameBox.fill('検証区画');
-await nameBox.blur();
+// ⚠ **位置（first / last）で選ばない。** キャンバスに入力があると
+//   そちらが先に来て、**ドラッグ用オーバーレイがクリックを遮る**。
+//   → **現在の区画名を値に持つ欄**で特定する。
+const beforeName = before[0]?.label ?? "区画";
+const nameBox = page.locator(`input.dpx-input[value="${beforeName}"]`).first();
+// ⚠ `fill('')` は**クリアボタンを押してしまう**ので Control+a で上書きする
+await nameBox.click();
+await page.keyboard.press('Control+a');
+await nameBox.type('検証区画');
+// ⚠ **DPX の TextInput は blur で確定する**（打鍵では反映されない）
+await page.keyboard.press('Tab');
 await page.waitForTimeout(800);
 const afterRename = (await page.locator('body').innerText().catch(() => '')) ?? '';
 ok(/検証区画/.test(afterRename), '区画名を変更できる');
@@ -118,7 +126,13 @@ if ((await addBtn.count()) > 0) {
 }
 
 // ── 4. パネル側から「所属する区画」を選べるか ──────────────────
-await page.locator('[data-panel-id="h1"]').first().click({ position: { x: 200, y: 10 } });
+// ⚠ **パネル ID を決め打ちしない**（旧実装は `h1` 固定で、
+//   そのボードが無いと 30 秒タイムアウトしていた）。実在する先頭パネルを掴む。
+// ⚠ パネルは**中央をクリックしない**（隣の子 div が pointer を奪う）。
+//   タイトルバー（上端 +10px）を狙う。
+const anyPanel = page.locator('[data-panel-id]').first();
+await anyPanel.scrollIntoViewIfNeeded();
+await anyPanel.click({ position: { x: 60, y: 10 } });
 await page.waitForTimeout(1000);
 const panelPane = (await page.locator('body').innerText().catch(() => '')) ?? '';
 ok(/所属する区画/.test(panelPane), 'パネルの設定に「所属する区画」がある');

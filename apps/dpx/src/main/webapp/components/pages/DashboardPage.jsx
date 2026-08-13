@@ -1,35 +1,44 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
-import DpxBootScreen, { dismissBootSplash } from '../engine/BootScreen';
-import DataSourceManager from '../engine/DataSourceManager';
-import { getDataSources, migrateToDataSources, nextSourceId } from '../engine/dataSources';
-import { movePanelsBy } from '../engine/groups';
+import DpxBootScreen, { dismissBootSplash } from '../renderer/BootScreen';
+import DataSourceManager from '../builder/DataSourceManager';
+import { getDataSources, nextSourceId } from '../data';
+import { movePanelsBy } from '../renderer/groups';
 import {
-    canRedo as histCanRedo,
-    canUndo as histCanUndo,
-    coalesceKeyFor,
-    initHistory,
-    isDirty as histIsDirty,
-    markSaved,
-    pushHistory,
-    redoHistory,
-    undoHistory,
-} from '../engine/history';
-import EditToolbar from '../engine/EditToolbar';
-import VizPicker from '../engine/VizPicker';
-import { listViz } from '../engine/vizRegistry';
-import DpxDashboard from '../engine/DpxDashboard';
-import { resolveTheme } from '../engine/themes';
-import Inspector from '../engine/Inspector';
-import { parseDpxRoute, homeHref, fetchView, saveView } from '../viewStore';
-import { PlatformThemeContext } from '../extensionAdapter';
-import { PanelFieldsProvider } from '../engine/panelFields';
-import SplunkHomeLink from '../engine/SplunkHomeLink';
-import { SearchAppContext } from '../engine/useSplunkSearch';
-import { useDpxGlobalStyles } from '../engine/ui';
-import { TokenProvider, initialTokensFromInputs } from '../engine/tokens';
-import { VizBusProvider } from '../vizBus';
-import DetachedWindow from '../engine/DetachedWindow';
+    patchDefinition as storePatchDef,
+    patchPanel as storePatchPanel,
+    patchPanelSearch as storePatchSearch,
+    removePanel as storeRemovePanel,
+    selectCanRedo,
+    selectCanUndo,
+    selectDirty,
+    setPanelOption as storeSetOption,
+    useDashboardStore,
+} from '../store/dashboardStore';
+import {
+    SEL,
+    selectSelectedGroupId,
+    selectSelectedInputId,
+    selectSelectedPanelId,
+    useEditorStore,
+} from '../store/editorStore';
+import EditToolbar from '../builder/EditToolbar';
+import VizPicker from '../builder/VizPicker';
+import { listViz } from '../viz/registry';
+// ⭐ Dashboard Canvas（編集の器）。ストアから定義を取り Renderer に渡す。
+//   ⚠ Renderer（DpxDashboard）を直接使わない＝定義の出どころを 1 つに保つ。
+import { DashboardCanvas } from '../canvas';
+import { resolveTheme } from '../design';
+import Inspector from '../builder/Inspector';
+import { parseDpxRoute, homeHref, fetchView, saveView } from '../data/viewStore';
+import { PlatformThemeContext } from '../viz/extensionAdapter';
+import { PanelFieldsProvider } from '../viz/panelFields';
+import SplunkHomeLink from '../shared/SplunkHomeLink';
+import { SearchAppContext } from '../data';
+import { useDpxGlobalStyles } from '../shared/ui';
+import { TokenProvider, initialTokensFromInputs } from '../shared/tokens';
+import { VizBusProvider } from '../shared/vizBus';
+import DetachedWindow from '../builder/DetachedWindow';
 
 // ── ダッシュボード画面（ホストビュー dpx の ?id= ルート）──────────
 // 定義（DPX スキーマ v1）を自前エンジンで描画・編集する。
@@ -166,43 +175,67 @@ function TopBar({ t, definition, app, view, mode, dirty, saveMsg, showSource, on
 }
 
 const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
-    // モードは state で持つ（URL は History API で追随させる）。
-    // 以前は mode を変えるたびに location.href を書き換えて**ページを丸ごと再読込**して
-    // いたため、切替のたびに白い画面を挟んでいた。DPX は Studio と違って
-    // 表示/編集が同じ React ツリーなので、再読込せず即座に切り替えられる。
-    const [mode, setMode] = useState(initialMode);
-    const [phase, setPhase] = useState('loading'); // loading | ready | error
-    const [errorMsg, setErrorMsg] = useState(null);
-    const [def, setDef] = useState(null);
-    const [meta, setMeta] = useState({ owner: null, template: null, label: '' });
-    const [selectedId, setSelectedId] = useState(null);
-    const [saveMsg, setSaveMsg] = useState(null);
-    const [migratedCount, setMigratedCount] = useState(0); // 旧形式から移行したパネル数（通知用）
-    const [showSource, setShowSource] = useState(false);
+    // ── 状態はすべてストアから来る（useState は持たない）────────────
+    //
+    // ⭐ **保存対象（定義）と一時状態（選択・ダイアログ）を分離した。**
+    //   判定基準は「リロードしたら失われて困るか」。
+    //   困る → dashboardStore / 困らない → editorStore。
+    //
+    // ⚠ **セレクタは 1 つずつ購読する。** オブジェクトを新規生成して返すセレクタ
+    //   （`(s) => ({a, b})`）は毎回別参照になり、zustand v5 は無限再レンダーになる。
+    const definition = useDashboardStore((s) => s.definition);
+    const phase = useDashboardStore((s) => s.phase);
+    const errorMsg = useDashboardStore((s) => s.error);
+    const dirty = useDashboardStore(selectDirty);
+    const canUndo = useDashboardStore(selectCanUndo);
+    const canRedo = useDashboardStore(selectCanRedo);
+    const loadDefinition = useDashboardStore((s) => s.load);
+    const dispatch = useDashboardStore((s) => s.dispatch);
+    const undo = useDashboardStore((s) => s.undo);
+    const redo = useDashboardStore((s) => s.redo);
+    const markSavedInStore = useDashboardStore((s) => s.markSaved);
+
+    const mode = useEditorStore((s) => s.mode);
+    const setModeInStore = useEditorStore((s) => s.setMode);
+    const selectedId = useEditorStore(selectSelectedPanelId);
+    const selectedInputId = useEditorStore(selectSelectedInputId);
+    const selectedGroupId = useEditorStore(selectSelectedGroupId);
+    const selectOne = useEditorStore((s) => s.select);
+    const clearSelection = useEditorStore((s) => s.clearSelection);
+    const showSource = useEditorStore((s) => s.showSource);
+    const setShowSource = useEditorStore((s) => s.setShowSource);
+    const activeTab = useEditorStore((s) => s.activeTab);
+    const setActiveTab = useEditorStore((s) => s.setActiveTab);
+    const kiosk = useEditorStore((s) => s.kiosk);
+    const setKiosk = useEditorStore((s) => s.setKiosk);
+    const detached = useEditorStore((s) => s.detached);
+    const setDetached = useEditorStore((s) => s.setDetached);
+    const saveMsg = useEditorStore((s) => s.saveMsg);
+    const setSaveMsg = useEditorStore((s) => s.setSaveMsg);
+    const vizPicker = useEditorStore((s) => s.vizPicker);
+    const openVizPicker = useEditorStore((s) => s.openVizPicker);
+    const closeVizPicker = useEditorStore((s) => s.closeVizPicker);
+    const dsDialog = useEditorStore((s) => s.dataSourceDialog);
+    const openDataSources = useEditorStore((s) => s.openDataSources);
+    const closeDataSources = useEditorStore((s) => s.closeDataSources);
+
+    // 定義の別名（既存コードが `def` を参照しているため）
+    const def = definition;
+
+    // ── ここだけローカル state（この画面の外に出ない一時値）──────────
+    // ソースタブの下書きと JSON エラー。**ストアに置く価値が無い**
+    // （画面を閉じれば消えてよく、他のコンポーネントも読まない）
     const [sourceDraft, setSourceDraft] = useState('');
     const [sourceError, setSourceError] = useState(null);
-    const [activeTab, setActiveTab] = useState(null);
-    const [pickerTab, setPickerTab] = useState(null); // viz ピッカー（null で非表示）
-    const [selectedInputId, setSelectedInputId] = useState(null); // 選択中の入力
-    const [selectedGroupId, setSelectedGroupId] = useState(null); // 選択中の区画（グループ）
-    // 設定を別ウィンドウに出しているか。true の間は**右カラムを畳んで**
-    // ダッシュボードを全幅で見せる（「全幅で見たまま調整したい」という要件）
-    const [detached, setDetached] = useState(false);
-    // 編集履歴。`base`（保存済みの姿）も持つので、**dirty はここから導出する**
-    // （別 state に持つと undo で戻しきっても true のまま残る）
-    const [history, setHistory] = useState(() => initHistory(null));
-    // データソース管理ダイアログ。
-    // ⚠ 開くときに「どのデータソースを選んだ状態にするか」も持つ。
-    //   パネルから飛んだのに一覧の先頭が開くと迷子になる（実機で指摘された）
-    const [showDataSources, setShowDataSources] = useState(false);
-    const [dsFocus, setDsFocus] = useState(null);
-    const openDataSources = (focusId) => {
-        setDsFocus(typeof focusId === 'string' ? focusId : null);
-        setShowDataSources(true);
-    };
-    // キオスク表示：トップバーも Splunk ヘッダも消して中身だけにする（壁掛け用）。
-    // ⚠ 抜け出せなくならないよう、Esc と画面隅のボタンの両方で戻れるようにする。
-    const [kiosk, setKiosk] = useState(false);
+    // ビューのメタ情報（保存時に必要な owner / template）。定義そのものではない
+    const [meta, setMeta] = useState({ owner: null, template: null, label: '' });
+
+    // ⚠ **URL のモードをストアへ反映する**（`?mode=edit` で開いた場合）。
+    //   ストアは画面をまたいで生き続けるので、開き直しのたびに
+    //   URL 側の指定で上書きしないと**前回のモードが残る**。
+    useEffect(() => {
+        setModeInStore(initialMode);
+    }, [initialMode, setModeInStore]);
 
     useEffect(() => {
         let cancelled = false;
@@ -210,33 +243,23 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
             .then((v) => {
                 if (cancelled) return;
                 setMeta({ owner: v.owner, template: v.template, label: v.label });
-                // 旧形式（パネルに SPL 直書き）はデータソース参照へ寄せてから描く。
-                // ⚠ ここでは dirty にしない（開いただけで「未保存」にはしない）。
-                //   保存するとその時点で新形式が書き戻る。
-                const { definition, migrated } = migrateToDataSources(v.definition);
-                if (migrated > 0) setMigratedCount(migrated);
-                setDef(definition);
-                // 読み込んだ姿を「戻る先の基準」にする。これが無いと
-                // 開いた直後から未保存扱いになる
-                setHistory(initHistory(definition));
-                setPhase('ready');
+                // ⭐ **必ずストアの load を通す**（parseDefinition で既定値が埋まる）。
+                //   生の JSON を state に入れると `?? 'noc'` 相当のフォールバックが
+                //   コンポーネント側に必要になり、二重定義が復活する。
+                //   読み込んだ姿が「戻る先の基準」になる（開いた直後は dirty にならない）。
+                loadDefinition(v.definition);
             })
             .catch((err) => {
                 if (cancelled) return;
-                setErrorMsg(String(err?.message ?? err));
-                setPhase('error');
+                useDashboardStore.setState({
+                    phase: 'error',
+                    error: String(err?.message ?? err),
+                });
             });
         return () => {
             cancelled = true;
         };
-    }, [app, view]);
-
-    // ⭐ **未保存かどうかは履歴から導出する**（別 state に持たない）。
-    //   「Ctrl+Z で戻しきったら保存ボタンが押せなくなる」はこれで成立する。
-    //   ⚠ 中身の比較なので、手で元の値に戻した場合も押せなくなる（意図どおり）。
-    const dirty = useMemo(() => histIsDirty(history, def), [history, def]);
-    const canUndo = histCanUndo(history);
-    const canRedo = histCanRedo(history);
+    }, [app, view, loadDefinition]);
 
     const t = resolveTheme(def ?? {});
     const theme = t.colorScheme; // 既存 viz 向け（PlatformThemeContext）
@@ -258,91 +281,24 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
         return () => window.removeEventListener('beforeunload', onBeforeUnload);
     }, [mode, dirty]);
 
-    // ── 定義の編集ヘルパ（def が唯一の真実。ソースタブは表示時に直列化）──
+    // ── 定義の編集（すべてストアの Command 経由）────────────────────
     //
-    // ⭐ **編集は必ず `edit()` を通す**（2026-08-12 の改修）。
+    // ⭐ **編集は必ず `dispatch()` を通す。** 定義を直接書き換えない。
+    //   履歴に載らない操作を作らないための規律（旧実装では「ソースタブの
+    //   直接編集」「ドラッグ」が履歴から漏れていた前科がある）。
     //
-    // ⚠ 以前は「`touch()` で履歴を積む → 別途 `setDef()` で書き換える」の
-    //   2 段構えだったが、`touch()` が積むのは **レンダー時の `def`**（クロージャ）で、
-    //   `setDef` の更新関数が受け取る最新値とは限らなかった。
-    //   1 レンダー内で 2 回編集すると **同じ古い定義が 2 回積まれ**、
-    //   Ctrl+Z が 1 手前ではなく 2 手前へ飛ぶ。
-    //   → **1 回の `setDef` の中で「変更前」を掴んで履歴に積む**形に統一した。
-    //     これなら React が渡す最新の `d` が必ず「変更前」になる。
+    // ⚠ **「変更前」はストアの中で掴む。** 外側のクロージャで掴むと
+    //   レンダー時の古い値が積まれ、1 レンダーに 2 回編集すると
+    //   Ctrl+Z が 2 手前へ飛ぶ（実機で出た不具合）。
     //
-    // @param fn  変更前の定義を受け取り、新しい定義を返す関数
-    // @param key まとめキー（ドラッグ・文字入力を1手にまとめる）。省略で毎回1手
-    const edit = useCallback((fn, key = null) => {
-        setDef((d) => {
-            if (!d) return d;
-            const next = fn(d);
-            // 中身が変わらないなら履歴も汚さない（端に当たったドラッグなど）
-            if (next === d) return d;
-            setHistory((h) => pushHistory(h, d, key));
-            return next;
-        });
-        setSaveMsg(null);
-    }, []);
-
-    // ⚠ **`setDef` の中で `setHistory` の結果を読んではいけない。**
-    //   React は更新関数を即時には走らせないので、外側の変数に書き戻す形
-    //   （`let applied = d; setHistory(... applied = r.definition ...); return applied`）は
-    //   **古い値を返す**。矢印キーの移動が戻らない不具合として実機に出た。
-    //   → **履歴を「正」にして、そこから def を setDef で流し込む**。
-    //     `defRef` は「今の定義」を同期的に読むための控え（state は非同期）。
-    const defRef = React.useRef(null);
-    defRef.current = def;
-
-    const undo = useCallback(() => {
-        setHistory((h) => {
-            const r = undoHistory(h, defRef.current);
-            if (!r) return h;
-            setDef(r.definition);
-            return r.history;
-        });
-        setSaveMsg(null);
-    }, []);
-
-    const redo = useCallback(() => {
-        setHistory((h) => {
-            const r = redoHistory(h, defRef.current);
-            if (!r) return h;
-            setDef(r.definition);
-            return r.history;
-        });
-        setSaveMsg(null);
-    }, []);
-
-    // ⚠ **まとめキーは patch の形から自動で決める**（`coalesceKeyFor`）。
-    //   インスペクタの入力は ~100 箇所あるので、呼び出し側に手で配ると必ず漏れる。
+    // ⚠ **まとめキーは patch の形から自動判定される**（`coalesceKeyFor`）。
+    //   インスペクタの入力は ~100 箇所あるので手で配ると必ず漏れる。
     //   明示したいとき（ドラッグなど）は最後の引数で上書きできる。
-    const patchDef = (patch, key) =>
-        edit((d) => ({ ...d, ...patch }), key === undefined ? coalesceKeyFor('def', patch) : key);
-    const patchPanel = (id, patch, key) =>
-        edit(
-            (d) => ({ ...d, panels: d.panels.map((p) => (p.id === id ? { ...p, ...patch } : p)) }),
-            key === undefined ? coalesceKeyFor(id, patch) : key
-        );
-    const patchSearch = (id, patch, key) =>
-        edit(
-            (d) => ({
-                ...d,
-                panels: d.panels.map((p) =>
-                    p.id === id ? { ...p, search: { ...(p.search ?? {}), ...patch } } : p
-                ),
-            }),
-            key === undefined ? coalesceKeyFor(`${id}/search`, patch) : key
-        );
-    const setOption = (id, key, value, coalesceKey) =>
-        edit(
-            (d) => ({
-                ...d,
-                panels: d.panels.map((p) =>
-                    p.id === id ? { ...p, options: { ...(p.options ?? {}), [key]: value } } : p
-                ),
-            }),
-            coalesceKey === undefined ? coalesceKeyFor(`${id}/options`, { [key]: value }) : coalesceKey
-        );
+    const edit = dispatch;
+    const patchDef = storePatchDef;
+    const patchPanel = storePatchPanel;
+    const patchSearch = storePatchSearch;
+    const setOption = storeSetOption;
 
     // ── 入力（キャンバス上で選択・ドラッグ並べ替え）────────────────
     const addInput = (type) => {
@@ -359,8 +315,7 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                 ? { ...base, choices: [{ label: 'すべて', value: '*' }] }
                 : base;
         edit((d) => ({ ...d, inputs: [...(Array.isArray(d.inputs) ? d.inputs : []), withChoices] }));
-        setSelectedInputId(id);
-        setSelectedId(null);
+        selectOne(SEL.INPUT, id);
     };
 
     const reorderInputs = (next) => edit((d) => ({ ...d, inputs: next }));
@@ -386,9 +341,7 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                 { id, label: `区画 ${n}`, panels: seed, variant: 'rule' },
             ],
         }));
-        setSelectedGroupId(id);
-        setSelectedId(null);
-        setSelectedInputId(null);
+        selectOne(SEL.GROUP, id);
     };
 
     /**
@@ -401,7 +354,7 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
         edit((d) => {
             const g = (d.groups ?? []).find((x) => x.id === groupId);
             if (!g) return d;
-            const panels = movePanelsBy(d.panels ?? [], g.panels ?? [], dx, dy, d.grid?.columns ?? 12);
+            const panels = movePanelsBy(d.panels ?? [], g.panels ?? [], dx, dy, d.layout?.grid?.columns ?? 12);
             // 動けなかった（端に当たった）ときは定義を作り替えない＝dirty にしない
             if (panels === d.panels) return d;
             return { ...d, panels };
@@ -463,8 +416,7 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                 ],
             };
         });
-        setSelectedGroupId(gid);
-        setSelectedId(null);
+        selectOne(SEL.GROUP, gid);
     };
 
     const addTab = () =>
@@ -477,17 +429,17 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
 
     // パネル追加は「まず viz を選ぶ」。ピッカーを開くだけで、実際の追加は
     // 選択後の createPanel が行う（作業順に UI を合わせる）。
-    const addPanel = (tabId) => setPickerTab({ tabId: tabId ?? null });
+    const addPanel = (tabId) => openVizPicker(tabId ?? null);
 
     const createPanel = (vizType) => {
-        setPickerTab(null);
+        closeVizPicker();
         // パネル ID は先に決める（選択の切替を更新関数の外でやるため）
         let n0 = (def?.panels ?? []).length + 1;
         while ((def?.panels ?? []).some((p) => p.id === `p${n0}`)) n0 += 1;
         const newId = `p${n0}`;
         edit((d) => {
             const tabs = d.tabs ?? [];
-            const targetTab = tabs.length > 0 ? (pickerTab?.tabId ?? tabs[0].id) : undefined;
+            const targetTab = tabs.length > 0 ? (vizPicker?.tabId ?? tabs[0].id) : undefined;
             // 追加先タブ内の最下段の下に置く
             const inTab = d.panels.filter((p) => (tabs.length === 0 ? true : (p.tab ?? tabs[0].id) === targetTab));
             const bottom = inTab.reduce((m, p) => Math.max(m, p.y + p.h), 0);
@@ -533,11 +485,13 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                       }),
             };
         });
-        setSelectedId(newId);
+        selectOne(SEL.PANEL, newId);
     };
+    // ⚠ 区画のメンバー一覧からも外す（ストア側が面倒を見る）。
+    //   外し忘れると消えたパネルを参照する区画が残り、外接矩形が狂う
     const removePanel = (id) => {
-        edit((d) => ({ ...d, panels: d.panels.filter((p) => p.id !== id) }));
-        setSelectedId(null);
+        storeRemovePanel(id);
+        clearSelection();
     };
 
     /** パネルを複製する（右か下の空きに置く）。 */
@@ -548,7 +502,7 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
         edit((d) => {
             const src = d.panels.find((p) => p.id === id);
             if (!src) return d;
-            const cols = d.grid?.columns ?? 12;
+            const cols = d.layout?.grid?.columns ?? 12;
             // 右に置けるならそこ、無理なら真下
             const right = src.x + src.w * 2 <= cols;
             const copy = {
@@ -559,7 +513,7 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
             };
             return { ...d, panels: [...d.panels, copy] };
         });
-        setSelectedId(nid);
+        selectOne(SEL.PANEL, nid);
     };
 
     /**
@@ -574,7 +528,7 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                 ...d,
                 panels: d.panels.map((p) => {
                     if (p.id !== id) return p;
-                    const cols = d.grid?.columns ?? 12;
+                    const cols = d.layout?.grid?.columns ?? 12;
                     if (resize) {
                         return {
                             ...p,
@@ -606,7 +560,7 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
             .then(() => {
                 // 保存した姿を新しい基準にする（＝dirty が消える）。
                 // ⚠ 履歴自体は残す。保存後も Ctrl+Z で戻せるほうが自然
-                setHistory((h) => markSaved(h, def));
+                markSavedInStore();
                 setSaveMsg({ type: 'success', text: `保存しました ${new Date().toLocaleTimeString()}` });
             })
             .catch((err) => {
@@ -625,11 +579,8 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
         if (nextMode === 'edit') url.searchParams.set('mode', 'edit');
         else url.searchParams.delete('mode');
         window.history.pushState({ dpxMode: nextMode }, '', url.toString());
-        setMode(nextMode);
-        if (nextMode !== 'edit') {
-            setSelectedId(null);
-            setSelectedGroupId(null);
-        }
+        setModeInStore(nextMode);
+        // 選択の解除は setMode が面倒を見る（3 種すべてが同時に外れる）
     };
 
     // ── 編集モードのキーボード操作 ──────────────────────────────
@@ -642,9 +593,7 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
 
         const onKey = (e) => {
             if (e.key === 'Escape') {
-                setSelectedId(null);
-                setSelectedInputId(null);
-                setSelectedGroupId(null);
+                clearSelection();
                 return;
             }
             if (typing(document.activeElement)) return;
@@ -720,7 +669,7 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
 
     // ブラウザの戻る／進むでモードを合わせる（pushState したので効かせる必要がある）
     useEffect(() => {
-        const onPop = () => setMode(parseDpxRoute().mode);
+        const onPop = () => setModeInStore(parseDpxRoute().mode);
         window.addEventListener('popstate', onPop);
         return () => window.removeEventListener('popstate', onPop);
     }, []);
@@ -745,14 +694,18 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
 
     // 起動スプラッシュ（Mako が出している #dpx-boot）は、中身を描ける状態に
     // なってから消す。ここで消さないと白フラッシュ対策の意味が無い。
-    if (phase === 'loading') {
-        return <DpxBootScreen />;
-    }
     if (phase === 'error') {
         return <DpxBootScreen error={errorMsg} />;
     }
+    // ⚠ **「読み込み中でない」ではなく「描ける」ことを条件にする。**
+    //   ストアの初期値は `idle` なので、`phase === 'loading'` だけを弾くと
+    //   **マウント直後の 1 フレームが def=null のまま描画に進み**、
+    //   `def.tabs` で落ちる（実機で発生。ビルドでは検出できない）。
+    //   定義の有無も併せて見るのが確実。
+    if (phase !== 'ready' || !def) {
+        return <DpxBootScreen />;
+    }
 
-    const isLegacy = def?.version !== 1;
     const outerHeight = chromeHidden ? '100vh' : 'calc(100vh - 80px)';
 
     // インスペクタ本体。**右カラムと別ウィンドウで同じものを使い回す**
@@ -764,9 +717,9 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
             definition={def}
             selectedPanel={selectedPanel}
             selectedInputId={selectedInputId}
-            onSelectInput={setSelectedInputId}
+            onSelectInput={(id) => selectOne(SEL.INPUT, id)}
             selectedGroupId={selectedGroupId}
-            onSelectGroup={setSelectedGroupId}
+            onSelectGroup={(id) => selectOne(SEL.GROUP, id)}
             onDuplicateGroup={duplicateGroup}
             patchDef={patchDef}
             patchPanel={patchPanel}
@@ -787,10 +740,10 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
             t={t}
             definition={def}
             patchDef={patchDef}
-            focusId={dsFocus}
+            focusId={dsDialog.focus}
             dirty={dirty}
             onSave={onSave}
-            onClose={() => setShowDataSources(false)}
+            onClose={closeDataSources}
         />
     );
 
@@ -816,13 +769,11 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                 saveMsg={saveMsg}
                 showSource={showSource}
                 onToggleSource={() => {
-                    setShowSource((s) => {
-                        if (!s) {
-                            setSourceDraft(JSON.stringify(def, null, 2));
-                            setSourceError(null);
-                        }
-                        return !s;
-                    });
+                    if (!showSource) {
+                        setSourceDraft(JSON.stringify(def, null, 2));
+                        setSourceError(null);
+                    }
+                    setShowSource(!showSource);
                 }}
                 onSave={onSave}
                 onSwitchMode={switchMode}
@@ -830,83 +781,15 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                 onHome={goHome}
             />
             )}
-            {isLegacy ? (
-                <div style={{ padding: 16, color: t.errorColor, fontSize: 13 }}>
-                    この定義は旧形式です。DPX スキーマ v1（{'{"version":1, "panels":[...]}'}）へ書き換えてください
-                    （「ソース」から編集できます）。
-                </div>
-            ) : null}
-            {/* パネル直書きのサーチをデータソースへ寄せたことを知らせる。
-                黙って形が変わると「勝手に書き換わった」と見えるため明示する */}
-            {migratedCount > 0 && mode === 'edit' ? (
-                <div
-                    style={{
-                        margin: '0 14px 10px',
-                        padding: '8px 12px',
-                        borderRadius: 8,
-                        fontSize: 12,
-                        color: t.titleColor,
-                        background: `${t.accent}1c`,
-                        border: `1px solid ${t.accent}55`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 10,
-                    }}
-                >
-                    <span style={{ flex: 1 }}>
-                        パネルに直接書かれていたサーチ {migratedCount} 件を<b>データソース</b>にまとめました。
-                        保存すると確定します。
-                    </span>
-                    <button
-                        type="button"
-                        onClick={() => openDataSources()}
-                        style={{
-                            border: `1px solid ${t.accent}88`,
-                            background: 'transparent',
-                            color: t.titleColor,
-                            borderRadius: 6,
-                            padding: '4px 10px',
-                            fontSize: 11,
-                            cursor: 'pointer',
-                            fontFamily: 'inherit',
-                        }}
-                    >
-                        確認する
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setMigratedCount(0)}
-                        style={{
-                            border: 'none',
-                            background: 'transparent',
-                            color: t.subColor,
-                            cursor: 'pointer',
-                            fontSize: 14,
-                            lineHeight: 1,
-                            padding: 2,
-                        }}
-                    >
-                        ✕
-                    </button>
-                </div>
-            ) : null}
             <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
                 <div className="dpx-scroll" style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
-                    {!isLegacy && def ? (
-                        <DpxDashboard
+                    {def ? (
+                        <DashboardCanvas
                             selectedInputId={selectedInputId}
-                            onSelectInput={(id) => {
-                                setSelectedInputId(id);
-                                setSelectedId(null);
-                                setSelectedGroupId(null);
-                            }}
+                            onSelectInput={(id) => selectOne(SEL.INPUT, id)}
                             selectedGroupId={selectedGroupId}
-                            onSelectGroup={(id) => {
-                                // 3種（パネル / 入力 / 区画）の選択は排他
-                                setSelectedGroupId(id);
-                                setSelectedId(null);
-                                setSelectedInputId(null);
-                            }}
+                            // 3種（パネル / 入力 / 区画）の排他はストアが構造的に保証する
+                            onSelectGroup={(id) => selectOne(SEL.GROUP, id)}
                             onMoveGroup={moveGroup}
                             onReorderInputs={reorderInputs}
                             toolbar={
@@ -926,18 +809,10 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                                     />
                                 ) : null
                             }
-                            definition={def}
                             mode={mode}
                             app={app}
                             selectedId={selectedId}
-                            onSelect={(id) => {
-                                // パネル / 入力 / 区画の選択は排他。1つ選んだら他は外す
-                                setSelectedId(id);
-                                if (id) {
-                                    setSelectedInputId(null);
-                                    setSelectedGroupId(null);
-                                }
-                            }}
+                            onSelect={(id) => selectOne(SEL.PANEL, id)}
                             onPanelLayout={patchPanel}
                             onDuplicatePanel={duplicatePanel}
                             onRemovePanel={removePanel}
@@ -1034,7 +909,7 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                 ✕
             </button>
         ) : null}
-        {pickerTab ? <VizPicker t={t} onPick={createPanel} onCancel={() => setPickerTab(null)} /> : null}
+        {vizPicker ? <VizPicker t={t} onPick={createPanel} onCancel={closeVizPicker} /> : null}
         {/* 設定の別ウィンドウ。開いている間、右カラムは畳まれている（上の detached 判定）。
             ⚠ 編集モードを抜けたら閉じる（表示モードに設定ウィンドウが残ると迷子になる） */}
         {detached && mode === 'edit' && !showSource ? (
@@ -1055,12 +930,12 @@ const DashboardPage = ({ app, view, initialMode = 'view', onNavigateHome }) => {
                         外（本体ページ側）に置くと createPortal の行き先が親ページの body になり、
                         「ボタンを押したのに何も起きない（実は後ろのダッシュボードに出ている）」
                         という状態になる（実機で再現・確認済み） */}
-                    {showDataSources ? dataSourceDialog : null}
+                    {dsDialog.open ? dataSourceDialog : null}
                 </div>
             </DetachedWindow>
         ) : null}
         {/* 別ウィンドウを開いていないときは従来どおり本体ページに出す */}
-        {showDataSources && !detached ? dataSourceDialog : null}
+        {dsDialog.open && !detached ? dataSourceDialog : null}
         </TokenProvider>
         </PanelFieldsProvider>
         </VizBusProvider>

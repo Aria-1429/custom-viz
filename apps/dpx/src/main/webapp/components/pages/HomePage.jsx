@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import DpxBootScreen, { dismissBootSplash } from '../engine/BootScreen';
-import { emptyDashboard } from '../engine/templates';
-import { DPX_PRESETS, orderedPresets, resolveTheme } from '../engine/themes';
-import { Button, CONTROL_H, Field, Select, TextInput, inputStyle, useDpxGlobalStyles } from '../engine/ui';
+import DpxBootScreen, { dismissBootSplash } from '../renderer/BootScreen';
+import { emptyDashboard } from '../schema/templates';
+import { DPX_PRESETS, orderedPresets, resolveTheme } from '../design';
+import { Button, CONTROL_H, Field, Select, TextInput, inputStyle, useDpxGlobalStyles } from '../shared/ui';
 import {
     dashboardHref,
     listDashboards,
@@ -14,8 +14,8 @@ import {
     renameView,
     exportView,
     parseImportedDefinition,
-} from '../viewStore';
-import SplunkHomeLink from '../engine/SplunkHomeLink';
+} from '../data/viewStore';
+import SplunkHomeLink from '../shared/SplunkHomeLink';
 
 // ── DPX ホーム（ダッシュボード管理）──────────────────────────────
 // ホストビュー dpx の「?id= なし」ルート。ダッシュボード本体と同じ

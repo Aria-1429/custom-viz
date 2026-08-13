@@ -56,38 +56,36 @@ await Promise.all([
 await page.waitForTimeout(1200);
 
 // 編集モードで開く
-await page.goto(`${webBase()}/en-US/app/${app}/${view}?mode=edit`, {
+await page.goto(`${webBase()}/en-US/app/dpx/dpx?id=${app}/${view}&mode=edit`, {
     waitUntil: 'domcontentloaded',
     timeout: 60_000,
 });
 await page.waitForTimeout(8000); // Dashboard の初期化を待つ
 
-// 説明欄に入力。説明が既に入っていると input ではなく静的表示になるので、
-// まず aria-label で要素を見つけてクリックし、現れた input を掴む。
-let desc = page.locator('input[aria-label*="description" i], textarea[aria-label*="description" i]').first();
+// 説明欄に入力。
+// ⚠ **DPX の入力欄は自前コンポーネント（`.dpx-input`）で、`aria-label` を持たない。**
+//   旧実装は Studio 時代の `aria-label*="description"` を探していたため
+//   **常に「見つかりません」で失敗していた**（2026-08-13 に判明。DPX 側の不具合ではない）。
+//   インスペクタは「タイトル」「説明」の順に並ぶので、ラベルから辿る。
+const descLabel = page.locator('div', { hasText: /^説明$/ }).last();
+let desc = page.locator('input.dpx-input').nth(1); // 0=タイトル / 1=説明
 if ((await desc.count()) === 0) {
-    const trigger = page.locator('[aria-label*="description" i], [data-test*="description" i]').first();
-    if ((await trigger.count()) > 0) {
-        await trigger.click();
-        await page.waitForTimeout(500);
-        desc = page
-            .locator('input[aria-label*="description" i], textarea[aria-label*="description" i]')
-            .first();
-    }
-}
-if ((await desc.count()) === 0) {
-    console.error('NG: 説明欄が見つかりません（セレクタ要調整）');
+    console.error('NG: 説明欄が見つかりません（インスペクタが開いていない可能性）');
     await page.screenshot({ path: '/tmp/dp-save-check-fail.png' });
     await browser.close();
     process.exit(1);
 }
 console.log(
     'desc 要素:',
-    await desc.evaluate((el) => `${el.tagName} placeholder=${el.getAttribute('placeholder')} aria=${el.getAttribute('aria-label')}`)
+    await desc.evaluate((el) => `${el.tagName} class=${el.className} placeholder=${el.getAttribute('placeholder')}`)
 );
+// ⚠ **DPX の TextInput は打鍵では反映されない**（blur / Enter で確定する設計）。
+//   `fill()` だけだと DOM の value は入るのに保存ボタンが活性にならず、
+//   「実装のバグ」に見える。**Tab で blur させるまでが 1 操作**。
 await desc.click();
-await desc.fill(marker);
-await page.keyboard.press('Tab'); // blur で確定するタイプに備える
+await page.keyboard.press('Control+a');
+await desc.type(marker);
+await page.keyboard.press('Tab');
 await page.waitForTimeout(2000);
 
 // 保存

@@ -17,7 +17,7 @@ import {
     redoHistory,
     stableStringify,
     undoHistory,
-} from '../src/main/webapp/components/engine/history.js';
+} from '../src/main/webapp/components/store/history.js';
 
 let ng = 0;
 const ok = (c, m) => {

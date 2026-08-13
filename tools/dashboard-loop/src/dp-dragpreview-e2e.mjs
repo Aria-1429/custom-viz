@@ -9,12 +9,14 @@
 //   3. 離した瞬間に保存ボタンが押せる（＝1回だけ書いた）
 //   4. Ctrl+Z 一発で戻る
 //
-// 使い方: node src/dp-dragpreview-e2e.mjs <app> <view> [出力PNG]
+// 使い方: node src/dp-dragpreview-e2e.mjs <app> <view> [パネルid] [出力PNG]
 
 import { chromium } from 'playwright';
 import { assertConfig, config, webBase } from './config.mjs';
 
-const [, , app, view, out = '/tmp/dp-dragpreview.png'] = process.argv;
+const [, , app, view, panelId = 'p1', out = '/tmp/dp-dragpreview.png'] = process.argv;
+// ⚠ パネル ID は引数で受ける。ボードごとに違うので決め打ちにすると
+//    「ボードを作り直したら E2E が落ちる」（実際に p1 決め打ちで落ちた）。
 if (!app || !view) {
     console.error('usage: dp-dragpreview-e2e.mjs <app> <view> [out.png]');
     process.exit(1);
@@ -52,7 +54,7 @@ const boxOf = (id) => page.locator(`[data-panel-id="${id}"]`).first().boundingBo
 ok(!(await saveEnabled()), '開いた直後は保存ボタンが押せない');
 
 console.log('--- パネルのドラッグ ---');
-const before = await boxOf('p1');
+const before = await boxOf(panelId);
 await page.mouse.move(before.x + 40, before.y + 10);
 await page.mouse.down();
 // 複数セルを跨ぐように動かし、**押したまま**画面を測る
@@ -61,14 +63,14 @@ for (let i = 1; i <= 8; i++) {
     await page.waitForTimeout(50);
 }
 await page.waitForTimeout(400);
-const during = await boxOf('p1');
+const during = await boxOf(panelId);
 ok(during.y > before.y + 20, `⭐ ドラッグ中に絵が動いている (y: ${Math.round(before.y)} → ${Math.round(during.y)})`);
 ok(!(await saveEnabled()), '⭐ ドラッグ中は保存ボタンが押せない（定義をまだ書いていない）');
 await page.screenshot({ path: out.replace(/\.png$/, '-during.png') });
 
 await page.mouse.up();
 await page.waitForTimeout(900);
-const after = await boxOf('p1');
+const after = await boxOf(panelId);
 ok(await saveEnabled(), '⭐ 離した瞬間に保存ボタンが押せる（1回だけ書いた）');
 ok(Math.abs(after.y - during.y) < 30, `離した後も同じ位置にいる (${Math.round(after.y)})`);
 
@@ -77,21 +79,27 @@ await page.mouse.click(8, 300);
 await page.waitForTimeout(300);
 await page.keyboard.press('Control+z');
 await page.waitForTimeout(800);
-const undone = await boxOf('p1');
+const undone = await boxOf(panelId);
 ok(Math.abs(undone.y - before.y) < 6, `⭐ Ctrl+Z 一発でドラッグ前に戻った (${Math.round(undone.y)})`);
 ok(!(await saveEnabled()), '⭐ 戻しきったので保存ボタンが押せない');
 
 console.log('--- リサイズも同じか ---');
-const rBefore = await boxOf('p1');
-// 右下の掴み手（パネルの右下隅）
-await page.mouse.move(rBefore.x + rBefore.width - 4, rBefore.y + rBefore.height - 4);
+const rBefore = await boxOf(panelId);
+// 右下の掴み手（パネルの右下隅）。
+// ⚠ **オフセット 4px では掴めない**。掴み手は right:2/bottom:2 の 16px だが、
+//   その外周はタイトルバー側の "move" 用オーバーレイに覆われている（実機で観測）。
+//   → 8〜12px 内側を掴む。
+// ⚠ **右に伸びる余地があるパネルを渡すこと。** 右隣にパネルがある／グリッド右端に
+//   接している場合はクランプされて**幅が変わらないのが正常**であり、
+//   それを「リサイズが壊れた」と誤診しやすい（実際に誤診しかけた）。
+await page.mouse.move(rBefore.x + rBefore.width - 10, rBefore.y + rBefore.height - 10);
 await page.mouse.down();
 for (let i = 1; i <= 6; i++) {
-    await page.mouse.move(rBefore.x + rBefore.width - 4 + i * 26, rBefore.y + rBefore.height - 4, { steps: 2 });
+    await page.mouse.move(rBefore.x + rBefore.width - 10 + i * 26, rBefore.y + rBefore.height - 10, { steps: 2 });
     await page.waitForTimeout(50);
 }
 await page.waitForTimeout(400);
-const rDuring = await boxOf('p1');
+const rDuring = await boxOf(panelId);
 const resized = rDuring.width > rBefore.width + 20;
 ok(resized, `⭐ リサイズ中に絵が変わる (w: ${Math.round(rBefore.width)} → ${Math.round(rDuring.width)})`);
 if (resized) ok(!(await saveEnabled()), '⭐ リサイズ中も保存ボタンが押せない');

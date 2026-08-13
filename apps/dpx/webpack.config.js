@@ -55,11 +55,11 @@ module.exports = webpackMerge(baseConfig, {
             // 拡張のフック/ドリルダウン API を互換アダプタに向ける。
             '@splunk/dashboard-studio-extension/react$': path.join(
                 __dirname,
-                'src/main/webapp/components/extensionAdapter.jsx'
+                'src/main/webapp/components/viz/extensionAdapter.jsx'
             ),
             '@splunk/dashboard-studio-extension/visualization$': path.join(
                 __dirname,
-                'src/main/webapp/components/extensionAdapter.jsx'
+                'src/main/webapp/components/viz/extensionAdapter.jsx'
             ),
         },
     },

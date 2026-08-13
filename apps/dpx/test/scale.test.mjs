@@ -4,7 +4,7 @@
 //    1/2/2.5/5×10^n に丸まっていることを数値で押さえる。
 //    また **0 件・全部 0・NaN で無限ループしないこと**を必ず見る
 //    （for ループで step を足していく実装なので、step=0 だと固まる）。
-import { formatAxisLabels, niceScale, niceTicks } from '../src/main/webapp/components/engine/scale.js';
+import { formatAxisLabels, niceScale, niceTicks } from '../src/main/webapp/components/viz/scale.js';
 
 let ng = 0;
 const ok = (c, m) => {

@@ -1,0 +1,775 @@
+{
+  "schemaVersion": 2,
+  "title": "DPX 全 viz 展示",
+  "description": "登録されている 46 個すべてを並べて描画を確認する",
+  "style": {
+    "preset": "midnight",
+    "background": "grid",
+    "entrance": "fade"
+  },
+  "layout": {
+    "type": "grid",
+    "grid": {
+      "columns": 12,
+      "rowHeight": 72,
+      "gap": 12
+    }
+  },
+  "dataSources": {
+    "ds_cat": {
+      "name": "カテゴリ別",
+      "spl": "| makeresults count=6 | streamstats count as i | eval name=\"svc-\".i, value=(i*17)%37+8, target=30, prev=(i*11)%29+6, state=if(value>25,\"critical\",if(value>15,\"warning\",\"ok\")), type=if(i=1,\"total\",\"delta\") | table name value target prev state type",
+      "earliest": "-24h",
+      "latest": "now"
+    },
+    "ds_time": {
+      "name": "時系列",
+      "spl": "| makeresults count=24 | streamstats count as i | eval _time=now()-(24-i)*600, name=if(i%2=0,\"api\",\"web\"), value=(i*13)%31+5 | table _time name value",
+      "earliest": "-24h",
+      "latest": "now"
+    },
+    "ds_matrix": {
+      "name": "行列",
+      "spl": "| makeresults count=25 | streamstats count as i | eval row=\"r\".(((i-1)%5)+1), col=\"c\".(floor((i-1)/5)+1), value=(i*7)%23+2 | table row col value",
+      "earliest": "-24h",
+      "latest": "now"
+    },
+    "ds_tree": {
+      "name": "階層",
+      "spl": "| makeresults count=9 | streamstats count as i | eval l1=if(i<=4,\"東日本\",\"西日本\"), l2=case(i<=2,\"東京\",i<=4,\"仙台\",i<=6,\"大阪\",1=1,\"福岡\"), l3=\"n\".i, value=(i*13)%19+4 | table l1 l2 l3 value",
+      "earliest": "-24h",
+      "latest": "now"
+    },
+    "ds_flow": {
+      "name": "フロー",
+      "spl": "| makeresults count=8 | streamstats count as i | eval src=case(i<=3,\"web\",i<=5,\"api\",1=1,\"batch\"), dst=case(i%3=0,\"db\",i%3=1,\"cache\",1=1,\"queue\"), value=(i*11)%23+5 | table src dst value",
+      "earliest": "-24h",
+      "latest": "now"
+    },
+    "ds_geo": {
+      "name": "地理",
+      "spl": "| makeresults count=6 | streamstats count as i | eval slat=case(i=1,35.68,i=2,51.5,i=3,40.7,i=4,-33.87,i=5,55.75,1=1,1.35), slon=case(i=1,139.69,i=2,-0.12,i=3,-74.0,i=4,151.2,i=5,37.61,1=1,103.8), dlat=case(i=1,37.77,i=2,48.85,i=3,35.68,i=4,1.35,i=5,52.52,1=1,22.3), dlon=case(i=1,-122.4,i=2,2.35,i=3,139.69,i=4,103.8,i=5,13.4,1=1,114.17), sname=\"src\".i, dname=\"dst\".i, cat=case(i%3=0,\"critical\",i%3=1,\"warning\",1=1,\"info\"), cnt=(i*13)%29+3 | table slat slon dlat dlon sname dname cat cnt",
+      "earliest": "-24h",
+      "latest": "now"
+    },
+    "ds_jp": {
+      "name": "国内",
+      "spl": "| makeresults count=6 | streamstats count as i | eval slat=case(i=1,35.68,i=2,34.69,i=3,43.06,i=4,33.59,i=5,38.26,1=1,26.21), slon=case(i=1,139.69,i=2,135.50,i=3,141.35,i=4,130.40,i=5,140.87,1=1,127.68), dlat=case(i=1,34.69,i=2,35.18,i=3,35.68,i=4,34.39,i=5,35.68,1=1,35.68), dlon=case(i=1,135.50,i=2,136.91,i=3,139.69,i=4,132.46,i=5,139.69,1=1,139.69), sname=\"拠点\".i, dname=\"中央\", sev=case(i%3=0,\"critical\",i%3=1,\"warning\",1=1,\"info\"), cnt=(i*7)%17+2 | table slat slon dlat dlon sname dname sev cnt",
+      "earliest": "-24h",
+      "latest": "now"
+    },
+    "ds_span": {
+      "name": "期間",
+      "spl": "| makeresults count=8 | streamstats count as i | eval lane=\"lane\".(((i-1)%3)+1), start=now()-(9-i)*1800, end=start+1200, cat=if(i%2=0,\"batch\",\"job\"), label=\"task\".i | table lane start end cat label",
+      "earliest": "-24h",
+      "latest": "now"
+    },
+    "ds_metrics": {
+      "name": "複数メトリック",
+      "spl": "| makeresults count=5 | streamstats count as i | eval axis=\"軸\".i, cpu=(i*13)%40+30, mem=(i*17)%35+40, io=(i*7)%30+25 | table axis cpu mem io",
+      "earliest": "-24h",
+      "latest": "now"
+    }
+  },
+  "panels": [
+    {
+      "id": "p01",
+      "viz": "dpx.line",
+      "title": "折れ線",
+      "x": 0,
+      "y": 0,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_time"
+      },
+      "options": {}
+    },
+    {
+      "id": "p02",
+      "viz": "dpx.bar",
+      "title": "棒",
+      "x": 4,
+      "y": 0,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_cat"
+      },
+      "options": {}
+    },
+    {
+      "id": "p03",
+      "viz": "dpx.ranking",
+      "title": "ランキング",
+      "x": 8,
+      "y": 0,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_cat"
+      },
+      "options": {}
+    },
+    {
+      "id": "p04",
+      "viz": "dpx.donut",
+      "title": "ドーナツ",
+      "x": 0,
+      "y": 4,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_cat"
+      },
+      "options": {}
+    },
+    {
+      "id": "p05",
+      "viz": "dpx.value",
+      "title": "単一値",
+      "x": 4,
+      "y": 4,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_cat"
+      },
+      "options": {}
+    },
+    {
+      "id": "p06",
+      "viz": "dpx.status",
+      "title": "ステータス",
+      "x": 8,
+      "y": 4,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_cat"
+      },
+      "options": {}
+    },
+    {
+      "id": "p07",
+      "viz": "dpx.table",
+      "title": "テーブル",
+      "x": 0,
+      "y": 8,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_cat"
+      },
+      "options": {}
+    },
+    {
+      "id": "p08",
+      "viz": "deco.text",
+      "title": "装飾テキスト",
+      "x": 4,
+      "y": 8,
+      "w": 4,
+      "h": 4,
+      "options": {
+        "text": "DPX 全 viz 展示"
+      }
+    },
+    {
+      "id": "p09",
+      "viz": "deco.clock",
+      "title": "時計",
+      "x": 8,
+      "y": 8,
+      "w": 4,
+      "h": 4,
+      "options": {}
+    },
+    {
+      "id": "p10",
+      "viz": "shape.rect",
+      "title": "矩形",
+      "x": 0,
+      "y": 12,
+      "w": 4,
+      "h": 4,
+      "options": {}
+    },
+    {
+      "id": "p11",
+      "viz": "shape.ellipse",
+      "title": "楕円",
+      "x": 4,
+      "y": 12,
+      "w": 4,
+      "h": 4,
+      "options": {}
+    },
+    {
+      "id": "p12",
+      "viz": "shape.line",
+      "title": "線",
+      "x": 8,
+      "y": 12,
+      "w": 4,
+      "h": 4,
+      "options": {}
+    },
+    {
+      "id": "p13",
+      "viz": "shape.glow",
+      "title": "発光",
+      "x": 0,
+      "y": 16,
+      "w": 4,
+      "h": 4,
+      "options": {}
+    },
+    {
+      "id": "p14",
+      "viz": "shape.nocFrame",
+      "title": "NOC枠",
+      "x": 4,
+      "y": 16,
+      "w": 4,
+      "h": 4,
+      "options": {}
+    },
+    {
+      "id": "p15",
+      "viz": "dpx.linkLine",
+      "title": "リンク線",
+      "x": 8,
+      "y": 16,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_cat"
+      },
+      "options": {}
+    },
+    {
+      "id": "p16",
+      "viz": "custom.spike",
+      "title": "スパイク（試作）",
+      "x": 0,
+      "y": 20,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_cat"
+      },
+      "options": {}
+    },
+    {
+      "id": "p17",
+      "viz": "custom_viz_attack_globe.custom_viz_attack_globe",
+      "title": "Attack Globe",
+      "x": 4,
+      "y": 20,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_geo"
+      },
+      "options": {
+        "srcLatField": "> primary | seriesByName(\"slat\")",
+        "srcLonField": "> primary | seriesByName(\"slon\")",
+        "dstLatField": "> primary | seriesByName(\"dlat\")",
+        "dstLonField": "> primary | seriesByName(\"dlon\")",
+        "categoryField": "> primary | seriesByName(\"cat\")",
+        "countField": "> primary | seriesByName(\"cnt\")",
+        "srcNameField": "> primary | seriesByName(\"sname\")",
+        "dstNameField": "> primary | seriesByName(\"dname\")"
+      }
+    },
+    {
+      "id": "p18",
+      "viz": "custom_viz_bullet_graph.custom_viz_bullet_graph",
+      "title": "Bullet Graph",
+      "x": 8,
+      "y": 20,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_cat"
+      },
+      "options": {
+        "labelField": "> primary | seriesByName(\"name\")",
+        "valueField": "> primary | seriesByName(\"value\")",
+        "targetField": "> primary | seriesByName(\"target\")"
+      }
+    },
+    {
+      "id": "p19",
+      "viz": "custom_viz_calendar_heatmap.custom_viz_calendar_heatmap",
+      "title": "Calendar Heatmap",
+      "x": 0,
+      "y": 24,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_time"
+      },
+      "options": {
+        "dateField": "> primary | seriesByName(\"_time\")",
+        "valueField": "> primary | seriesByName(\"value\")"
+      }
+    },
+    {
+      "id": "p20",
+      "viz": "custom_viz_chord_flow.custom_viz_chord_flow",
+      "title": "Chord Flow",
+      "x": 4,
+      "y": 24,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_flow"
+      },
+      "options": {
+        "sourceField": "> primary | seriesByName(\"src\")",
+        "targetField": "> primary | seriesByName(\"dst\")",
+        "valueField": "> primary | seriesByName(\"value\")"
+      }
+    },
+    {
+      "id": "p21",
+      "viz": "custom_viz_country_graph.custom_viz_country_graph",
+      "title": "Country Graph",
+      "x": 8,
+      "y": 24,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_cat"
+      },
+      "options": {}
+    },
+    {
+      "id": "p22",
+      "viz": "custom_viz_donut_graph.custom_viz_donut_graph",
+      "title": "Donut Graph",
+      "x": 0,
+      "y": 28,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_cat"
+      },
+      "options": {
+        "categoryField": "> primary | seriesByName(\"name\")",
+        "valueField": "> primary | seriesByName(\"value\")"
+      }
+    },
+    {
+      "id": "p23",
+      "viz": "custom_viz_donut_timechart.custom_viz_donut_timechart",
+      "title": "Donut Timechart",
+      "x": 4,
+      "y": 28,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_time"
+      },
+      "options": {
+        "timeField": "> primary | seriesByName(\"_time\")",
+        "categoryField": "> primary | seriesByName(\"name\")",
+        "valueField": "> primary | seriesByName(\"value\")"
+      }
+    },
+    {
+      "id": "p24",
+      "viz": "custom_viz_funnel_leak.custom_viz_funnel_leak",
+      "title": "Funnel Leak",
+      "x": 8,
+      "y": 28,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_cat"
+      },
+      "options": {
+        "stepField": "> primary | seriesByName(\"name\")",
+        "valueField": "> primary | seriesByName(\"value\")"
+      }
+    },
+    {
+      "id": "p25",
+      "viz": "custom_viz_gauge_arc.custom_viz_gauge_arc",
+      "title": "Gauge Arc",
+      "x": 0,
+      "y": 32,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_cat"
+      },
+      "options": {
+        "valueField": "> primary | seriesByName(\"value\")",
+        "labelField": "> primary | seriesByName(\"name\")",
+        "minValue": 0,
+        "maxValue": 50
+      }
+    },
+    {
+      "id": "p26",
+      "viz": "custom_viz_gradient_bar.custom_viz_gradient_bar",
+      "title": "Gradient Bar",
+      "x": 4,
+      "y": 32,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_cat"
+      },
+      "options": {
+        "labelField": "> primary | seriesByName(\"name\")",
+        "valueField": "> primary | seriesByName(\"value\")"
+      }
+    },
+    {
+      "id": "p27",
+      "viz": "custom_viz_heat_matrix.custom_viz_heat_matrix",
+      "title": "Heat Matrix",
+      "x": 8,
+      "y": 32,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_matrix"
+      },
+      "options": {
+        "rowField": "> primary | seriesByName(\"row\")",
+        "colField": "> primary | seriesByName(\"col\")",
+        "valueField": "> primary | seriesByName(\"value\")"
+      }
+    },
+    {
+      "id": "p28",
+      "viz": "custom_viz_horizon_chart.custom_viz_horizon_chart",
+      "title": "Horizon Chart",
+      "x": 0,
+      "y": 36,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_time"
+      },
+      "options": {
+        "timeField": "> primary | seriesByName(\"_time\")",
+        "seriesField": "> primary | seriesByName(\"name\")",
+        "valueField": "> primary | seriesByName(\"value\")"
+      }
+    },
+    {
+      "id": "p29",
+      "viz": "custom_viz_icon_status.custom_viz_icon_status",
+      "title": "Icon Status",
+      "x": 4,
+      "y": 36,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_cat"
+      },
+      "options": {
+        "labelField": "> primary | seriesByName(\"name\")",
+        "valueField": "> primary | seriesByName(\"value\")"
+      }
+    },
+    {
+      "id": "p30",
+      "viz": "custom_viz_japanmap.custom_viz_japanmap",
+      "title": "Japan Map",
+      "x": 8,
+      "y": 36,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_jp"
+      },
+      "options": {
+        "srcLatField": "> primary | seriesByName(\"slat\")",
+        "srcLonField": "> primary | seriesByName(\"slon\")",
+        "dstLatField": "> primary | seriesByName(\"dlat\")",
+        "dstLonField": "> primary | seriesByName(\"dlon\")",
+        "severityField": "> primary | seriesByName(\"sev\")",
+        "countField": "> primary | seriesByName(\"cnt\")",
+        "srcNameField": "> primary | seriesByName(\"sname\")",
+        "dstNameField": "> primary | seriesByName(\"dname\")"
+      }
+    },
+    {
+      "id": "p31",
+      "viz": "custom_viz_kpi_tile.custom_viz_kpi_tile",
+      "title": "KPI Tile",
+      "x": 0,
+      "y": 40,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_cat"
+      },
+      "options": {
+        "labelField": "> primary | seriesByName(\"name\")",
+        "valueField": "> primary | seriesByName(\"value\")"
+      }
+    },
+    {
+      "id": "p32",
+      "viz": "custom_viz_link_line.custom_viz_link_line",
+      "title": "Link Line",
+      "x": 4,
+      "y": 40,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_cat"
+      },
+      "options": {
+        "valueField": "> primary | seriesByName(\"value\")"
+      }
+    },
+    {
+      "id": "p33",
+      "viz": "custom_viz_liquid_tube.custom_viz_liquid_tube",
+      "title": "Liquid Tube",
+      "x": 8,
+      "y": 40,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_cat"
+      },
+      "options": {
+        "labelField": "> primary | seriesByName(\"name\")",
+        "valueField": "> primary | seriesByName(\"value\")",
+        "minValue": 0,
+        "maxValue": 50
+      }
+    },
+    {
+      "id": "p34",
+      "viz": "custom_viz_metric_terrain.custom_viz_metric_terrain",
+      "title": "Metric Terrain",
+      "x": 0,
+      "y": 44,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_matrix"
+      },
+      "options": {
+        "xField": "> primary | seriesByName(\"row\")",
+        "yField": "> primary | seriesByName(\"col\")",
+        "valueField": "> primary | seriesByName(\"value\")"
+      }
+    },
+    {
+      "id": "p35",
+      "viz": "custom_viz_radar_chart.custom_viz_radar_chart",
+      "title": "Radar Chart",
+      "x": 4,
+      "y": 44,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_metrics"
+      },
+      "options": {
+        "axisField": "> primary | seriesByName(\"axis\")",
+        "seriesFields": [
+          "cpu",
+          "mem",
+          "io"
+        ]
+      }
+    },
+    {
+      "id": "p36",
+      "viz": "custom_viz_radial_bar.custom_viz_radial_bar",
+      "title": "Radial Bar",
+      "x": 8,
+      "y": 44,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_cat"
+      },
+      "options": {
+        "categoryField": "> primary | seriesByName(\"name\")",
+        "valueField": "> primary | seriesByName(\"value\")"
+      }
+    },
+    {
+      "id": "p37",
+      "viz": "custom_viz_sankey_flow.custom_viz_sankey_flow",
+      "title": "Sankey Flow",
+      "x": 0,
+      "y": 48,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_flow"
+      },
+      "options": {}
+    },
+    {
+      "id": "p38",
+      "viz": "custom_viz_severity_table.custom_viz_severity_table",
+      "title": "Severity Table",
+      "x": 4,
+      "y": 48,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_cat"
+      },
+      "options": {
+        "severityField": "> primary | seriesByName(\"state\")"
+      }
+    },
+    {
+      "id": "p39",
+      "viz": "custom_viz_spotlight_frame.custom_viz_spotlight_frame",
+      "title": "Spotlight Frame",
+      "x": 8,
+      "y": 48,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_cat"
+      },
+      "options": {
+        "valueField": "> primary | seriesByName(\"value\")",
+        "labelField": "> primary | seriesByName(\"name\")"
+      }
+    },
+    {
+      "id": "p40",
+      "viz": "custom_viz_sunburst.custom_viz_sunburst",
+      "title": "Sunburst",
+      "x": 0,
+      "y": 52,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_tree"
+      },
+      "options": {
+        "valueField": "> primary | seriesByName(\"value\")",
+        "level1Field": "> primary | seriesByName(\"l1\")",
+        "level2Field": "> primary | seriesByName(\"l2\")",
+        "level3Field": "> primary | seriesByName(\"l3\")"
+      }
+    },
+    {
+      "id": "p41",
+      "viz": "custom_viz_tab_selector.custom_viz_tab_selector",
+      "title": "Tab Selector",
+      "x": 4,
+      "y": 52,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_cat"
+      },
+      "options": {}
+    },
+    {
+      "id": "p42",
+      "viz": "custom_viz_timeline_swimlane.custom_viz_timeline_swimlane",
+      "title": "Timeline Swimlane",
+      "x": 8,
+      "y": 52,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_span"
+      },
+      "options": {
+        "laneField": "> primary | seriesByName(\"lane\")",
+        "startField": "> primary | seriesByName(\"start\")",
+        "endField": "> primary | seriesByName(\"end\")",
+        "categoryField": "> primary | seriesByName(\"cat\")",
+        "labelField": "> primary | seriesByName(\"label\")"
+      }
+    },
+    {
+      "id": "p43",
+      "viz": "custom_viz_treemap.custom_viz_treemap",
+      "title": "Treemap",
+      "x": 0,
+      "y": 56,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_tree"
+      },
+      "options": {
+        "valueField": "> primary | seriesByName(\"value\")",
+        "level1Field": "> primary | seriesByName(\"l1\")",
+        "level2Field": "> primary | seriesByName(\"l2\")"
+      }
+    },
+    {
+      "id": "p44",
+      "viz": "custom_viz_vu_console.custom_viz_vu_console",
+      "title": "VU Console",
+      "x": 4,
+      "y": 56,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_metrics"
+      },
+      "options": {
+        "fields": [
+          "cpu",
+          "mem",
+          "io"
+        ]
+      }
+    },
+    {
+      "id": "p45",
+      "viz": "custom_viz_waterfall_chart.custom_viz_waterfall_chart",
+      "title": "Waterfall Chart",
+      "x": 8,
+      "y": 56,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_cat"
+      },
+      "options": {
+        "labelField": "> primary | seriesByName(\"name\")",
+        "valueField": "> primary | seriesByName(\"value\")"
+      }
+    },
+    {
+      "id": "p46",
+      "viz": "custom_viz_worldmap.custom_viz_worldmap",
+      "title": "World Map",
+      "x": 0,
+      "y": 60,
+      "w": 4,
+      "h": 4,
+      "search": {
+        "ref": "ds_geo"
+      },
+      "options": {
+        "srcLatField": "> primary | seriesByName(\"slat\")",
+        "srcLonField": "> primary | seriesByName(\"slon\")",
+        "dstLatField": "> primary | seriesByName(\"dlat\")",
+        "dstLonField": "> primary | seriesByName(\"dlon\")",
+        "categoryField": "> primary | seriesByName(\"cat\")",
+        "countField": "> primary | seriesByName(\"cnt\")",
+        "srcNameField": "> primary | seriesByName(\"sname\")",
+        "dstNameField": "> primary | seriesByName(\"dname\")"
+      }
+    }
+  ]
+}

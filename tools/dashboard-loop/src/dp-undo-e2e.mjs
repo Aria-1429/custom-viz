@@ -26,9 +26,10 @@
 import { chromium } from 'playwright';
 import { assertConfig, config, webBase } from './config.mjs';
 
-const [, , app, view, out = '/tmp/dp-undo-e2e.png'] = process.argv;
+const [, , app, view, panelId = 'p1', panelId2 = 'p2', out = '/tmp/dp-undo-e2e.png'] = process.argv;
+// ⚠ パネル ID は引数で受ける（決め打ちはボードを作り直すたびに落ちる）。
 if (!app || !view) {
-    console.error('usage: dp-undo-e2e.mjs <app> <view> [out.png]');
+    console.error('usage: dp-undo-e2e.mjs <app> <view> [パネルid] [パネルid2] [out.png]');
     process.exit(1);
 }
 assertConfig();
@@ -108,9 +109,11 @@ const n0 = await panelCount();
 console.log(`  パネル ${n0} 枚から開始`);
 
 console.log('--- ① 数値の連続入力は1手にまとまる ---');
-await selectPanel('p1');
+await selectPanel(panelId);
 const before1 = await layoutOf();
-ok(before1 === '0,0,4,3', `パネルを選べている（配置 = ${before1}）`);
+// ⚠ **座標を決め打ちしない**（ボードごとに違う。以前 '0,0,4,3' 固定で
+//    別ボードでは必ず落ちていた）。ここで見たいのは「選べているか」だけ。
+ok(/^\d+,\d+,\d+,\d+$/.test(before1 || ''), `パネルを選べている（配置 = ${before1}）`);
 // 「4」→「10」と2打鍵。素直に積むと2手になる
 await typeWidth('10');
 const typed1 = await layoutOf();
@@ -118,13 +121,13 @@ ok(typed1 !== before1, `幅を変えられた (${before1} → ${typed1})`);
 ok(await saveEnabled(), '入力したので保存ボタンが押せる');
 await blur();
 await undo();
-await selectPanel('p1');
+await selectPanel(panelId);
 const back1 = await layoutOf();
 ok(back1 === before1, `⭐ Ctrl+Z 一発で打つ前に戻った (${back1})`);
 ok(!(await saveEnabled()), '⭐ 戻しきったので保存ボタンが押せない');
 
 console.log('--- ② ドラッグ1回＝Ctrl+Z 1回 ---');
-const box = await selectPanel('p2');
+const box = await selectPanel(panelId2);
 const beforeLayout = await layoutOf();
 await page.mouse.move(box.x + 40, box.y + 10);
 await page.mouse.down();
@@ -138,15 +141,15 @@ const movedLayout = await layoutOf();
 ok(movedLayout !== beforeLayout, `ドラッグで動いた (${beforeLayout} → ${movedLayout})`);
 await blur();
 await undo();
-await selectPanel('p2');
+await selectPanel(panelId2);
 const backLayout = await layoutOf();
 ok(backLayout === beforeLayout, `⭐ Ctrl+Z 一発でドラッグ前に戻った（1セルずつではない）(${backLayout})`);
 ok(!(await saveEnabled()), '⭐ 戻しきったので保存ボタンが押せない');
 
 console.log('--- ③ 複製を戻せる ---');
-await selectPanel('p1');
+await selectPanel(panelId);
 await blur();
-await selectPanel('p1');
+await selectPanel(panelId);
 await page.keyboard.press('Control+d');
 await page.waitForTimeout(1000);
 const nDup = await panelCount();
@@ -156,7 +159,7 @@ ok((await panelCount()) === n0, `⭐ Ctrl+Z で複製が消えた (${nDup} → $
 ok(!(await saveEnabled()), '⭐ 戻しきったので保存ボタンが押せない');
 
 console.log('--- ④ 削除を戻せる ---');
-await selectPanel('p1');
+await selectPanel(panelId);
 await page.keyboard.press('Delete');
 await page.waitForTimeout(900);
 const nDel = await panelCount();
@@ -166,7 +169,7 @@ ok((await panelCount()) === n0, `⭐ Ctrl+Z で削除したパネルが戻った
 ok(!(await saveEnabled()), '⭐ 戻しきったので保存ボタンが押せない');
 
 console.log('--- ⑤ 矢印移動を戻せる ---');
-await selectPanel('p1');
+await selectPanel(panelId);
 const beforeArrow = await layoutOf();
 await page.keyboard.press('ArrowRight');
 await page.waitForTimeout(300);
@@ -177,7 +180,7 @@ ok(afterArrow !== beforeArrow, `矢印で動いた (${beforeArrow} → ${afterAr
 ok(await saveEnabled(), '動かしたので保存ボタンが押せる');
 // 矢印の連打はまとめキーで1手になる想定
 await undo();
-await selectPanel('p1');
+await selectPanel(panelId);
 const backArrow = await layoutOf();
 ok(backArrow === beforeArrow, `⭐ Ctrl+Z 一発で矢印移動が戻った (${backArrow})`);
 ok(!(await saveEnabled()), '⭐ 戻しきったので保存ボタンが押せない');

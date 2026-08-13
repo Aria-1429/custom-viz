@@ -16,7 +16,7 @@ await Promise.all([
     page.locator('input[name="password"]').first().press('Enter'),
 ]);
 await page.waitForTimeout(1200);
-await page.goto(`${webBase()}/en-US/app/${app}/${view}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+await page.goto(`${webBase()}/en-US/app/dpx/dpx?id=${app}/${view}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
 await page.waitForTimeout(12000);
 
 // 現在のタブは「DETAIL VIEW」テキストの有無で判定（詳細タブ専用の装飾テキスト）

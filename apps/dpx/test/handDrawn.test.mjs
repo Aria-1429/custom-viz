@@ -6,7 +6,7 @@
 //      これが一番怖い（実害が「なんとなく画面が落ち着かない」で現れ、原因が特定しにくい）
 //   2. 画材のパラメータが欠ける → その画材だけ描画時に落ちる
 //   3. 紙の目を濃くしすぎる → デジタルなノイズに見える（試作で実際に失敗した）
-import { MEDIUM_PRESETS, isHandDrawn, rng, seedFrom } from '../src/main/webapp/components/engine/handDrawn.js';
+import { MEDIUM_PRESETS, isHandDrawn, rng, seedFrom } from '../src/main/webapp/components/design/handDrawn.js';
 
 let ng = 0;
 const ok = (c, m) => {

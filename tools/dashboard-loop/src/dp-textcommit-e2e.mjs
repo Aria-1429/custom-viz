@@ -56,7 +56,13 @@ const saveEnabled = () => saveBtn.isEnabled().catch(() => false);
  *   実機の DOM を probe して確認済み）。**`input.dpx-input` の先頭**が
  *   ダッシュボードのタイトル欄で、これは普通に読み書きできる。
  */
-const titleBox = page.locator('input.dpx-input').first();
+// ⚠ **`.first()` にしない。** ダッシュボードに「入力」があると、
+//   キャンバス上の入力欄が先に来て、その**ドラッグ用オーバーレイが
+//   クリックを遮る**（実機で TimeoutError になった）。
+//   狙うのはインスペクタ（右ペイン）の「タイトル」欄。
+const titleBox = page.locator('aside input.dpx-input, [data-dpx-inspector] input.dpx-input')
+    .first()
+    .or(page.locator('input.dpx-input').last());
 const blurAway = async () => {
     await page.mouse.click(8, 300);
     await page.waitForTimeout(400);

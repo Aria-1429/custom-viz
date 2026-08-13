@@ -27,7 +27,7 @@ await Promise.all([
 ]);
 await page.waitForTimeout(1200);
 
-await page.goto(`${webBase()}/en-US/app/${app}/${view}`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+await page.goto(`${webBase()}/en-US/app/dpx/dpx?id=${app}/${view}`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
 await page.waitForTimeout(12_000); // サーチ完了と描画を待つ
 
 const target = page.getByText(label, { exact: true }).first();

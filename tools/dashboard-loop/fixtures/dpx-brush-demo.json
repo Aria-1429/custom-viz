@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 2,
+  "title": "手描き質感デモ",
+  "description": "カスタム viz に画材（クレヨン）を適用した例。viz 側の改修はほぼ不要",
+  "style": {
+    "preset": "paper",
+    "background": "none",
+    "entrance": "fade",
+    "brush": "crayon",
+    "brushIntensity": 1,
+    "motion": "subtle"
+  },
+  "layout": { "type": "grid", "grid": { "columns": 12, "rowHeight": 72, "gap": 14 } },
+  "dataSources": {
+    "ds_svc": {
+      "name": "サービス別",
+      "spl": "| makeresults count=6 | streamstats count as i | eval name=\"svc-\".i, value=(i*17)%37+8, target=30 | table name value target",
+      "earliest": "-24h",
+      "latest": "now"
+    },
+    "ds_kpi": {
+      "name": "KPI（単一値）",
+      "spl": "| makeresults count=1 | eval name=\"稼働率\", value=45 | table name value",
+      "earliest": "-24h",
+      "latest": "now"
+    },
+    "ds_tree": {
+      "name": "階層",
+      "spl": "| makeresults count=8 | streamstats count as i | eval l1=if(i<=4,\"東日本\",\"西日本\"), l2=case(i<=2,\"東京\",i<=4,\"仙台\",i<=6,\"大阪\",1=1,\"福岡\"), value=(i*13)%19+4 | table l1 l2 value",
+      "earliest": "-24h",
+      "latest": "now"
+    },
+    "ds_flow": {
+      "name": "フロー",
+      "spl": "| makeresults count=8 | streamstats count as i | eval src=case(i<=3,\"web\",i<=5,\"api\",1=1,\"batch\"), dst=case(i%3=0,\"db\",i%3=1,\"cache\",1=1,\"queue\"), value=(i*11)%23+5 | table src dst value",
+      "earliest": "-24h",
+      "latest": "now"
+    }
+  },
+  "panels": [
+    {
+      "id": "p_gauge",
+      "viz": "custom_viz_gauge_arc.custom_viz_gauge_arc",
+      "title": "ゲージ（目盛りは除外済み）",
+      "x": 0, "y": 0, "w": 6, "h": 5,
+      "search": { "ref": "ds_kpi" },
+      "options": {
+        "valueField": "> primary | seriesByName(\"value\")",
+        "labelField": "> primary | seriesByName(\"name\")",
+        "minValue": 0,
+        "maxValue": 100
+      }
+    },
+    {
+      "id": "p_bar",
+      "viz": "dpx.bar",
+      "title": "棒（DPX ネイティブ）",
+      "x": 6, "y": 0, "w": 6, "h": 5,
+      "search": { "ref": "ds_svc" },
+      "options": {}
+    },
+    {
+      "id": "p_gradient",
+      "viz": "custom_viz_gradient_bar.custom_viz_gradient_bar",
+      "title": "Gradient Bar",
+      "x": 0, "y": 5, "w": 6, "h": 5,
+      "search": { "ref": "ds_svc" },
+      "options": {
+        "labelField": "> primary | seriesByName(\"name\")",
+        "valueField": "> primary | seriesByName(\"value\")"
+      }
+    },
+    {
+      "id": "p_bullet",
+      "viz": "custom_viz_bullet_graph.custom_viz_bullet_graph",
+      "title": "Bullet Graph",
+      "x": 6, "y": 5, "w": 6, "h": 5,
+      "search": { "ref": "ds_svc" },
+      "options": {
+        "labelField": "> primary | seriesByName(\"name\")",
+        "valueField": "> primary | seriesByName(\"value\")",
+        "targetField": "> primary | seriesByName(\"target\")"
+      }
+    },
+    {
+      "id": "p_treemap",
+      "viz": "custom_viz_treemap.custom_viz_treemap",
+      "title": "Treemap",
+      "x": 0, "y": 10, "w": 6, "h": 5,
+      "search": { "ref": "ds_tree" },
+      "options": {
+        "valueField": "> primary | seriesByName(\"value\")",
+        "level1Field": "> primary | seriesByName(\"l1\")",
+        "level2Field": "> primary | seriesByName(\"l2\")"
+      }
+    },
+    {
+      "id": "p_sankey",
+      "viz": "custom_viz_sankey_flow.custom_viz_sankey_flow",
+      "title": "Sankey Flow",
+      "x": 6, "y": 10, "w": 6, "h": 5,
+      "search": { "ref": "ds_flow" },
+      "options": {}
+    }
+  ]
+}

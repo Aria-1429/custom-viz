@@ -20,7 +20,7 @@ await Promise.all([
     page.locator('input[name="password"]').first().press('Enter'),
 ]);
 await page.waitForTimeout(1200);
-await page.goto(`${webBase()}/en-US/app/${app}/${view}?mode=edit`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+await page.goto(`${webBase()}/en-US/app/dpx/dpx?id=${app}/${view}&mode=edit`, { waitUntil: 'domcontentloaded', timeout: 60000 });
 await page.waitForTimeout(10000);
 
 // 1. ダッシュボードのタイトル入力に打つ

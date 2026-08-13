@@ -107,6 +107,303 @@ Splunk General Terms が適用されます（OSS 通知とは別枠で参照情�
 
 ---
 
+### [0.7.1] - 2026-08-13
+
+#### 修正
+
+- ⭐ **カスタム viz に質感がほとんど乗らない問題を修正**（ユーザー報告）。
+  原因は `scale` が **px の固定値**で、**図形が大きいほど相対的に効かなくなる**こと。
+  ゲージの弧（270px）では変位が約 1.5% しかなく、見た目が変わらなかった。
+  → **図形の大きさに応じた倍率**（`SIZE_TIERS`）を導入し、
+  フィルタを**段ごとの別実体**にした。
+  ⚠ 小さい印は逆に**弱める**（効きすぎて壊れて見えるため）。上限もあり。
+
+### [0.7.0] - 2026-08-13
+
+**画材で文字が歪む問題を構造から修正（Ink Layer）。**
+
+#### 修正
+
+- ⭐ **画材が文字を歪ませなくなった。** 原因は画材の中身ではなく
+  **filter をパネル全体に掛けていたこと**。「印」だけに当てる層を新設した。
+  ⚠ **画材のパラメータ調整では直らない問題**だった（適用範囲の問題）。
+
+#### 追加
+
+- **Ink Layer**（`design/brush/ink.js` / `useInkFilter.js`・テスト 13 件）
+  - `data-dpx-ink="mark"` で viz が**自分で印を宣言**できる（今後の viz 向け）
+  - 宣言が無ければ **SVG の形状要素だけを自動検出**（既存 30 viz が無改変で対象）
+  - `text` / `tspan` / `foreignObject` / `image` は**必ず除外**
+- ⚠ **Canvas / WebGL の viz は既定で対象外**（文字が焼き込まれていて分離できない）。
+  掛けたい場合は `panel.style.brushCanvas: true`。
+
+### [0.6.0] - 2026-08-13
+
+**Design Engine の 4 軸を編集パネルから触れるようにした。**
+これまで `style.brush` / `style.motion` は **JSON 直接編集でしか設定できなかった**。
+
+#### 追加
+
+- インスペクタの「デザイン」に 3 つの設定を追加:
+  - **グラフの画材**（`style.brush`）… なし / 色鉛筆 / クレヨン / 水彩 / インク / マーカー
+  - **画材の強さ**（`style.brushIntensity`）… 0〜100%。⚠ **画材を選んだときだけ出す**
+  - **動きの性格**（`style.motion`）… なし / 控えめ / スプリング / オーガニック
+- E2E `dp-brushui-e2e.mjs` を追加し、回帰スイートに登録（**9 件**に）。
+  「UI に出た」で終わらせず、**描画（filter 適用数）と定義の両方**を見る。
+
+#### ⚠ 実装上の判断
+
+- **選択肢は Design Engine から取る**（`BRUSH_OPTIONS` / `MOTION_OPTIONS`）。
+  編集パネルに文字列を手書きすると、**画材を増やしたときに直し忘れて
+  「実装したのに選べない」**になる。
+- **画材を選ぶと注意書きを出す**。フィルタは描画結果に掛かるので
+  **文字の輪郭も揺れる**。知らないと「ラベルが読めない＝不具合」と誤解される。
+- 「動きの性格」には **`entrance` の明示指定が優先される**ことを hint に明記。
+
+### [0.5.0] - 2026-08-13
+
+**ディレクトリ構造の再編成（Phase 7）。図の層をそのままディレクトリにした。**
+
+#### 変更
+
+- **`engine/` を廃止**（直下に 31 ファイルが平置きだった）。
+  トップレベルを `builder/ canvas/ renderer/ schema/ store/ layout/ viz/ design/ data/ shared/ pages/` に。
+- **`DpxDashboard.jsx` → `renderer/DashboardRenderer.jsx`**（図の名前と一致させた）。
+- **`dashboardSchema/` → `schema/`**、**`vizKit.jsx` → `viz/parts.jsx`**。
+- ⭐ **Brush の実体を `design/brush/` に集約**（`material/brush/` と
+  `design/brushFilter.jsx` に割れていた）。**Design Engine の 4 軸がすべて
+  `design/` 配下に実体を持つ**ようになった。
+- 移動と import 書き換えは機械化（`tools/restructure.mjs` / `tools/fix-imports.mjs`）。
+
+#### 削除
+
+- **`engine/themes.js`**（実体は `design/theme/` と `design/surface/`）。
+- **`engine/material/`**。`material/index.js` は**中身が design barrel の
+  再輸出＝循環**していたため廃止。`quality.js` は `design/quality.js` へ。
+
+#### 追加
+
+- 層テストに 2 件（`engine/` の復活検出・トップレベルが図と一致するか）。
+
+### [0.4.0] - 2026-08-13
+
+**構造の作り直し（Phase 6）。**
+これまで「既存の動きが壊れるのを恐れて」見送っていた部分に手を入れた。
+設計判断は [REARCHITECTURE.md](REARCHITECTURE.md) が正。
+
+#### 追加
+
+- **Viz SDK**（`components/engine/viz/`）。**viz が import してよいものの唯一の入口**。
+  - `useVizData()` … サーチ結果の形を知る唯一の場所
+  - `kit`（`toNum` / `fmtNumber` / `useContainerSize` / `EmptyHint`）
+  - `types.js` … VizProps の契約（Studio 拡張と互換）
+  - → **engine の内部を変えても viz が巻き添えにならない**
+- **`engine/data/dos.js`**。DOS 文字列（`> primary | seriesByName("x")`）を Data 層へ。
+- **未定義参照チェッカ**（`tools/check-undefined.mjs`・`yarn test` に組込）。
+  ⚠ **ビルドが通るのに実機で真っ白になる**種類の事故を検出する。
+- **E2E 回帰スイート**（`tools/dashboard-loop/src/dp-regression.mjs`）。
+  固定フィクスチャで 8 件を 1 コマンド実行。**8/8 成功**。
+- `dp-delete-view.mjs`（⚠ owner のネームスペース指定が要る）。
+- 層の境界テストを 12 → 21 件（viz の契約・Theme/Surface 分離を固定）。
+
+#### 変更
+
+- **`nativeViz.jsx`（2,516 行）を viz ごとに 7 ファイルへ分割**（`engine/viz/native/`）。
+  分割は機械的に行い、**本文が 1 文字も変わっていないことを検証**してから旧ファイルを削除。
+- **`themes.js`（1,514 行）を Theme と Surface に分割**
+  （`engine/design/theme/` / `engine/design/surface/`）。
+  **211 個のテーマテストが全て通ることで同一性を確認**。
+  `themes.js` は互換 barrel として残る。
+- 図形・装飾・linkLine・SpikeViz を `engine/viz/` へ集約。
+
+#### 修正
+
+- **viz が Property Editor に依存していた層違反を解消**
+  （`nativeViz.jsx` → `optionEditors.jsx` の `dosToField`）。
+- 分割で作り込んだ不具合 2 件を修正（**どちらもビルドは通っていた**）:
+  - `DEFAULT_STATUS_MATCHES is not defined` … `DpxStatus` の定数が `DpxValue` 側へ紛れた
+  - `e.toFixed is not a function` … `DpxTable` のローカル `fmt` を機械置換で取り違えた
+- 古くなっていた E2E ツール 6 件を修正（パネル ID・座標・セレクタの決め打ち、
+  および**存在しない UI（↑↓ ボタン）を操作していた** `dp-inputorder-e2e`）。
+
+### [0.3.0] - 2026-08-13
+
+**理想の構成との差分を埋めた（Phase 5）。**
+Dashboard Canvas と Splunk Data / Search 層を独立させ、
+**目標としていた 11 個の層がすべてコード上の実体を持つ**状態になった。
+設計判断は [REARCHITECTURE.md](REARCHITECTURE.md) が正。
+
+#### 追加
+
+- **Dashboard Canvas 層**（`components/engine/canvas/`）。
+  編集モードの操作（ドラッグ・配置プレビュー・余白メニュー）を集約。
+  - `useCanvasInteractions` … ドラッグと一時状態
+  - `DashboardCanvas` … ストアに繋がった Renderer
+- **Splunk Data / Search 層**（`components/engine/data/`）。
+  `useSplunkSearch` / `dataSources` / `inputChoices` を barrel 経由に統一。
+- **層の境界テスト**（`test/layers.test.mjs`・12 件）。
+  依存の向きを機械で固定する（**コメントで書いた境界は必ず腐る**ため）。
+  ソースへの制御文字の混入検査も含む。
+- Property Editor に editor 型を 3 種追加：
+  `editor.percent`（⚠ **UI 値の 1/100** を保存。Studio と同じ約束）/
+  `editor.trellisSplitBy` / `editor.seriesColorsByField`。
+
+#### 変更
+
+- **Dashboard Renderer（`DpxDashboard.jsx`）が「描くだけ」になった。**
+  ストアを import せず、ドラッグの実装も持たない。
+  → **表示専用の用途（壁掛け・印刷・埋め込み）で編集コードを読み込まずに使える。**
+- `DashboardPage` は `DpxDashboard` ではなく `DashboardCanvas` を使う。
+  定義はストアから取るので `definition` を props で渡さない。
+
+#### 修正
+
+- **ソース 3 ファイルに混入していた生の NUL を除去**
+  （`dataSources.js` / `material/brush/types.js` / `panelFields.jsx`）。
+  実行時の値は変わらないが、**ファイルがバイナリ扱いになり `grep` が
+  無言で何も返さなくなる**問題があった。
+- E2E ツールのフィクスチャ決め打ちを引数化
+  （`dp-dragpreview-e2e.mjs` / `dp-undo-e2e.mjs`）。
+  ⚠ リサイズの掴み手は **8〜12px 内側**を掴む（4px では move 用の
+  オーバーレイに覆われていて掴めない）。
+
+### [0.2.0] - 2026-08-13
+
+**アーキテクチャの再設計（Phase 1・2）。**
+Dashboard Schema と State / Command 層を独立させ、今後
+Visualization / Layout / Data Source / Material を**独立した拡張ポイント**として
+足せる構造へ寄せた。進捗と設計判断は [REARCHITECTURE.md](REARCHITECTURE.md) が正。
+
+> ⚠ **破壊的変更：スキーマ v1 の定義は読めません。**
+> `schemaVersion: 2` が必須で、v1（`version: 1`）の定義は**理由付きで拒否**します
+> （黙って壊さないよう「v1 の定義です」と名指しで伝えます）。
+> 0.x のため互換は維持しない方針です。
+
+#### 追加
+
+- **Dashboard Schema v2**（`components/engine/dashboardSchema/`）。
+  Zod による**型・検証・既定値・versioning** を 1 か所に集約
+  - `vocab.js` … **列挙値と既定値の唯一の出どころ**（依存ゼロ・素の Node でテスト可）
+  - `parse.js` … `parseDefinition()` が**唯一の入口**。
+    エラーは**場所つきで理由を返す**（`panels.0.viz: ...`）
+  - `layout: { type, grid }` に変更（**Layout Engine 差し替えの受け皿**。旧 `grid` 直下から移動）
+  - **サーチは `dataSources` 参照のみ**（`search.spl` 直書きをスキーマで禁止）
+- **State / Command 層**（`components/store/`）。zustand
+  - `dashboardStore` … 定義＋履歴＋Command（`dispatch`）
+  - `editorStore` … 選択・ダイアログ・プレビュー（**保存しない**）
+  - **選択を `{kind, ids[]}` に統合**。パネル / 入力 / 区画の**排他が構造的に保証**され、
+    `ids` が配列なので **Multi Select を足しても型が変わらない**
+- テスト 58 件（`schema` 24 / `schemaVocab` 9 / `store` 25）
+
+#### 変更
+
+- **`DashboardPage.jsx` の `useState` を 20 → 3 に削減**（残りは真にローカルな値のみ）
+- 既定値の適用を**スキーマへ集約**。コンポーネント側の `?? 'noc'` 等を撤去
+  （**UI と実物がズレる不具合の構造的な再発防止**）
+- `emptyDashboard` / `emptyDefinition` をスキーマへ委譲
+- **`@splunk/react-search` を直接依存に昇格**。
+  ⚠ `SplAce.jsx` が実際に `require` しているが、これまで
+  **`@splunk/dashboard` 経由の推移的依存に頼っていた**（消すと SPL エディタが壊れる状態だった）
+
+#### 削除
+
+- `engine/schema.js`（v1 判定 17 行）と、その全参照
+- **未使用の `@splunk/dashboard*` 6 パッケージ**
+  （`dashboard` / `dashboard-context` / `dashboard-core` / `dashboard-presets` /
+  `dashboard-state` / `datasources` / `visualization-context`）
+
+#### 修正
+
+- **早期 return がストアの初期値 `idle` をすり抜け、`def=null` で描画に進んで
+  画面が落ちる**（`Cannot read properties of null (reading 'tabs')`）。
+  **ビルドも単体テストも通り、実機でのみ再現した**。
+  → 条件を否定形（`phase === 'loading'`）から**肯定形**（`phase !== 'ready' || !def`）へ
+- ヘッダのスタンプが `DPX v1` 固定だったのを **`SCHEMA_VERSION` から導出**
+- **E2E ツール 12 本の URL が 1 ビュー集約前の形のまま**だった
+  （`/app/{app}/{view}` → `/app/dpx/dpx?id={app}/{view}`）。
+  あわせて `dp-save-check`（Studio 時代の `aria-label` セレクタ）・
+  `dp-settings-e2e`（プリセット表示名の決め打ち・項目が `div` だと誤認）・
+  `dp-group-e2e`（パネル ID `h1` の決め打ち）を修正。
+  **いずれも DPX 側の退行ではなく、ツールが古かったもの**
+
+#### 追加（Phase 3・Layout Engine）
+
+- **Layout Engine**（`components/engine/layout/`）。
+  **grid / freeform を差し替え可能な実装**として分離し、
+  Renderer の座標計算（配置・寸法・ドラッグ・リサイズ・区画移動・コンテナ）を
+  **すべてエンジン経由**にした
+  - `gridLayout` … 現行の挙動をそのまま抽出（**見た目は 1px も変えていない**）
+  - `freeform` … **px 絶対配置**＋スナップ（既定 8px）。グリッドに縛られない構図が組める
+  - `switchLayoutType()` … **切替時に座標を変換する**
+    （変換しないと「セル 6」が「6px」になり全パネルが左上に固まる）
+  - ⭐ **座標のキー（`x/y/w/h`）は共有し、単位だけ変える**。
+    別キーを足さないので**移動・複製・区画・undo の既存処理がそのまま効く**
+- `layout.freeform.snap` をスキーマに追加
+- テスト 32 件（`test/layout.test.mjs`）。
+  **座標計算はテストで押さえる**（枠のズレは 1 マスずれても目視で気づけない）
+
+#### 修正（Phase 3）
+
+- **freeform でパネルが縦に積まれる**。パネル本体に `position:'relative'` が
+  ベタ書きされており、エンジンの `absolute` を**後から上書き**していた
+  （`left/top` は正しく入っているのに絵が合わない、という紛らわしい出方）
+- **`convertToGrid` が幅をクランプせず、12 列を超えたパネルが残る**（テストで検出）
+- 区画のクランプが **`-0`** を返しうる（`Math.max(-0, …)` の仕様。テストで検出）
+
+#### 追加（Phase 4・Material Engine）
+
+- **Material Engine**（`components/engine/material/`）。
+  質感・配色・背景・アニメーションを **1 つの層として境界を宣言**した
+  - **`<MaterialSurface material intensity>`** … 質感を「中身」から切り離して被せる。
+    ⚠ 触るのは **Surface / Background / Border / Shadow / Overlay / Animation** だけで、
+    **viz 内部の色や描画には干渉しない**（＝同じ Studio 拡張 viz を
+    Flat / Liquid Glass / Watercolor の上に載せられる）
+  - **`useMaterial()`** … viz 側から Material の文脈を読む口（参照は任意）
+  - ⭐ **品質レベル**（`full` / `reduced` / `minimal`）。
+    パネル数と **`prefers-reduced-motion`** から自動判定し、
+    重い指定（`backdrop-filter` → 影・発光・アニメの順）を落とす。
+    `style.quality` で明示指定もできる
+  - ⚠ **`themes.js` は物理移動していない**（意図的）。中身は既に Material Engine
+    そのもので、移動すると 25 質感 × 18 配色の巨大 diff になりレビュー不能なうえ、
+    実機でしか見つからなかった知見を壊すリスクがある。
+    **境界の宣言（`material/` から再輸出）**にとどめた
+- テスト 24 件（`test/material.test.mjs`）
+
+#### 追加（Registry の機械生成）
+
+- **`tools/gen-viz-registry.mjs`**。`visualizations/*` を走査して
+  `vizRegistry.generated.js` を出力する。
+  ⭐ **新しい Studio 拡張 viz は `src/host.jsx` と `config.json` を置いて
+  生成し直すだけ**で Component Palette / Property Editor / Renderer から使える
+  - `vizRegistry.js` は **187 行 → 100 行**（手書きの import 60 行が消えた）
+  - **`yarn test` に `--check` を組み込み済み**＝再生成忘れを機械的に検出
+  - `yarn gen:registry` で再生成
+
+#### 変更
+
+- パネルの質感 CSS は **`applyQuality()` を通す**ようになった
+  （品質レベルの適用漏れを防ぐため、`panelSurface()` の直接呼び出しを増やさない）
+
+#### 追加（Brush Engine）
+
+- **Brush Engine**（`components/engine/material/brush/`）。
+  **グラフの線と塗りに画材の質感**を与える層（Surface＝面の質感とは別軸）
+  - 対応 viz: **折れ線 / 棒 / ドーナツ / ランキング**（`style.brush` で切替）
+  - 画材: 色鉛筆 / クレヨン / 水彩 / インク / マーカー
+  - ⭐ **`flat`（既定）では従来の描画経路をそのまま通る**＝完全な後方互換
+    （実機で「flat の brush 経由 path が 0 本」を確認済み）
+  - ⭐ **当たり判定は元の geometry のまま**。ホバー・ツールチップ・
+    時間ブラシ・ドリルダウンは影響を受けない（実機確認済み）
+  - ⭐ **決定論的 seed**。再描画・再サーチで手描きの形が変わらない
+  - ⚠ **CSS の div で描く viz（棒・ランキング）は `BrushOverlay`** で
+    元の div を残したまま SVG を重ねる（構造を書き換えるとインタラクションが全滅するため）
+  - 描画ライブラリ（rough.js）は `brushes.js` に閉じ、公開 API には出さない
+- テスト 22 件（`test/brush.test.mjs`）
+
+生成した `.spl`: `dist/dpx-0.2.0-34f994c.spl`
+
+---
+
 ### [0.1.0] - 2026-08-13
 
 **最初のプレリリース。**

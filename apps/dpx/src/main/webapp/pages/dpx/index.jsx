@@ -14,7 +14,7 @@ import layout from '@splunk/react-page/18';
 
 import HomePage from '../../components/pages/HomePage';
 import DashboardPage from '../../components/pages/DashboardPage';
-import { parseDpxRoute, homeHref } from '../../components/viewStore';
+import { parseDpxRoute, homeHref } from '../../components/data/viewStore';
 
 const DpxApp = () => {
     const [route, setRoute] = useState(() => parseDpxRoute());

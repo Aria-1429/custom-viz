@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 2,
+  "title": "DPX 回帰テスト",
+  "description": "E2E の固定フィクスチャ。パネル id / タイトルは変えないこと",
+  "style": {
+    "preset": "midnight",
+    "background": "grid",
+    "entrance": "rise"
+  },
+  "layout": {
+    "type": "grid",
+    "grid": {
+      "columns": 12,
+      "rowHeight": 72,
+      "gap": 12
+    }
+  },
+  "dataSources": {
+    "ds_main": {
+      "name": "検証データ",
+      "spl": "| makeresults count=8 | streamstats count as i | eval host=\"svc-\".i, cnt=(i*7)%23+3, state=if(cnt>15,\"critical\",\"ok\") | table host cnt state",
+      "earliest": "-24h",
+      "latest": "now"
+    },
+    "ds_time": {
+      "name": "時系列",
+      "spl": "| makeresults count=20 | streamstats count as i | eval _time=now()-(20-i)*300, v=(i*13)%29+5 | table _time v",
+      "earliest": "-24h",
+      "latest": "now"
+    }
+  },
+  "inputs": [
+    {
+      "id": "in_host",
+      "type": "text",
+      "token": "host",
+      "label": "ホスト",
+      "default": ""
+    },
+    {
+      "id": "in_sev",
+      "type": "dropdown",
+      "token": "sev",
+      "label": "重大度",
+      "default": "all",
+      "choices": [
+        {
+          "label": "すべて",
+          "value": "all"
+        },
+        {
+          "label": "重大",
+          "value": "critical"
+        }
+      ]
+    }
+  ],
+  "panels": [
+    {
+      "id": "p1",
+      "viz": "dpx.bar",
+      "title": "バー",
+      "x": 0,
+      "y": 0,
+      "w": 5,
+      "h": 3,
+      "search": {
+        "ref": "ds_main"
+      },
+      "options": {}
+    },
+    {
+      "id": "p2",
+      "viz": "dpx.table",
+      "title": "テーブル",
+      "x": 5,
+      "y": 0,
+      "w": 7,
+      "h": 3,
+      "search": {
+        "ref": "ds_main"
+      },
+      "options": {}
+    },
+    {
+      "id": "p3",
+      "viz": "dpx.line",
+      "title": "推移",
+      "x": 0,
+      "y": 3,
+      "w": 7,
+      "h": 3,
+      "search": {
+        "ref": "ds_time"
+      },
+      "options": {}
+    },
+    {
+      "id": "p_g1",
+      "viz": "dpx.value",
+      "title": "区画メンバーA",
+      "x": 7,
+      "y": 3,
+      "w": 2,
+      "h": 2,
+      "search": {
+        "ref": "ds_main"
+      },
+      "options": {}
+    },
+    {
+      "id": "p_g2",
+      "viz": "dpx.value",
+      "title": "区画メンバーB",
+      "x": 9,
+      "y": 3,
+      "w": 2,
+      "h": 2,
+      "search": {
+        "ref": "ds_main"
+      },
+      "options": {}
+    },
+    {
+      "id": "p_cv",
+      "viz": "custom_viz_gauge_arc.custom_viz_gauge_arc",
+      "title": "カスタムviz",
+      "x": 0,
+      "y": 6,
+      "w": 5,
+      "h": 2,
+      "search": {
+        "ref": "ds_main"
+      },
+      "options": {
+        "valueField": "> primary | seriesByName(\"cnt\")",
+        "minValue": 0,
+        "maxValue": 30
+      }
+    },
+    {
+      "id": "p_status",
+      "viz": "dpx.status",
+      "title": "ステータス",
+      "x": 5,
+      "y": 6,
+      "w": 6,
+      "h": 2,
+      "search": {
+        "ref": "ds_main"
+      },
+      "options": {}
+    }
+  ],
+  "groups": [
+    {
+      "id": "grp1",
+      "label": "区画",
+      "panels": [
+        "p_g1",
+        "p_g2"
+      ]
+    }
+  ]
+}

@@ -16,7 +16,7 @@ import {
     nextGroupId,
     removeGroup,
     reserveHeaderRows,
-} from '../src/main/webapp/components/engine/groups.js';
+} from '../src/main/webapp/components/renderer/groups.js';
 
 let ng = 0;
 const ok = (c, m) => {
