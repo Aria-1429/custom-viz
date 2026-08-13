@@ -9,7 +9,9 @@
 import {
     DPX_PRESETS,
     PANEL_VARIANTS,
+    PRESET_ORDER,
     groupSurface,
+    orderedPresets,
     panelSurface,
     resolveTheme,
 } from '../src/main/webapp/components/engine/themes.js';
@@ -64,17 +66,22 @@ const wt = resolveTheme({ style: { preset: 'watercolor' } });
 const sWater = panelSurface(wt, 'watercolor');
 ok(sWater.border === 'none', '水彩: 輪郭線を持たない（にじみの縁だけ）');
 ok(String(sWater.boxShadow).includes('inset'), '水彩: エッジの濃まり（inset）がある');
+// ⚠ v1.10.0: 手描き4種の**線は canvas で実描画**に変えた（handDrawn.js）。
+//   CSS の border / repeating-linear-gradient では「線がふらつく・二度なぞる・
+//   かすれる」が作れず、質感が偽物だったため（ユーザー指摘）。
+//   ここで見るのは「CSS の偽の線を持たないこと」と「実描画の指示があること」。
 const sCrayon = panelSurface(wt, 'crayon');
-ok(/^4px solid /.test(String(sCrayon.border)), 'クレヨン: 蝋の太い縁取り（4px）');
+ok(sCrayon.border === 'none', 'クレヨン: CSS の偽の縁取りを持たない');
+ok(sCrayon.__handDrawn === 'crayon', 'クレヨン: canvas 実描画の指示がある');
 ok(Number(sCrayon.borderRadius) >= 8, 'クレヨン: 角が丸い');
 const sPencil = panelSurface(wt, 'pencil');
-ok(
-    (String(sPencil.backgroundImage).match(/repeating-linear-gradient/g) || []).length >= 2,
-    '色鉛筆: クロスハッチ（2方向）がある'
-);
-ok(/2\.5px 2\.5px/.test(String(sPencil.boxShadow)), '色鉛筆: 二度引きの線（ずれた影）がある');
+ok(sPencil.border === 'none', '色鉛筆: CSS の偽の輪郭を持たない');
+ok(sPencil.__handDrawn === 'pencil', '色鉛筆: canvas 実描画の指示がある');
+ok(/2\.5px 2\.5px/.test(String(sPencil.boxShadow)), '色鉛筆: 紙に落ちる影は残っている');
 const sInk = panelSurface(wt, 'inkwash');
-ok(/^2px solid /.test(String(sInk.border)), 'インク＋水彩: インクの輪郭線（2px）');
+ok(sInk.border === 'none', 'インク＋水彩: CSS の偽の輪郭を持たない');
+ok(sInk.__handDrawn === 'inkwash', 'インク＋水彩: canvas 実描画の指示がある');
+ok(/radial-gradient/.test(String(sInk.backgroundImage)), 'インク＋水彩: 淡彩のウォッシュは CSS のまま');
 ok(String(sInk.backgroundImage).includes('radial-gradient'), 'インク＋水彩: ウォッシュがある');
 
 // ── 4.5 Liquid Glass（iOS 26） ─────────────────────────────────
@@ -98,10 +105,49 @@ for (const v of ['watercolor', 'crayon', 'pencil', 'inkwash']) {
     ok(g && typeof g === 'object', `区画/${v}: groupSurface が返る`);
 }
 // 色指定は「もともと線を持つプロパティ」だけを差し替える
-const gc = groupSurface(wt, 'crayon', '#ff0000');
-ok(gc.border === '4px solid #ff0000', '区画/crayon: 色指定で線の色だけ変わる（幅・種別は不変）');
+// ⚠ crayon はもう CSS の線を持たない（canvas 実描画）ので、
+//   色の差し替え検査は**線を持つ質感**で行う
+const gc = groupSurface(wt, 'letterpress', '#ff0000');
+ok(String(gc.borderTop || gc.border || '').includes('#ff0000'), '区画/letterpress: 色指定で線の色が変わる');
 const gw = groupSurface(wt, 'watercolor', '#ff0000');
 ok(gw.border === 'none', '区画/watercolor: 色指定しても線は生えない');
 
-console.log(ng === 0 ? '\nすべて成功' : `\n失敗 ${ng} 件`);
+
+
+// ── 名前と並び順（v1.9.0 で短縮・再編）────────────────────────
+//
+// ⚠ ここで押さえたい退化は2つ:
+//   1. 名前に説明を括弧で足してしまう（「カーボン（無彩色・硬質）」に戻る）。
+//      選択肢が18〜25個あるので、括弧付きだと一覧が読めなくなる
+//   2. プリセットを足したとき PRESET_ORDER に入れ忘れる（並びが崩れる／消える）
+{
+    const named = Object.entries(DPX_PRESETS).filter(([, p]) => p.name?.includes('（'));
+    ok(named.length === 0, `プリセット名に括弧書きの説明が無い（違反: ${named.map(([k]) => k).join(',')}）`);
+
+    const paren = PANEL_VARIANTS.filter((v) => v.label.includes('（'));
+    ok(paren.length === 0, `質感のラベルに括弧書きの説明が無い（違反: ${paren.map((v) => v.value).join(',')}）`);
+}
+{
+    // 並び順の配列と実体がずれていないか
+    const missing = Object.keys(DPX_PRESETS).filter((k) => !PRESET_ORDER.includes(k));
+    ok(missing.length === 0, `全プリセットが PRESET_ORDER にある（漏れ: ${missing.join(',')}）`);
+
+    const ghost = PRESET_ORDER.filter((k) => !(k in DPX_PRESETS));
+    ok(ghost.length === 0, `PRESET_ORDER に実在しないキーが無い（幽霊: ${ghost.join(',')}）`);
+
+    const ordered = orderedPresets();
+    ok(ordered.length === Object.keys(DPX_PRESETS).length, 'orderedPresets が全プリセットを返す（1つも落とさない）');
+    ok(ordered[0][0] === 'midnight', 'orderedPresets の先頭は midnight（既定値）');
+    ok(
+        ordered.every(([, p]) => typeof p?.canvasBg === 'string'),
+        'orderedPresets の各要素が実体を伴う（[key, preset] の形）'
+    );
+}
+{
+    // 並び順に無いキーを混ぜても落とさない（足し忘れの保険が効くか）
+    const keys = orderedPresets().map(([k]) => k);
+    ok(new Set(keys).size === keys.length, 'orderedPresets が重複を返さない');
+}
+
+console.log(ng === 0 ? '\nすべて成功' : `\n${ng} 件失敗`);
 process.exit(ng === 0 ? 0 : 1);

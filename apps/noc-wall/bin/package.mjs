@@ -10,7 +10,7 @@
 // sourcemap 入りの巨大な .spl ができてしまう。
 
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { create as createTar } from 'tar';
@@ -60,6 +60,47 @@ if (existsSync(pagesDir)) {
             `stage/ に sourcemap が残っています (${maps.join(', ')})。\n` +
                 '  開発ビルドが混入しています。`yarn build`（本番ビルド）で作り直してください。'
         );
+    }
+}
+
+// ── OSS 通知がバンドル内容と一致しているか（指紋照合）─────────────
+//
+// ⚠ **通知が古いままの .spl を作らせない。** 依存を足しても通知を再生成し忘れる
+//   のが典型的な事故（2026-08-13 に DPX で 45 件中 42 件の未記載が発覚）。
+//   `visualizations/*` が既にこの指紋方式で守られていたので apps/* も揃える。
+{
+    const noticesPath = join(stageDir, 'THIRD_PARTY_NOTICES.txt');
+    if (!existsSync(noticesPath)) {
+        fail(
+            'stage/THIRD_PARTY_NOTICES.txt がありません。\n' +
+                '  `yarn notices` で生成してから `yarn build` し直してください。'
+        );
+    }
+    try {
+        const helpers = await import(
+            pathToFileURL(join(root, '..', '..', 'scripts', 'gen-third-party-notices.mjs')).href
+        );
+        const statsPath = process.env.WEBPACK_STATS || '/tmp/noc-wall-stats.json';
+        if (!existsSync(statsPath)) {
+            fail(
+                `バンドル情報 (${statsPath}) がありません。\n` +
+                    '  `yarn notices` を実行すると生成されます（通知の照合に必要）。'
+            );
+        }
+        process.env.WEBPACK_STATS = statsPath;
+        const current = helpers.fingerprintPackages(
+            helpers.collectPackagesFromDist(root).map((p) => `${p.name}@${p.version}`)
+        );
+        const recorded = helpers.parseFingerprintFromNotices(readFileSync(noticesPath, 'utf8'));
+        if (recorded !== current) {
+            fail(
+                'THIRD_PARTY_NOTICES.txt がバンドル内容と一致しません（依存が変わっています）。\n' +
+                    '  `yarn notices` で再生成してから `yarn build` し直してください。\n' +
+                    `  記録: ${recorded}\n  現在: ${current}`
+            );
+        }
+    } catch (err) {
+        fail(`OSS 通知の照合に失敗しました: ${err instanceof Error ? err.message : String(err)}`);
     }
 }
 

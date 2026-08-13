@@ -28,6 +28,7 @@ Dashboard Studio でも classic でもなく、**独立 React ページ（[splun
 | 配信 | **Splunk 同梱テンプレート `pages/splunk_ui_app.html`** が同名 JS `pages/dpx.js` を読む。**Mako 不使用**（v0.2.0 で全廃）。ダッシュボードを増やしても**再パッケージ不要** |
 | viz | `vizRegistry.js` の Map に React コンポーネントを登録するだけ。**iframe なし・config.json なし・再起動なし** |
 | 編集 | 独自インスペクタ（`Inspector.jsx`）。viz の `editorConfig` からフォームを自動生成 |
+| 管理 | ホーム（`pages/HomePage.jsx`）から**作成（テーマ選択つき）・複製・名前変更・削除・JSON の書き出し／取り込み**。REST 層は `viewStore.js`、スキーマ判定と取り込み検証は依存ゼロの `engine/schema.js` / `engine/importDefinition.js`（**素の Node でテストできるよう viewStore から分離**） |
 
 **開発ループ**（全部で10秒程度）:
 
@@ -617,6 +618,84 @@ undo/redo は `def` のスナップショットを 50 段まで保持する方�
   | `inkwash` | **インク＋水彩（ペン画）**（v1.6.0）。旅帳の生成り＋群青のウォッシュ＋セピアインクの文字 |
   | `liquidGlass` | **Liquid Glass（iOS 26）**（v1.7.0）。WWDC25 の銀地＋細グリッド＋色の溜まり。Apple システムカラー系・SF Pro 系フォント |
 
+  ⚠ **手描き画材4種（crayon / pencil / watercolor / inkwash）の「線」は
+  CSS ではなく canvas で実描画する**（v0.1.0。`handDrawn.js` / `HandDrawnFrame.jsx`）。
+  - **CSS で作れないもの**: `repeating-linear-gradient` と `box-shadow` は
+    **完全な直線・等間隔・均一な太さ**しか作れない。画材の本質である
+    「線がふらつく／筆圧で濃さが変わる／紙の目でかすれる／縁を二度なぞる」は
+    **原理的に表現できない**。v1.6.0 の実装はこれを CSS でやろうとして
+    「小手先で理想と遠い」と評価された（ユーザー指摘）
+  - **分担**: 形のゆらぎ＝ **rough.js**（MIT・バンドル増 約 40KB）、
+    画材固有の乗り方（重ね塗り・かすれ・紙の目）＝自前。
+    **面の表現（水彩のエッジの濃まり等）は CSS のまま**でよい
+    ——CSS が苦手なのは「線」であって「面」ではない
+  - **p5.brush は採用しなかった**：peer に p5.js が要り **17MB**（DPX 本体が 4.5MB）。
+    p5 は canvas と描画ループを own する設計で React と噛み合わない。
+    rough.js は 170KB・フレームワーク非依存で、素の canvas に描ける
+  - ⚠ **必ず seed を渡して決定的にする**（`seedFrom(panel.id)`）。
+    `seed` 省略時は毎回違う絵になり、**React の再描画のたびに枠が変わってチラつく**。
+    症状が「画面がなんとなく落ち着かない」としか出ないので原因特定が難しい
+  - ⚠ **`bowing` は辺の長さに比例して弓なりになる。** 固定値のままだと
+    **横長パネルで辺が内側に大きくたわむ**（実機・幅780pxで顕著）。
+    辺が長いほどゆらぎを弱める（実際の手描きも長い線ほど相対的にまっすぐ）
+  - **試作で分かった「効かなかった方法」4件**（`handDrawn.js` 冒頭に詳述）:
+    ①紙の目を `destination-in` で抜く→暗い盤面で**黒い裂け目**に見える
+    （**紙の色で上から散らす**のが正解）／②四角いセルのノイズを敷き詰める→
+    **デジタルなノイズ／QRコード状**（丸い凹みをまばらに・density 0.08 前後）／
+    ③短い区間を `lineCap:'round'` で並べてかすれを作る→**丸い錠剤が並ぶ**
+    （パスは切らず `butt` で連続。かすれは細く薄い線を多数重ねて出す）／
+    ④rough.js の `hachure` で面を塗る→**直線なので落書き**に見える
+  - ⚠ **canvas の枠はレイアウト上の幅を持たない。** CSS の `border` と違って
+    中身を押しのけないので、**そのままではタイトルやグラフに線が重なる**（実機で発生）。
+    パネル側に枠のぶんの余白（`HAND_DRAWN_INSET`）を持たせて線の居場所を作る。
+    ⚠ このとき**余白ぶん外へ広げようとして負のオフセットを使ってはいけない**：
+    パネルは `overflow:hidden` なので**canvas がまるごと切り取られて枠が消える**
+    （実際に消して気づいた）。絶対配置の基準は *padding box* なので `inset:0` のままにする
+  - ⚠ **枠は中身より前面（`zIndex`）に置く。** 背面に敷くと、自前の背景を持つ viz
+    （テーブルの見出し帯・行の縞など）に**塗り潰されて線が途切れる**（実機で発生）。
+    実際の画材でも「紙の上に描いた線」は中身の上に乗るので物理的にも正しい。
+    `pointerEvents:'none'` にすればクリックは透過する。
+    ⚠ ただし**紙の目は枠の帯の内側に撒かない**（前面にあるので、全面に撒くと
+    グラフや文字の上に粒が乗って汚れて見える）
+  - ⚠ **バンドルされたかの判定は webpack のモジュールグラフで行う**。
+    最小化で package 名が消えるので**文字列 grep は当てにならない**
+    （canvas レンダラ経路では `hachure-fill` 等の推移的依存は含まれない、と実際に確認）
+- ⚠⚠ **OSS 通知は共通ジェネレータで作る**（`scripts/gen-third-party-notices.mjs`／各所で `yarn notices`）。
+  2026-08-13 に点検したところ、DPX は**バンドル 45 件中 42 件が通知に載っていなかった**
+  （react-dom / styled-components / lodash / d3-* 等）。MIT・BSD・Apache-2.0 はいずれも
+  「複製物に著作権表示と許諾条文を含めること」が条件なので、**条件を満たしていない状態**だった。
+  - **【重要】`visualizations/*`（31件）は最初から機械生成されていた。**
+    穴が空いていたのは **`apps/*`**（webpack ビルドなので esbuild metafile が無く、
+    共通ジェネレータの対象外だった）。4アプリ中3つは通知そのものが無かった。
+    → 共通ジェネレータを **webpack stats にも対応**させ（`WEBPACK_STATS` 環境変数）、
+    apps/* 4つを同じ仕組みに載せた（2026-08-13）
+  - ⚠ **新しく作る前に既存の仕組みを探す。** DPX 用の別ジェネレータを書きかけたが、
+    既存のほうが厳格（**指紋照合**・宣言なしパッケージで**失敗**・非 OSS の別枠・
+    `notices-data.json` での素材申告）だったので廃棄した
+  - **`package.mjs` で指紋照合する**（`Fingerprint:` 行 vs 実バンドル）。
+    これが無いと通知は必ず腐る。**apps/* にも同じ照合を入れた**
+    （壊して落ちることを実機で確認済み）
+  - ⚠ **`package.json` の dependencies から作らない**：react / styled-components / @splunk/* は
+    devDependencies だが `external` 指定が無いのでバンドルされる。逆も然り
+  - ⚠ **apps/dpx は姉妹 viz の `node_modules` も踏む**（移植した viz を import しているため）。
+    パッケージ名だけで探すと `d3-sankey` 等を取りこぼす。**解決パスごと**集めること
+  - ⚠ **LICENSE ファイルを同梱していないパッケージがある**（`styled-components` が実例）。
+    共通ジェネレータは**条文を捏造せず**「宣言のみ（原文は配布元参照）」と事実だけ書く
+
+  ⚠ **表示名は短い名前だけにする（説明を括弧で足さない）。** v0.1.0 で
+  `カーボン（無彩色・硬質）` → `カーボン` のように全廃した。選択肢が18〜25個あるので、
+  **括弧付きだとテーマピッカーのタイル内で名前が切れて読めない**（実機で確認）。
+  上の表の「印象」列のような説明は**ドキュメントに置き、UI に持ち込まない**。
+  例外は **識別に要る括弧**（`ライズ（下から）` と `スライド（左から）` は方角が
+  名前から分からない）。この規約は `themes.test.mjs` が機械的に検査する。
+
+  ⚠ **UI の並び順は `PRESET_ORDER`（`themes.js`）が持つ。** `DPX_PRESETS` の定義順は
+  「追加した歴史」そのもので、発光系→紙→また発光系という並びになっていた。
+  **定義ブロック（数百行）を動かさずに並べ替えられる**ようにこの配列へ分離してある。
+  **プリセットを足したら `PRESET_ORDER` にも足すこと**（漏れたものは末尾に出る。
+  テストが検出する）。一覧を出すときは `orderedPresets()` を使い、
+  `Object.entries(DPX_PRESETS)` を直接回さない。
+
   ⚠ **ライト系プリセットを足したらトップバーの地色も確認する。**
   濃紺の決め打ちだったため `paper` で**ブレッドクラムが読めなくなった**（実機で発生）。
   `t.colorScheme` で分岐させること
@@ -691,13 +770,40 @@ undo/redo は `def` のスナップショットを 50 段まで保持する方�
 
   ⚠ **`rotate` を使うと全画面表示とツールチップの位置がずれる**（transform が
   子孫の `position:fixed` の基準を変えるため）。インスペクタにも注意書きを出している
-- **背景エフェクト22種**（`BackgroundLayer.jsx` の `BACKGROUND_OPTIONS`）:
-  canvas 系＝particles / constellation / rain / ripple / wave / starfield、
-  パターン系＝grid / hex / dots / diagonal / scanlines / circuit / topo / weave / laid / graphPaper / halftone、
-  グラデ系＝glow / aurora / vignette / thermalScan / **washBlooms（水彩のにじみ。v1.6.0）**。
+- **背景エフェクト40種**（`BackgroundLayer.jsx` の `BACKGROUND_OPTIONS`。v0.1.0 で 23→40）:
+  canvas 系＝particles / constellation / rain / ripple / wave / starfield /
+  **meteor / radar / bubbles / snow / fireflies**、
+  パターン系＝grid / hex / dots / diagonal / scanlines / circuit / topo / weave / laid /
+  graphPaper / halftone / **isometric / chevron / carbonFiber / blueprintFrame**、
+  グラデ系＝glow / aurora / vignette / thermalScan / **washBlooms（水彩のにじみ。v1.6.0）** /
+  **spotlight / cornerGlow / sunbeam**。
   canvas 系は `document.hidden` で描画停止。
-  ⚠ washBlooms は**縁の輪だけ**を描く（内側に薄膜を敷くと生成り地で
-  灰色の卵形の染みに見える。実機で確認して輪だけに変更した）
+  手描き系＝**paperTooth / sketchGrid / crayonScribble / pencilHatch / inkSplatter**
+  （canvas 実描画。パネル枠と同じ `handDrawn.js` を使う）。
+  **1920×1080・パネル6枚で全て 60fps を実測**（v0.1.0。既存の particles と同値）
+  - ⚠ **手描きの背景は「静止画」にする**（`StaticCanvas`＝サイズ変更時だけ描く）。
+    紙と画材は動かないし、全面 canvas を毎フレーム描くと面積比例の raster が乗る
+  - ⚠ **選択肢と実装のズレは無言で失敗する。** 一覧にあるのに実装が無ければ
+    背景がただ消え（エラーも出ない）、実装だけあれば死にコードになる。
+    `test/backgrounds.test.mjs` が両方向を突き合わせるので、**足すときは
+    一覧と実装の両方**を触る（canvas 系は `kind === '...'` の分岐も要る）
+  - ⚠ washBlooms は**縁の輪だけ**を描く（内側に薄膜を敷くと生成り地で
+    灰色の卵形の染みに見える。実機で確認して輪だけに変更した）
+  - ⚠ **疎らに見せたい canvas 系は「待ち時間」を持たせる**（meteor が実例）。
+    全個体が常に動いていると流星は**ただの雨**になる。個体ごとに
+    `wait` フレームを持たせ、消えたら次の待ちを乱数で振り直す
+  - ⚠ **inset box-shadow を重ねて二重罫は作れない**（blueprintFrame で踏んだ）。
+    後の inset が先の inset を塗り潰すので、**間の透明な隙間が出ずに1本の帯**になる。
+    辺ごとの線は `linear-gradient` ＋ `background-position` / `background-size` で置く
+- **出現アニメ12種**（`DpxDashboard.jsx` の `ENTRANCE_ANIM`。v0.1.0 で 6→12）:
+  rise / drop / fade / slide / slideRight / zoom / pop / unfold / unfoldX / flip / swing / tilt。
+  - **値 → `'<keyframe名> <尺> <イージング> both'` の完全な指定**を持たせる形にしてある
+    （drop の跳ね返りは 0.5s だと潰れるので尺を変える必要があった）
+  - パネルは `index×70ms` でずれて出る（`animationDelay`）ので、
+    **方向のあるアニメは盤面を波が走るように見える**
+  - ⚠ **動かすのは `transform` / `opacity` だけ。** `filter` / `box-shadow` /
+    `background-position` を animate すると毎フレーム再描画になる（§ viz-performance）。
+    テストが keyframes の中身を検査して違反を落とす
 - **タブ＋自動送り**: `tabs` と `rotate`。⚠ **ローテーションの effect を「現在タブ」に依存させない**
   （依存させると切替のたびに基準時刻がリセットされ、15秒設定が4秒間隔になる。実機で発生）。
   `useRef` に最終切替時刻を持ち、effect は張り直さない
@@ -1908,6 +2014,41 @@ URL にクエリを付ける**。**バイト数を比べる**と「実機に届�
   - 斜線を「左上→右下」に引くと**打ち消し線（禁止マーク）**に見える
   - **同じ色・同じ太さで重ねた線は輪郭が溶けて1つの塊になる。**
     別色・別太さにして要素を分離させる
+
+### 8.mm 日本語だけのタイトルは `slugify` すると**空になる**（2026-08-13 実機・実害）
+
+ホームの新規作成で、タイトルから ID を自動生成していた:
+
+```js
+const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
+slugify('売上ダッシュボード')  // → ''  ⚠
+slugify('P1P2 テーマ確認')     // → 'p1p2'（ASCII の断片だけ残る）
+```
+
+**日本語タイトルはこの環境では普通**なので、ID 欄が空のまま「作成」ボタンが
+`disabled` になり、**なぜ押せないのか画面から分からない**という詰み方をする。
+
+→ **ASCII が残らないときは日付ベースの一意な ID を宛てがう**
+（`dpx_YYYYMMDD_hhmmss`。利用者は ID 欄でいつでも書き換えられる）。
+**ダイアログを開いた時点で ID を埋めておく**のが要点で、
+「タイトル入力時に補う」だけでは打鍵のたびに ID が振り直されて落ち着かない。
+
+### 8.nn `TextInput` は**打鍵では反映されない**（blur / Enter で確定する）
+
+`engine/ui.jsx` の `TextInput` は draft/commit 方式で、
+**`onChange` を呼ぶのは blur か Enter のときだけ**（打鍵ごとに定義 JSON を
+書くと編集履歴が1文字ずつ積まれるため。意図した設計）。
+
+⚠ **E2E で `fill()` しただけでは React の state が変わらない。**
+DOM の value は入っているのでスクリーンショット上は正しく見えるのに、
+`disabled` なボタンが有効にならず「実装のバグ」に見える（実際に誤診しかけた）。
+
+```js
+await input.fill('タイトル');
+await input.press('Tab');   // ← 必須。blur させて初めて onChange が走る
+```
+
+**「画面には入っているのにボタンが押せない」ときは、まず確定操作の有無を疑う。**
 
 ## 9. 検証ツール（`tools/dashboard-loop/src/`）
 

@@ -3,12 +3,13 @@
     "version": "1.0.0",
     "license": "UNLICENSED",
     "private": true,
-    "description": "SOC アラートトリアージ コンソール",
+    "description": "SOC \u30a2\u30e9\u30fc\u30c8\u30c8\u30ea\u30a2\u30fc\u30b8 \u30b3\u30f3\u30bd\u30fc\u30eb",
     "scripts": {
         "build": "cross-env NODE_ENV=production webpack --mode=production",
         "build:dev": "webpack --mode=development",
         "start": "webpack --watch",
-        "package": "node bin/package.mjs"
+        "package": "node bin/package.mjs",
+        "notices": "cross-env NODE_ENV=production webpack --mode=production --json > /tmp/soc-console-stats.json && WEBPACK_STATS=/tmp/soc-console-stats.json node ../../scripts/gen-third-party-notices.mjs"
     },
     "dependencies": {
         "@splunk/react-page": "^8.3.2",

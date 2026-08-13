@@ -1,15 +1,16 @@
 {
     "name": "@splunk/dpx",
-    "version": "1.8.0",
+    "version": "0.1.0",
     "license": "MIT",
     "private": true,
-    "description": "新ダッシュボード基盤（Dashboard Framework を独立 React ページでホストする実証）",
+    "description": "\u65b0\u30c0\u30c3\u30b7\u30e5\u30dc\u30fc\u30c9\u57fa\u76e4\uff08Dashboard Framework \u3092\u72ec\u7acb React \u30da\u30fc\u30b8\u3067\u30db\u30b9\u30c8\u3059\u308b\u5b9f\u8a3c\uff09",
     "scripts": {
         "build": "cross-env NODE_ENV=production webpack --mode=production",
         "build:dev": "webpack --mode=development",
         "start": "webpack --watch",
         "package": "node bin/package.mjs",
-        "test": "node test/colorRules.test.mjs && node test/scale.test.mjs && node test/spl.test.mjs && node test/timeBrush.test.mjs && node test/groups.test.mjs && node test/groupSurface.test.mjs && node test/history.test.mjs && node test/themes.test.mjs"
+        "test": "node test/colorRules.test.mjs && node test/scale.test.mjs && node test/spl.test.mjs && node test/timeBrush.test.mjs && node test/groups.test.mjs && node test/groupSurface.test.mjs && node test/history.test.mjs && node test/themes.test.mjs && node test/importDefinition.test.mjs && node test/backgrounds.test.mjs && node test/handDrawn.test.mjs",
+        "notices": "cross-env NODE_ENV=production webpack --mode=production --json > /tmp/dpx-stats.json && WEBPACK_STATS=/tmp/dpx-stats.json node ../../scripts/gen-third-party-notices.mjs"
     },
     "dependencies": {
         "@splunk/dashboard": "^29.8.0",
@@ -27,6 +28,7 @@
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
         "react-is": "^18.3.1",
+        "roughjs": "^4.6.6",
         "styled-components": "^5.3.11",
         "topojson-client": "^3.1.0",
         "world-atlas": "^2.0.2"

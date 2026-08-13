@@ -3,12 +3,13 @@
     "version": "1.0.0",
     "license": "UNLICENSED",
     "private": true,
-    "description": "壁掛けモニタ向け NOC ウォールボード（自動ページ送り付き）",
+    "description": "\u58c1\u639b\u3051\u30e2\u30cb\u30bf\u5411\u3051 NOC \u30a6\u30a9\u30fc\u30eb\u30dc\u30fc\u30c9\uff08\u81ea\u52d5\u30da\u30fc\u30b8\u9001\u308a\u4ed8\u304d\uff09",
     "scripts": {
         "build": "cross-env NODE_ENV=production webpack --mode=production",
         "build:dev": "webpack --mode=development",
         "start": "webpack --watch",
-        "package": "node bin/package.mjs"
+        "package": "node bin/package.mjs",
+        "notices": "cross-env NODE_ENV=production webpack --mode=production --json > /tmp/noc-wall-stats.json && WEBPACK_STATS=/tmp/noc-wall-stats.json node ../../scripts/gen-third-party-notices.mjs"
     },
     "dependencies": {
         "@splunk/react-page": "^8.3.2",

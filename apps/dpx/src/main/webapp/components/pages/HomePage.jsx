@@ -1,10 +1,20 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import DpxBootScreen, { dismissBootSplash } from '../engine/BootScreen';
 import { emptyDashboard } from '../engine/templates';
-import { DPX_PRESETS, resolveTheme } from '../engine/themes';
-import { Button, Field, Select, TextInput, inputStyle, useDpxGlobalStyles } from '../engine/ui';
-import { dashboardHref, listDashboards, listApps, createView, deleteView } from '../viewStore';
+import { DPX_PRESETS, orderedPresets, resolveTheme } from '../engine/themes';
+import { Button, CONTROL_H, Field, Select, TextInput, inputStyle, useDpxGlobalStyles } from '../engine/ui';
+import {
+    dashboardHref,
+    listDashboards,
+    listApps,
+    createView,
+    deleteView,
+    duplicateView,
+    renameView,
+    exportView,
+    parseImportedDefinition,
+} from '../viewStore';
 import SplunkHomeLink from '../engine/SplunkHomeLink';
 
 // ── DPX ホーム（ダッシュボード管理）──────────────────────────────
@@ -22,6 +32,21 @@ const slugify = (s) =>
         .replace(/^_+|_+$/g, '')
         .slice(0, 60);
 
+/** タイトルから ID の候補を作る。
+ *
+ *  ⚠ **日本語だけのタイトルは slugify すると空になる**（「売上ボード」→ ""）。
+ *    ここは日本語タイトルが普通なので、空のまま返すと ID 欄が埋まらず
+ *    「作成」が押せないまま理由も分からない、という詰み方をする（実機で発生）。
+ *    ASCII が残らないときは日付ベースの一意な ID を宛てがう（利用者は
+ *    ID 欄でいつでも書き換えられる）。 */
+const suggestName = (label) => {
+    const slug = slugify(label);
+    if (slug) return slug;
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, '0');
+    return `dpx_${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+};
+
 // dashboardHref はロケール接頭辞付きのパスを返す（?id= 形式）
 const dashboardUrl = (d, mode) => dashboardHref({ app: d.app, name: d.name, mode });
 
@@ -38,6 +63,235 @@ function relTime(iso) {
     if (d === 1) return '昨日';
     if (d < 7) return `${d}日前`;
     return new Date(iso).toLocaleDateString();
+}
+
+/** ダイアログの外枠（作成／複製／名前変更で共用）。 */
+function Modal({ t, title, width = 560, onClose, children }) {
+    return (
+        <div
+            style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(4,8,18,0.7)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 9000,
+            }}
+            onClick={onClose}
+        >
+            <div
+                onClick={(e) => e.stopPropagation()}
+                className="dpx-scroll"
+                style={{
+                    width,
+                    maxHeight: '86vh',
+                    overflowY: 'auto',
+                    background: '#0e1628',
+                    border: `1px solid ${t.accent}44`,
+                    borderRadius: 14,
+                    boxShadow: '0 24px 60px rgba(0,0,0,0.6)',
+                    padding: 22,
+                }}
+            >
+                <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>{title}</div>
+                {children}
+            </div>
+        </div>
+    );
+}
+
+/** 行の「…」メニュー（複製 / 名前変更 / 書き出し）。
+ *
+ *  ⚠ 外側クリックの判定は **mousedown を document で拾い、ref に含まれるかで見る**。
+ *    blur で閉じると、メニュー内のボタンが押される前に閉じてクリックが落ちる
+ *    （DPX で既出の罠）。 */
+function RowMenu({ t, canWrite, onDuplicate, onRename, onExport }) {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+
+    useEffect(() => {
+        if (!open) return undefined;
+        const onDown = (e) => {
+            if (!ref.current?.contains(e.target)) setOpen(false);
+        };
+        const onKey = (e) => {
+            if (e.key === 'Escape') setOpen(false);
+        };
+        document.addEventListener('mousedown', onDown);
+        document.addEventListener('keydown', onKey);
+        return () => {
+            document.removeEventListener('mousedown', onDown);
+            document.removeEventListener('keydown', onKey);
+        };
+    }, [open]);
+
+    const item = (label, onClick, disabled, title) => (
+        <button
+            type="button"
+            title={title}
+            disabled={disabled}
+            onClick={() => {
+                setOpen(false);
+                onClick();
+            }}
+            style={{
+                display: 'block',
+                width: '100%',
+                textAlign: 'left',
+                padding: '7px 12px',
+                fontSize: 12,
+                border: 'none',
+                background: 'transparent',
+                color: disabled ? t.subColor : t.titleColor,
+                cursor: disabled ? 'not-allowed' : 'pointer',
+                opacity: disabled ? 0.5 : 1,
+                fontFamily: 'inherit',
+            }}
+            onMouseEnter={(e) => {
+                if (!disabled) e.currentTarget.style.background = 'rgba(120,160,255,0.14)';
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+            }}
+        >
+            {label}
+        </button>
+    );
+
+    return (
+        <span ref={ref} style={{ position: 'relative', display: 'inline-flex' }}>
+            <button
+                type="button"
+                title="その他の操作"
+                aria-label="その他の操作"
+                aria-expanded={open}
+                onClick={() => setOpen((v) => !v)}
+                style={{
+                    height: CONTROL_H,
+                    width: 30,
+                    borderRadius: 7,
+                    border: '1px solid rgba(140,175,235,0.28)',
+                    background: open ? 'rgba(120,160,255,0.16)' : 'transparent',
+                    color: t.titleColor,
+                    cursor: 'pointer',
+                    fontSize: 15,
+                    lineHeight: 1,
+                    fontFamily: 'inherit',
+                }}
+            >
+                …
+            </button>
+            {open ? (
+                <div
+                    style={{
+                        position: 'absolute',
+                        top: CONTROL_H + 4,
+                        right: 0,
+                        minWidth: 168,
+                        background: '#0e1628',
+                        border: '1px solid rgba(140,175,235,0.3)',
+                        borderRadius: 9,
+                        boxShadow: '0 14px 36px rgba(0,0,0,0.55)',
+                        padding: '4px 0',
+                        zIndex: 40,
+                    }}
+                >
+                    {item('複製', onDuplicate)}
+                    {item(
+                        '名前を変更',
+                        onRename,
+                        !canWrite,
+                        canWrite ? undefined : '変更する権限がありません（所有者または管理者のみ）'
+                    )}
+                    {item('JSON を書き出し', onExport)}
+                </div>
+            ) : null}
+        </span>
+    );
+}
+
+/** テーマピッカー：プリセットを名前ではなく「地の色そのもの」で選ばせる。
+ *
+ *  ⚠ プリセットは 18 種あり、名前（「インクウォッシュ」等）だけでは何色か分からない。
+ *    一覧の行スウォッチと同じ描き方（canvasBg をそのまま塗り、アクセントを点で置く）に
+ *    揃えることで、「作成時に選んだ絵 ＝ 一覧に並ぶ絵」になる。 */
+function ThemePicker({ t, value, onChange }) {
+    return (
+        <div
+            className="dpx-scroll"
+            style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))',
+                gap: 8,
+                maxHeight: 232,
+                overflowY: 'auto',
+                padding: 2,
+            }}
+        >
+            {orderedPresets().map(([key, p]) => {
+                const st = resolveTheme({ style: { preset: key } });
+                const on = value === key;
+                return (
+                    <button
+                        key={key}
+                        type="button"
+                        title={p.name}
+                        onClick={() => onChange(key)}
+                        style={{
+                            display: 'block',
+                            padding: 0,
+                            border: on ? `2px solid ${t.accent}` : '1px solid rgba(140,175,235,0.24)',
+                            // 選択枠が太くなる分の 1px を内側で吸収して、格子が揺れないようにする
+                            margin: on ? 0 : 1,
+                            borderRadius: 8,
+                            background: 'transparent',
+                            cursor: 'pointer',
+                            overflow: 'hidden',
+                            textAlign: 'left',
+                        }}
+                    >
+                        <span
+                            aria-hidden
+                            style={{
+                                display: 'block',
+                                height: 42,
+                                background: st.canvasBg,
+                                position: 'relative',
+                            }}
+                        >
+                            <span
+                                style={{
+                                    position: 'absolute',
+                                    left: 7,
+                                    bottom: 6,
+                                    width: 9,
+                                    height: 9,
+                                    borderRadius: '50%',
+                                    background: st.accent,
+                                }}
+                            />
+                        </span>
+                        <span
+                            style={{
+                                display: 'block',
+                                padding: '4px 6px 5px',
+                                fontSize: 10,
+                                fontWeight: on ? 700 : 500,
+                                color: on ? t.accent : t.subColor,
+                                background: 'rgba(6,10,22,0.6)',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                            }}
+                        >
+                            {p.name}
+                        </span>
+                    </button>
+                );
+            })}
+        </div>
+    );
 }
 
 function useHiddenSplunkChrome() {
@@ -65,7 +319,13 @@ const HomePage = ({ navigate }) => {
         name: '',
         app: 'dpx',
         touchedName: false,
+        preset: 'midnight',
     });
+    // 複製／名前変更のダイアログ。対象の行をそのまま持つ（null = 閉じている）
+    const [dup, setDup] = useState(null);
+    const [rename, setRename] = useState(null);
+    // 取り込んだ定義（{name, definition}）。作成ダイアログに相乗りする
+    const [imported, setImported] = useState(null);
 
     const reload = useCallback(() => {
         listDashboards()
@@ -99,16 +359,51 @@ const HomePage = ({ navigate }) => {
         return [...m.entries()];
     }, [sorted]);
 
+    /** 既存の名前と衝突しない ID を作る（`foo` → `foo_copy` → `foo_copy2` …）。 */
+    const uniqueName = useCallback(
+        (base, app) => {
+            const taken = new Set(
+                (dashboards ?? []).filter((d) => d.app === app).map((d) => d.name)
+            );
+            if (!taken.has(base)) return base;
+            for (let i = 2; i < 200; i += 1) {
+                if (!taken.has(`${base}${i}`)) return `${base}${i}`;
+            }
+            return `${base}_${Date.now()}`;
+        },
+        [dashboards]
+    );
+
+    const openCreate = () => {
+        // ⚠ 取り込み結果を必ず捨てる。残っていると次の「新規作成」が
+        //   前回貼った JSON から始まってしまう
+        setImported(null);
+        // ID は最初から埋めておく。日本語タイトルだと slugify が空になるので、
+        // 「タイトルを書いたのに作成が押せない」状態を作らないための初期値
+        setForm({
+            label: '',
+            name: suggestName(''),
+            app: 'dpx',
+            touchedName: false,
+            preset: 'midnight',
+        });
+        setCreating(true);
+    };
+
     const onCreate = () => {
-        const name = form.name || slugify(form.label);
-        if (!form.label.trim() || !name) return;
+        const name = form.name || suggestName(form.label);
+        const label = form.label.trim();
+        if (!label || !name) return;
         setBusy(true);
-        createView({
-            app: form.app,
-            name,
-            label: form.label.trim(),
-            definition: emptyDashboard(form.label.trim()),
-        })
+        // 取り込んだ定義があればそれを土台にし、無ければ空板。
+        // どちらの場合もタイトルと配色はこのダイアログの入力を正とする
+        const base = imported?.definition ?? emptyDashboard(label);
+        const definition = {
+            ...base,
+            title: label,
+            style: { ...(base.style ?? {}), preset: form.preset },
+        };
+        createView({ app: form.app, name, label, definition })
             .then(() => {
                 navigate(dashboardUrl({ app: form.app, name }, 'edit'));
             })
@@ -116,6 +411,72 @@ const HomePage = ({ navigate }) => {
                 setBusy(false);
                 setError(`作成に失敗: ${String(err?.message ?? err)}`);
             });
+    };
+
+    /** JSON ファイルを読み込んで作成ダイアログに載せる。 */
+    const onPickFile = (file) => {
+        if (!file) return;
+        file.text()
+            .then((text) => {
+                const { definition, error: parseError } = parseImportedDefinition(text);
+                if (parseError) {
+                    setError(`取り込めません: ${parseError}`);
+                    return;
+                }
+                const label = definition.title || file.name.replace(/\.json$/i, '');
+                setImported({ definition, fileName: file.name });
+                setForm({
+                    label,
+                    name: uniqueName(suggestName(label), 'dpx'),
+                    app: 'dpx',
+                    touchedName: false,
+                    preset: definition.style?.preset ?? 'midnight',
+                });
+                setError(null);
+                setCreating(true);
+            })
+            .catch((err) => setError(`ファイルを読めません: ${String(err?.message ?? err)}`));
+    };
+
+    const onDuplicate = () => {
+        if (!dup) return;
+        const label = dup.label.trim();
+        const name = dup.name.trim();
+        if (!label || !name) return;
+        setBusy(true);
+        duplicateView({ app: dup.src.app, name: dup.src.name, toApp: dup.app, toName: name, label })
+            .then(() => {
+                setBusy(false);
+                setDup(null);
+                reload();
+            })
+            .catch((err) => {
+                setBusy(false);
+                setError(`複製に失敗: ${String(err?.message ?? err)}`);
+            });
+    };
+
+    const onRename = () => {
+        if (!rename) return;
+        const label = rename.label.trim();
+        if (!label) return;
+        setBusy(true);
+        renameView({ app: rename.src.app, name: rename.src.name, owner: rename.src.owner, label })
+            .then(() => {
+                setBusy(false);
+                setRename(null);
+                reload();
+            })
+            .catch((err) => {
+                setBusy(false);
+                setError(`名前の変更に失敗: ${String(err?.message ?? err)}`);
+            });
+    };
+
+    const onExport = (d) => {
+        exportView({ app: d.app, name: d.name }).catch((err) =>
+            setError(`書き出しに失敗: ${String(err?.message ?? err)}`)
+        );
     };
 
     const onDelete = (d) => {
@@ -186,7 +547,25 @@ const HomePage = ({ navigate }) => {
                     onChange={(e) => setQuery(e.target.value)}
                     style={{ ...inputStyle(t), width: 200 }}
                 />
-                <Button t={t} kind="primary" label="＋ 新規作成" onClick={() => setCreating(true)} />
+                {/* 取り込みは file input が本体。ボタンは見た目を揃えるための飾りで、
+                    クリックを隠し input に中継する */}
+                <input
+                    id="dpx-import-file"
+                    type="file"
+                    accept="application/json,.json"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                        onPickFile(e.target.files?.[0]);
+                        // 同じファイルを続けて選んでも change が出るようにクリアする
+                        e.target.value = '';
+                    }}
+                />
+                <Button
+                    t={t}
+                    label="取り込み"
+                    onClick={() => document.getElementById('dpx-import-file')?.click()}
+                />
+                <Button t={t} kind="primary" label="＋ 新規作成" onClick={openCreate} />
             </div>
 
             <div className="dpx-scroll" style={{ flex: 1, overflow: 'auto', padding: '24px 28px 40px' }}>
@@ -222,7 +601,7 @@ const HomePage = ({ navigate }) => {
                         <div style={{ fontSize: 12, marginBottom: 16 }}>
                             空のダッシュボードを作って、編集モードでパネルを追加していきます。
                         </div>
-                        <Button t={t} kind="primary" label="＋ 新規作成" onClick={() => setCreating(true)} />
+                        <Button t={t} kind="primary" label="＋ 新規作成" onClick={openCreate} />
                     </div>
                 ) : (
                     <div style={{ maxWidth: 1080, margin: '0 auto' }}>
@@ -350,16 +729,32 @@ const HomePage = ({ navigate }) => {
                                             >
                                                 {relTime(d.updated)}
                                             </span>
-                                            {/* 行クリック＝開く なので、ボタンは編集と削除だけ。
+                                            {/* 行クリック＝開く なので、常設ボタンは編集と削除だけ。
+                                                複製・名前変更・書き出しは「…」に畳む（4つ以上を
+                                                並べると行が窮屈になり、肝心のラベルが縮む）。
                                                 アンカー内のボタンなので既定遷移を必ず止める */}
                                             <span
                                                 className="dpx-row-actions"
-                                                style={{ display: 'flex', gap: 6 }}
+                                                style={{ display: 'flex', gap: 6, alignItems: 'center' }}
                                                 onClick={(e) => {
                                                     e.preventDefault();
                                                     e.stopPropagation();
                                                 }}
                                             >
+                                                <RowMenu
+                                                    t={t}
+                                                    canWrite={d.canWrite}
+                                                    onDuplicate={() =>
+                                                        setDup({
+                                                            src: d,
+                                                            app: d.app,
+                                                            label: `${d.label} のコピー`,
+                                                            name: uniqueName(`${d.name}_copy`, d.app),
+                                                        })
+                                                    }
+                                                    onRename={() => setRename({ src: d, label: d.label })}
+                                                    onExport={() => onExport(d)}
+                                                />
                                                 <Button
                                                     t={t}
                                                     label="編集"
@@ -393,71 +788,144 @@ const HomePage = ({ navigate }) => {
             </div>
 
             {creating ? (
-                <div
-                    style={{
-                        position: 'fixed',
-                        inset: 0,
-                        background: 'rgba(4,8,18,0.7)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        zIndex: 9000,
-                    }}
-                    onClick={() => !busy && setCreating(false)}
+                <Modal
+                    t={t}
+                    title={imported ? 'JSON から作成' : 'ダッシュボードを新規作成'}
+                    onClose={() => !busy && setCreating(false)}
                 >
-                    <div
-                        onClick={(e) => e.stopPropagation()}
-                        className="dpx-scroll"
-                        style={{
-                            width: 560,
-                            maxHeight: '86vh',
-                            overflowY: 'auto',
-                            background: '#0e1628',
-                            border: `1px solid ${t.accent}44`,
-                            borderRadius: 14,
-                            boxShadow: '0 24px 60px rgba(0,0,0,0.6)',
-                            padding: 22,
-                        }}
-                    >
-                        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>ダッシュボードを新規作成</div>
-
-                        <Field t={t} label="タイトル">
-                            <TextInput
-                                t={t}
-                                value={form.label}
-                                onChange={(v) =>
-                                    setForm((f) => ({ ...f, label: v, name: f.touchedName ? f.name : slugify(v) }))
-                                }
-                            />
-                        </Field>
-                        <Field t={t} label="ID（ビュー名）" hint="英数字・ハイフン・アンダースコア">
-                            <TextInput
-                                t={t}
-                                value={form.name}
-                                onChange={(v) => setForm((f) => ({ ...f, name: slugify(v), touchedName: true }))}
-                            />
-                        </Field>
-                        <Field t={t} label="所属アプリ" hint="ダッシュボード（ビュー）の保存先">
-                            <Select
-                                t={t}
-                                value={form.app}
-                                options={apps.map((a) => ({ value: a.id, label: `${a.label} (${a.id})` }))}
-                                onChange={(v) => setForm((f) => ({ ...f, app: v }))}
-                            />
-                        </Field>
-
-                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18 }}>
-                            <Button t={t} label="キャンセル" disabled={busy} onClick={() => setCreating(false)} />
-                            <Button
-                                t={t}
-                                kind="primary"
-                                label={busy ? '作成中…' : '作成して編集へ'}
-                                disabled={busy || !form.label.trim()}
-                                onClick={onCreate}
-                            />
+                    {imported ? (
+                        <div
+                            style={{
+                                background: 'rgba(78,161,255,0.12)',
+                                border: `1px solid ${t.accent}55`,
+                                borderRadius: 8,
+                                padding: '9px 12px',
+                                marginBottom: 14,
+                                fontSize: 11.5,
+                                color: t.subColor,
+                            }}
+                        >
+                            <code style={{ color: t.titleColor }}>{imported.fileName}</code> を読み込みました（パネル{' '}
+                            {imported.definition.panels?.length ?? 0}）。保存先とタイトルを決めて作成します。
                         </div>
+                    ) : null}
+
+                    <Field t={t} label="タイトル">
+                        <TextInput
+                            t={t}
+                            value={form.label}
+                            onChange={(v) =>
+                                setForm((f) => ({
+                                    ...f,
+                                    label: v,
+                                    // 打鍵のたびに日付 ID を振り直さないよう、空になるときだけ補う
+                                    name: f.touchedName ? f.name : slugify(v) || f.name,
+                                }))
+                            }
+                        />
+                    </Field>
+                    <Field t={t} label="ID（ビュー名）" hint="英数字・ハイフン・アンダースコア">
+                        <TextInput
+                            t={t}
+                            value={form.name}
+                            onChange={(v) => setForm((f) => ({ ...f, name: slugify(v), touchedName: true }))}
+                        />
+                    </Field>
+                    <Field t={t} label="所属アプリ" hint="ダッシュボード（ビュー）の保存先">
+                        <Select
+                            t={t}
+                            value={form.app}
+                            options={apps.map((a) => ({ value: a.id, label: `${a.label} (${a.id})` }))}
+                            onChange={(v) => setForm((f) => ({ ...f, app: v }))}
+                        />
+                    </Field>
+                    <Field
+                        t={t}
+                        label="配色プリセット"
+                        hint={imported ? '取り込んだ定義の配色を上書きします' : 'あとから編集モードで変更できます'}
+                    >
+                        <ThemePicker
+                            t={t}
+                            value={form.preset}
+                            onChange={(v) => setForm((f) => ({ ...f, preset: v }))}
+                        />
+                    </Field>
+
+                    <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18 }}>
+                        <Button t={t} label="キャンセル" disabled={busy} onClick={() => setCreating(false)} />
+                        <Button
+                            t={t}
+                            kind="primary"
+                            label={busy ? '作成中…' : '作成して編集へ'}
+                            disabled={busy || !form.label.trim() || !form.name}
+                            onClick={onCreate}
+                        />
                     </div>
-                </div>
+                </Modal>
+            ) : null}
+
+            {dup ? (
+                <Modal t={t} title="ダッシュボードを複製" width={520} onClose={() => !busy && setDup(null)}>
+                    <div style={{ fontSize: 11.5, color: t.subColor, marginBottom: 14 }}>
+                        複製元：<code style={{ color: t.titleColor }}>{`${dup.src.app}/${dup.src.name}`}</code>
+                        <br />
+                        パネル・データソース・タブ・入力をそのまま引き継ぎます。
+                    </div>
+                    <Field t={t} label="タイトル">
+                        <TextInput t={t} value={dup.label} onChange={(v) => setDup((s) => ({ ...s, label: v }))} />
+                    </Field>
+                    <Field t={t} label="ID（ビュー名）" hint="複製元と同じ ID は使えません">
+                        <TextInput
+                            t={t}
+                            value={dup.name}
+                            onChange={(v) => setDup((s) => ({ ...s, name: slugify(v) }))}
+                        />
+                    </Field>
+                    <Field t={t} label="所属アプリ" hint="別のアプリへコピーできます">
+                        <Select
+                            t={t}
+                            value={dup.app}
+                            options={apps.map((a) => ({ value: a.id, label: `${a.label} (${a.id})` }))}
+                            onChange={(v) => setDup((s) => ({ ...s, app: v }))}
+                        />
+                    </Field>
+                    <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18 }}>
+                        <Button t={t} label="キャンセル" disabled={busy} onClick={() => setDup(null)} />
+                        <Button
+                            t={t}
+                            kind="primary"
+                            label={busy ? '複製中…' : '複製'}
+                            disabled={busy || !dup.label.trim() || !dup.name.trim()}
+                            onClick={onDuplicate}
+                        />
+                    </div>
+                </Modal>
+            ) : null}
+
+            {rename ? (
+                <Modal t={t} title="名前を変更" width={460} onClose={() => !busy && setRename(null)}>
+                    <div style={{ fontSize: 11.5, color: t.subColor, marginBottom: 14 }}>
+                        ID（<code style={{ color: t.titleColor }}>{rename.src.name}</code>）は変わりません。
+                        既存のリンクはそのまま使えます。
+                    </div>
+                    <Field t={t} label="タイトル">
+                        <TextInput
+                            t={t}
+                            value={rename.label}
+                            onChange={(v) => setRename((s) => ({ ...s, label: v }))}
+                        />
+                    </Field>
+                    <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18 }}>
+                        <Button t={t} label="キャンセル" disabled={busy} onClick={() => setRename(null)} />
+                        <Button
+                            t={t}
+                            kind="primary"
+                            label={busy ? '保存中…' : '保存'}
+                            disabled={busy || !rename.label.trim()}
+                            onClick={onRename}
+                        />
+                    </div>
+                </Modal>
             ) : null}
         </div>
     );

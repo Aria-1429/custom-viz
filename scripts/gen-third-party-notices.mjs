@@ -58,8 +58,65 @@ export function fingerprintPackages(pkgsWithVersion) {
     return createHash('sha256').update(list, 'utf8').digest('hex');
 }
 
+// --- webpack stats → バンドルされたパッケージ集合 ---------------------------
+//
+// ⚠ `apps/*`（DPX 等）は **webpack** でビルドするので esbuild の metafile が無い。
+//   同じ「実際に取り込まれたモジュール」を webpack の stats（`--json`）から取る。
+// ⚠ **`apps/dpx` は姉妹 viz の `node_modules` も踏む**（移植した viz を import
+//   しているため）。`node_modules/` は **最後の出現位置**で切ること
+//   （最初で切ると入れ子の依存を親パッケージ名に誤認する）。
+export function extractBundledPackagesFromWebpack(stats) {
+    const pkgs = new Set();
+    for (const m of stats.modules || []) {
+        const name = m.name || '';
+        const i = name.lastIndexOf('node_modules/');
+        if (i < 0) continue;
+        const rest = name.slice(i + 'node_modules/'.length);
+        const seg = rest.split('/');
+        pkgs.add(seg[0].startsWith('@') ? `${seg[0]}/${seg[1]}` : seg[0]);
+    }
+    return [...pkgs].sort();
+}
+
+/** そのパッケージが実際に置かれている node_modules を探す。
+ *  ⚠ `apps/*` は姉妹 viz の node_modules も参照するので、
+ *    自分の node_modules だけを見ると「見つからない」で落ちる。 */
+function resolvePackageDir(projectRoot, name) {
+    const own = join(projectRoot, 'node_modules', name);
+    if (existsSync(join(own, 'package.json'))) return own;
+    // リポジトリ内の他プロジェクト（visualizations/*, apps/*）も探す
+    const repoRoot = resolve(projectRoot, '..', '..');
+    for (const group of ['visualizations', 'apps']) {
+        const base = join(repoRoot, group);
+        if (!existsSync(base)) continue;
+        for (const e of readdirSync(base, { withFileTypes: true })) {
+            if (!e.isDirectory()) continue;
+            const cand = join(base, e.name, 'node_modules', name);
+            if (existsSync(join(cand, 'package.json'))) return cand;
+        }
+    }
+    return null;
+}
+
 // プロジェクト内の全 metafile から name@version 一覧を作る（package.mjs も使う）
 export function collectPackagesFromDist(projectRoot) {
+    // webpack プロジェクト（apps/*）は stats を使う。
+    // 生成コマンドは `yarn notices` 側が用意する（既定は /tmp/<app>-stats.json）
+    const statsPath = process.env.WEBPACK_STATS || join(projectRoot, 'dist', 'webpack-stats.json');
+    if (existsSync(statsPath)) {
+        const stats = JSON.parse(readFileSync(statsPath, 'utf8'));
+        const names = extractBundledPackagesFromWebpack(stats);
+        if (names.length === 0) throw new Error(`${statsPath} からバンドル対象を取得できませんでした`);
+        return names.map((name) => {
+            const dir = resolvePackageDir(projectRoot, name);
+            if (!dir) throw new Error(`${name} の package.json が見つかりません（yarn install 済みか確認）`);
+            const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
+            const license = typeof pkg.license === 'string' ? pkg.license : (pkg.license?.type || '');
+            const repo = typeof pkg.repository === 'string' ? pkg.repository : (pkg.repository?.url || '');
+            return { name, version: pkg.version || '0.0.0', license, homepage: pkg.homepage || '', repo, dir };
+        });
+    }
+
     const distDir = join(projectRoot, 'dist');
     if (!existsSync(distDir)) throw new Error('dist/ がありません。先に yarn build:prod を実行してください。');
     const metafiles = readdirSync(distDir, { withFileTypes: true })
@@ -114,8 +171,10 @@ function buildDisclaimerMap(projectRoot) {
 }
 
 // パッケージ同梱の LICENSE ファイル（disclaimer に無い場合のフォールバック）
-function readLicenseFile(projectRoot, name) {
-    const dir = join(projectRoot, 'node_modules', name);
+// ⚠ `dirHint` は collectPackagesFromDist が解決した実際の場所（apps/* は
+//   姉妹 viz の node_modules を踏むので、自分の node_modules 決め打ちにしない）
+function readLicenseFile(projectRoot, name, dirHint) {
+    const dir = dirHint && existsSync(dirHint) ? dirHint : join(projectRoot, 'node_modules', name);
     if (!existsSync(dir)) return null;
     const candidates = readdirSync(dir).filter((f) => /^(licen[cs]e|copying|notice)(\.|$)/i.test(f));
     for (const f of candidates.sort()) {
@@ -148,7 +207,7 @@ function main() {
             nonOss.push(p);
             continue;
         }
-        const text = disclaimer.get(p.name) || readLicenseFile(projectRoot, p.name);
+        const text = disclaimer.get(p.name) || readLicenseFile(projectRoot, p.name, p.dir);
         if (text) oss.push({ ...p, text });
         else declaredOnly.push(p);
     }
@@ -226,7 +285,14 @@ function main() {
     }
     lines.push('');
 
-    const outPath = join(projectRoot, 'THIRD_PARTY_NOTICES.txt');
+    // ⚠ 出力先はプロジェクトによって違う。
+    //   visualizations/* … 直下（package.mjs が stage へコピーする）
+    //   apps/*（webpack）… `src/main/resources/splunk/` 配下に置くと
+    //     webpack が stage/ へ配ってくれる（直下に置いても .spl に入らない）
+    const splunkRes = join(projectRoot, 'src', 'main', 'resources', 'splunk');
+    const outPath = existsSync(splunkRes)
+        ? join(splunkRes, 'THIRD_PARTY_NOTICES.txt')
+        : join(projectRoot, 'THIRD_PARTY_NOTICES.txt');
     writeFileSync(outPath, lines.join('\n'));
     console.log(`生成: ${outPath}`);
     console.log(`  バンドル対象: ${packages.length} パッケージ`);

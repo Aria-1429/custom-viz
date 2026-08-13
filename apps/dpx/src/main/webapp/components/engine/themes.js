@@ -136,7 +136,7 @@ export const DPX_PRESETS = {
     },
     carbon: {
         ...base,
-        name: 'カーボン（無彩色・硬質）',
+        name: 'カーボン',
         canvasBg: 'linear-gradient(180deg, #121417 0%, #16191d 100%)',
         titleColor: '#e6e9ee',
         subColor: 'rgba(230, 233, 238, 0.5)',
@@ -159,7 +159,7 @@ export const DPX_PRESETS = {
     },
     amber: {
         ...base,
-        name: 'アンバー（琥珀の管制盤）',
+        name: 'アンバー',
         canvasBg:
             'radial-gradient(ellipse at 50% 0%, rgba(255,170,60,0.10), transparent 55%), linear-gradient(180deg, #17120a 0%, #1d1710 100%)',
         titleColor: '#ffeccd',
@@ -183,7 +183,7 @@ export const DPX_PRESETS = {
     },
     slate: {
         ...base,
-        name: 'スレート（落ち着いた青灰）',
+        name: 'スレート',
         canvasBg: 'linear-gradient(180deg, #1b2029 0%, #202634 100%)',
         titleColor: '#dde5f0',
         subColor: 'rgba(221, 229, 240, 0.5)',
@@ -206,7 +206,7 @@ export const DPX_PRESETS = {
     },
     matrix: {
         ...base,
-        name: 'マトリクス（緑のターミナル）',
+        name: 'マトリクス',
         canvasBg:
             'radial-gradient(ellipse at 50% 100%, rgba(60,255,158,0.08), transparent 55%), linear-gradient(180deg, #05100a 0%, #071510 100%)',
         titleColor: '#d6ffe8',
@@ -231,7 +231,7 @@ export const DPX_PRESETS = {
     },
     paper: {
         ...base,
-        name: 'ペーパー（印刷物・高コントラスト）',
+        name: 'ペーパー',
         canvasBg: '#eceff3',
         titleColor: '#14181f',
         subColor: 'rgba(20, 24, 31, 0.6)',
@@ -254,7 +254,7 @@ export const DPX_PRESETS = {
     },
     letterpress: {
         ...base,
-        name: 'レタープレス（活版・紙の質感）',
+        name: 'レタープレス',
         // 生成りの紙。完全な平坦にせず、隅をわずかに焼けさせて「刷り物」に寄せる。
         // ⚠ ここは静的なグラデーション1枚だけ。animate しないので合成は一度きり
         //   （background-position を動かすと全面再描画になる。BackgroundLayer.jsx 参照）
@@ -285,7 +285,7 @@ export const DPX_PRESETS = {
     },
     blueprint: {
         ...base,
-        name: 'ブループリント（青焼き図面）',
+        name: 'ブループリント',
         // 青焼き（シアノタイプ）：濃いプルシアンブルーの地に白とシアンの線。
         // 暗色だが**発光させない**のが要点。ネオン系との差はここにある
         canvasBg: 'linear-gradient(180deg, #0d2b52 0%, #10315c 100%)',
@@ -312,7 +312,7 @@ export const DPX_PRESETS = {
     },
     thermal: {
         ...base,
-        name: 'サーマル（熱画像）',
+        name: 'サーマル',
         // 赤外カメラの偽色。地は「冷たい側」＝黒〜暗紫、
         // 差し色は「熱い側」＝橙〜白。既存プリセットに無い暖色の連続スケール
         canvasBg:
@@ -337,7 +337,7 @@ export const DPX_PRESETS = {
     },
     eink: {
         ...base,
-        name: 'E Ink（電子ペーパー・低コントラスト）',
+        name: 'E Ink',
         // 電子ペーパー：ほぼ無彩色・低コントラスト。
         // 長時間つけっぱなしの壁面表示で目が疲れないことを狙う。
         // ⚠ 彩度を持たせない（色で主張しないのがこのプリセットの存在理由）
@@ -366,7 +366,7 @@ export const DPX_PRESETS = {
     },
     watercolor: {
         ...base,
-        name: '水彩（にじみの紙）',
+        name: '水彩',
         // コールドプレスの水彩紙。地は生成りで、隅に薄めた顔料のウォッシュを
         // 乾かした跡を置く。**にじみは「縁が中心より濃い」**（乾くとき顔料が
         // 縁に寄る＝エッジの濃まり）。radial-gradient の段差でその縁を作る。
@@ -379,6 +379,9 @@ export const DPX_PRESETS = {
             ' radial-gradient(ellipse 30% 24% at 80% 8%, rgba(201,151,63,0.08) 0%, rgba(201,151,63,0.08) 54%, rgba(201,151,63,0.17) 74%, transparent 83%),' +
             ' radial-gradient(ellipse 26% 20% at 30% 96%, rgba(106,160,111,0.07) 0%, rgba(106,160,111,0.07) 52%, rgba(106,160,111,0.15) 74%, transparent 83%),' +
             ' linear-gradient(180deg, #f8f5ee 0%, #f2eee2 100%)',
+        // 紙そのものの色。**手描き画材の canvas 描画が「顔料が乗らなかった凹み」を
+        //   この色で置く**（handDrawn.js の applyTooth）。生成りの水彩紙
+        paperColor: '#fdfaf2',
         titleColor: '#2b3440', // ペインズグレー（水彩の「黒」は青みの灰）
         subColor: 'rgba(43, 52, 64, 0.6)',
         accent: '#3f8fbf', // セルリアンブルー
@@ -404,7 +407,7 @@ export const DPX_PRESETS = {
     },
     crayon: {
         ...base,
-        name: 'クレヨン（黒画用紙）',
+        name: 'クレヨン',
         // 黒画用紙にオイルパステル。手描き系4種で唯一の暗い地。
         // 紙の目（tooth）は 1px の明るい粒＝面積比例の塗りにならない。
         // パステルの「こすった跡」を隅に2枚だけ、ごく薄く置く
@@ -417,6 +420,9 @@ export const DPX_PRESETS = {
             ' radial-gradient(ellipse 36% 28% at 96% 4%, rgba(77,184,232,0.11), transparent 62%),' +
             ' radial-gradient(ellipse 26% 22% at 55% 100%, rgba(126,217,87,0.08), transparent 60%),' +
             ' linear-gradient(180deg, #262220 0%, #1f1c19 100%)',
+        // 紙そのものの色。**手描き画材の canvas 描画が「顔料が乗らなかった凹み」を
+        //   この色で置く**（handDrawn.js の applyTooth）。黒画用紙
+        paperColor: '#1f1c19',
         titleColor: '#f3ece1', // チョークの白
         subColor: 'rgba(243, 236, 225, 0.55)',
         accent: '#ffce3d', // クロムイエロー
@@ -440,12 +446,15 @@ export const DPX_PRESETS = {
     },
     pencil: {
         ...base,
-        name: '色鉛筆（スケッチブック）',
+        name: '色鉛筆',
         // スケッチブックの紙。細かい紙目（4px 間隔の 1px 粒）だけを敷き、
         // 色は乗せない（色は系列色＝芯の色に任せる。地が主張すると芯が濁る）
         canvasBg:
             'radial-gradient(rgba(70, 75, 85, 0.09) 1px, transparent 1px) 0 0 / 4px 4px, ' +
             'linear-gradient(180deg, #f5f3ee 0%, #efede5 100%)',
+        // 紙そのものの色。**手描き画材の canvas 描画が「顔料が乗らなかった凹み」を
+        //   この色で置く**（handDrawn.js の applyTooth）。スケッチブックの紙
+        paperColor: '#f2f0e9',
         titleColor: '#2e3138', // グラファイト
         subColor: 'rgba(46, 49, 56, 0.58)',
         accent: '#4a78b5', // 青鉛筆（校正の青）
@@ -470,7 +479,7 @@ export const DPX_PRESETS = {
     },
     inkwash: {
         ...base,
-        name: 'インク＋水彩（ペン画）',
+        name: 'インク＋水彩',
         // アーバンスケッチ（ペン＋淡彩）。地は旅帳の生成り。
         // 群青のウォッシュを上辺に一刷け、隅は紙の日焼けでわずかに沈める
         canvasBg:
@@ -478,6 +487,9 @@ export const DPX_PRESETS = {
             ' radial-gradient(ellipse 34% 24% at 6% 92%, rgba(191,106,85,0.10), transparent 62%),' +
             ' radial-gradient(ellipse 120% 90% at 50% 50%, transparent 60%, rgba(110,90,60,0.10) 100%),' +
             ' linear-gradient(180deg, #f6f1e4 0%, #f1ebdc 100%)',
+        // 紙そのものの色。**手描き画材の canvas 描画が「顔料が乗らなかった凹み」を
+        //   この色で置く**（handDrawn.js の applyTooth）。旅帳の生成り
+        paperColor: '#f4efe0',
         titleColor: '#262119', // セピアの製図インク
         subColor: 'rgba(38, 33, 25, 0.6)',
         accent: '#3b78a8', // ウルトラマリンのウォッシュ
@@ -500,7 +512,7 @@ export const DPX_PRESETS = {
     },
     liquidGlass: {
         ...base,
-        name: 'Liquid Glass（iOS 26）',
+        name: 'Liquid Glass',
         // WWDC25 のキービジュアルの舞台＝銀のグラデーションに細いグリッド。
         // ガラスは「背景を屈折させて見せる」材質なので、地には
         // (1) 淡い色の溜まり（屈折で見えるもの）と (2) グリッド（歪みの基準線）を敷く。
@@ -560,6 +572,47 @@ export const DPX_PRESETS = {
         },
     },
 };
+
+/** プリセットを選ぶ UI での並び順（暗い画面 → 明るい紙 → 画材 → ガラス）。
+ *
+ *  ⚠ **`DPX_PRESETS` の定義順とは分ける。** 定義順は追加した歴史そのもので、
+ *    「発光系のあとに紙が来て、また発光系に戻る」という並びになっていた。
+ *    ここを見れば UI の並びが分かるようにし、**定義の場所を動かさずに**
+ *    順番を変えられるようにする（数百行のブロック移動は差分が読めなくなる）。
+ *  ⚠ 新しいプリセットを足したらこの配列にも足すこと（漏れたものは末尾に回る）。 */
+export const PRESET_ORDER = [
+    // 暗い画面（発光系）
+    'midnight',
+    'slate',
+    'carbon',
+    'neon',
+    'aurora',
+    'matrix',
+    'amber',
+    'thermal',
+    // 明るい地・紙もの
+    'light',
+    'paper',
+    'eink',
+    'letterpress',
+    'blueprint',
+    // 手描きの画材
+    'watercolor',
+    'inkwash',
+    'pencil',
+    'crayon',
+    // ガラス
+    'liquidGlass',
+];
+
+/** プリセットの一覧を表示順で返す（`[key, preset]` の配列）。
+ *  ⚠ `PRESET_ORDER` に無いものも**必ず末尾に出す**（足し忘れても消えない）。 */
+export function orderedPresets() {
+    const keys = Object.keys(DPX_PRESETS);
+    const ranked = PRESET_ORDER.filter((k) => k in DPX_PRESETS);
+    const rest = keys.filter((k) => !PRESET_ORDER.includes(k));
+    return [...ranked, ...rest].map((k) => [k, DPX_PRESETS[k]]);
+}
 
 /** definition から解決済みテーマを得る（style.preset > 旧 theme キーの順で解釈）。 */
 export function resolveTheme(definition) {
@@ -713,32 +766,39 @@ export function groupVariants() {
     return PANEL_VARIANTS.filter((v) => !GROUP_INCOMPATIBLE_VARIANTS.has(v.value));
 }
 
+/** パネルの質感。**並びは「素っ気ない → 装飾的」**（基本形 → 光り物 → 紙もの → 画材）。
+ *  ⚠ ラベルは短い名前だけにする（説明を括弧で足さない）。
+ *    選択肢が25個あるので、括弧付きだと一覧が読めなくなる。 */
 export const PANEL_VARIANTS = [
-    { value: 'noc', label: 'コーナーフレーム（四隅のカギ括弧）' },
-    { value: 'bracketSolid', label: 'コーナーフレーム＋不透明' },
-    { value: 'card', label: 'カード（枠あり）' },
-    { value: 'glass', label: 'すりガラス' },
+    // 基本形
+    { value: 'frameless', label: '枠なし' },
+    { value: 'outline', label: '枠線' },
+    { value: 'card', label: 'カード' },
     { value: 'solid', label: '不透明' },
-    { value: 'outline', label: '枠線のみ' },
+    { value: 'glass', label: 'すりガラス' },
     { value: 'underline', label: '上線' },
     { value: 'sideAccent', label: '左線' },
     { value: 'inset', label: '沈み込み' },
     { value: 'elevated', label: '浮き上がり' },
-    { value: 'holo', label: 'ホログラム（斜め縞）' },
-    { value: 'neonEdge', label: 'ネオン管（枠が光る）' },
-    { value: 'blueprint', label: '方眼紙（設計図）' },
-    { value: 'ticket', label: '伝票（上辺ミシン目）' },
-    { value: 'letterpress', label: '活版（細罫）' },
-    { value: 'watercolor', label: '水彩（にじみの縁）' },
-    { value: 'crayon', label: 'クレヨン（蝋の縁取り）' },
-    { value: 'pencil', label: '色鉛筆（ハッチング）' },
-    { value: 'inkwash', label: 'インク＋水彩（ペン画）' },
-    { value: 'liquidGlass', label: 'Liquid Glass（iOS 26 のガラス）' },
-    { value: 'polaroid', label: '印画紙（下に広い余白）' },
-    { value: 'punchCard', label: 'パンチカード（上辺に切り欠き）' },
-    { value: 'titleBlock', label: '表題欄（図面の枠）' },
-    { value: 'eink', label: '電子ペーパー（平坦）' },
-    { value: 'frameless', label: '枠なし（透過）' },
+    // 管制・光り物
+    { value: 'noc', label: 'コーナーフレーム' },
+    { value: 'bracketSolid', label: 'コーナーフレーム＋地' },
+    { value: 'neonEdge', label: 'ネオン管' },
+    { value: 'holo', label: 'ホログラム' },
+    { value: 'liquidGlass', label: 'Liquid Glass' },
+    // 紙もの・図面
+    { value: 'blueprint', label: '方眼紙' },
+    { value: 'titleBlock', label: '表題欄' },
+    { value: 'letterpress', label: '活版' },
+    { value: 'ticket', label: '伝票' },
+    { value: 'punchCard', label: 'パンチカード' },
+    { value: 'polaroid', label: '印画紙' },
+    { value: 'eink', label: '電子ペーパー' },
+    // 手描きの画材
+    { value: 'watercolor', label: '水彩' },
+    { value: 'inkwash', label: 'インク＋水彩' },
+    { value: 'pencil', label: '色鉛筆' },
+    { value: 'crayon', label: 'クレヨン' },
 ];
 
 export function panelSurface(theme, variant, bracketLen = 11) {
@@ -892,21 +952,27 @@ export function panelSurface(theme, variant, bracketLen = 11) {
             boxShadow: `inset 0 0 22px ${theme.accent}45, inset 0 0 5px ${theme.accent}52`,
             // 水の縁は角張らない。質感側で丸みを持つ（個別指定があれば後勝ちで上書きされる）
             borderRadius: 9,
+            // ⚠ 水彩は「輪郭線を引かない」画材なので、CSS の内側グラデ（エッジの濃まり）
+            //   は残す＝ここは CSS が構造的に苦手な部分ではない。
+            //   canvas 側は**ウォッシュの外周がふらつく**ことだけを足す
+            __handDrawn: 'watercolor',
         };
     }
     if (variant === 'crayon') {
-        // クレヨンの縁取り：太く・少し透ける蝋の線。
-        // 蝋は完全に紙を覆わないので不透明にしない（b8=72%）。
-        // 内側にもう一周「こすった跡」を薄く回すと、単なる太枠に見えなくなる。
-        // 角は丸く（クレヨンで直角は引けない＝角丸はこの質感の意匠の一部）
+        // クレヨン：**枠は canvas で実描画する**（`HandDrawnFrame`）。
+        //
+        // ⚠ v1.10.0 で CSS の枠を撤去した。`border` + `box-shadow` では
+        //   直線・等間隔・均一な太さしか作れず、「線がふらつく／二度なぞる／
+        //   紙の目でかすれる」という画材の本質が一つも出せなかった
+        //   （ユーザー指摘：「小手先の CSS で理想とは遠い」）。
+        //   ここは**紙の地だけ**を返し、線は handDrawn.js に任せる。
         return {
             backgroundColor:
                 theme.colorScheme === 'light' ? 'rgba(255, 255, 255, 0.6)' : 'rgba(30, 27, 23, 0.72)',
-            border: `4px solid ${theme.accent}cc`,
-            // 蝋の二度塗り：内側にもう一周＋**外側にずらしたもう一筆**
-            // （クレヨンは同じ線を2回なぞる。ずれが「手」の証拠になる）
-            boxShadow: `inset 0 0 0 3px ${theme.accent}33, 3px 3px 0 0 ${theme.accent}59`,
+            border: 'none',
             borderRadius: 12,
+            // 実描画する画材（DpxDashboard が読んで canvas を敷く）
+            __handDrawn: 'crayon',
         };
     }
     if (variant === 'pencil') {
@@ -915,18 +981,18 @@ export function panelSurface(theme, variant, bracketLen = 11) {
         // holo（7px 間隔）より細かい 4px 間隔にして「塗り」に見せる
         const graphite =
             theme.colorScheme === 'light' ? 'rgba(52, 56, 64, 0.62)' : 'rgba(220, 224, 232, 0.5)';
+        // ⚠ v1.10.0: 輪郭とハッチングは canvas で実描画する（handDrawn.js）。
+        //   CSS の repeating-linear-gradient は**完全な直線・等間隔**なので、
+        //   鉛筆の「線がふらつく・筆圧で濃さが変わる」が出せなかった。
+        //   ここは紙の地と、紙に落ちる影だけを担当する。
         return {
             backgroundColor:
                 theme.colorScheme === 'light' ? 'rgba(255, 255, 255, 0.62)' : 'rgba(18, 24, 36, 0.6)',
-            // クロスハッチ：主方向（手の角度 115deg・濃く密）＋交差方向（25deg・薄く粗く）。
-            // 1方向だけだと「薄い縞」にしか見えなかったので交差させて「塗り」にする
-            backgroundImage:
-                `repeating-linear-gradient(115deg, ${theme.accent}24 0px, ${theme.accent}24 1px, transparent 1px, transparent 4px),` +
-                ` repeating-linear-gradient(25deg, ${theme.accent}0f 0px, ${theme.accent}0f 1px, transparent 1px, transparent 7px)`,
-            border: `1px solid ${graphite}`,
+            border: 'none',
             boxShadow: `2.5px 2.5px 0 0 ${
                 theme.colorScheme === 'light' ? 'rgba(52, 56, 64, 0.28)' : 'rgba(220, 224, 232, 0.2)'
             }`,
+            __handDrawn: 'pencil',
         };
     }
     if (variant === 'inkwash') {
@@ -935,14 +1001,18 @@ export function panelSurface(theme, variant, bracketLen = 11) {
         // 右下の box-shadow はペンの「入りと抜き」で線が太る癖の表現
         const ink =
             theme.colorScheme === 'light' ? 'rgba(38, 33, 25, 0.72)' : 'rgba(235, 228, 214, 0.6)';
+        // ⚠ v1.10.0: インクの輪郭線は canvas で実描画する（handDrawn.js）。
+        //   ウォッシュ（淡彩のにじみ）は面の表現なので CSS のまま残す
+        //   ——「線」だけが CSS で表現できなかった部分だから。
         return {
             backgroundColor:
                 theme.colorScheme === 'light' ? 'rgba(253, 250, 243, 0.7)' : 'rgba(24, 28, 38, 0.7)',
             backgroundImage: `radial-gradient(ellipse 90% 70% at 16% 0%, ${theme.accent}38, transparent 64%)`,
-            border: `2px solid ${ink}`,
+            border: 'none',
             boxShadow: `3px 3px 0 -1px ${
                 theme.colorScheme === 'light' ? 'rgba(38, 33, 25, 0.3)' : 'rgba(0, 0, 0, 0.5)'
             }`,
+            __handDrawn: 'inkwash',
         };
     }
     if (variant === 'liquidGlass') {

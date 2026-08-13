@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { createURL } from '@splunk/splunk-utils/url';
 
 import BackgroundLayer from './BackgroundLayer';
+import HandDrawnFrame from './HandDrawnFrame';
 import LiquidGlassDefs from './liquidGlassDefs';
 import { resolvePanelSearch } from './dataSources';
 import PanelContextMenu, { buildSearchUrl, toCsv } from './PanelContextMenu';
@@ -51,6 +52,10 @@ import { defaultVariantFor, resolveViz } from './vizRegistry';
 
 const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
 const TITLE_H = 36;
+/** 手描きの枠が中身に食い込まないよう、パネルの内側に確保する余白（px）。
+ *  ⚠ `HandDrawnFrame` が線を引く位置とこの値は**対で決まる**。
+ *    片方だけ変えると線が中身に重なるか、逆に枠と中身が離れすぎる。 */
+const HAND_DRAWN_INSET = 10;
 /**
  * 区画（グループ）のヘッダ帯の高さ(px)。罫と区画名がここに入る。
  *
@@ -487,13 +492,23 @@ function TabStrip({ t, tabs, currentTab, onTabChange, rotate, mode, vertical, wi
 // 登場アニメの選択肢 → keyframes 名。
 // ⚠ `rotate` を付けたパネルは必ず fade に落とす。他のアニメは transform を
 //    `none` まで動かすので、**後勝ちで傾きが打ち消される**（実機で発覚・§8.aa）
+// 登場アニメ。値 → [keyframe 名, 長さ・イージング]。
+// ⚠ 尺を変えたいものがあるので**指定ごと持たせる**（drop の跳ね返りは
+//   0.5s だと潰れて見えない）。既定は 0.5s ease。
 const ENTRANCE_ANIM = {
-    rise: 'dpxRiseIn',
-    fade: 'dpxFadeIn',
-    zoom: 'dpxZoomIn',
-    slide: 'dpxSlideIn',
-    flip: 'dpxFlipIn',
-    unfold: 'dpxUnfold',
+    rise: 'dpxRiseIn 0.5s ease both',
+    fade: 'dpxFadeIn 0.5s ease both',
+    zoom: 'dpxZoomIn 0.5s ease both',
+    slide: 'dpxSlideIn 0.5s ease both',
+    slideRight: 'dpxSlideInRight 0.5s ease both',
+    flip: 'dpxFlipIn 0.5s ease both',
+    swing: 'dpxSwingIn 0.55s ease both',
+    unfold: 'dpxUnfold 0.5s ease both',
+    unfoldX: 'dpxUnfoldX 0.5s ease both',
+    // 跳ね返りは尺が要る。cubic-bezier で軽い overshoot を作る
+    drop: 'dpxDropIn 0.62s cubic-bezier(0.22, 1.2, 0.36, 1) both',
+    pop: 'dpxPopIn 0.42s cubic-bezier(0.2, 0.9, 0.3, 1) both',
+    tilt: 'dpxTiltIn 0.5s ease both',
 };
 
 // 常時アニメ（パネル単位）。控えめな動きだけを用意する。
@@ -740,7 +755,13 @@ function Panel({
     const panelPxHeight = full
         ? vh - FULL_INSET * 2
         : panel.h * grid.rowHeight + (panel.h - 1) * grid.gap;
-    const surface = panelSurface(t, variant, bracketArmLength(panelPxHeight));
+    // ⚠ `__handDrawn` は「canvas で実描画する画材」の指示であって CSS ではない。
+    //   React に渡すと不明なスタイルとして DOM に漏れるので、必ず取り除く。
+    const { __handDrawn: handDrawnMedium, ...surface } = panelSurface(
+        t,
+        variant,
+        bracketArmLength(panelPxHeight)
+    );
 
     // タイトルバーの位置と質感（既定は 'auto' ＝ 質感に追従＝従来の見た目のまま）
     const titleAlign = panel.style?.titleAlign ?? 'left';
@@ -806,6 +827,11 @@ function Panel({
                 minHeight: 0,
                 position: 'relative',
                 color: t.titleColor,
+                // ⚠ **手描きの枠は中身に食い込む。** canvas の枠はパネルの外周に
+                //   描かれるが、CSS の border と違って**レイアウト上の幅を持たない**ので、
+                //   そのままだとタイトルやグラフの上に線が重なる（実機で発生）。
+                //   枠のぶんだけ内側に余白を作って、線の居場所を確保する
+                ...(handDrawnMedium ? { padding: HAND_DRAWN_INSET } : null),
                 // ⚠ 全画面ではアニメーションを外す。entrance は transform を使うため、
                 //    残すと中の position:fixed（ツールチップ等）が壊れる（§8.z）。
                 // ⚠ 傾き（style.rotate）を付けたパネルでは rise を使わない。
@@ -816,7 +842,7 @@ function Panel({
                 // （CSS の animation は複数指定できる）
                 animation: [
                     !full && mode !== 'edit' && entrance && entrance !== 'none'
-                        ? `${ENTRANCE_ANIM[Number(panel.style?.rotate) ? 'fade' : entrance] ?? 'dpxRiseIn'} 0.5s ease both`
+                        ? ENTRANCE_ANIM[Number(panel.style?.rotate) ? 'fade' : entrance] ?? ENTRANCE_ANIM.rise
                         : null,
                     // ⚠ 常時アニメは編集中と全画面では止める。
                     //    編集中に動くと掴みにくく、全画面は「読むための表示」なので
@@ -829,6 +855,19 @@ function Panel({
                 animationDelay: full ? undefined : `${Math.min(index * 70, 600)}ms`,
             }}
         >
+            {/* 手描き画材の枠は canvas で実描画する（CSS の border では
+                線のふらつき・二度なぞり・かすれが作れない）。
+                ⚠ パネル本体の背面に敷く（内容の上に出さない） */}
+            {handDrawnMedium ? (
+                <HandDrawnFrame
+                    medium={handDrawnMedium}
+                    color={panel.style?.accent || t.accent}
+                    paper={t.paperColor}
+                    seedKey={panel.id}
+                    radius={surface.borderRadius ?? t.radius}
+                    inset={HAND_DRAWN_INSET}
+                />
+            ) : null}
             {hideTitle ? null : (
                 <div
                     onPointerDown={editing ? (e) => onDragStart?.(panel.id, 'move', e) : undefined}
@@ -1159,6 +1198,23 @@ export default function DpxDashboard({
             '@keyframes dpxSlideIn { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }' +
             '@keyframes dpxFlipIn { from { opacity: 0; transform: perspective(700px) rotateX(-12deg) translateY(10px); } to { opacity: 1; transform: none; } }' +
             '@keyframes dpxUnfold { from { opacity: 0; transform: scaleY(0.82); } to { opacity: 1; transform: none; } }' +
+            // ── 登場アニメ（v1.9.0 追加）──────────────────────
+            // パネルは index×70ms でずれて出るので、方向のあるものは
+            // 「盤面を波が走る」ように見える（既存の stagger をそのまま使う）
+            //
+            // 落ちて弾む。overshoot は translateY だけで作る（scale だと文字が滲む）
+            '@keyframes dpxDropIn { 0% { opacity: 0; transform: translateY(-22px); } ' +
+            '60% { opacity: 1; transform: translateY(4px); } 100% { opacity: 1; transform: none; } }' +
+            // 右から差し込む（slide の逆向き。左右で意味を分けたいときに使う）
+            '@keyframes dpxSlideInRight { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }' +
+            // 少し縮んでから戻る＝「置かれた」感じ。ズームの逆方向
+            '@keyframes dpxPopIn { 0% { opacity: 0; transform: scale(1.06); } 100% { opacity: 1; transform: none; } }' +
+            // 横に開く（unfold の横版）。表・一覧が並ぶ盤面で気持ちよく出る
+            '@keyframes dpxUnfoldX { from { opacity: 0; transform: scaleX(0.86); } to { opacity: 1; transform: none; } }' +
+            // わずかに傾いて起き上がる（紙を置く動き）。手描き系テーマと相性が良い
+            '@keyframes dpxTiltIn { from { opacity: 0; transform: rotate(-1.5deg) translateY(10px); } to { opacity: 1; transform: none; } }' +
+            // 奥から迫る（Y 軸の回転）。flip の縦版で、左右に並ぶ盤面で効く
+            '@keyframes dpxSwingIn { from { opacity: 0; transform: perspective(800px) rotateY(-14deg) translateX(-10px); } to { opacity: 1; transform: none; } }' +
             // ── 常時アニメ（パネル単位で任意に付ける）──────────
             '@keyframes dpxFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }' +
             '@keyframes dpxBreathe { 0%,100% { opacity: 1; } 50% { opacity: 0.82; } }' +

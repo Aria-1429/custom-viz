@@ -378,13 +378,24 @@ export function DpxLine({ dataSources, options = {}, height, loading, onEventTri
 
                 {/* X 軸ラベル。時刻は `15:00`、日付が変わる位置だけ下段に `8/12` を出す
                     （ISO を切り詰めると全部 `2026-08-1…` になる。実機で発生） */}
-                {axisLabels.map((lab, i) =>
-                    i % xTickEvery === 0 ? (
+                {axisLabels.map((lab, i) => {
+                    if (i % xTickEvery !== 0) return null;
+                    // ⚠ **両端のラベルは中央揃えにしない。**
+                    //   `textAnchor="middle"` のままだと、右端のラベル（`08:01` 等）は
+                    //   半分が padR（14px）を越えてはみ出し、**見切れる**（実機で発生）。
+                    //   端だけ内側へ寄せる（右端＝右揃え／左端＝左揃え）。
+                    //   padR を広げる手もあるが、それだとプロット領域が常に狭くなるうえ、
+                    //   ラベルの文字数（`08:01` と `2026-08-13`）で必要量が変わる
+                    const x = px(i);
+                    const nearRight = x > padL + plotW - 24;
+                    const nearLeft = x < padL + 24;
+                    const anchor = nearRight ? 'end' : nearLeft ? 'start' : 'middle';
+                    return (
                         <g key={i}>
                             <text
-                                x={px(i)}
+                                x={x}
                                 y={padT + plotH + 14}
-                                textAnchor="middle"
+                                textAnchor={anchor}
                                 fontSize={10}
                                 fill={t.subColor}
                             >
@@ -392,9 +403,9 @@ export function DpxLine({ dataSources, options = {}, height, loading, onEventTri
                             </text>
                             {lab.sub ? (
                                 <text
-                                    x={px(i)}
+                                    x={x}
                                     y={padT + plotH + 24}
-                                    textAnchor="middle"
+                                    textAnchor={anchor}
                                     fontSize={9}
                                     fill={t.subColor}
                                     opacity={0.8}
@@ -403,8 +414,8 @@ export function DpxLine({ dataSources, options = {}, height, loading, onEventTri
                                 </text>
                             ) : null}
                         </g>
-                    ) : null
-                )}
+                    );
+                })}
 
                 {/* 時間ブラシの選択帯。ドラッグ中だけ出る。
                     ⚠ 塗りは**選択部分だけ**（面積が小さい）。「選択外を暗くする」

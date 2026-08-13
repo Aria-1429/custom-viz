@@ -16,7 +16,14 @@ import { needsChoices, normalizeChoices } from './inputChoices';
 import SplEditor from './SplEditor';
 import { usePanelFields } from './panelFields';
 import TimeRangePicker from './TimeRangePicker';
-import { DPX_PRESETS, PANEL_VARIANTS, effectivePanelColor, groupVariants, resolveTheme } from './themes';
+import {
+    DPX_PRESETS,
+    PANEL_VARIANTS,
+    effectivePanelColor,
+    groupVariants,
+    orderedPresets,
+    resolveTheme,
+} from './themes';
 import { Button, ColorInput, Field, NumberInput, Section, Select, Slider, TextInput, Toggle, inputStyle, isTransparent } from './ui';
 import { VIZ_CATEGORY_LABELS, defaultVariantFor, listViz, vizEditorConfig, vizOptionsSchema } from './vizRegistry';
 
@@ -226,7 +233,7 @@ function GroupEditor({ t, group, definition, patchDef, onRemoved, onDuplicate })
                     value={group.variant ?? 'rule'}
                     // ⭐ **パネルと同じ質感を流用する**（実装も一覧も1か所）。
                     //   区画固有の「上辺の罫」だけ先頭に足す
-                    options={[{ value: 'rule', label: '上辺の罫（区画の既定）' }, ...groupVariants()]}
+                    options={[{ value: 'rule', label: '上辺の罫' }, ...groupVariants()]}
                     onChange={(v) => patch({ variant: v })}
                 />
             </Field>
@@ -1194,7 +1201,7 @@ export default function Inspector({
                         <Select
                             t={t}
                             value={definition.style?.preset ?? 'midnight'}
-                            options={Object.entries(DPX_PRESETS).map(([key, p]) => ({ value: key, label: p.name }))}
+                            options={orderedPresets().map(([key, p]) => ({ value: key, label: p.name }))}
                             onChange={(v) => patchDef({ style: { ...(definition.style ?? {}), preset: v } })}
                         />
                     </Field>
@@ -1220,13 +1227,20 @@ export default function Inspector({
                             t={t}
                             value={definition.style?.entrance ?? 'rise'}
                             options={[
-                                { value: 'rise', label: 'ライズ（下から）' },
-                                { value: 'fade', label: 'フェード' },
-                                { value: 'zoom', label: 'ズーム' },
-                                { value: 'slide', label: 'スライド（左から）' },
-                                { value: 'flip', label: 'フリップ（奥から起き上がる）' },
-                                { value: 'unfold', label: 'アンフォールド（縦に開く）' },
                                 { value: 'none', label: 'なし' },
+                                { value: 'fade', label: 'フェード' },
+                                // 方角は名前から分からないので括弧を残す（説明ではなく識別情報）
+                                { value: 'rise', label: 'ライズ（下から）' },
+                                { value: 'drop', label: 'ドロップ（上から）' },
+                                { value: 'slide', label: 'スライド（左から）' },
+                                { value: 'slideRight', label: 'スライド（右から）' },
+                                { value: 'zoom', label: 'ズーム（拡大）' },
+                                { value: 'pop', label: 'ポップ（縮小）' },
+                                { value: 'unfold', label: 'アンフォールド（縦）' },
+                                { value: 'unfoldX', label: 'アンフォールド（横）' },
+                                { value: 'flip', label: 'フリップ（X 軸）' },
+                                { value: 'swing', label: 'スイング（Y 軸）' },
+                                { value: 'tilt', label: 'ティルト' },
                             ]}
                             onChange={(v) => patchDef({ style: { ...(definition.style ?? {}), entrance: v } })}
                         />
@@ -1565,17 +1579,18 @@ export default function Inspector({
                         t={t}
                         value={p.style?.titleSkin ?? 'auto'}
                         options={[
+                            // 「自動」だけは挙動の説明を残す（他は見た目の名前なので不要）
                             { value: 'auto', label: '自動（質感に合わせる）' },
-                            { value: 'control', label: '管制ラベル（小さめ大文字）' },
-                            { value: 'plain', label: '素（通常の文字）' },
-                            { value: 'bold', label: '太字（大きめ）' },
-                            { value: 'badge', label: 'バッジ（先頭に丸）' },
+                            { value: 'plain', label: '素' },
+                            { value: 'bold', label: '太字' },
+                            { value: 'control', label: '管制ラベル' },
+                            { value: 'mono', label: '等幅' },
+                            { value: 'underline', label: '下線' },
                             { value: 'accentBar', label: '左に色帯' },
                             { value: 'filled', label: '地を敷く' },
-                            { value: 'ribbon', label: 'リボン（左から grad）' },
-                            { value: 'underline', label: '下線つき' },
-                            { value: 'mono', label: '等幅（ID 向け）' },
-                            { value: 'stamp', label: 'ゴム印（二重枠）' },
+                            { value: 'badge', label: 'バッジ' },
+                            { value: 'ribbon', label: 'リボン' },
+                            { value: 'stamp', label: 'ゴム印' },
                         ]}
                         onChange={(v) =>
                             patchPanel(p.id, {

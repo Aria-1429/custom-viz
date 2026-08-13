@@ -20,6 +20,8 @@ import { createRESTURL, createURL } from '@splunk/splunk-utils/url';
 import { defaultFetchInit, handleError, handleResponse } from '@splunk/splunk-utils/fetch';
 import { username } from '@splunk/splunk-utils/config';
 
+import { isDpxDefinition } from './engine/schema';
+
 /** Splunk 同梱の第一党テンプレート（Mako ではない）。 */
 export const TEMPLATE_REF = 'pages/splunk_ui_app.html';
 /** ホストビュー名（画面はこの1枚だけ）。 */
@@ -63,18 +65,11 @@ export function homeHref() {
     return createURL(`app/${HOST_APP}/${HOST_VIEW}`);
 }
 
-/**
- * DPX スキーマ v1 の定義かどうか。
- *
- * ⚠ **Dashboard Studio も `<definition>` に JSON を入れる**ので、
- *   入れ物の形だけでは区別できない（実機で確認）。
- *   DPX は `version: 1` と `panels` 配列を必ず持つので、それで判定する。
- *   Studio 側は `visualizations` / `dataSources` / `layout` を持ち `version` は
- *   文字列（"1.1" 等）なので、この条件には合致しない。
- */
-export function isDpxDefinition(def) {
-    return Boolean(def) && def.version === 1 && Array.isArray(def.panels);
-}
+// スキーマ判定と取り込み検証は engine/ 側の依存ゼロのモジュールが持つ
+// （素の Node からテストできるようにするため）。従来の import 先を壊さないよう
+// ここから再輸出する。
+export { isDpxDefinition };
+export { parseImportedDefinition } from './engine/importDefinition';
 
 /** ダッシュボード定義入りの eai:data を組み立てる。
  *  template は既存ビューの値を保持できるよう引数で受ける（省略時は標準テンプレート）。
@@ -188,6 +183,38 @@ export async function createView({ app, name, label, definition: providedDefinit
         .catch(handleError('共有設定の変更に失敗しました'));
 }
 
+/** ラベル（表示名）だけを差し替える。
+ *
+ *  ⚠ **`label` 単独の POST では変わらない。** ラベルは eai:data（ビュー XML）の
+ *    `<label>` が実体なので、**定義ごと読み直して XML を組み直す**必要がある
+ *    （`saveView` と同じ経路に載せる）。template も既存値を保持する。 */
+export async function renameView({ app, name, owner, label }) {
+    const current = await fetchView(app, name);
+    await saveView({
+        app,
+        name,
+        owner: owner ?? current.owner,
+        label,
+        definition: { ...current.definition, title: label },
+        template: current.template,
+    });
+}
+
+/** 複製。既存ボードの定義をそのまま新しいビューへ写す。
+ *
+ *  定義の `title` は新しいラベルに合わせて書き換える（ボード内の表示と
+ *  一覧のラベルが食い違わないようにする）。データソース・パネル・タブ・
+ *  入力はすべて定義 JSON の中なので、丸ごとコピーで完全に複製できる。 */
+export async function duplicateView({ app, name, toApp, toName, label }) {
+    const src = await fetchView(app, name);
+    await createView({
+        app: toApp ?? app,
+        name: toName,
+        label,
+        definition: { ...src.definition, title: label },
+    });
+}
+
 /** 失敗レスポンスから人間が読める文言を取り出す。
  *  ⚠ これを通さず Response をそのまま throw すると、画面に
  *  「削除に失敗: [object Response]」と出る（実機で発生した不具合）。 */
@@ -281,6 +308,23 @@ export async function listDashboards() {
             }
         })
         .filter(Boolean);
+}
+
+/** ダッシュボード定義を .json としてダウンロードさせる。
+ *
+ *  ⚠ **Blob URL は revoke を遅らせる。** click() の直後に revoke すると
+ *    ブラウザがダウンロードを始める前に URL が死ぬことがある。 */
+export async function exportView({ app, name }) {
+    const { label, definition } = await fetchView(app, name);
+    const json = JSON.stringify({ ...definition, title: definition.title ?? label }, null, 2);
+    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${name}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 /** 書き込み可能で UI に見えるアプリの一覧（新規作成先の選択肢）。 */
