@@ -1,0 +1,451 @@
+{
+  "schemaVersion": 2,
+  "title": "DPX 標準 viz カタログ",
+  "description": "DPX に標準で入っている viz の一覧。各パネルのタイトルに viz キーとデータ規約を書いてあるので、そのままコピーして使えます。",
+  "style": {
+    "preset": "midnight",
+    "entrance": "rise"
+  },
+  "layout": {
+    "type": "grid",
+    "grid": {
+      "columns": 12,
+      "rowHeight": 40,
+      "gap": 10
+    }
+  },
+  "tabs": [
+    {
+      "id": "chart",
+      "label": "チャート"
+    },
+    {
+      "id": "status",
+      "label": "数値・状態・表"
+    },
+    {
+      "id": "deco",
+      "label": "装飾・図形"
+    }
+  ],
+  "dataSources": {
+    "ds_series": {
+      "spl": "| makeresults count=24 | streamstats count as i | eval _time=relative_time(now(), \"-\".(24-i).\"h\"), req=round(400+180*sin(i/3.2)+(i%5)*22), err=round(20+14*sin(i/2.1)+(i%3)*4) | eval 時刻=strftime(_time,\"%H:%M\") | table 時刻 req err"
+    },
+    "ds_cat": {
+      "spl": "| makeresults count=6 | streamstats count as i | eval サービス=case(i=1,\"auth\",i=2,\"api\",i=3,\"web\",i=4,\"batch\",i=5,\"cache\",1=1,\"db\"), 件数=case(i=1,320,i=2,285,i=3,190,i=4,140,i=5,95,1=1,60) | table サービス 件数"
+    },
+    "ds_single": {
+      "spl": "| makeresults count=12 | streamstats count as i | eval スループット=round(820+90*sin(i/2.5)+(i%4)*18) | table スループット"
+    },
+    "ds_gauge": {
+      "spl": "| makeresults | eval 使用率=68, 上限=100 | table 使用率 上限"
+    },
+    "ds_progress": {
+      "spl": "| makeresults count=5 | streamstats count as i | eval チーム=\"team-\".i, 実績=case(i=1,118,i=2,86,i=3,44,i=4,205,1=1,31), 目標=case(i=1,100,i=2,120,i=3,60,i=4,200,1=1,90) | table チーム 実績 目標"
+    },
+    "ds_hist": {
+      "spl": "| makeresults count=240 | streamstats count as i | eval 応答時間ms=round(150+70*sin(i/11)+(i%23)*9) | table 応答時間ms"
+    },
+    "ds_heat": {
+      "spl": "| makeresults count=56 | streamstats count as i | eval 曜日=strftime(1755000000+((i-1)%7)*86400,\"%a\"), 時間帯=tostring(((floor((i-1)/7))*3)).\"時\", 件数=((i*13)%40)+2 | table 曜日 時間帯 件数"
+    },
+    "ds_status": {
+      "spl": "| makeresults count=6 | streamstats count as i | eval ホスト=\"srv-\".printf(\"%02d\",i), 状態=case(i<=3,\"ok\",i=4,\"warn\",i=5,\"crit\",1=1,\"ok\"), 補足=case(i=4,\"レイテンシ上昇\",i=5,\"ディスク逼迫\",1=1,\"正常\") | table ホスト 状態 補足"
+    },
+    "ds_table": {
+      "spl": "| makeresults count=8 | streamstats count as i | eval ホスト=\"node-\".printf(\"%02d\",i), リクエスト=((i*137)%800)+120, エラー=((i*29)%40), 応答msec=((i*53)%260)+80 | table ホスト リクエスト エラー 応答msec"
+    },
+    "ds_link": {
+      "spl": "| makeresults | eval 遅延=42 | table 遅延"
+    }
+  },
+  "panels": [
+    {
+      "id": "c_head",
+      "tab": "chart",
+      "viz": "deco.text",
+      "title": "",
+      "x": 0,
+      "y": 0,
+      "w": 12,
+      "h": 2,
+      "style": {
+        "variant": "frameless"
+      },
+      "options": {
+        "text": "推移・比較・分布を見る",
+        "size": 15,
+        "align": "left"
+      }
+    },
+    {
+      "id": "c_line",
+      "tab": "chart",
+      "viz": "dpx.line",
+      "title": "dpx.line ／ 折れ線・エリア  —  1列目=X、2列目以降=数値系列",
+      "x": 0,
+      "y": 2,
+      "w": 8,
+      "h": 7,
+      "search": {
+        "ref": "ds_series"
+      },
+      "options": {
+        "showArea": true,
+        "smooth": true
+      }
+    },
+    {
+      "id": "c_value",
+      "tab": "chart",
+      "viz": "dpx.value",
+      "title": "dpx.value ／ 単一値  —  最初の数値列（最終値＋前回比）",
+      "x": 8,
+      "y": 2,
+      "w": 4,
+      "h": 7,
+      "search": {
+        "ref": "ds_single"
+      },
+      "options": {
+        "unit": "req/s"
+      }
+    },
+    {
+      "id": "c_bar",
+      "tab": "chart",
+      "viz": "dpx.bar",
+      "title": "dpx.bar ／ 棒グラフ  —  1列目=ラベル、2列目=値",
+      "x": 0,
+      "y": 9,
+      "w": 4,
+      "h": 7,
+      "search": {
+        "ref": "ds_cat"
+      }
+    },
+    {
+      "id": "c_rank",
+      "tab": "chart",
+      "viz": "dpx.ranking",
+      "title": "dpx.ranking ／ ランキング（横棒）  —  ラベルが長いときはこちら",
+      "x": 4,
+      "y": 9,
+      "w": 4,
+      "h": 7,
+      "search": {
+        "ref": "ds_cat"
+      }
+    },
+    {
+      "id": "c_donut",
+      "tab": "chart",
+      "viz": "dpx.donut",
+      "title": "dpx.donut ／ ドーナツ（構成比）  —  中央に合計",
+      "x": 8,
+      "y": 9,
+      "w": 4,
+      "h": 7,
+      "search": {
+        "ref": "ds_cat"
+      }
+    },
+    {
+      "id": "c_gauge",
+      "tab": "chart",
+      "viz": "dpx.gauge",
+      "title": "dpx.gauge ／ ゲージ（達成率）  —  1列目=値、2列目=目標",
+      "x": 0,
+      "y": 16,
+      "w": 3,
+      "h": 7,
+      "search": {
+        "ref": "ds_gauge"
+      },
+      "options": {
+        "label": "ディスク使用率",
+        "unit": "%"
+      }
+    },
+    {
+      "id": "c_prog",
+      "tab": "chart",
+      "viz": "dpx.progress",
+      "title": "dpx.progress ／ 進捗バー（目標比）  —  項目ごとに目標が違ってよい",
+      "x": 3,
+      "y": 16,
+      "w": 5,
+      "h": 7,
+      "search": {
+        "ref": "ds_progress"
+      }
+    },
+    {
+      "id": "c_hist",
+      "tab": "chart",
+      "viz": "dpx.histogram",
+      "title": "dpx.histogram ／ ヒストグラム（分布）  —  ラベル列が要らない",
+      "x": 8,
+      "y": 16,
+      "w": 4,
+      "h": 7,
+      "search": {
+        "ref": "ds_hist"
+      }
+    },
+    {
+      "id": "c_heat",
+      "tab": "chart",
+      "viz": "dpx.heatmap",
+      "title": "dpx.heatmap ／ ヒートマップ  —  1列目=行、2列目=列、3列目=値",
+      "x": 0,
+      "y": 23,
+      "w": 12,
+      "h": 8,
+      "search": {
+        "ref": "ds_heat"
+      }
+    },
+    {
+      "id": "s_head",
+      "tab": "status",
+      "viz": "deco.text",
+      "title": "",
+      "x": 0,
+      "y": 0,
+      "w": 12,
+      "h": 2,
+      "style": {
+        "variant": "frameless"
+      },
+      "options": {
+        "text": "状態と明細を読ませる",
+        "size": 15,
+        "align": "left"
+      }
+    },
+    {
+      "id": "s_status",
+      "tab": "status",
+      "viz": "dpx.status",
+      "title": "dpx.status ／ ステータス一覧  —  1列目=名前、2列目=状態、3列目=補足",
+      "x": 0,
+      "y": 2,
+      "w": 6,
+      "h": 8,
+      "search": {
+        "ref": "ds_status"
+      }
+    },
+    {
+      "id": "s_value",
+      "tab": "status",
+      "viz": "dpx.value",
+      "title": "dpx.value ／ 単一値（スパークライン付き）",
+      "x": 6,
+      "y": 2,
+      "w": 3,
+      "h": 8,
+      "search": {
+        "ref": "ds_single"
+      },
+      "options": {
+        "unit": "req/s"
+      }
+    },
+    {
+      "id": "s_gauge",
+      "tab": "status",
+      "viz": "dpx.gauge",
+      "title": "dpx.gauge ／ 半円・％表示",
+      "x": 9,
+      "y": 2,
+      "w": 3,
+      "h": 8,
+      "search": {
+        "ref": "ds_gauge"
+      },
+      "options": {
+        "shape": "half",
+        "showPercent": true,
+        "label": "使用率"
+      }
+    },
+    {
+      "id": "s_table",
+      "tab": "status",
+      "viz": "dpx.table",
+      "title": "dpx.table ／ テーブル  —  全列をそのまま（ヘッダで並び替え・絞り込み）",
+      "x": 0,
+      "y": 10,
+      "w": 12,
+      "h": 9,
+      "search": {
+        "ref": "ds_table"
+      },
+      "options": {
+        "valueBars": true
+      }
+    },
+    {
+      "id": "d_head",
+      "tab": "deco",
+      "viz": "deco.text",
+      "title": "",
+      "x": 0,
+      "y": 0,
+      "w": 12,
+      "h": 2,
+      "style": {
+        "variant": "frameless"
+      },
+      "options": {
+        "text": "サーチ不要 — 構図を作る要素",
+        "size": 15,
+        "align": "left"
+      }
+    },
+    {
+      "id": "d_text",
+      "tab": "deco",
+      "viz": "deco.text",
+      "title": "deco.text ／ テキストラベル（$トークン$ 展開・グロー）",
+      "x": 0,
+      "y": 2,
+      "w": 4,
+      "h": 6,
+      "options": {
+        "text": "AEGIS OPS",
+        "size": 30,
+        "align": "center",
+        "glow": true
+      },
+      "style": {
+        "variant": "noc"
+      }
+    },
+    {
+      "id": "d_clock",
+      "tab": "deco",
+      "viz": "deco.clock",
+      "title": "deco.clock ／ 時計（ライブ更新）",
+      "x": 4,
+      "y": 2,
+      "w": 4,
+      "h": 6,
+      "options": {
+        "size": 34,
+        "showSeconds": true,
+        "showDate": true
+      },
+      "style": {
+        "variant": "noc"
+      }
+    },
+    {
+      "id": "d_link",
+      "tab": "deco",
+      "viz": "dpx.linkLine",
+      "title": "dpx.linkLine ／ コネクタ線（値で色が変わる・編集モードで整形）",
+      "x": 8,
+      "y": 2,
+      "w": 4,
+      "h": 6,
+      "search": {
+        "ref": "ds_link"
+      },
+      "style": {
+        "variant": "noc"
+      }
+    },
+    {
+      "id": "d_rect",
+      "tab": "deco",
+      "viz": "shape.rect",
+      "title": "shape.rect ／ 長方形",
+      "x": 0,
+      "y": 8,
+      "w": 3,
+      "h": 6,
+      "options": {
+        "radius": 10
+      },
+      "style": {
+        "variant": "noc"
+      }
+    },
+    {
+      "id": "d_ellipse",
+      "tab": "deco",
+      "viz": "shape.ellipse",
+      "title": "shape.ellipse ／ 楕円",
+      "x": 3,
+      "y": 8,
+      "w": 3,
+      "h": 6,
+      "style": {
+        "variant": "noc"
+      }
+    },
+    {
+      "id": "d_line",
+      "tab": "deco",
+      "viz": "shape.line",
+      "title": "shape.line ／ 直線・矢印",
+      "x": 6,
+      "y": 8,
+      "w": 3,
+      "h": 6,
+      "style": {
+        "variant": "noc"
+      }
+    },
+    {
+      "id": "d_glow",
+      "tab": "deco",
+      "viz": "shape.glow",
+      "title": "shape.glow ／ グラデーション面",
+      "x": 9,
+      "y": 8,
+      "w": 3,
+      "h": 6,
+      "style": {
+        "variant": "noc"
+      }
+    },
+    {
+      "id": "d_noc",
+      "tab": "deco",
+      "viz": "shape.nocFrame",
+      "title": "shape.nocFrame ／ コーナーフレーム（viz を frameless にして裏に敷く）",
+      "x": 0,
+      "y": 24,
+      "w": 12,
+      "h": 6,
+      "options": {
+        "label": "SECTION"
+      },
+      "style": {
+        "variant": "noc"
+      }
+    },
+    {
+      "id": "d_md",
+      "tab": "deco",
+      "viz": "dpx.markdown",
+      "title": "dpx.markdown ／ マークダウン  —  GFM の表・チェックリストが書ける（Studio 標準は basic のみ）",
+      "x": 0,
+      "y": 14,
+      "w": 12,
+      "h": 10,
+      "options": {
+        "markdown": "## 運用メモ\n\nStudio の `splunk.markdown` は**オプション4つ・basic 構文のみ**。こちらは **GFM** が通ります。\n\n| 指標 | 閾値 | 状態 |\n|---|---:|---|\n| CPU | 80% | 正常 |\n| メモリ | 90% | ~~要確認~~ 解消 |\n\n- [x] 一次対応\n- [ ] 恒久対策\n\n> 引用も書けます。`コード` / [リンク](#) も同様。",
+        "fontSize": "m"
+      },
+      "style": {
+        "variant": "noc"
+      }
+    }
+  ]
+}

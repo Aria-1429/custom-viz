@@ -61,6 +61,13 @@ export {
     resolveColorRules,
 } from './colorRules';
 
+// ── 集計（階級分け・クロス集計）──────────────────────────────────
+export { buildBins, buildMatrix, cellKey, heatRatio, sturgesBins } from './aggregate';
+
+// 本文への差し込み（$トークン$ / $列名$）。⚠ 置換の順番に依存するので
+// 使う側で書き直さず、必ずこの 2 つを組で使う（→ interpolate.js の注記）
+export { applyFieldValues, optionalExcept } from './interpolate';
+
 // ── 目盛り・軸 ──────────────────────────────────────────────────
 export { formatAxisLabels, niceScale, niceTicks } from './scale';
 

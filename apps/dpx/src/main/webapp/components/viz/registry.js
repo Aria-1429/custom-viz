@@ -9,7 +9,20 @@
 
 import SpikeViz from './SpikeViz';
 import { DecoClock, DecoText } from './deco';
-import { DpxBar, DpxDonut, DpxLine, DpxRanking, DpxStatus, DpxTable, DpxValue } from './native';
+import {
+    DpxBar,
+    DpxDonut,
+    DpxGauge,
+    DpxHeatmap,
+    DpxHistogram,
+    DpxLine,
+    DpxMarkdown,
+    DpxProgress,
+    DpxRanking,
+    DpxStatus,
+    DpxTable,
+    DpxValue,
+} from './native';
 import { ShapeEllipse, ShapeGlow, ShapeLine, ShapeNocFrame, ShapeRect } from './shapes';
 import { DpxLinkLine } from './DpxLinkLine';
 
@@ -25,12 +38,17 @@ export const VIZ_REGISTRY = {
     'dpx.line': DpxLine,
     'dpx.bar': DpxBar,
     'dpx.ranking': DpxRanking,
+    'dpx.gauge': DpxGauge,
+    'dpx.progress': DpxProgress,
+    'dpx.histogram': DpxHistogram,
+    'dpx.heatmap': DpxHeatmap,
     'dpx.donut': DpxDonut,
     'dpx.value': DpxValue,
     'dpx.status': DpxStatus,
     'dpx.table': DpxTable,
     // 装飾
     'deco.text': DecoText,
+    'dpx.markdown': DpxMarkdown,
     'deco.clock': DecoClock,
     // 図形（パネルの背面に敷いて構図を作る。Studio には無い）
     'shape.rect': ShapeRect,

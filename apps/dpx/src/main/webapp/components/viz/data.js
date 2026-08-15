@@ -29,13 +29,35 @@
 
 import React from 'react';
 
-/** データが無いときの戻り値。⚠ **毎回同じ参照を返す**（useMemo の依存が安定する）。 */
+/**
+ * データが無いときの戻り値。⚠ **毎回同じ参照を返す**（useMemo の依存が安定する）。
+ *
+ * ⚠⚠ **`column()` / `columnByName()` / `rows()` を必ず生やす**（2026-08-15 実機で発生）。
+ *   以前はデータ有りの戻り値だけがこれらを持っていたため、
+ *   **`isEmpty` を見る前に `d.column(0)` を呼ぶと `column is not a function` で落ちた**。
+ *
+ *   viz は「フックのルール」により **early return より前に `useMemo` を置く**必要がある
+ *   （§8.1 の白紙バグ対策）。つまり**空データでも列アクセスが走るのが正常**であって、
+ *   viz 側に「空かどうか先に確かめてから呼べ」と要求するのは筋が悪い。
+ *   → **空でも同じ形（同じメソッド）を返す**のが正しい設計。
+ */
+const EMPTY_COLUMN = Object.freeze([]);
+
 export const EMPTY_VIZ_DATA = Object.freeze({
     fields: Object.freeze([]),
     fieldNames: Object.freeze([]),
     columns: Object.freeze([]),
     rowCount: 0,
     isEmpty: true,
+    column() {
+        return EMPTY_COLUMN;
+    },
+    columnByName() {
+        return null;
+    },
+    rows() {
+        return EMPTY_COLUMN;
+    },
 });
 
 /**
