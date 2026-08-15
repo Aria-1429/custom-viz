@@ -1020,10 +1020,64 @@ Node の ESM から import できず、**テストが書けない**。
 | **Canvas / WebGL** | Attack Globe / Metric Terrain / World Map / Japan Map | 1 枚の絵に文字が焼き込まれ**分離できない**（既定で除外） |
 | **HTML div 描画** | Gradient Bar / Liquid Tube / Country Graph / Spotlight Frame / Tab Selector | **SVG 形状が 0 個**。自動検出が届かない（未対応） |
 
-## 残件（v1.0.0 時点）
+## Phase 6: Renderer の内部分割 ✅ **完了（2026-08-15 / v1.0.1）**
+
+タブ切替の性能改善（同一サーチの共有・タブの DOM 保持）で
+`DashboardRenderer.jsx`（1,609 行）に手を入れた際、**タブの生存管理を
+`useState` で書き足してしまった**ので、同じ版のうちに整理した。
+
+**着手前に計測した**（行数ではなく結合で判断するため）:
+
+| コンポーネント | 行数 | 他と共有していたもの |
+|---|---|---|
+| `Panel` | 597 | **定数のみ**（TITLE_H / HAND_DRAWN_INSET / ENTRANCE_ANIM …） |
+| `DpxDashboard` | 468 | 同上 |
+| `GroupFrame` ほか | 544 | `GROUP_HEADER_H` 1 個 |
+
+→ **状態の共有はゼロ**。「God Component」ではなく
+**独立したものが 1 ファイルに同居していた**だけと判明したので、
+分割は低リスクと判断した（`DashboardPage.jsx` の useState 20 個とは別物）。
+
+**やったこと**:
+
+| 新ファイル | 中身 | React 依存 |
+|---|---|---|
+| `renderer/tabLifecycle.js` | どのタブを DOM に残すか（LRU・上限・掃除） | **なし**（純粋関数） |
+| `renderer/tabLayout.js` | タブ 1 枚のレイアウト解決（見出し行の挿し込み） | **なし**（純粋関数） |
+| `renderer/rendererConst.js` | 寸法・アニメ表（両ファイルが共有する定数） | なし |
+| `renderer/Panel.jsx` | パネル 1 枚の描画（サーチ・viz・質感・全画面） | あり |
+
+**境界は `test/layers.test.mjs` に 4 件追加して機械で固定**（循環参照の禁止・
+Renderer が viz 解決を持たない・定数の定義は 1 か所・純粋関数は React 非依存）。
+
+### ⚠ この分割でやらかしたこと（再発防止）
+
+**同名・別シグネチャの関数を作って、実機で「何も出ない」状態にした。**
+
+Renderer 内のローカル関数 `panelsOfTab(tabId)`（1 引数）と、切り出し先から
+import した `panelsOfTab(panels, tabs, tabId)`（3 引数）が衝突した。JS は
+引数の数を検査しないので `panels=tabId, tabs=undefined` となり、
+**例外も警告も出さずに空配列**を返した。
+
+- 症状は「**パネルが 1 枚も描かれない**」。しかも **`pageErrors` はゼロ**
+- **ビルド・既存テスト・`check-undefined.mjs`・lint をすべて素通り**した
+- 気づいたのは**実機のスクリーンショットを見たとき**だけ
+
+→ **`tools/check-arity.mjs` を追加**（`yarn test` に組み込み）。
+import した関数を少ない引数で呼んでいないかを検査する。
+誤検出を避けるため「末尾 1 個の省略は正当」「コメント・文字列は数えない」
+「メソッド定義を呼び出しと誤認しない」を実装し、
+**バグを再注入して検出できることを確認済み**。
+
+**教訓**: **切り出した関数と同名のローカルを残さない。**
+名前が同じで引数が違う関数は、JS では**静かに壊れる**。
+
+## 残件（v1.0.1 時点）
 
 - **カスタム viz の塗り感**（上記。描画 API 経路への移行が要る）
 - **div 描画 viz への画材適用**（5 件。div は入れ子が深く文字と同階層のため、
   SVG のような単純な判定ができない）
 - **fps の実測**（画材適用時。大量パネルでの影響は未計測）
 - `Inspector.jsx`（1,965 行）と `DashboardPage.jsx`（947 行）の分割
+  … ⚠ **こちらは本物の God Component**（useState 20 個）。Renderer と違い
+  **状態が絡んでいる**ので、分割前に「何を保存すべきか」の整理が要る

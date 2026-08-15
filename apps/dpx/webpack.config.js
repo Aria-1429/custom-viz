@@ -65,9 +65,19 @@ module.exports = webpackMerge(baseConfig, {
     },
     output: {
         // Splunk は appserver/static/ 配下を静的配信する。
-        // ここに出した pages/<name>.js を Mako テンプレートが読み込む。
+        // ここに出した pages/<name>.js を標準テンプレートが読み込む。
         path: path.join(__dirname, 'stage/appserver/static/pages/'),
         filename: '[name].js',
+        // ⭐ **動的 import のチャンク**（2026-08-15 / 白フラッシュ対策）。
+        //   エントリ `dpx.js` は暗転だけを担う極小のシムにし、アプリ本体は
+        //   ここで出す別ファイルとして遅延読み込みする（経緯は pages/dpx/index.jsx）。
+        //
+        //   ⚠ **ファイル名にハッシュを入れない。** Splunk の静的配信は
+        //     `_bump` のキャッシュキーで版を分けており、ファイル名は固定でよい。
+        //     ハッシュを入れると**古いチャンクが stage に残り続ける**（掃除する口が無い）。
+        //   ⚠ 取得先の URL（publicPath）は**実行時に**エントリが決める。
+        //     `_bump` のたびに変わるので、ビルド時には確定できない。
+        chunkFilename: '[name].chunk.js',
     },
     plugins: [
         // 既存 viz のソースは自動 JSX ランタイム前提（`import React` を書かない）だが、
@@ -83,6 +93,17 @@ module.exports = webpackMerge(baseConfig, {
             ],
         }),
     ],
+    // ⭐ **チャンクを1本にまとめて名前を固定する**（2026-08-15 / 白フラッシュ対策）。
+    //
+    //   既定の数値 ID（`323.chunk.js` 等）はモジュールグラフが変わると**番号がずれる**。
+    //   Splunk の `appserver/static` は上書きインストールで**古いファイルが消えない**ので、
+    //   番号が変わるたびに孤児のチャンクが積み上がる。
+    //   `chunkIds:'named'` は名前が安定する代わりに 100 文字超のファイル名になるため、
+    //   **vendor 分割自体をやめて `dpx-app` 1 本に寄せる**（読み込みも 1 往復で済む）。
+    optimization: {
+        chunkIds: 'named',
+        splitChunks: { cacheGroups: { default: false, defaultVendors: false } },
+    },
     devtool: DEBUG ? 'eval-source-map' : false,
     module: {
         rules: [

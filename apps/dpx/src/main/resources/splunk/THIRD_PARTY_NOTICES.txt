@@ -1,7 +1,7 @@
 THIRD-PARTY SOFTWARE NOTICES
 ============================
 
-App: @splunk/dpx v0.2.0
+App: @splunk/dpx v1.0.1
 Fingerprint: d61cd528e0ccaff431c7eeaa1bb5b068c243cf5b501d69ade3a2c0ad9e49bd29
 
 このファイルは scripts/gen-third-party-notices.mjs が esbuild metafile

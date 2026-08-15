@@ -1,37 +1,19 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { createURL } from '@splunk/splunk-utils/url';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import BackgroundLayer from './BackgroundLayer';
-import HandDrawnFrame from './HandDrawnFrame';
 import LiquidGlassDefs from './liquidGlassDefs';
-import { resolvePanelSearch } from '../data';
+// ⭐ パネル 1 枚の描画は Panel が持つ（このファイルは「どう並べるか」だけ）。
+import Panel from './Panel';
 import PanelContextMenu, { buildSearchUrl, toCsv } from '../builder/PanelContextMenu';
 import InputsBar from './InputsBar';
-import { useRegisterPanelFields } from '../viz/panelFields';
 import {
     DpxThemeContext,
-    bracketArmLength,
-    panelStyleOverrides,
-    panelSurface,
     groupSurface,
     groupTitleStyle,
-    panelTitleSkin,
     resolveTheme,
 } from '../design';
-import {
-    applyLayoutPreview,
-    getGroups,
-    groupInset as groupInsetPx,
-    groupRect,
-    groupTab,
-    reserveHeaderRows,
-} from './groups';
-import { resolveBrushToken } from '../viz/timeBrush';
-import { applyTokens, useDpxTokens } from '../shared/tokens';
+import { applyLayoutPreview, groupInset as groupInsetPx, groupRect } from './groups';
 import { useDpxGlobalStyles } from '../shared/ui';
-import { useSplunkSearch } from '../data';
-import { defaultVariantFor, resolveViz } from '../viz/registry';
 import { SCHEMA_VERSION } from '../schema';
 // ⭐ Layout Engine（grid / freeform を差し替え可能にする）。
 //   座標計算は**すべてここを通す**（テストで押さえてある純粋関数）。
@@ -39,18 +21,13 @@ import { layoutFor, makeLayoutContext } from '../layout';
 // ⭐ Dashboard Canvas（編集の器）。ドラッグと一時状態はすべてここが持つ。
 //   Renderer（このファイル）は「定義 → 画面」だけに保つ。
 import { useCanvasInteractions } from '../canvas/useCanvasInteractions';
-// ⭐ Material Engine（質感 / 品質レベル）。質感の CSS はここを通す。
+// ⭐ タブの生存管理（どのタブを DOM に残すか）。純粋関数＋テストで方針を固定。
+import { pruneTabs, tabsToRender, touchTab } from './tabLifecycle';
+// ⭐ タブ 1 枚ぶんのレイアウト解決（区画の見出し行の挿し込み）。これも純粋関数。
+import { GROUP_HEADER_H, panelsOfTab, resolveTabLayout } from './tabLayout';
 // ⭐ **デザインは Design Engine ただ1つの入口から取る**
 //    （Theme / Surface / Brush / Motion の 4 軸をまとめて解決する）
-import {
-    DesignProvider,
-    allowsAnimation,
-    applyQuality,
-    brushFilterCss,
-    designEntranceDelay,
-    resolveDesign,
-    useInkFilter,
-} from '../design';
+import { DesignProvider, resolveDesign } from '../design';
 
 // ── 独自ダッシュボードエンジン（作業名 DPX）─────────────────────
 // スキーマ v1:
@@ -68,37 +45,6 @@ import {
 //     options?: {}, onEvent?: { setTokens: {} } }]
 // }
 // ────────────────────────────────────────────────────────────────
-
-const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
-const TITLE_H = 36;
-/** 手描きの枠が中身に食い込まないよう、パネルの内側に確保する余白（px）。
- *  ⚠ `HandDrawnFrame` が線を引く位置とこの値は**対で決まる**。
- *    片方だけ変えると線が中身に重なるか、逆に枠と中身が離れすぎる。 */
-const HAND_DRAWN_INSET = 10;
-/**
- * 区画（グループ）のヘッダ帯の高さ(px)。罫と区画名がここに入る。
- *
- * ⚠ **区画は自分の見出しの場所を自分で持つ。** 帯を持たずに見出しを枠の外へ
- *   逃がすと、上にあるもの（パネルの上端・ダッシュボードの見出し）と
- *   **必ず重なる**（実機で発生）。最上段の区画のためにグリッド側にも
- *   同じ高さの余白を空ける（`paddingTop`）。
- */
-const GROUP_HEADER_H = 18;
-/** 全画面表示のときに画面端に残す余白（px）。 */
-const FULL_INSET = 12;
-
-/** ビューポートの高さを購読する。全画面パネルの中身の高さを実測で決めるために使う。
- *  ⚠ viz には数値の height を渡す必要がある（'100%' だと chart が既定幅で固まる）。 */
-function useViewportHeight() {
-    const [vh, setVh] = useState(() => (typeof window === 'undefined' ? 800 : window.innerHeight));
-    useEffect(() => {
-        const onResize = () => setVh(window.innerHeight);
-        window.addEventListener('resize', onResize);
-        return () => window.removeEventListener('resize', onResize);
-    }, []);
-    return vh;
-}
-
 
 /**
  * パネルグループの枠（★Studio では原理的に不可能）。
@@ -512,633 +458,6 @@ function TabStrip({ t, tabs, currentTab, onTabChange, rotate, mode, vertical, wi
     );
 }
 
-// 登場アニメの選択肢 → keyframes 名。
-// ⚠ `rotate` を付けたパネルは必ず fade に落とす。他のアニメは transform を
-//    `none` まで動かすので、**後勝ちで傾きが打ち消される**（実機で発覚・§8.aa）
-// 登場アニメ。値 → [keyframe 名, 長さ・イージング]。
-// ⚠ 尺を変えたいものがあるので**指定ごと持たせる**（drop の跳ね返りは
-//   0.5s だと潰れて見えない）。既定は 0.5s ease。
-const ENTRANCE_ANIM = {
-    rise: 'dpxRiseIn 0.5s ease both',
-    fade: 'dpxFadeIn 0.5s ease both',
-    zoom: 'dpxZoomIn 0.5s ease both',
-    slide: 'dpxSlideIn 0.5s ease both',
-    slideRight: 'dpxSlideInRight 0.5s ease both',
-    flip: 'dpxFlipIn 0.5s ease both',
-    swing: 'dpxSwingIn 0.55s ease both',
-    unfold: 'dpxUnfold 0.5s ease both',
-    unfoldX: 'dpxUnfoldX 0.5s ease both',
-    // 跳ね返りは尺が要る。cubic-bezier で軽い overshoot を作る
-    drop: 'dpxDropIn 0.62s cubic-bezier(0.22, 1.2, 0.36, 1) both',
-    pop: 'dpxPopIn 0.42s cubic-bezier(0.2, 0.9, 0.3, 1) both',
-    tilt: 'dpxTiltIn 0.5s ease both',
-};
-
-// 常時アニメ（パネル単位）。控えめな動きだけを用意する。
-// ⚠ 動きは transform / opacity に限る。box-shadow や filter を animate すると
-//    毎フレーム再描画になり、パネル数に比例して重くなる（viz-performance.md §2）
-const AMBIENT_ANIM = {
-    float: 'dpxFloat 4.5s ease-in-out infinite',
-    breathe: 'dpxBreathe 3.6s ease-in-out infinite',
-};
-
-function Panel({
-    panel,
-    grid,
-    theme,
-    mode,
-    selected,
-    onSelect,
-    onDragStart,
-    entrance,
-    index,
-    definition,
-    app,
-    onDuplicatePanel,
-    onRemovePanel,
-    onPatchPanel,
-    onOpenDataSources,
-    onDetachSettings,
-    rowOf,
-    engine,
-    layoutCtx,
-    quality,
-    design,
-}) {
-    const t = theme;
-    const [menu, setMenu] = useState(null);      // {x,y} 右クリックメニュー
-    const [full, setFull] = useState(false);     // 全画面表示
-    const vh = useViewportHeight();
-    const { tokens, setTokens } = useDpxTokens();
-
-    // ⭐ **画材は「印」だけに当てる**（Ink Layer）。
-    //   ⚠ ここでフックを条件付きで呼ばない（データ有無で早期 return する
-    //     経路があるため、必ず先頭で呼ぶ）。画材が無ければ内部で何もしない。
-    //   ⚠ canvas を含む viz は既定で対象外（文字が焼き込まれていて分離できない）。
-    //     承知のうえで掛けたいパネルは `style.brushCanvas: true`。
-    const inkRef = useInkFilter(
-        brushFilterCss(design?.brush, design?.brushIntensity ?? 1),
-        panel.style?.brushCanvas === true
-    );
-
-    // 全画面中は Esc で戻す。全画面はメニューからしか入れないので、
-    // 出口が「もう一度右クリック」だけだと分かりにくい。
-    useEffect(() => {
-        if (!full) return undefined;
-        const onKey = (e) => e.key === 'Escape' && setFull(false);
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
-    }, [full]);
-    // 共有データソース（search.ref）を解決する。直書き（search.spl）も従来どおり動く。
-    const { spl, earliest, latest, refresh, missingRef } = resolvePanelSearch(panel, definition);
-    const Viz = resolveViz(panel.viz);
-    // 既定の質感。データを見せるパネルは「コーナーフレーム」（四隅のカギ括弧）、
-    // **図形・装飾は枠なし**にする。
-    // ⚠ 図形にパネルの枠を付けると、図形自身が描く枠と**二重になる**
-    //   （コーナーフレーム図形で実際に発生。実機で確認）。
-    //   図形は「絵そのもの」なので、パネル側の装飾は一切載せない。
-    const variant = panel.style?.variant ?? defaultVariantFor(panel.viz);
-    const hideTitle = Boolean(panel.style?.hideTitle) || variant === 'frameless';
-    const z = Number(panel.style?.z ?? 1);
-
-    // 複数選択は「未選択＝絞り込みなし」。待たずに空文字へ展開する
-    // （置き換えないと `$svc$` が SPL にリテラルで残る）。
-    const optionalTokens = new Set(
-        (definition?.inputs ?? [])
-            .filter((x) => x?.type === 'multiselect' && x?.token)
-            .map((x) => x.token)
-    );
-    const splT = applyTokens(spl, tokens, optionalTokens);
-    const earliestT = applyTokens(earliest, tokens, optionalTokens);
-    const latestT = applyTokens(latest, tokens, optionalTokens);
-    const titleT = applyTokens(panel.title ?? panel.id, tokens, optionalTokens);
-    const missing = [...new Set([...splT.missing, ...earliestT.missing, ...latestT.missing])];
-    const gated = missing.length > 0;
-
-    const { data, loading, error } = useSplunkSearch(gated ? '' : splT.text, {
-        earliest: earliestT.text,
-        latest: latestT.text,
-        refresh,
-    });
-    const editing = mode === 'edit';
-
-    // 列名をインスペクタへ公開する（editor.columnSelector の候補に使う）。
-    // ⚠ data.fields は Studio 互換の [{name}] なので、文字列に均してから渡す
-    //   （オブジェクトのまま渡すと候補が [object Object] になる。実機で踏んだ）。
-    // ⚠ フックなので早期 return より前に置くこと（フック数が変わると落ちる）。
-    useRegisterPanelFields(panel.id, (data?.fields ?? []).map((f) => f?.name ?? f));
-
-    const onEventTrigger = (e) => {
-        // (0) 時間ブラシ（★Studio では原理的に不可能）
-        // viz の上を横にドラッグして選んだ区間で、**ダッシュボード全体の
-        // 時間範囲**（時間範囲入力のトークン）を書き換える。
-        //
-        // Studio はパネルが iframe なので、パネル内のドラッグ座標をホストの
-        // 時間ピッカーへ渡せない。DPX は全パネルが同一 React ツリーにいるので
-        // TokenProvider を直接叩ける。
-        //
-        // ⚠ 書き込み先は**時間範囲入力のトークン**であって、パネル固有の
-        //   earliest/latest ではない。パネル側を直接書くと「そのパネルだけ
-        //   期間が変わる」ことになり、**全体に効く**という肝心の価値が消える。
-        if (e?.type === 'time.brush') {
-            const token = resolveBrushToken(definition?.inputs, panel.options?.brushToken);
-            // 時間範囲入力が無ければ何もしない（黙って別のトークンを書かない）。
-            // viz 側でも入力の有無を見てブラシ自体を無効にしているが、
-            // **書き込む側でも必ず確かめる**（片方だけの防御にしない）。
-            if (token && e.payload?.earliest && e.payload?.latest) {
-                setTokens({
-                    [`${token}.earliest`]: e.payload.earliest,
-                    [`${token}.latest`]: e.payload.latest,
-                });
-            }
-            return;
-        }
-
-        // (1) クリック値をトークンへ
-        const map = panel.onEvent?.setTokens;
-        if (map) {
-            const patch = {};
-            for (const [tok, key] of Object.entries(map)) {
-                if (e?.payload && e.payload[key] !== undefined) patch[tok] = e.payload[key];
-            }
-            if (Object.keys(patch).length > 0) setTokens(patch);
-        }
-
-        // (2) ドリルダウン（クリックで別画面へ）
-        // Studio の「リンク」相当。押した行の値を URL に差し込めるように、
-        // **クリックの payload もトークンとして展開できる**ようにしてある
-        //   例: /app/search/search?q=index%3Dweb host%3D$click.value$
-        const dd = panel.onEvent?.drilldown;
-        if (dd?.enabled && dd.url) {
-            const clickTokens = { ...tokens };
-            for (const [k, v] of Object.entries(e?.payload ?? {})) {
-                clickTokens[`click.${k}`] = v;
-            }
-            const built = applyTokens(String(dd.url), clickTokens, new Set()).text;
-            // 相対パスなら Splunk のロケール接頭辞を付ける（絶対 URL はそのまま）
-            const href = /^https?:\/\//.test(built)
-                ? built
-                : createURL(built.replace(/^\/+/, ''));
-            if (dd.newTab === false) window.location.href = href;
-            else window.open(href, '_blank', 'noopener');
-        }
-    };
-
-    // ── 右クリックメニューの項目 ─────────────────────────────────
-    // Studio ではパネルが iframe なので親がここを乗っ取れない。DPX だからできる。
-    //
-    // 編集モードでは「作る側」の操作を出す（表示モードの項目とは別物）。
-    // インスペクタを開いて探さなくても、その場で複製・重なり順・
-    // タイトルの有無を変えられるようにする。
-    // `z` は上で解決済みのものを使う（重複宣言しない）
-    const patchStyle = (patch) =>
-        onPatchPanel?.(panel.id, { style: { ...(panel.style ?? {}), ...patch } });
-
-    const editMenuItems = [
-        {
-            label: '複製',
-            icon: '⧉',
-            hint: 'Ctrl+D',
-            disabled: !onDuplicatePanel,
-            onClick: () => onDuplicatePanel?.(panel.id),
-        },
-        {
-            label: 'このパネルの設定を開く',
-            icon: '⚙',
-            onClick: () => onSelect?.(panel.id),
-        },
-        {
-            // 別ウィンドウ版。ダッシュボードを全幅で見たまま調整するための導線
-            label: '設定を別ウィンドウで開く',
-            icon: '⧉',
-            disabled: !onDetachSettings,
-            onClick: () => {
-                onSelect?.(panel.id);
-                onDetachSettings?.();
-            },
-        },
-        {
-            label: 'データソースを編集',
-            icon: '⌕',
-            disabled: !onOpenDataSources || !panel.search?.ref,
-            onClick: () => onOpenDataSources?.(panel.search?.ref),
-        },
-        { divider: true },
-        { label: '最前面へ', icon: '↑', onClick: () => patchStyle({ z: z + 1 }) },
-        { label: '最背面へ', icon: '↓', onClick: () => patchStyle({ z: Math.max(0, z - 1) }) },
-        {
-            label: hideTitle ? 'タイトルバーを出す' : 'タイトルバーを隠す',
-            icon: '▤',
-            // frameless はタイトルを持たない質感なので触らせない
-            disabled: variant === 'frameless',
-            onClick: () => patchStyle({ hideTitle: !panel.style?.hideTitle }),
-        },
-        { divider: true },
-        { label: 'SPL をコピー', icon: '⧉', disabled: !splT.text, onClick: () => navigator.clipboard?.writeText(splT.text) },
-        {
-            label: '削除',
-            icon: '✕',
-            danger: true,
-            disabled: !onRemovePanel,
-            onClick: () => onRemovePanel?.(panel.id),
-        },
-    ];
-
-    const viewMenuItems = [
-        {
-            label: 'サーチで開く',
-            icon: '⌕',
-            hint: '新しいタブ',
-            disabled: !splT.text,
-            onClick: () => {
-                const url = buildSearchUrl({
-                    app,
-                    spl: splT.text,
-                    earliest: earliestT.text,
-                    latest: latestT.text,
-                });
-                window.open(url, '_blank', 'noopener');
-            },
-        },
-        {
-            label: 'SPL をコピー',
-            icon: '⧉',
-            disabled: !splT.text,
-            onClick: () => navigator.clipboard?.writeText(splT.text),
-        },
-        {
-            label: '結果を CSV で保存',
-            icon: '⤓',
-            disabled: !(data?.columns ?? []).length,
-            onClick: () => {
-                const blob = new Blob([toCsv(data)], { type: 'text/csv;charset=utf-8' });
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = `${panel.id}.csv`;
-                a.click();
-                setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-            },
-        },
-        { divider: true },
-        { label: full ? '全画面を解除' : '全画面表示', icon: '⛶', onClick: () => setFull((v) => !v) },
-    ];
-
-    // 全画面時はビューポートから逆算する。グリッド由来の高さを使うと
-    // 画面いっぱいに広げても中身が元のサイズのままになる（実機で確認）。
-    // ⭐ 実寸は Layout Engine が決める（freeform では px がそのまま出る）。
-    //    viz には**数値の height** が要る（'100%' だと中身が潰れる viz がある）
-    const laidOutH = engine.pixelSize(panel, layoutCtx).height;
-    // 配置 CSS（grid: gridColumn/gridRow / freeform: absolute+left/top/width/height）
-    const layoutStyle = engine.styleFor(panel, layoutCtx);
-    const contentHeight = full
-        ? Math.max(vh - FULL_INSET * 2 - (hideTitle ? 0 : TITLE_H + 8), 120)
-        : laidOutH - (hideTitle ? 0 : TITLE_H + 8);
-    // パネルの実高さ（px）。背が低いとカギ括弧の腕を詰める（§ bracketArmLength）
-    const panelPxHeight = full ? vh - FULL_INSET * 2 : laidOutH;
-    // ⚠ `__handDrawn` は「canvas で実描画する画材」の指示であって CSS ではない。
-    //   React に渡すと不明なスタイルとして DOM に漏れるので、必ず取り除く。
-    const { __handDrawn: handDrawnMedium, ...rawSurface } = panelSurface(
-        t,
-        variant,
-        bracketArmLength(panelPxHeight)
-    );
-    // ⭐ **品質レベルで重い指定を落とす**（Phase 4）。
-    //    パネル数が多い盤面では `backdrop-filter` を外す＝面積比例の再ブラーを止める。
-    //    ⚠ **色や配置は変えない。** 変えると「テーマが切り替わった」ように見える。
-    const surface = applyQuality(rawSurface, quality, t);
-
-    // タイトルバーの位置と質感（既定は 'auto' ＝ 質感に追従＝従来の見た目のまま）
-    const titleAlign = panel.style?.titleAlign ?? 'left';
-    const skin = panelTitleSkin(panel.style?.titleSkin, t, variant, panel.style?.accent);
-    const titleSkin = skin.box;
-    const titleTextStyle = skin.text;
-    const titleDot = skin.dot;
-    const titleDivider = Boolean(skin.divider);
-
-    const body = (
-        <div
-            // E2E / 撮影ツールがパネルを一意に狙うための目印。
-            // これが無いと「ページ全体から circle を拾って別パネルを掴む」ような
-            // 取り違えが起きる（コネクタ線のドラッグ検証で実際に踏んだ）
-            data-panel-id={panel.id}
-            data-viz={panel.viz}
-            onPointerDown={editing ? (e) => onSelect?.(panel.id, e) : undefined}
-            // 表示モードだけ右クリックメニューを出す（編集中はブラウザ既定に任せる）
-            // ⚠ 編集モードでもメニューを出す（以前はブラウザ既定に任せていた）。
-            //   編集中こそ「複製・重なり順・削除」を手元で出したい。
-            //   ⚠ 右クリックした瞬間に**そのパネルを選択**してから開く。
-            //     選択しないまま「設定を開く」を押すと別のパネルの設定が出る
-            onContextMenu={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (editing) onSelect?.(panel.id);
-                setMenu({ x: e.clientX, y: e.clientY });
-            }}
-            style={{
-                // 全画面のときはポータルで body 直下に出しているので、
-                // グリッド配置（gridColumn/gridRow）は付けない。付けたままだと
-                // グリッド項目として shrink-wrap され、隅に潰れる（実機で発生）。
-                ...(full
-                    ? { width: '100%', height: '100%' }
-                    : {
-                          // ⭐ 配置は Layout Engine が決める（grid / freeform で実装が変わる）。
-                          // ⚠ 行番号は `rowOf()` を通す。区画の見出し行が
-                          //   挿し込まれると、その下の全パネルが1行ずつずれる
-                          ...layoutStyle,
-                          zIndex: z,
-                      }),
-                ...surface,
-                // 角の丸みはテーマ由来（既定 2px）。パネル個別指定は下の
-                // panelStyleOverrides が後勝ちで上書きする。
-                // ⚠ ただし**質感が自分で borderRadius を決めている場合はそれを尊重する**
-                //   （印画紙・パンチカードのように「角が立っていること」が
-                //   意匠の一部の質感がある。ここで t.radius を上書きすると丸まってしまう）
-                borderRadius:
-                    variant === 'frameless' && !full
-                        ? 0
-                        : surface.borderRadius !== undefined
-                          ? surface.borderRadius
-                          : t.radius,
-                // パネル個別の見た目上書き（色・角丸・発光・傾きなど）。
-                // 全画面のときは構図用の傾き・不透明度を無効化する（読むための表示なので）
-                ...panelStyleOverrides(full ? { ...panel.style, rotate: 0, opacity: 1 } : panel.style, t),
-                // 選択枠は最後に上書きする（個別指定より優先。編集中に見失わないため）
-                ...(selected ? { border: `2px solid ${t.selection}` } : null),
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column',
-                minWidth: 0,
-                minHeight: 0,
-                // ⚠ **`position` を決め打ちしない。** freeform では Layout Engine が
-                //   `absolute` を指定しており、ここで `relative` を後から書くと
-                //   **通常フローの位置からのオフセットになって全パネルが縦に積まれる**
-                //   （実機で発生。left/top は効いているのに絵が合わない、という形で出る）。
-                //   grid のときだけ従来どおり relative にする（子の絶対配置の基準）。
-                ...(full || layoutStyle.position ? null : { position: 'relative' }),
-                color: t.titleColor,
-                // ⚠ **手描きの枠は中身に食い込む。** canvas の枠はパネルの外周に
-                //   描かれるが、CSS の border と違って**レイアウト上の幅を持たない**ので、
-                //   そのままだとタイトルやグラフの上に線が重なる（実機で発生）。
-                //   枠のぶんだけ内側に余白を作って、線の居場所を確保する
-                ...(handDrawnMedium ? { padding: HAND_DRAWN_INSET } : null),
-                // ⚠ 全画面ではアニメーションを外す。entrance は transform を使うため、
-                //    残すと中の position:fixed（ツールチップ等）が壊れる（§8.z）。
-                // ⚠ 傾き（style.rotate）を付けたパネルでは rise を使わない。
-                //    dpxRiseIn は transform を `none` まで動かすアニメなので、
-                //    **後勝ちで rotate が打ち消される**（実機で傾かず発覚）。
-                //    傾いているときは transform を触らない fade に落とす。
-                // 登場アニメ＋常時アニメ。両方あるときはカンマで連結する
-                // （CSS の animation は複数指定できる）
-                // ⭐ 品質が minimal のときはアニメを出さない（Phase 4）。
-                //    `prefers-reduced-motion` もここに効く（動きで酔う利用者への配慮）
-                animation: [
-                    allowsAnimation(quality) && !full && mode !== 'edit' && entrance && entrance !== 'none'
-                        ? ENTRANCE_ANIM[Number(panel.style?.rotate) ? 'fade' : entrance] ?? ENTRANCE_ANIM.rise
-                        : null,
-                    // ⚠ 常時アニメは編集中と全画面では止める。
-                    //    編集中に動くと掴みにくく、全画面は「読むための表示」なので
-                    !full && mode !== 'edit' && AMBIENT_ANIM[panel.style?.ambient]
-                        ? AMBIENT_ANIM[panel.style.ambient]
-                        : null,
-                ]
-                    .filter(Boolean)
-                    .join(', ') || 'none',
-                animationDelay: full ? undefined : `${Math.min(index * 70, 600)}ms`,
-            }}
-        >
-            {/* 手描き画材の枠は canvas で実描画する（CSS の border では
-                線のふらつき・二度なぞり・かすれが作れない）。
-                ⚠ パネル本体の背面に敷く（内容の上に出さない） */}
-            {handDrawnMedium ? (
-                <HandDrawnFrame
-                    medium={handDrawnMedium}
-                    color={panel.style?.accent || t.accent}
-                    paper={t.paperColor}
-                    seedKey={panel.id}
-                    radius={surface.borderRadius ?? t.radius}
-                    inset={HAND_DRAWN_INSET}
-                />
-            ) : null}
-            {hideTitle ? null : (
-                <div
-                    onPointerDown={editing ? (e) => onDragStart?.(panel.id, 'move', e) : undefined}
-                    style={{
-                        height: TITLE_H,
-                        flex: 'none',
-                        display: 'flex',
-                        alignItems: 'center',
-                        // 位置（左/中央/右）。中央・右寄せは「1枚だけ見せる」構図で効く
-                        justifyContent:
-                            titleAlign === 'center' ? 'center' : titleAlign === 'right' ? 'flex-end' : 'flex-start',
-                        padding: '0 12px',
-                        gap: 8,
-                        // ⚠ NOC 質感ではタイトルと中身の間に線を引かない
-                        //    （区切り線があると「枠のある箱」に見えてしまう）
-                        //    質感で「下線」を選んだときだけ明示的に引く
-                        borderBottom: titleDivider
-                            ? `1px solid ${panel.style?.accent || t.accent}55`
-                            : variant === 'noc'
-                              ? 'none'
-                              : surface.border ?? 'none',
-                        ...titleSkin,
-                        cursor: editing ? 'move' : 'default',
-                        userSelect: 'none',
-                    }}
-                >
-                    {/* 丸は「バッジ」質感のときだけ。NOC はラベルだけの方が壁面表示で静かに見える */}
-                    {titleDot ? (
-                        <span
-                            style={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: 4,
-                                // パネル個別のアクセント色があればそれを使う
-                                background: panel.style?.accent || t.accent,
-                                flex: 'none',
-                            }}
-                        />
-                    ) : null}
-                    <span
-                        style={{
-                            ...titleTextStyle,
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                        }}
-                    >
-                        {titleT.text}
-                    </span>
-                    {/* 中央寄せのときに伸縮スペーサを入れると中央がずれるので、
-                        左寄せのときだけ「更新中…」を右端へ押しやる */}
-                    {titleAlign === 'left' ? <span style={{ flex: 1 }} /> : null}
-                    {loading ? (
-                        <span style={{ color: t.subColor, fontSize: 11, flex: 'none' }}>更新中…</span>
-                    ) : null}
-                </div>
-            )}
-            <div className="dpx-scroll" style={{ flex: 1, minHeight: 0, position: 'relative' }}>
-                {missingRef ? (
-                    <div style={{ color: t.errorColor, fontSize: 12, padding: 12 }}>
-                        データソース <code>{missingRef}</code> が見つかりません（削除された可能性があります）
-                    </div>
-                ) : gated ? (
-                    <div style={{ color: t.subColor, fontSize: 12, padding: 12 }}>
-                        トークン待ち: {missing.map((m) => `$${m}$`).join(', ')}
-                    </div>
-                ) : error ? (
-                    <div style={{ color: t.errorColor, fontSize: 12, padding: 12 }}>{error}</div>
-                ) : !Viz ? (
-                    <div style={{ color: t.errorColor, fontSize: 12, padding: 12 }}>
-                        未登録の viz: <code>{panel.viz}</code>
-                    </div>
-                ) : (
-                    // ⭐⭐ **Brush の疎結合はここで成立している。**
-                    //    画材が選ばれていれば**外から**質感を与えるだけで、
-                    //    viz は自分が歪まされることを知らない（依存の矢印が無い）。
-                    //    → **カスタム viz 30 個が無改変で質感を纏う**。
-                    //
-                    //    ⚠⚠ **filter をこの div に直接掛けない**（2026-08-13 に修正）。
-                    //      掛けると中身が丸ごと歪み、**ラベルの文字まで波打つ**。
-                    //      → `useInkFilter` が「印」だけを選んで当てる（Ink Layer）。
-                    //      実機で確認済み: 棒の質感はそのままに、日本語ラベルの歪みが消えた。
-                    //    ⚠ ヒットテストは元の DOM 形状で行われるので**当たり判定は無傷**。
-                    <div
-                        ref={inkRef}
-                        style={{
-                            width: '100%',
-                            height: typeof contentHeight === 'number' ? contentHeight : '100%',
-                        }}
-                    >
-                    <Viz
-                        id={panel.id}
-                        dataSources={{ primary: { data: data ?? { fields: [], columns: [] } } }}
-                        loading={loading}
-                        options={panel.options ?? {}}
-                        width="100%"
-                        height={contentHeight}
-                        mode={mode}
-                        // viz 自身がオプションを書き戻す口（コネクタ線の点列など、
-                        // **キャンバス上のドラッグでしか決まらない値**のために要る）。
-                        // ⚠ 以前は `() => {}` の空実装だった。viz 側は「保存された」と
-                        //   思って描き続けるので、**動くのに保存されない**という
-                        //   分かりにくい壊れ方をする。
-                        onOptionsChange={
-                            onPatchPanel
-                                ? (patch) =>
-                                      onPatchPanel(panel.id, {
-                                          options: { ...(panel.options ?? {}), ...patch },
-                                      })
-                                : undefined
-                        }
-                        onEventTrigger={onEventTrigger}
-                        // 時間ブラシの書き込み先。**null なら viz 側でブラシを出さない**
-                        // （ドラッグできるのに何も起きない、という無反応 UI を作らないため）。
-                        brushTarget={resolveBrushToken(definition?.inputs, panel.options?.brushToken)}
-                    />
-                    </div>
-                )}
-                {/* 編集モードの移動用オーバーレイ。
-                    ⚠ **viz が自前でキャンバス編集を持つ場合は敷かない**（`canvasEdit`）。
-                      敷くと viz のハンドルにポインタが一切届かず、
-                      「編集モードでは線をいじれない」という Studio と同じ制約が
-                      DPX にも生まれてしまう（コネクタ線で実際に踏んだ）。
-                    そのぶん移動手段が減るので、**タイトルバーのドラッグは従来どおり効く**。
-                    タイトル非表示のときは掴む場所が無くなるため、上端に細い帯を残す。 */}
-                {editing && !Viz?.config?.canvasEdit ? (
-                    <div
-                        onPointerDown={(e) => onDragStart?.(panel.id, 'move', e)}
-                        style={{ position: 'absolute', inset: 0, cursor: 'move' }}
-                    />
-                ) : null}
-                {editing && Viz?.config?.canvasEdit && hideTitle ? (
-                    <div
-                        title="ドラッグでパネルを移動"
-                        onPointerDown={(e) => onDragStart?.(panel.id, 'move', e)}
-                        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 10, cursor: 'move' }}
-                    />
-                ) : null}
-            </div>
-            {menu ? (
-                <PanelContextMenu
-                    t={t}
-                    x={menu.x}
-                    y={menu.y}
-                    items={editing ? editMenuItems : viewMenuItems}
-                    onClose={() => setMenu(null)}
-                />
-            ) : null}
-            {full ? (
-                <button
-                    type="button"
-                    title="全画面を解除（Esc）"
-                    onClick={() => setFull(false)}
-                    style={{
-                        position: 'absolute',
-                        top: 8,
-                        right: 10,
-                        zIndex: 20,
-                        width: 26,
-                        height: 26,
-                        borderRadius: 6,
-                        border: '1px solid rgba(140,175,235,0.3)',
-                        background: t.colorScheme === 'light' ? 'rgba(255,255,255,0.82)' : 'rgba(10,16,30,0.7)',
-                        color: t.subColor,
-                        cursor: 'pointer',
-                        fontSize: 13,
-                        lineHeight: 1,
-                        fontFamily: 'inherit',
-                    }}
-                >
-                    ✕
-                </button>
-            ) : null}
-            {editing ? (
-                <div
-                    onPointerDown={(e) => onDragStart?.(panel.id, 'resize', e)}
-                    style={{
-                        position: 'absolute',
-                        right: 2,
-                        bottom: 2,
-                        width: 16,
-                        height: 16,
-                        cursor: 'nwse-resize',
-                        borderRight: `3px solid ${t.selection}`,
-                        borderBottom: `3px solid ${t.selection}`,
-                        borderRadius: 2,
-                        opacity: selected ? 1 : 0.4,
-                        zIndex: 10,
-                    }}
-                />
-            ) : null}
-        </div>
-    );
-
-    // ── 全画面：body へポータルする ────────────────────────────────
-    // グリッド内で position:fixed にするだけでは駄目だった（実機で確認）:
-    //   1. グリッド項目のままなので shrink-wrap されて隅に潰れる
-    //   2. 祖先の transform（entrance アニメ）で fixed がビューポート基準に
-    //      ならず、さらに overflow:hidden のスクロール枠で切り取られる（§8.z）
-    // ポータルで DOM ごと外に出すのが確実。**これは Studio には作れない**
-    // （パネルが iframe に閉じ込められていて外に出られない）。
-    if (!full) return body;
-    return createPortal(
-        <div
-            style={{
-                position: 'fixed',
-                inset: 0,
-                zIndex: 5500,
-                padding: FULL_INSET,
-                boxSizing: 'border-box',
-                background: t.colorScheme === 'light' ? 'rgba(240,244,250,0.94)' : 'rgba(6,10,20,0.9)',
-                backdropFilter: 'blur(3px)',
-            }}
-        >
-            {body}
-        </div>,
-        document.body
-    );
-}
-
 export default function DpxDashboard({
     definition,
     mode = 'view',
@@ -1222,39 +541,63 @@ export default function DpxDashboard({
 
     // タブ未指定のパネルは最初のタブに属する
     const currentTab = tabs ? activeTab ?? tabs[0].id : null;
-    const panels = tabs
-        ? allPanels.filter((p) => (p.tab ?? tabs[0].id) === currentTab)
-        : allPanels;
+    // 指定タブのパネルを取り出す（引数の tabs/allPanels を束ねただけの薄い包み）。
+    // ⚠ **`panelsOfTab` と紛らわしい名前にしない。** 元は同名だったせいで、
+    //   3 引数の import 版を 1 引数で呼んでも**エラーにならず空配列**が返り、
+    //   「パネルが 1 枚も出ない」形で実機まで通り抜けた（2026-08-15 の実害）。
+    const panelsIn = useCallback((tabId) => panelsOfTab(allPanels, tabs, tabId), [allPanels, tabs]);
+    const panels = panelsIn(currentTab);
 
-    // 見出し付きのグループが**最上段（y=0）**にあるか。
-    // ある時だけグリッド上部に隙間を作る（見出しの居場所）。
-    // ⚠ 「グループがある」ではなく「最上段にある」で判定する。
-    //   下段だけのグループで隙間を作ると、既存ボードが理由もなく間延びする
-    const visibleGroups = getGroups(definition).filter(
-        (g) => !tabs || (groupTab(g, allPanels) ?? tabs[0].id) === currentTab
+    // ⚡ **一度開いたタブは DOM に残す**（2026-08-15）。
+    //
+    //   従来はタブ外のパネルを配列から落としていた（＝React が丸ごとアンマウント）ため、
+    //   **タブを戻すたびに全パネルを作り直していた**：サーチの再実行・手描き枠の再描画・
+    //   出現アニメの再生が毎回走り、切替が重かった（実機計測: 安定まで 963ms）。
+    //
+    //   ⭐ **判定は `tabLifecycle.js`（純粋関数）が持つ。** ここに `useState` で
+    //     生存リストを書くと、保存されない状態が描画コンポーネントに散り、
+    //     State 層を独立させた設計に逆行する。方針（初回は開いたタブだけ・
+    //     LRU で上限・消えたタブは捨てる）は同ファイルとテストで固定してある。
+    //   ⚠ 隠すのは `display:none`。`visibility:hidden` や 0 透明度だと
+    //     **場所を取ったまま**になり、レイアウトが壊れる。
+    const [aliveTabs, setAliveTabs] = useState(() => touchTab([], currentTab));
+    // ⚠ **タブ ID の配列は毎レンダー新しい参照になる**ので、そのまま effect の
+    //   依存に置くと毎回発火する。**メモ化した配列**にして中身で比較できる形にする。
+    //   ⚠ 区切り文字で1本の文字列に詰めない（ID に何が入るか保証が無いうえ、
+    //     生の制御文字を区切りに使ってファイルがバイナリ扱いになった前科がある）
+    const tabIds = useMemo(() => (tabs ? tabs.map((tb) => tb.id) : []), [tabs]);
+    useEffect(() => {
+        setAliveTabs((prev) => {
+            // 定義から消えたタブを先に落としてから、今のタブを触る
+            const pruned = tabIds.length > 0 ? pruneTabs(prev, tabIds) : prev;
+            const next = touchTab(pruned, currentTab);
+            // ⚠ 中身が同じなら**同じ参照を返す**（無限再レンダーを防ぐ）
+            return next.length === prev.length && next.every((x, i) => x === prev[i]) ? prev : next;
+        });
+    }, [currentTab, tabIds]);
+    const renderTabs = tabs ? tabsToRender(tabs, aliveTabs, currentTab) : null;
+
+    // ⚡ **タブ 1 枚ぶんのレイアウトを求める**（2026-08-15）。
+    //   隠して残すタブも同じ計算が要るので、**純粋関数として `tabLayout.js` へ
+    //   切り出した**（React 不要＝素の Node でテストできる）。
+    const layoutOfTab = useCallback(
+        (tabId, tabPanels) =>
+            resolveTabLayout({
+                definition,
+                allPanels,
+                tabPanels,
+                tabs,
+                tabId,
+                rowHeight: grid.rowHeight,
+            }),
+        [definition, tabs, allPanels, grid.rowHeight]
     );
-    // ⚠ **ラベルの有無で判定しない。** 名前が無い区画もヘッダ帯のぶん上へ伸びるので、
-    //   空けないと罫がダッシュボードの見出しに重なる（ラベル有無に関係なく起きる）
-    const hasLabeledGroup = visibleGroups.some((g) => {
-        const r = groupRect(g, panels);
-        return r != null && r.y === 0;
-    });
 
-    // ⭐ **区画の見出し用の行を確保する**（最上段以外でも領域を取る）。
-    //   区画が始まる行の手前に細い行を挿し込み、その下の全パネルを1行ずらす。
-    //   ⚠ 定義（panel.y）は書き換えない。**描画時の行番号だけ**をずらす
-    const maxRow = panels.reduce((m, p) => Math.max(m, (Number(p.y) || 0) + (Number(p.h) || 1)), 0);
-    const { headerRows, rowOf } = reserveHeaderRows(visibleGroups, panels, maxRow);
-    // 見出し行だけ低く、他は rowHeight。gridTemplateRows で明示する
-    const rowTemplate = (() => {
-        if (headerRows.size === 0) return undefined; // 従来どおり gridAutoRows に任せる
-        const rows = [];
-        for (let y = 0; y < maxRow; y += 1) {
-            if (headerRows.has(y)) rows.push(`${GROUP_HEADER_H}px`);
-            rows.push(`${grid.rowHeight}px`);
-        }
-        return rows.join(' ');
-    })();
+    // 表示中のタブぶん（編集の当たり判定・canvas.sync・layoutCtx が使う）。
+    // ⚠ 描画側は `layoutOfTab()` の戻りを各タブで使う（ここは**表示中のタブ専用**）
+    const active = layoutOfTab(currentTab, panels);
+    const visibleGroups = active.groups;
+    const { headerRows, rowOf } = active;
 
     // ⭐ **レイアウト文脈**。Layout Engine に渡す唯一の入力。
     //    ⚠ `rowOf` を含めるのが要点で、これにより区画の見出し行のズレを
@@ -1433,81 +776,105 @@ export default function DpxDashboard({
                         width={Number(definition.tabWidth) || 168}
                     />
                 ) : null}
-                <div
-                    ref={observeGrid}
-                    style={{
-                        flex: 1,
-                        minWidth: 0,
-                        // ⭐ **コンテナの CSS は Layout Engine が決める**
-                        //    （grid では display:grid ＋ 列/行テンプレート、
-                        //      freeform では position:relative になる）。
-                        //    ⚠ ここに display:grid 等を直書きすると **freeform を上書きしてしまう**
-                        //      ので書かないこと。
-                        //    ⚠ **見出し行を挿し込むため `gridTemplateRows` を明示する**
-                        //      （`gridAutoRows` は全行が同じ高さになり「見出し行だけ低く」ができない）。
-                        //      rowTemplate は engine 側へ渡している
-                        ...engine.containerStyle(layoutCtx, rowTemplate),
-                        // ⚠ 最上段の区画はヘッダ帯のぶん上へ伸びるので、その居場所を空ける。
-                        //   空けないとダッシュボードのタイトルに重なる（実機で発生）。
-                        // ⚠ **帯のぶんだけでは足りない。** ぴったりだと罫が見出しの
-                        //   すぐ下（12px）に来て窮屈に見えた（実機で計測）。
-                        //   帯＋余白で「見出しとは別の段」に見せる
-                        //   区画が最上段に無い時は従来どおり（既存ボードの間延びを防ぐ）
-                        paddingTop: hasLabeledGroup ? GROUP_HEADER_H + 10 : 0,
-                        gap: grid.gap,
-                    }}
-                >
-                    {/* グループ枠。パネルより先に描き、zIndex:0 で背面に置く。
-                        ⚠ 現在のタブに属するものだけ（切り替えても枠が残らないように） */}
-                    {visibleGroups.map((g) => (
-                        <GroupFrame
-                            key={g.id}
-                            group={g}
-                            panels={panels}
-                            grid={grid}
-                            t={t}
-                            mode={mode}
-                            selected={selectedGroupId === g.id}
-                            onSelect={onSelectGroup}
-                            onDragStart={canvas.onGroupDragStart}
-                            rowOf={rowOf}
-                            engine={engine}
-                            layoutCtx={layoutCtx}
-                            quality={quality}
-                            design={design}
-                            headerRows={headerRows}
-                        />
-                    ))}
-                    {panels.map((p, i) => (
-                        <Panel
-                            key={p.id}
-                            panel={p}
-                            grid={grid}
-                            theme={t}
-                            mode={mode}
-                            selected={selectedId === p.id}
-                            onSelect={(id, e) => {
-                                e?.stopPropagation?.();
-                                onSelect?.(id);
+                {/* ⚡ **タブごとに1つのグリッドを持つ**（2026-08-15）。
+                    一度開いたタブは `display:none` で残し、戻ったときに作り直さない。
+                    ⚠ タブを1つの器に混ぜてはいけない：行テンプレート（区画の見出し行）も
+                      `paddingTop` もタブごとに違うので、混ぜるとレイアウトが壊れる。
+                    ⚠ `observeGrid`（幅の実測＝ドラッグのセル換算）は**表示中のタブだけ**に付ける。
+                      隠れた器は幅 0 なので、付けるとセル換算が 0 になって掴んでも動かなくなる。 */}
+                {(renderTabs ?? [null]).map((tb) => {
+                    const tabId = tb ? tb.id : null;
+                    const isActive = tabId === currentTab;
+                    const tabPanels = tb ? panelsIn(tabId) : panels;
+                    const lay = isActive ? active : layoutOfTab(tabId, tabPanels);
+                    return (
+                        <div
+                            key={tabId ?? '__single__'}
+                            ref={isActive ? observeGrid : undefined}
+                            // 隠れたタブは操作対象にしない（見えないものを掴めてしまう事故を防ぐ）
+                            aria-hidden={isActive ? undefined : true}
+                            inert={isActive ? undefined : ''}
+                            style={{
+                                flex: 1,
+                                minWidth: 0,
+                                // ⭐ **コンテナの CSS は Layout Engine が決める**
+                                //    （grid では display:grid ＋ 列/行テンプレート、
+                                //      freeform では position:relative になる）。
+                                //    ⚠ ここに display:grid 等を直書きすると **freeform を上書きしてしまう**
+                                //      ので書かないこと。
+                                //    ⚠ **見出し行を挿し込むため `gridTemplateRows` を明示する**
+                                //      （`gridAutoRows` は全行が同じ高さになり「見出し行だけ低く」ができない）。
+                                //      rowTemplate は engine 側へ渡している
+                                ...engine.containerStyle(layoutCtx, lay.rowTemplate),
+                                // ⚠ 最上段の区画はヘッダ帯のぶん上へ伸びるので、その居場所を空ける。
+                                //   空けないとダッシュボードのタイトルに重なる（実機で発生）。
+                                // ⚠ **帯のぶんだけでは足りない。** ぴったりだと罫が見出しの
+                                //   すぐ下（12px）に来て窮屈に見えた（実機で計測）。
+                                //   帯＋余白で「見出しとは別の段」に見せる
+                                //   区画が最上段に無い時は従来どおり（既存ボードの間延びを防ぐ）
+                                paddingTop: lay.labeled ? GROUP_HEADER_H + 10 : 0,
+                                gap: grid.gap,
+                                // ⚠ `display` は engine の containerStyle が決めた値を
+                                //   **隠すときだけ**上書きする（表示中は触らない）
+                                ...(isActive ? null : { display: 'none' }),
                             }}
-                            onDragStart={canvas.onDragStart}
-                            entrance={definition.style?.entrance ?? 'rise'}
-                            index={i}
-                            onDuplicatePanel={onDuplicatePanel}
-                            onRemovePanel={onRemovePanel}
-                            onPatchPanel={onPatchPanel}
-                            onOpenDataSources={onOpenDataSources}
-                            onDetachSettings={onDetachSettings}
-                            definition={definition}
-                            app={app}
-                            rowOf={rowOf}
-                            engine={engine}
-                            layoutCtx={layoutCtx}
-                            quality={quality}
-                            design={design}
-                        />
-                    ))}
-                </div>
+                        >
+                            {/* グループ枠。パネルより先に描き、zIndex:0 で背面に置く。
+                                ⚠ そのタブに属するものだけ（切り替えても枠が残らないように） */}
+                            {lay.groups.map((g) => (
+                                <GroupFrame
+                                    key={g.id}
+                                    group={g}
+                                    panels={tabPanels}
+                                    grid={grid}
+                                    t={t}
+                                    mode={mode}
+                                    selected={isActive && selectedGroupId === g.id}
+                                    onSelect={onSelectGroup}
+                                    onDragStart={canvas.onGroupDragStart}
+                                    rowOf={lay.rowOf}
+                                    engine={engine}
+                                    layoutCtx={layoutCtx}
+                                    quality={quality}
+                                    design={design}
+                                    headerRows={lay.headerRows}
+                                />
+                            ))}
+                            {tabPanels.map((p, i) => (
+                                <Panel
+                                    key={p.id}
+                                    panel={p}
+                                    grid={grid}
+                                    theme={t}
+                                    mode={mode}
+                                    selected={isActive && selectedId === p.id}
+                                    onSelect={(id, e) => {
+                                        e?.stopPropagation?.();
+                                        onSelect?.(id);
+                                    }}
+                                    onDragStart={canvas.onDragStart}
+                                    // ⚠ **出現アニメは初めて開くときだけ**。隠して残す方式では
+                                    //   2 回目以降のタブ戻りで再生されない（DOM が残っているため
+                                    //   CSS animation が再実行されない）＝意図どおり
+                                    entrance={definition.style?.entrance ?? 'rise'}
+                                    index={i}
+                                    onDuplicatePanel={onDuplicatePanel}
+                                    onRemovePanel={onRemovePanel}
+                                    onPatchPanel={onPatchPanel}
+                                    onOpenDataSources={onOpenDataSources}
+                                    onDetachSettings={onDetachSettings}
+                                    definition={definition}
+                                    app={app}
+                                    rowOf={lay.rowOf}
+                                    engine={engine}
+                                    layoutCtx={layoutCtx}
+                                    quality={quality}
+                                    design={design}
+                                />
+                            ))}
+                        </div>
+                    );
+                })}
                 </div>
             </div>
             {canvasMenu ? (

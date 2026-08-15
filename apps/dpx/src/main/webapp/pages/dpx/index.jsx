@@ -1,66 +1,76 @@
-// ── DPX 単一エントリ（1ビュー集約）───────────────────────────────
-// ホストビュー `dpx`（template="pages/splunk_ui_app.html"）が読む唯一の JS。
-//   /app/dpx/dpx                → ホーム（一覧）
-//   /app/dpx/dpx?id=<app>/<name> → ダッシュボード
-// 画面間は pushState の SPA 遷移＝ページ再読込ゼロ（白フラッシュも出ない）。
+// ── DPX のエントリ（極小のシム）─────────────────────────────────
 //
-// ⚠ bootPaint は**必ず最初の import** にする（依存ゼロの副作用モジュール。
-//   React より先に評価され、地を暗くしてスプラッシュを出す）。
+// **このファイルは意図的に「ほぼ空」にしてある。** 中身を足さないこと。
+//
+// ## なぜ分けるのか（2026-08-15 実測で確定）
+//
+// 標準テンプレート（`pages/splunk_ui_app.html`）は「ビュー名と同名の JS」を
+// 1 本だけ読む。以前はそこにアプリ全体（**4.88MB / gzip 1.36MB**）を詰めていた。
+//
+// `bootPaint`（地を暗くする処理）はその**先頭の import** に置いてあったが、
+// **モジュールの評価はバンドル全体のダウンロード＋パースが終わるまで始まらない**。
+// 実測（コールド遷移・遷移開始を 0ms とする）:
+//
+// | | 旧（単一バンドル） |
+// |---|---|
+// | HTML 応答完了 | 26ms |
+// | dpx.js 取得 | 78〜603ms |
+// | **bootPaint 実行** | **800ms** |
+// | **first-paint** | **808ms** |
+//
+// → **HTML が来てから 800ms、ブラウザは「前のページ」を出したまま**だった。
+// これが「白フラッシュ」の正体（Splunk の他ページは明るいので白く見える）。
+//
+// ⚠ **旧ナレッジの「HTML 表示〜JS 開始の数百 ms は構造上塗れない」は誤り**だった。
+//   塗れないのではなく、**塗る処理を巨大バンドルの後ろに置いていた**のが原因。
+//   テンプレートが読む JS は 1 本でよく、**その 1 本を小さくすれば**先に塗れる。
+//
+// ## 仕組み
+//
+// 1. このファイル（数 KB）だけが同期で読まれ、**即座に**暗転＋スプラッシュを出す
+// 2. アプリ本体（`app.jsx`）は **動的 import** で別チャンクとして読む
+// 3. チャンクの取得先は `__webpack_public_path__` を実行時に組み立てて教える
+//    （⚠ Splunk の静的 URL は `_bump` のたびに変わるキャッシュキーを含むので、
+//      ビルド時に固定できない。**自分自身の script タグの src から逆算する**）
 // ────────────────────────────────────────────────────────────────
-import { showBootSplash } from './bootPaint';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import layout from '@splunk/react-page/18';
+import './bootPaint';
 
-import HomePage from '../../components/pages/HomePage';
-import DashboardPage from '../../components/pages/DashboardPage';
-import { parseDpxRoute, homeHref } from '../../components/data/viewStore';
-
-const DpxApp = () => {
-    const [route, setRoute] = useState(() => parseDpxRoute());
-    const routeIdRef = useRef(route.id);
-    routeIdRef.current = route.id;
-
-    // 戻る/進むで URL が変わったらルートを取り直す。
-    // モードだけの変更（?mode=edit）は DashboardPage 側も独自に追随するが、
-    // id が同じなら key が変わらないので再マウントは起きない（意図どおり）。
-    useEffect(() => {
-        const onPop = () => {
-            const next = parseDpxRoute();
-            // 画面が切り替わる（id が変わる）ときだけロード画面を挟む。
-            // mode だけの往復では出さない
-            if (routeIdRef.current !== next.id) showBootSplash();
-            setRoute(next);
-        };
-        window.addEventListener('popstate', onPop);
-        return () => window.removeEventListener('popstate', onPop);
-    }, []);
-
-    const navigate = useCallback((href) => {
-        // SPA 遷移でも「かっこいいロード画面」を見せる（最低表示時間は
-        // dismissBootSplash 側が保証）。切替自体は一瞬でも、演出として挟む
-        showBootSplash();
-        window.history.pushState({}, '', href);
-        setRoute(parseDpxRoute());
-    }, []);
-
-    if (!route.id) {
-        return <HomePage navigate={navigate} />;
+// ⚠ **動的 import より前に publicPath を決める**（webpack はこの変数を見て
+//   チャンクの URL を組み立てる。後から代入しても間に合わない）。
+//
+//   自分自身（pages/dpx.js）の URL からディレクトリ部分を取る。
+//   例: /en-US/static/@<hash>/app/dpx/pages/dpx.js
+//       → /en-US/static/@<hash>/app/dpx/pages/
+//   ⚠ `document.currentScript` はモジュール評価時には null になりうるので、
+//     フォールバックとして src の末尾一致でも探す。
+(() => {
+    let base = '';
+    const self = document.currentScript;
+    if (self && self.src) {
+        base = self.src.replace(/[^/]*$/, '');
+    } else {
+        const tag = [...document.querySelectorAll('script[src]')].find((s) =>
+            /\/pages\/dpx\.js(\?|$)/.test(s.src)
+        );
+        if (tag) base = tag.src.replace(/[^/]*$/, '');
     }
-    return (
-        <DashboardPage
-            // key でボード切替時に確実に作り直す（前のボードのサーチ・タイマーを
-            // React のアンマウントで一括停止させる。長時間の SPA 滞在でも漏らさない）
-            key={route.id}
-            app={route.app}
-            view={route.view}
-            initialMode={route.mode}
-            onNavigateHome={() => navigate(homeHref())}
-        />
-    );
-};
+    if (base) {
+        // eslint-disable-next-line camelcase, no-undef
+        __webpack_public_path__ = base;
+    }
+})();
 
-// ⚠ 常に dark 固定。Splunk のユーザーテーマ（多くの環境で light）を渡すと、
-//    @splunk/react-page が明るいローディング画面（3点リーダー）を描いてしまう
-//    （実機で 58ms 地点に rgb(242,244,245) のパネルを確認済み）。
-layout(<DpxApp />, { theme: 'dark' });
+// アプリ本体を読み込む。**ここで初めて React も 30 種の viz も落ちてくる。**
+// 失敗したらスプラッシュのままになってしまうので、必ず知らせる。
+import(/* webpackChunkName: "dpx-app" */ './app').catch((err) => {
+    // eslint-disable-next-line no-console
+    console.error('[dpx] アプリの読み込みに失敗しました', err);
+    const boot = document.getElementById('dpx-boot');
+    if (boot) {
+        boot.innerHTML =
+            '<div style="text-align:center;font:14px/1.7 sans-serif;color:#e8eefc">' +
+            '<div style="font-weight:600;letter-spacing:.2em;margin-bottom:10px">DPX</div>' +
+            '読み込みに失敗しました。<br>再読み込みしてください。</div>';
+    }
+});

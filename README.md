@@ -13,7 +13,7 @@ Splunk **Dashboard Studio** 向けのカスタムビジュアライゼーショ�
 > - [apps/ops-console/](apps/ops-console/) … 方式の実証。画面上で SPL を書き換えて実行できる
 > - [apps/noc-wall/](apps/noc-wall/) … 壁掛けモニタ用のウォールボード。**4 画面を 9 秒ごとに自動送り**
 > - [apps/soc-console/](apps/soc-console/) … SOC アラートトリアージ。**一覧の選択に詳細・調査タイムラインが追従**
-> - [apps/dpx/](apps/dpx/) … **DPX v0.1.0（リリース前）**。独立 React ページ上に自前エンジンを載せた
+> - [apps/dpx/](apps/dpx/) … **DPX v1.0.1**。独立 React ページ上に自前エンジンを載せた
 >   **完全独自のダッシュボード基盤**。GUI 編集・共有データソース・タブ・図形・テーマ18種
 >   （画面発光系に加えて**紙・活版／青焼き図面／熱画像／電子ペーパー／
 >   手描き画材4種＝水彩・クレヨン・色鉛筆・インク＋水彩／Liquid Glass（iOS 26）**）を備え、

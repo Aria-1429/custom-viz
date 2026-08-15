@@ -19,6 +19,12 @@ const ok = (c, m) => {
 };
 
 const bg = readFileSync(new URL('../src/main/webapp/components/renderer/BackgroundLayer.jsx', import.meta.url), 'utf8');
+// ⚠ **アニメの「表」と「@keyframes」は別ファイルに居る**（2026-08-15 に分離）:
+//   - 表（ENTRANCE_ANIM / AMBIENT_ANIM）… `rendererConst.js`
+//     （Renderer と Panel の両方が使う定数なので共有ファイルへ出した）
+//   - @keyframes 本体 …… `DashboardRenderer.jsx`（ダッシュボード全体の global CSS）
+//   ファイルを分けたら**このテストの参照先も追う**こと（実際ここが落ちて気づいた）。
+const anim = readFileSync(new URL('../src/main/webapp/components/renderer/rendererConst.js', import.meta.url), 'utf8');
 const dash = readFileSync(new URL('../src/main/webapp/components/renderer/DashboardRenderer.jsx', import.meta.url), 'utf8');
 const insp = readFileSync(new URL('../src/main/webapp/components/builder/Inspector.jsx', import.meta.url), 'utf8');
 
@@ -71,7 +77,7 @@ ok(bgValues[0] === 'none', '背景の先頭は「なし」');
 }
 
 // ── 出現アニメ：値 ↔ keyframes ↔ 編集パネル ───────────────
-const animBlock = dash.slice(dash.indexOf('const ENTRANCE_ANIM'), dash.indexOf('};', dash.indexOf('const ENTRANCE_ANIM')));
+const animBlock = anim.slice(anim.indexOf('ENTRANCE_ANIM'), anim.indexOf('};', anim.indexOf('ENTRANCE_ANIM')));
 const entranceKeys = [...animBlock.matchAll(/^ {4}([a-zA-Z]+):/gm)].map((m) => m[1]);
 const entranceAnims = [...animBlock.matchAll(/'(dpx[A-Za-z]+) /g)].map((m) => m[1]);
 

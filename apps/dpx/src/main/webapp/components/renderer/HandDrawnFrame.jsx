@@ -17,6 +17,8 @@ import { MEDIUM_PRESETS, applyTooth, roughCanvas, seedFrom, strokeRect } from '.
 export default function HandDrawnFrame({ medium, color, paper, seedKey, radius = 0, inset = 10 }) {
     const canvasRef = useRef(null);
     const boxRef = useRef(null);
+    // 直前に描いたサイズ。**同じサイズなら描き直さない**（下の ⚡ を参照）
+    const lastSize = useRef(null);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -25,9 +27,23 @@ export default function HandDrawnFrame({ medium, color, paper, seedKey, radius =
         const cfg = MEDIUM_PRESETS[medium];
         if (!cfg) return undefined;
 
+        // 画材・色・seed が変わったら、同じサイズでも描き直す必要がある
+        lastSize.current = null;
+
         const draw = () => {
             const w = Math.max(1, Math.round(box.offsetWidth));
             const h = Math.max(1, Math.round(box.offsetHeight));
+            // ⚡ **サイズが変わっていなければ何もしない**（2026-08-15）。
+            //   `ResizeObserver` は `observe()` した瞬間に**必ず 1 回発火する**ので、
+            //   下の `draw(); ro.observe(box);` は**毎マウント 2 回**描いていた。
+            //   タブ切替はパネルを丸ごと再マウントするため、タブを開くたびに
+            //   面積比例の紙目描画が 2 倍走っていた（実機計測：4 パネルで
+            //   canvas.width 代入 8 回／`arc()` 15,696 回）。
+            //   ⚠ 幅 0（display:none のタブ等）では描かない。復帰時に実寸で描き直す
+            if (w <= 1 || h <= 1) return;
+            const prev = lastSize.current;
+            if (prev && prev.w === w && prev.h === h) return;
+            lastSize.current = { w, h };
             // ⚠ devicePixelRatio を掛けないと高 DPI で線がぼやける。
             //   ただし上限を付ける（4K で 3倍だと塗り面積が9倍になる）
             const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -61,7 +77,9 @@ export default function HandDrawnFrame({ medium, color, paper, seedKey, radius =
                 // 内側を切り抜いて「枠の帯」だけを対象にする（evenodd で穴を開ける）
                 g.rect(band, band, Math.max(0, w - band * 2), Math.max(0, h - band * 2));
                 g.clip('evenodd');
-                applyTooth(g, w, h, { density: cfg.tooth, seed: seed + 7, paper });
+                // ⚡ `band` を渡すと、clip で捨てられる内側の粒を**描かずに飛ばす**
+                //   （乱数列は消費するので見た目は変わらない。handDrawn.js を参照）
+                applyTooth(g, w, h, { density: cfg.tooth, seed: seed + 7, paper, band });
                 g.restore();
             }
         };

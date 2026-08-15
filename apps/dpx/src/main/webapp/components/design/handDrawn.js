@@ -61,16 +61,42 @@ export function seedFrom(str) {
  *
  * ⚠ 透明に抜かない（`destination-in`）。暗い盤面で黒い裂け目になる。
  * ⚠ 濃くしない。density 0.25 を超えるとデジタルなノイズに見える。
+ *
+ * ⚡ **`band` を渡すと「枠の帯」の外に落ちる粒を描かずに飛ばす**（2026-08-15）。
+ *   呼び出し側は `clip('evenodd')` で帯だけに塗りを限定しているが、
+ *   **クリップはフラグメントを捨てるだけでループ回数は減らない**。
+ *   パネル 673×324・crayon（density 0.09）で **1962 回**の `arc()+fill()` が走り、
+ *   その大半が「描いた直後に捨てられる」無駄だった（実機計測）。
+ *
+ *   ⚠ **乱数列は一切スキップしない。** 座標を引いてから帯の内外を判定する
+ *   （`continue` の前に必ず 4 回 `r()` を消費する）。ここで早期 continue して
+ *   乱数の消費数を変えると、**残った粒の位置まで全部変わって見た目が変わる**。
+ *   飛ばすのは「canvas への描画呼び出し」だけ。
  */
-export function applyTooth(g, w, h, { density = 0.08, seed = 1, paper = '#1a1a1a' } = {}) {
+export function applyTooth(g, w, h, { density = 0.08, seed = 1, paper = '#1a1a1a', band = 0 } = {}) {
     const r = rng(seed);
     const n = Math.round((w * h * density) / 10);
+    // 帯の内側（描いても clip で捨てられる矩形）。band<=0 なら全面に描く。
+    const inX0 = band;
+    const inY0 = band;
+    const inX1 = w - band;
+    const inY1 = h - band;
+    const hasBand = band > 0 && inX1 > inX0 && inY1 > inY0;
     g.save();
     g.fillStyle = paper;
     for (let i = 0; i < n; i++) {
-        g.globalAlpha = 0.08 + r() * 0.22;
+        // ⚠ 順序を変えない（rng の消費順が見た目そのもの）
+        const alpha = 0.08 + r() * 0.22;
+        const cx = r() * w;
+        const cy = r() * h;
+        const rad = 0.6 + r() * 1.4;
+        // 粒が完全に内側の矩形に入るなら clip で捨てられる＝描くだけ無駄
+        if (hasBand && cx - rad >= inX0 && cx + rad <= inX1 && cy - rad >= inY0 && cy + rad <= inY1) {
+            continue;
+        }
+        g.globalAlpha = alpha;
         g.beginPath();
-        g.arc(r() * w, r() * h, 0.6 + r() * 1.4, 0, Math.PI * 2);
+        g.arc(cx, cy, rad, 0, Math.PI * 2);
         g.fill();
     }
     g.restore();

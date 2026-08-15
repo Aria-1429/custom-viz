@@ -119,6 +119,48 @@ test('⭐ Renderer にドラッグの実装が残っていない（Canvas 層の
     );
 });
 
+// ── ⭐ Renderer の内部分割（2026-08-15）──────────────────────────
+//
+// **「1 枚をどう描くか」と「どう並べるか」を分ける。**
+// 分割前は 1 ファイルに同居していたが、共有していたのは寸法とアニメ表の
+// 定数だけで、状態の共有はゼロだった（＝元から独立していた）。
+
+test('⭐ Panel が Renderer を import しない（循環参照を作らない）', () => {
+    const bad = importsOf('renderer/Panel.jsx').filter((i) => i.includes('DashboardRenderer'));
+    assert.deepEqual(bad, [], `Panel が Renderer に依存している: ${bad.join(', ')}`);
+});
+
+test('⭐ Renderer が Panel の中身（サーチ・viz 解決）を知らない', () => {
+    // パネル 1 枚の関心（どのサーチを流し、どの viz を描くか）は Panel の担当。
+    // ここが戻ると「並べる」と「描く」がまた混ざる。
+    const imports = importsOf('renderer/DashboardRenderer.jsx');
+    const bad = imports.filter((i) => i.includes('viz/registry') || i.includes('viz/panelFields'));
+    assert.deepEqual(bad, [], `Renderer が viz の解決を抱えている: ${bad.join(', ')}`);
+});
+
+test('⭐ 寸法・アニメ表の定数が 1 か所（両ファイルに数値を書かない）', () => {
+    // 片方だけ直して罫や余白がずれる事故を防ぐ。実際 GROUP_HEADER_H が
+    // 2 か所に書かれていて、危うく同じ事故になりかけた。
+    for (const name of ['TITLE_H', 'HAND_DRAWN_INSET', 'FULL_INSET', 'ENTRANCE_ANIM', 'AMBIENT_ANIM']) {
+        const re = new RegExp(`^(?:export )?const ${name}\\s*=`, 'm');
+        const dupes = ['renderer/DashboardRenderer.jsx', 'renderer/Panel.jsx', 'renderer/rendererConst.js']
+            .filter((f) => re.test(read(f)));
+        assert.deepEqual(dupes, ['renderer/rendererConst.js'], `${name} の定義が rendererConst.js 以外にある: ${dupes.join(', ')}`);
+    }
+    // GROUP_HEADER_H は tabLayout.js（行テンプレートを組む側）が持つ
+    const ghDefs = ['renderer/DashboardRenderer.jsx', 'renderer/tabLayout.js']
+        .filter((f) => /^export const GROUP_HEADER_H\s*=|^const GROUP_HEADER_H\s*=/m.test(read(f)));
+    assert.deepEqual(ghDefs, ['renderer/tabLayout.js'], `GROUP_HEADER_H の定義が重複: ${ghDefs.join(', ')}`);
+});
+
+test('⭐ タブの生存判定・レイアウト解決は React に依存しない（純粋関数）', () => {
+    // 素の Node でテストできることが、方針（LRU 上限・消えたタブの掃除・
+    // 見出し行の挿し込み）を機械で固定できる根拠になっている。
+    for (const f of ['renderer/tabLifecycle.js', 'renderer/tabLayout.js']) {
+        assert.ok(!importsOf(f).includes('react'), `${f} が React に依存している`);
+    }
+});
+
 test('Canvas 層が Renderer を使う（依存の向きが逆になっていない）', () => {
     const imports = importsOf('canvas/DashboardCanvas.jsx');
     assert.ok(

@@ -1,7 +1,9 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { createRESTURL } from '@splunk/splunk-utils/url';
 import { defaultFetchInit, handleError, handleResponse } from '@splunk/splunk-utils/fetch';
 import { username } from '@splunk/splunk-utils/config';
+
+import { searchKey, subscribeSearch } from './searchStore.js';
 
 // ── サーチの名前空間（1ビュー集約で必須になった）──────────────────
 // 旧方式では「ビューの URL ＝所属アプリ」だったので名前空間を省略できたが、
@@ -68,7 +70,6 @@ function waitForJob(sid, ns, isStale, { intervalMs = 250, timeoutMs = 120_000 } 
 
 export function useSplunkSearch(spl, { earliest = '-24h', latest = 'now', count = 5000, refresh = 0 } = {}) {
     const [state, setState] = useState({ data: null, loading: true, error: null });
-    const generation = useRef(0);
     // ダッシュボードの所属アプリ名前空間（未提供なら従来どおり既定の名前空間）
     const searchApp = useContext(SearchAppContext);
     const ns = searchApp ? { app: searchApp, owner: username } : undefined;
@@ -79,12 +80,14 @@ export function useSplunkSearch(spl, { earliest = '-24h', latest = 'now', count 
             return undefined;
         }
 
-        const myGen = ++generation.current;
-        const isStale = () => myGen !== generation.current;
-        let timer = null;
+        // ⚡ **同じサーチは1本にまとめる**（2026-08-15）。
+        //   共有データソースを N パネルが参照していても、実行は 1 回。
+        //   完了した結果は短時間キャッシュされるので、**タブを戻したときは
+        //   再実行せず即座に描ける**（searchStore.js の冒頭に経緯）。
+        const key = searchKey({ spl, earliest, latest, count, app: searchApp ?? '' });
 
-        const runOnce = () => {
-            setState((prev) => ({ ...prev, loading: true }));
+        /** 実際にジョブを投げて {fields, columns} を返す。ストアから1回だけ呼ばれる。 */
+        const exec = (isStale) => {
             const trimmed = spl.trim();
             const query = /^\||^search\b/i.test(trimmed) ? trimmed : `search ${trimmed}`;
             // ⚠ **`exec_mode=blocking` を使わない**（Studio の実装に合わせた。2026-08-12 実機で確定）。
@@ -113,7 +116,9 @@ export function useSplunkSearch(spl, { earliest = '-24h', latest = 'now', count 
                 provenance: 'UI:dashboard:dpx',
             });
 
-            fetch(createRESTURL('search/jobs', ns), {
+            // ⚠ **Promise を return する**（ストアが購読者への配信・エラー・
+            //   自動更新のスケジュールを一括で持つ）。ここで setState しない
+            return fetch(createRESTURL('search/jobs', ns), {
                 ...defaultFetchInit,
                 method: 'POST',
                 headers: { ...defaultFetchInit.headers, 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -141,7 +146,7 @@ export function useSplunkSearch(spl, { earliest = '-24h', latest = 'now', count 
                     });
                 })
                 .then((json) => {
-                    if (isStale() || json === null) return;
+                    if (isStale() || json === null) return null;
                     // 行指向 → 列指向（viz 契約）へ。
                     // ⚠ フィールド順は splunkd 応答（fields 配列・行キー順とも）に
                     //   依存しない。同じ SPL でも呼び出しごとに順序が入れ替わる
@@ -158,28 +163,20 @@ export function useSplunkSearch(spl, { earliest = '-24h', latest = 'now', count 
                                   ...observed.filter((n) => !declared.includes(n)),
                               ]
                             : observed;
-                    const data = {
+                    return {
                         fields: fieldNames.map((n) => ({ name: n })),
                         columns: fieldNames.map((n) => rows.map((r) => r[n] ?? null)),
                     };
-                    setState({ data, loading: false, error: null });
-                })
-                .catch((err) => {
-                    if (isStale()) return;
-                    setState({ data: null, loading: false, error: String(err?.message ?? err) });
-                })
-                .finally(() => {
-                    if (!isStale() && refresh > 0) {
-                        timer = setTimeout(runOnce, Math.max(refresh, 5) * 1000);
-                    }
                 });
         };
 
-        runOnce();
-        return () => {
-            generation.current += 1;
-            if (timer) clearTimeout(timer);
+        // ⚠ **購読オブジェクトは毎回新しく作る**（Set のキーになるので使い回さない）。
+        //   通知はストア側から来る。ここでは state に流し込むだけ
+        const sub = {
+            notify: (next) => setState(next),
+            refresh: Number(refresh) || 0,
         };
+        return subscribeSearch(key, exec, sub);
     }, [spl, earliest, latest, count, refresh, searchApp]);
 
     return state;
