@@ -26,6 +26,10 @@
     {
       "id": "deco",
       "label": "装飾・図形"
+    },
+    {
+      "id": "flow",
+      "label": "フロー・関係"
     }
   ],
   "dataSources": {
@@ -58,6 +62,12 @@
     },
     "ds_link": {
       "spl": "| makeresults | eval 遅延=42 | table 遅延"
+    },
+    "ds_flow": {
+      "spl": "| makeresults count=1 | eval raw=split(\"インターネット,WAF,アプリ,DB,520;インターネット,WAF,アプリ,キャッシュ,310;インターネット,WAF,タイムアウト,,180;VPN,ファイアウォール,アプリ,DB,240;VPN,ファイアウォール,アプリ,キャッシュ,120;VPN,ファイアウォール,認証失敗,,75;社内LAN,ファイアウォール,アプリ,DB,90\",\";\") | mvexpand raw | eval f=split(raw,\",\") | eval 入口=mvindex(f,0), 経路=mvindex(f,1), 処理=mvindex(f,2), 保存先=mvindex(f,3), 件数=tonumber(mvindex(f,4)) | table 入口 経路 処理 保存先 件数"
+    },
+    "ds_net": {
+      "spl": "| makeresults count=1 | eval raw=split(\"web01,api01,820;web02,api01,610;api01,db01,700;api01,cache01,540;api02,db01,300;web01,api02,260;db01,backup01,150;cache01,api02,95\",\";\") | mvexpand raw | eval f=split(raw,\",\") | eval 送信元=mvindex(f,0), 送信先=mvindex(f,1), 通信量=tonumber(mvindex(f,2)) | table 送信元 送信先 通信量"
     }
   },
   "panels": [
@@ -445,6 +455,86 @@
       },
       "style": {
         "variant": "noc"
+      }
+    },
+    {
+      "id": "f_head",
+      "tab": "flow",
+      "viz": "deco.text",
+      "title": "",
+      "x": 0,
+      "y": 0,
+      "w": 12,
+      "h": 2,
+      "style": {
+        "variant": "frameless"
+      },
+      "options": {
+        "text": "流れと関係を見る（標準 viz との差が大きい2種）",
+        "size": 15,
+        "align": "left"
+      }
+    },
+    {
+      "id": "f_sankey",
+      "tab": "flow",
+      "viz": "dpx.sankey",
+      "title": "dpx.sankey ／ フロー図  —  4列以上=多段（標準は3列目以降を捨てる）",
+      "x": 0,
+      "y": 2,
+      "w": 12,
+      "h": 10,
+      "search": {
+        "ref": "ds_flow"
+      },
+      "options": {
+        "nodeWidth": 14,
+        "nodePadding": 12,
+        "nodeSort": "value",
+        "traceMode": "path",
+        "showLoss": true,
+        "showValues": true
+      }
+    },
+    {
+      "id": "f_net",
+      "tab": "flow",
+      "viz": "dpx.linkGraph",
+      "title": "dpx.linkGraph ／ 関係図  —  線の太さが通信量に連動（標準は不可）",
+      "x": 0,
+      "y": 12,
+      "w": 8,
+      "h": 9,
+      "search": {
+        "ref": "ds_net"
+      },
+      "options": {
+        "nodeSize": 8,
+        "scaleNodeSize": true,
+        "maxLinkWidth": 9,
+        "scaleLinkWidth": true,
+        "showArrows": true,
+        "animateFlow": true
+      }
+    },
+    {
+      "id": "f_net2",
+      "tab": "flow",
+      "viz": "dpx.linkGraph",
+      "title": "dpx.linkGraph ／ 動きなし・均一の太さ（比較用）",
+      "x": 8,
+      "y": 12,
+      "w": 4,
+      "h": 9,
+      "search": {
+        "ref": "ds_net"
+      },
+      "options": {
+        "nodeSize": 6,
+        "scaleNodeSize": false,
+        "scaleLinkWidth": false,
+        "animateFlow": false,
+        "labelSize": 10
       }
     }
   ]

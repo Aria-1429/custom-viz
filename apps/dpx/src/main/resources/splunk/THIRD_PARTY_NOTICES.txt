@@ -2,7 +2,7 @@ THIRD-PARTY SOFTWARE NOTICES
 ============================
 
 App: @splunk/dpx v1.2.0
-Fingerprint: 987c26b1b28440b8d5312a3e1fdb431628bbce46670a1cbdefee936d16398e3c
+Fingerprint: 8723a3e73d3b6268c290f03afd6d2d8a9bcdbbacd4cb22a5d721f6310542d076
 
 このファイルは scripts/gen-third-party-notices.mjs が esbuild metafile
 （実際にバンドルされたモジュールの一覧）から機械生成したものです。
@@ -1948,7 +1948,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ----------------------------------------------------------------
-d3-array@3.2.4 (ISC)
+d3-array@2.12.1 (BSD-3-Clause)
 Source: https://d3js.org/d3-array/
 ----------------------------------------------------------------
 Copyright 2010-2023 Mike Bostock
@@ -2005,7 +2005,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ----------------------------------------------------------------
-d3-path@1.0.9 (BSD-3-Clause)
+d3-path@3.1.0 (ISC)
 Source: https://d3js.org/d3-path/
 ----------------------------------------------------------------
 Copyright 2015-2016 Mike Bostock
@@ -2069,7 +2069,7 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ----------------------------------------------------------------
-d3-shape@1.3.7 (BSD-3-Clause)
+d3-shape@3.2.0 (ISC)
 Source: https://d3js.org/d3-shape/
 ----------------------------------------------------------------
 Copyright 2010-2015 Mike Bostock

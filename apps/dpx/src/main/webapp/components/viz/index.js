@@ -68,6 +68,19 @@ export { buildBins, buildMatrix, cellKey, heatRatio, sturgesBins } from './aggre
 // 使う側で書き直さず、必ずこの 2 つを組で使う（→ interpolate.js の注記）
 export { applyFieldValues, optionalExcept } from './interpolate';
 
+// ── グラフ（フロー図・関係図）────────────────────────────────────
+// 行 → ノード＋リンクの畳み込み。⚠ 4 列以上を捨てないのが標準との差
+export {
+    NODE_SEP,
+    buildFlowGraph,
+    colorIndexByName,
+    forceLayout,
+    lossByStage,
+    parseFlowNum,
+    reaches,
+    tracePath,
+} from './graph';
+
 // ── 目盛り・軸 ──────────────────────────────────────────────────
 export { formatAxisLabels, niceScale, niceTicks } from './scale';
 

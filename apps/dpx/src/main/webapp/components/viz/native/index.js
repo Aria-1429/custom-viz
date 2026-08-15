@@ -18,6 +18,8 @@
 // | `dpx.heatmap`   | 1列目 = 行、2列目 = 列、3列目 = 値 |
 // | `dpx.progress`  | 1列目 = ラベル、2列目 = 値（3列目 = 目標値・任意） |
 // | `dpx.markdown`  | **サーチ不要**（繋げば `$列名$` で1行目の値を差し込める） |
+// | `dpx.sankey`    | 3列 = 送信元,送信先,値／**4列以上 = 多段フロー**（標準は多段を捨てる） |
+// | `dpx.linkGraph` | 3列 = 送信元,送信先,値（**線の太さが値に連動**＝標準にできない） |
 //
 // ⚠ **1 viz = 1 ファイル**。以前は 7 つで 2,516 行の 1 ファイルだった。
 //   どこを直せばよいかが分からず、**別の viz を直してしまう事故**が起きた
@@ -36,3 +38,5 @@ export { DpxHistogram } from './DpxHistogram';
 export { DpxHeatmap } from './DpxHeatmap';
 export { DpxProgress } from './DpxProgress';
 export { DpxMarkdown } from './DpxMarkdown';
+export { DpxSankey } from './DpxSankey';
+export { DpxLinkGraph } from './DpxLinkGraph';

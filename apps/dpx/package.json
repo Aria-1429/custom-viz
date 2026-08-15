@@ -1,6 +1,6 @@
 {
     "name": "@splunk/dpx",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "license": "MIT",
     "private": true,
     "description": "新ダッシュボード基盤（Dashboard Framework を独立 React ページでホストする実証）",
@@ -21,6 +21,8 @@
         "@splunk/splunk-utils": "^4.0.1",
         "@splunk/themes": "^1.9.0",
         "d3-geo": "^3.1.1",
+        "d3-sankey": "^0.12.3",
+        "d3-shape": "^3.2.0",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
         "react-is": "^18.3.1",
