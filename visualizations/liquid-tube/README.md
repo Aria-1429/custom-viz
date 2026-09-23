@@ -176,7 +176,7 @@ yarn package        # dist/*.spl を生成
   - ドリルダウン（`point.click`）対応、ライト／ダークテーマ対応
 - 実装に先立ち **Splunk の viz iframe 内で WebGL2 が使えることを実機検証**した
   （62fps / ANGLE D3D11 環境）。検証結果と実装知見は
-  `.claude/skills/splunk-viz/references/webgl-in-custom-viz.md` にまとめてある。
+  `.agents/skills/splunk-viz/references/webgl-in-custom-viz.md` にまとめてある。
 
 #### 成果物
 

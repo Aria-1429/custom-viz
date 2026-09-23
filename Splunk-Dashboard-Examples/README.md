@@ -14,7 +14,7 @@ viz 本体は [`visualizations/`](../visualizations/) にある。
 ### タブ構成
 
 縦に長い1枚ものにせず、**目的ごとに4タブへ分割**してある。
-`layout.tabs` ＋ `layoutDefinitions`（→ [studio-dashboard-json.md](../.claude/skills/splunk-viz/references/studio-dashboard-json.md) §4）。
+`layout.tabs` ＋ `layoutDefinitions`（→ [studio-dashboard-json.md](../.agents/skills/splunk-viz/references/studio-dashboard-json.md) §4）。
 
 | タブ | 何を見るタブか | 主な viz |
 |---|---|---|

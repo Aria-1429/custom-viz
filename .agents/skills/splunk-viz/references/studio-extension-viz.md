@@ -38,7 +38,7 @@ Splunk UI（splunkui.splunk.com / Splunk Design System）が提供する npm パ
   NetworkGraph, ParallelCoordinates, Pie, ProcessTree, Punchcard, RichText, Sankey, Scatter, SingleValue,
   SingleValueBasic, SingleValueIcon, SingleValueRadial, SparkLine, Table, Timeline, Treemap ほか。
 - `@splunk/dashboard-inputs` の標準 input: text / select / multiselect / number / button / time range。
-  カスタム input UI は拡張では作れず Framework 側のみ（[dashboard-framework.md](dashboard-framework.md)）。
+  カスタム input UI は拡張では作れず Framework 側のみ（[custom-viz-methods.md](custom-viz-methods.md) の Dashboard Framework の節。専用資料は無い）。
 
 ---
 

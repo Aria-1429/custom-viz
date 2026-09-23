@@ -24,7 +24,7 @@ import './visualization.css';
 //   - 気泡は個体差＋時間変化で形が揺らぐ
 //
 // 【WebGL の実機確認済み事項】（2026-08-02 検証。詳細は
-//  .claude/skills/splunk-viz/references/webgl-in-custom-viz.md）
+//  .agents/skills/splunk-viz/references/webgl-in-custom-viz.md）
 //   - Splunk のカスタム viz iframe 内で **webgl2 が使える**
 //   - GLSL ES 3.00 がそのままコンパイル・リンクできる
 //   - 62fps 出る（RTX 5080 / ANGLE D3D11 環境）

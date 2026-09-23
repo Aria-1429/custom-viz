@@ -151,9 +151,10 @@ yarn package      # dist/*.spl を生成
 ## デプロイ（アンインストール・再起動なし）
 
 1. `npm version <patch|minor> --no-git-tag-version` でバージョンを上げ、`package/app/app.conf` の version も同期。
-2. `yarn build && yarn package` で新しい `.spl` を生成。
+2. `yarn build:prod && yarn package` で新しい `.spl` を生成（`yarn build` は開発ビルド。sourcemap 入りの巨大 `.spl` になるので使わない）。
 3. Splunk Web「Install app from file」で **"Upgrade app"（上書き）にチェック**して `.spl` をアップロード。
-4. `https://<host>:8000/en-US/_bump` で **Bump version**（Splunk 再起動の代替）→ ブラウザをハードリロード（Ctrl+Shift+R）。
+4. `https://<host>:8000/en-US/_bump` で **Bump version** → ブラウザをハードリロード（Ctrl+Shift+R）。描画（`visualization.js`）はこれで反映される。
+   **ただし `config.json`（optionsSchema / editorConfig）を変えた回は splunkd の再起動が要る**（`_bump` では編集パネルに反映されない。実機確認済み）。
 
 ---
 
@@ -173,10 +174,10 @@ yarn package      # dist/*.spl を生成
 ## 設計上の共通ルール
 
 - **完全オフライン**：外部 API フェッチ・CDN 読み込みは禁止。依存はすべてバンドルに同梱。
-- **テーマガード**：`useTheme()` が undefined の間はレンダリングせず、取得後のみ描画。
+- **マウントゲート＋テーマのフォールバック**：ホスト初期化（テーマ・データの初期 state 受信）を待ってから `createRoot().render()` し、テーマは `theme || 'light'` で必ず描画する。`return null` で永久に待つガードは書かない（初期 state を取り逃すと二度と描画されない）。
 - **データ正規化**：`rows` / `columns` 両形式に対応し、欠損・型不一致・マルチバリューでも落とさない。
 - **オートフィット**：`ResizeObserver` でコンテナ実寸を測り、領域いっぱいに描画。
-- **値→色**：`editor.dynamicColor` はカスタム viz で使えないため、値ベースのカラースケールを自前実装。
+- **値→色**：`editor.dynamicColor` はカスタム viz で使えない。範囲→色は `editor.threshold`、連続グラデーションは自前のカラースケール。
 - 編集画面のオプションラベルはすべて日本語（キー名は英語）。
 - **データ未取得時のメッセージ**：全 viz 共通で
   「データがありません。サーチ結果を確認してください。」をパネル中央に表示する。

@@ -8,7 +8,7 @@ Dashboard Studio でも classic（Simple XML）でもなく、独立 React ペ�
 ことだけを前提に、**より映えるダッシュボードを自由に簡単に作れる**ことを目指しています。
 
 実装ナレッジ（構成・スキーマ・viz の作り方・踏んだ罠・E2E ツール）は
-[.claude/skills/splunk-viz/references/dpx-platform.md](../../.claude/skills/splunk-viz/references/dpx-platform.md)
+[.agents/skills/splunk-viz/references/dpx-platform.md](../../.agents/skills/splunk-viz/references/dpx-platform.md)
 に集約しています。**着手前にそちらを読むこと。**
 
 ## 構成（30秒版）

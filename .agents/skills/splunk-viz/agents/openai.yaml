@@ -1,0 +1,6 @@
+# Codex 用メタデータ。SKILL.md の frontmatter にある disable-model-invocation（Claude Code 用）と同じ意味。
+interface:
+  display_name: "Splunk Viz"
+  short_description: "Splunk カスタム viz / ダッシュボード / DPX の実装ナレッジ"
+policy:
+  allow_implicit_invocation: false   # $splunk-viz と明示したときだけ読み込む

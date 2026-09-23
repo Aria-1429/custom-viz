@@ -26,7 +26,7 @@ import './visualization.css';
 //     JS 側でも計算し、球の裏側に回った区間を消す（オクルージョン判定）
 //
 // 【WebGL の実機確認済み事項】（2026-08-02 検証。詳細は
-//  .claude/skills/splunk-viz/references/webgl-in-custom-viz.md）
+//  .agents/skills/splunk-viz/references/webgl-in-custom-viz.md）
 //   - Splunk のカスタム viz iframe 内で **webgl2 が使える**
 //   - GLSL ES 3.00 がそのままコンパイル・リンクできる
 //

@@ -35,7 +35,7 @@
 //    → **`--restart` を付ければこのスクリプトが splunkd を再起動して復帰まで待つ**
 //      （`restart_splunkd` 権限が要る。2026-08-07 に付与済み・実機確認済み。所要 45 秒前後）。
 //      権限が無い環境では警告だけ出すので、ユーザーに再起動を依頼すること。詳細は
-//      `.claude/skills/splunk-viz/references/studio-extension-viz.md` の §7.1。
+//      `.agents/skills/splunk-viz/references/studio-extension-viz.md` の §7.1。
 //
 // 認証情報は ~/.splunk-dev.env（config.mjs）から読む。チャットやリポジトリに書かない。
 

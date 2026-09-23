@@ -6,7 +6,7 @@
 //   yarn build:prod   … dist/<viz>/metafile.json を生成（build.mjs が出力）
 //   yarn notices      … node ../../scripts/gen-third-party-notices.mjs
 //
-// 設計（.claude/skills/splunk-viz/references/studio-extension-viz.md §11 準拠）:
+// 設計（.agents/skills/splunk-viz/references/studio-extension-viz.md §11 準拠）:
 //  1. 対象の特定は esbuild metafile の outputs[*].inputs（唯一の正確な情報源。
 //     package.json の dependencies から推測しない。.map 出力は配布物でないので除外）
 //  2. 条文は `yarn licenses generate-disclaimer` の出力を機械的に切り出す

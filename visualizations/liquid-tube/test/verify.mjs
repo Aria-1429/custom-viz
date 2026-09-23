@@ -3,7 +3,7 @@
 // WebGL は happy-dom に無いため、**getContext('webgl2') をスタブ化**して
 // 「シェーダに何が渡ったか」を記録し、uniform 値の正しさを検証する。
 // 描画そのものは実機検証に委ねる
-// （結果は .claude/skills/splunk-viz/references/webgl-in-custom-viz.md）。
+// （結果は .agents/skills/splunk-viz/references/webgl-in-custom-viz.md）。
 import { Window } from 'happy-dom';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';

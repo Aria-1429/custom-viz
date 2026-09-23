@@ -159,4 +159,4 @@ node src/click-check.mjs viz_check_<viz名> <出力先> <押すセルの文字�
 - 自己署名証明書のため TLS 検証を切っているが、**これは開発機への接続に限った話**で
   viz の成果物には一切入らない。
 - push 時に **SPL の2重エスケープ**（`\"m\"` 問題）を検査して警告する。
-  詳細は `.claude/skills/splunk-viz/references/studio-dashboard-json.md` の「最重要」章。
+  詳細は `.agents/skills/splunk-viz/references/studio-dashboard-json.md` の「最重要」章。

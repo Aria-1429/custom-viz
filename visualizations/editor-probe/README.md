@@ -14,7 +14,7 @@ Dashboard Studio 拡張 viz の**プラットフォーム挙動を実機で確�
 
 editor 型 28 種とドリルダウン／トークンを全数検証済み（Splunk 10.4.1）。
 結論はスキルのナレッジ
-（`.claude/skills/splunk-viz/references/studio-extension-viz.md`）に反映済み。
+（`.agents/skills/splunk-viz/references/studio-extension-viz.md`）に反映済み。
 
 | 領域 | 結果 |
 |---|---|
