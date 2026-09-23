@@ -388,10 +388,12 @@ MyViz.config = {
 
 ### 3.2 既存の Studio 拡張 viz を載せる（2ステップ）
 
-> **✅ 2026-08-11（DPX v0.3.0）で全 30 viz に適用済み。**
-> `weather-panel`（`src/` が空＝ソース未実装）と `editor-probe`（検証用）を除く全 viz が
-> DPX の registry に登録され、実機で描画確認済み。**新規に viz を作ったときだけ**
-> 以下の2ステップが要る（既存 viz は対応済みなので読む必要はない）。
+> **🛑 2026-09-23 に全 viz から撤去した（ユーザー判断「DPX で既存 viz は使わない」）。**
+> 2026-08-11（DPX v0.3.0）で全 30 viz に適用し実機で描画確認していたが、`host.jsx` と
+> `visualization.jsx` のガードを全 viz から外し、registry は **拡張 viz 0 個**で生成し直した。
+> 仕組み（`gen-viz-registry.mjs` / `extensionAdapter.jsx` / `adaptExtensionViz`）は残してあるので、
+> 再び載せたい viz があれば以下の2ステップを **その viz にだけ** 施せばよい。
+> 一括適用スクリプト `tools/dpx-enable-viz.mjs` は削除済み（要点は次の段落）。
 >
 > **一括適用スクリプトの要点**（再実行するなら）: `visualization.jsx` の
 > 自己マウント部を正規表現で捉えてガードで包み、`globalThis.__<NAME>_APP__ = <Comp>` を

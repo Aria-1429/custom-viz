@@ -47,7 +47,6 @@ node ../../tools/dashboard-loop/src/shot-page.mjs /en-US/app/dpx/<view> --out /t
 | ファイル | 用途 |
 |---|---|
 | [`examples/aegis-soc.json`](examples/aegis-soc.json) | **ショーケース**。DPX でしか組めない構図を一枚にまとめたもの（下記） |
-| [`examples/all-viz-check.json`](examples/all-viz-check.json) | 全 viz の描画確認用（30枚を並べただけ） |
 
 ### AEGIS / Global Threat Operations（ショーケース）
 
@@ -152,6 +151,18 @@ Splunk General Terms が適用されます（OSS 通知とは別枠で参照情�
 > 経緯は git の履歴で追えます。
 
 ---
+
+### [1.4.0] - 2026-09-23
+
+#### 削除
+
+- **Studio 拡張 viz（`custom_viz_*`）30 種のホスティングを撤去**。DPX で既存 viz を使う用途が
+  無くなったため、各 viz 側の `src/host.jsx` と自己マウントのガードを外し、registry は
+  **拡張 viz 0 個**で生成し直した（`tools/gen-viz-registry.mjs` / `extensionAdapter.jsx` の
+  仕組み自体は残してあり、必要になった viz にだけ再適用できる）。
+- `examples/all-viz-check.json`（拡張 viz 30 枚の描画確認ボード）を削除。
+  `examples/aegis-soc.json` の拡張 viz パネル 9 枚はネイティブ viz に差し替え。
+- 生成した `.spl`: `dist/dpx-1.4.0-<hash>.spl`
 
 ### [1.3.0] - 2026-08-15
 

@@ -260,7 +260,7 @@
     },
     {
       "id": "map_full",
-      "viz": "custom_viz_worldmap.custom_viz_worldmap",
+      "viz": "dpx.table",
       "title": "攻撃フロー",
       "tab": "ops",
       "x": 0,
@@ -274,9 +274,7 @@
       "search": {
         "ref": "ds_map"
       },
-      "options": {
-        "showFlowTable": true
-      }
+      "options": {}
     },
     {
       "id": "ops_topsrc",
@@ -409,7 +407,7 @@
     },
     {
       "id": "th_globe",
-      "viz": "custom_viz_attack_globe.custom_viz_attack_globe",
+      "viz": "dpx.table",
       "title": "攻撃の到達",
       "tab": "threat",
       "x": 0,
@@ -421,11 +419,12 @@
       },
       "search": {
         "ref": "ds_globe"
-      }
+      },
+      "options": {}
     },
     {
       "id": "th_sunburst",
-      "viz": "custom_viz_sunburst.custom_viz_sunburst",
+      "viz": "dpx.donut",
       "title": "攻撃の分類",
       "tab": "threat",
       "x": 5,
@@ -437,7 +436,8 @@
       },
       "search": {
         "ref": "ds_sunburst"
-      }
+      },
+      "options": {}
     },
     {
       "id": "th_kill",
@@ -462,7 +462,7 @@
     },
     {
       "id": "th_flow",
-      "viz": "custom_viz_sankey_flow.custom_viz_sankey_flow",
+      "viz": "dpx.sankey",
       "title": "侵入経路",
       "tab": "threat",
       "x": 0,
@@ -474,11 +474,12 @@
       },
       "search": {
         "ref": "ds_flow"
-      }
+      },
+      "options": {}
     },
     {
       "id": "th_matrix",
-      "viz": "custom_viz_heat_matrix.custom_viz_heat_matrix",
+      "viz": "dpx.heatmap",
       "title": "ホスト × 重大度",
       "tab": "threat",
       "x": 6,
@@ -490,11 +491,12 @@
       },
       "search": {
         "ref": "ds_matrix"
-      }
+      },
+      "options": {}
     },
     {
       "id": "th_swim",
-      "viz": "custom_viz_timeline_swimlane.custom_viz_timeline_swimlane",
+      "viz": "dpx.line",
       "title": "インシデント進行",
       "tab": "threat",
       "x": 0,
@@ -506,7 +508,8 @@
       },
       "search": {
         "ref": "ds_swimlane"
-      }
+      },
+      "options": {}
     },
     {
       "id": "inf_title",
@@ -529,7 +532,7 @@
     },
     {
       "id": "inf_cpu",
-      "viz": "custom_viz_liquid_tube.custom_viz_liquid_tube",
+      "viz": "dpx.gauge",
       "title": "CPU",
       "tab": "infra",
       "x": 0,
@@ -541,11 +544,12 @@
       },
       "search": {
         "ref": "ds_cpu"
-      }
+      },
+      "options": {}
     },
     {
       "id": "inf_mem",
-      "viz": "custom_viz_liquid_tube.custom_viz_liquid_tube",
+      "viz": "dpx.gauge",
       "title": "メモリ",
       "tab": "infra",
       "x": 2,
@@ -557,11 +561,12 @@
       },
       "search": {
         "ref": "ds_mem"
-      }
+      },
+      "options": {}
     },
     {
       "id": "inf_disk",
-      "viz": "custom_viz_liquid_tube.custom_viz_liquid_tube",
+      "viz": "dpx.gauge",
       "title": "ディスク",
       "tab": "infra",
       "x": 4,
@@ -573,7 +578,8 @@
       },
       "search": {
         "ref": "ds_disk"
-      }
+      },
+      "options": {}
     },
     {
       "id": "inf_sla",

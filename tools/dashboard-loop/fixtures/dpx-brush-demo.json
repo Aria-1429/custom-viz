@@ -10,7 +10,14 @@
     "brushIntensity": 1,
     "motion": "subtle"
   },
-  "layout": { "type": "grid", "grid": { "columns": 12, "rowHeight": 72, "gap": 14 } },
+  "layout": {
+    "type": "grid",
+    "grid": {
+      "columns": 12,
+      "rowHeight": 72,
+      "gap": 14
+    }
+  },
   "dataSources": {
     "ds_svc": {
       "name": "サービス別",
@@ -40,66 +47,80 @@
   "panels": [
     {
       "id": "p_gauge",
-      "viz": "custom_viz_gauge_arc.custom_viz_gauge_arc",
+      "viz": "dpx.gauge",
       "title": "ゲージ（目盛りは除外済み）",
-      "x": 0, "y": 0, "w": 6, "h": 5,
-      "search": { "ref": "ds_kpi" },
-      "options": {
-        "valueField": "> primary | seriesByName(\"value\")",
-        "labelField": "> primary | seriesByName(\"name\")",
-        "minValue": 0,
-        "maxValue": 100
-      }
+      "x": 0,
+      "y": 0,
+      "w": 6,
+      "h": 5,
+      "search": {
+        "ref": "ds_kpi"
+      },
+      "options": {}
     },
     {
       "id": "p_bar",
       "viz": "dpx.bar",
       "title": "棒（DPX ネイティブ）",
-      "x": 6, "y": 0, "w": 6, "h": 5,
-      "search": { "ref": "ds_svc" },
+      "x": 6,
+      "y": 0,
+      "w": 6,
+      "h": 5,
+      "search": {
+        "ref": "ds_svc"
+      },
       "options": {}
     },
     {
       "id": "p_gradient",
-      "viz": "custom_viz_gradient_bar.custom_viz_gradient_bar",
+      "viz": "dpx.bar",
       "title": "Gradient Bar",
-      "x": 0, "y": 5, "w": 6, "h": 5,
-      "search": { "ref": "ds_svc" },
-      "options": {
-        "labelField": "> primary | seriesByName(\"name\")",
-        "valueField": "> primary | seriesByName(\"value\")"
-      }
+      "x": 0,
+      "y": 5,
+      "w": 6,
+      "h": 5,
+      "search": {
+        "ref": "ds_svc"
+      },
+      "options": {}
     },
     {
       "id": "p_bullet",
-      "viz": "custom_viz_bullet_graph.custom_viz_bullet_graph",
+      "viz": "dpx.progress",
       "title": "Bullet Graph",
-      "x": 6, "y": 5, "w": 6, "h": 5,
-      "search": { "ref": "ds_svc" },
-      "options": {
-        "labelField": "> primary | seriesByName(\"name\")",
-        "valueField": "> primary | seriesByName(\"value\")",
-        "targetField": "> primary | seriesByName(\"target\")"
-      }
+      "x": 6,
+      "y": 5,
+      "w": 6,
+      "h": 5,
+      "search": {
+        "ref": "ds_svc"
+      },
+      "options": {}
     },
     {
       "id": "p_treemap",
-      "viz": "custom_viz_treemap.custom_viz_treemap",
+      "viz": "dpx.ranking",
       "title": "Treemap",
-      "x": 0, "y": 10, "w": 6, "h": 5,
-      "search": { "ref": "ds_tree" },
-      "options": {
-        "valueField": "> primary | seriesByName(\"value\")",
-        "level1Field": "> primary | seriesByName(\"l1\")",
-        "level2Field": "> primary | seriesByName(\"l2\")"
-      }
+      "x": 0,
+      "y": 10,
+      "w": 6,
+      "h": 5,
+      "search": {
+        "ref": "ds_tree"
+      },
+      "options": {}
     },
     {
       "id": "p_sankey",
-      "viz": "custom_viz_sankey_flow.custom_viz_sankey_flow",
+      "viz": "dpx.sankey",
       "title": "Sankey Flow",
-      "x": 6, "y": 10, "w": 6, "h": 5,
-      "search": { "ref": "ds_flow" },
+      "x": 6,
+      "y": 10,
+      "w": 6,
+      "h": 5,
+      "search": {
+        "ref": "ds_flow"
+      },
       "options": {}
     }
   ]

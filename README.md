@@ -29,7 +29,7 @@ Splunk **Dashboard Studio** 向けのカスタムビジュアライゼーショ�
 >   一覧は [examples/native-viz-catalog.json](apps/dpx/examples/native-viz-catalog.json) にカタログ化してある。
 >   **マークダウンは GFM 対応**（表・打ち消し線・チェックリスト）で、Studio 標準の `splunk.markdown`
 >   （basic 構文のみ・オプション4個）より書ける。**フロー図は標準が捨てる 4 列以上の多段を全段描き**、
->   ホバーで経路全体を追跡して段ごとの離脱を数値で出す。<br>**下の一覧のカスタム viz 30 種はすべて DPX 上でも動く**（iframe なし・Studio と同じ type）
+>   ホバーで経路全体を追跡して段ごとの離脱を数値で出す。
 
 ---
 
@@ -60,10 +60,10 @@ Splunk **Dashboard Studio** 向けのカスタムビジュアライゼーショ�
 
 <table>
 <tr><th width="240">プレビュー</th><th width="170">名前 / バージョン</th><th>概要</th></tr>
-<tr><td><img src="visualizations/radar-chart/examples/example.png" width="240"></td><td><a href="visualizations/radar-chart/"><b>Radar Chart</b></a><br>v1.2.3</td><td>複数系列を共通軸で重ねるレーダー（スパイダー）チャート。多軸のバランス比較に。</td></tr>
-<tr><td><img src="visualizations/radial-bar/examples/example.png" width="240"></td><td><a href="visualizations/radial-bar/"><b>Radial Bar</b></a><br>v1.1.3</td><td>値をくさびの伸びで表す放射状カラムチャート。カテゴリ比較を円形レイアウトで見せたいときに。</td></tr>
+<tr><td><img src="visualizations/radar-chart/examples/example.png" width="240"></td><td><a href="visualizations/radar-chart/"><b>Radar Chart</b></a><br>v1.2.4</td><td>複数系列を共通軸で重ねるレーダー（スパイダー）チャート。多軸のバランス比較に。</td></tr>
+<tr><td><img src="visualizations/radial-bar/examples/example.png" width="240"></td><td><a href="visualizations/radial-bar/"><b>Radial Bar</b></a><br>v1.1.4</td><td>値をくさびの伸びで表す放射状カラムチャート。カテゴリ比較を円形レイアウトで見せたいときに。</td></tr>
 <tr><td><img src="visualizations/metric-terrain/examples/example.png" width="240"></td><td><a href="visualizations/metric-terrain/"><b>Metric Terrain</b></a><br>v1.1.4</td><td>値の起伏を疑似3D地形として描く等角投影チャート。2軸グリッドの分布を立体で俯瞰する展示向け。</td></tr>
-<tr><td><img src="visualizations/calendar-heatmap/examples/example.png" width="240"></td><td><a href="visualizations/calendar-heatmap/"><b>Calendar Heatmap</b></a><br>v1.1.4</td><td>GitHub 風カレンダーヒートマップ。日単位の活動量の濃淡を長期間ながめるときに。</td></tr>
+<tr><td><img src="visualizations/calendar-heatmap/examples/example.png" width="240"></td><td><a href="visualizations/calendar-heatmap/"><b>Calendar Heatmap</b></a><br>v1.1.5</td><td>GitHub 風カレンダーヒートマップ。日単位の活動量の濃淡を長期間ながめるときに。</td></tr>
 <tr><td><img src="visualizations/heat-matrix/examples/example.png" width="240"></td><td><a href="visualizations/heat-matrix/"><b>Heat Matrix</b></a><br>v1.1.4</td><td>任意の2軸クロス集計を色行列で表す汎用ヒートマップ。時間×ホストのような偏り・ホットスポットの俯瞰に。</td></tr>
 </table>
 
@@ -88,10 +88,10 @@ Splunk **Dashboard Studio** 向けのカスタムビジュアライゼーショ�
 <tr><td><img src="visualizations/icon-status/examples/example.png" width="240"></td><td><a href="visualizations/icon-status/"><b>Icon Status</b></a><br>v1.1.6</td><td>単一値を立体アイコンの色変化そのもので見せるステータスタイル（12種）。壁掛けの状態表示に（数値を主役にするなら KPI Tile）。</td></tr>
 <tr><td><img src="visualizations/bullet-graph/examples/example.png" width="240"></td><td><a href="visualizations/bullet-graph/"><b>Bullet Graph</b></a><br>v1.1.4</td><td>実績バー＋目標ティック＋質的バンドを1行に重ねるブレットグラフ。多数の KPI を目標比つきで高密度に一覧するときに。</td></tr>
 <tr><td><img src="visualizations/waterfall-chart/examples/example.png" width="240"></td><td><a href="visualizations/waterfall-chart/"><b>Waterfall Chart</b></a><br>v1.1.4</td><td>増減の積み上げが合計へ届く過程を階段状バーで見せるウォーターフォールチャート。差分の内訳説明に。</td></tr>
-<tr><td><img src="visualizations/donut-graph/examples/example.png" width="240"></td><td><a href="visualizations/donut-graph/"><b>Donut Graph</b></a><br>v1.1.3</td><td>中央に合計を出すドーナツチャート。構成比の表示に。</td></tr>
-<tr><td><img src="visualizations/donut-timechart/examples/example.png" width="240"></td><td><a href="visualizations/donut-timechart/"><b>Donut Timechart</b></a><br>v1.1.4</td><td>ドーナツ＋詳細凡例＋スパークラインのステータスカード。構成比と推移を1枚で見せるときに。</td></tr>
-<tr><td><img src="visualizations/gradient-bar/examples/example.png" width="240"></td><td><a href="visualizations/gradient-bar/"><b>Gradient Bar</b></a><br>v1.1.4</td><td>グラデーションの縦棒グラフ。</td></tr>
-<tr><td><img src="visualizations/severity-table/examples/example.png" width="240"></td><td><a href="visualizations/severity-table/"><b>Severity Table</b></a><br>v2.2.3</td><td>重要度で行を色分けするテーブル。判定ルール（順位・別名・色）を編集画面で定義でき、アラート一覧に。</td></tr>
+<tr><td><img src="visualizations/donut-graph/examples/example.png" width="240"></td><td><a href="visualizations/donut-graph/"><b>Donut Graph</b></a><br>v1.1.4</td><td>中央に合計を出すドーナツチャート。構成比の表示に。</td></tr>
+<tr><td><img src="visualizations/donut-timechart/examples/example.png" width="240"></td><td><a href="visualizations/donut-timechart/"><b>Donut Timechart</b></a><br>v1.1.5</td><td>ドーナツ＋詳細凡例＋スパークラインのステータスカード。構成比と推移を1枚で見せるときに。</td></tr>
+<tr><td><img src="visualizations/gradient-bar/examples/example.png" width="240"></td><td><a href="visualizations/gradient-bar/"><b>Gradient Bar</b></a><br>v1.1.5</td><td>グラデーションの縦棒グラフ。</td></tr>
+<tr><td><img src="visualizations/severity-table/examples/example.png" width="240"></td><td><a href="visualizations/severity-table/"><b>Severity Table</b></a><br>v2.2.4</td><td>重要度で行を色分けするテーブル。判定ルール（順位・別名・色）を編集画面で定義でき、アラート一覧に。</td></tr>
 </table>
 
 ### 地理の可視化
@@ -99,9 +99,9 @@ Splunk **Dashboard Studio** 向けのカスタムビジュアライゼーショ�
 <table>
 <tr><th width="240">プレビュー</th><th width="170">名前 / バージョン</th><th>概要</th></tr>
 <tr><td><img src="visualizations/attack-globe/examples/example.png" width="240"></td><td><a href="visualizations/attack-globe/"><b>Attack Globe</b></a><br>v1.1.2</td><td>回転する3D地球儀に攻撃フローの弧を描くアタックマップ（WebGL2 必要・データ仕様は World Map と共通）。展示・壁掛け向け（分析には平面の World Map）。</td></tr>
-<tr><td><img src="visualizations/world-map/examples/example.png" width="240"></td><td><a href="visualizations/world-map/"><b>World Map</b></a><br>v2.2.1</td><td>世界地図に起点→終点のフローを光の帯で描くフローマップ。攻撃元や通信の地理的な俯瞰に。ズーム・カテゴリ色分け・フロー一覧テーブルの重ね表示に対応。</td></tr>
+<tr><td><img src="visualizations/world-map/examples/example.png" width="240"></td><td><a href="visualizations/world-map/"><b>World Map</b></a><br>v2.2.2</td><td>世界地図に起点→終点のフローを光の帯で描くフローマップ。攻撃元や通信の地理的な俯瞰に。ズーム・カテゴリ色分け・フロー一覧テーブルの重ね表示に対応。</td></tr>
 <tr><td><img src="visualizations/japan-map/examples/example.png" width="240"></td><td><a href="visualizations/japan-map/"><b>Japan Map</b></a><br>v1.2.3</td><td>World Map の日本地図版（都道府県境つき・データ仕様共通）。国内の拠点間フローの可視化に。</td></tr>
-<tr><td><img src="visualizations/country-graph/examples/example.png" width="240"></td><td><a href="visualizations/country-graph/"><b>Country Graph</b></a><br>v1.1.4</td><td>国旗付きの国別ランキング棒グラフ。国別の上位 N 比較に。</td></tr>
+<tr><td><img src="visualizations/country-graph/examples/example.png" width="240"></td><td><a href="visualizations/country-graph/"><b>Country Graph</b></a><br>v1.1.5</td><td>国旗付きの国別ランキング棒グラフ。国別の上位 N 比較に。</td></tr>
 </table>
 
 > 各ビジュアライゼーションの詳細（データ仕様・編集オプション・サンプル SPL）は、

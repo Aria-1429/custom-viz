@@ -83,6 +83,19 @@ yarn package    # dist/custom_viz_radial_bar-<ver>-<hash>.spl を生成
 
 ---
 
+### [1.1.4] - 2026-09-23
+
+#### 修正
+
+- データが空のときに表示するアイコンが親いっぱいに伸びて黒い矩形になる問題を修正
+  （`viewBox` のみで幅高さを持たない SVG を `<img>` で読んでいたため。48px・薄色で表示する）
+
+#### 削除
+
+- DPX（独自ダッシュボード基盤）向けのホスティング用フック（`src/host.jsx` と自己マウントのガード）を撤去。
+  Dashboard Studio での動作に変更はない
+- 生成した `.spl`: `dist/custom_viz_radial_bar-1.1.4-075cf5f.spl`
+
 ### [1.1.3] - 2026-08-09
 
 #### 修正

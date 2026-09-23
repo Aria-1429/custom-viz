@@ -123,7 +123,7 @@
     },
     {
       "id": "p_cv",
-      "viz": "custom_viz_gauge_arc.custom_viz_gauge_arc",
+      "viz": "dpx.gauge",
       "title": "カスタムviz",
       "x": 0,
       "y": 6,
@@ -132,11 +132,7 @@
       "search": {
         "ref": "ds_main"
       },
-      "options": {
-        "valueField": "> primary | seriesByName(\"cnt\")",
-        "minValue": 0,
-        "maxValue": 30
-      }
+      "options": {}
     },
     {
       "id": "p_status",

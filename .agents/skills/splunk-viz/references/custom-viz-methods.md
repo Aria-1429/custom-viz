@@ -28,7 +28,8 @@ Splunk でカスタムビジュアライゼーション（＝ダッシュボー�
 > パネルを載せる」話だが、**ダッシュボードの器そのものを自前で持つ**なら
 > [dpx-platform.md](dpx-platform.md) を読む（`apps/dpx/`。2026-08-10 実機検証済み）。
 > DPX の viz は **iframe なし・`config.json` なし・splunkd 再起動なしの素の React コンポーネント**で、
-> registry に1行足すだけで載る。既存の Studio 拡張 viz も2ステップで移植できる（world-map で実証）。
+> registry に1行足すだけで載る。既存の Studio 拡張 viz も2ステップで移植できる（world-map で実証。
+> ただし **2026-09-23 に全 viz から移植を撤去済み**＝現在 DPX に載っている拡張 viz は 0 個）。
 
 > **`@splunk/create` の独立 React ページ（Splunk App with React）は、この2方式とは別系統**。
 > 「ダッシュボードにパネルとして viz を載せる」用途では使わない（成果物はページ1枚）ので、

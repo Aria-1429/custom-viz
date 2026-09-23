@@ -168,7 +168,7 @@ const titles = () => [...doc.querySelectorAll('svg [aria-label]')].map((t) => t.
 //
 // 剥がす実装のままだと、この致命バグを抱えたバンドルでも 229 件すべて通ってしまう
 // （実際に export を注入して全通過することを確認済み）。よって剥がさずに検出する。
-// DPX へ App を渡すのは src/host.jsx の役目で、エントリは export ゼロを保つ。
+// エントリは export ゼロを保つ（別ホストへ渡す口が要る場合も別ファイルに置く）。
 const code = readFileSync(BUNDLE, 'utf8');
 const exportHits = code.match(/(?:^|;)export[\s{]/g);
 if (exportHits) {
@@ -176,7 +176,7 @@ if (exportHits) {
         `\n✗ バンドルに top-level export が ${exportHits.length} 個あります。\n` +
             '  Studio の iframe は classic script として読むため、パネルが真っ黒になります。\n' +
             '  エントリ（src/visualization.jsx）から export を除き、\n' +
-            '  DPX 向けの export は src/host.jsx に置いてください。\n'
+            '  別ホスト向けの export が要る場合は別ファイルに置いてください。\n'
     );
     process.exit(1);
 }
